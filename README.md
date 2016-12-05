@@ -9,8 +9,8 @@ If this is your first time using Gitlab, please update your profile to include y
 
 ## Version Control
 
-We will be using `git` are our version control system of choice.
-Atlassian has put together a great [tutorial](https://www.atlassian.com/git/tutorials/ "Become a git guru.") on git usage.
+We will be using `git` as our version control system of choice.
+Atlassian has put together a great [tutorial](https://www.atlassian.com/git/tutorials/ "Become a git guru.") on `git` usage.
 Check out the [Feature Branch Workflow](https://es.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow/ "Feature Branch Workflow") tutorial.
 
 ### Workflow 
