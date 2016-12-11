@@ -118,5 +118,37 @@ class MemoryStore_Find(TestCase):
     def test_find(self):
         self.assertListEqual(self.store.find(''), [('list', None), ('empty', None), ('value', None), ('nested', ([('a', None), ('b', None)])) ])
 
+    def test_find_nested(self):
+        self.assertListEqual(self.store.find('nested'), [('a', None), ('b', None)])
+
+    def tearDown(self):
+        pass
+
+class MemoryStore_Fork(TestCase):
+
+    def setUp(self):
+        self.store = MemoryStore({
+            'a': {
+                'b1': 1,
+                'b2': [1, 2],
+                'b3': {'c': [3, 4]},
+            }
+        })
+
+    def test_copy(self):
+        copy = self.store.fork()
+        self.assertDictEqual(copy._root, {'a': {'b1': 1, 'b2': [1, 2], 'b3': {'c': [3, 4]}}})
+        self.assertIsNot(copy._root, self.store._root)
+        self.assertIsNot(copy._root['a'], self.store._root['a'])
+        self.assertIs(copy._root['a']['b2'], self.store._root['a']['b2'])
+        self.assertIsNot(copy._root['a']['b3'], self.store._root['a']['b3'])
+        self.assertIs(copy._root['a']['b3']['c'], self.store._root['a']['b3']['c'])
+
+    def test_copy_nested(self):
+        copy = self.store.fork('a/b3')
+        self.assertDictEqual(copy._root, {'c': [3, 4]})
+        self.assertIsNot(copy._root, self.store._root)
+        self.assertIs(copy._root['c'], self.store._root['a']['b3']['c'])
+
     def tearDown(self):
         pass

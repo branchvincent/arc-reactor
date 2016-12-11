@@ -78,11 +78,41 @@ class MemoryStore(object):
         logger.info('find: "{}"'.format(key))
 
         if key:
-            node = self._walk(key)
+            node = self._walk(key).get()
         else:
             node = self._root
 
         return self._keys(node)
+
+    def fork(self, key=None):
+        '''
+        Make a shallow copy of the database starting with `key`.
+
+        If `key` is `None`, the entire database is considered.
+        '''
+
+        logger.info('fork: "{}"'.format(key))
+
+        if key:
+            node = self._walk(key).get()
+        else:
+            node = self._root
+
+        return MemoryStore(self._copy(node))
+
+    def _copy(self, node):
+        '''
+        Make a recursive shallow copy of `node`.
+        '''
+        try:
+            copy = node.copy()
+        except AttributeError:
+            return node
+        else:
+            for k in copy.keys():
+                copy[k] = self._copy(copy[k])
+
+            return copy
 
     def _keys(self, node):
         '''
@@ -102,7 +132,6 @@ class MemoryStore(object):
                 # recurse down the tree
                 tree.append((k, self._keys(node[k])))
             return tree
-
 
     def _walk(self, path, base=None):
         '''
