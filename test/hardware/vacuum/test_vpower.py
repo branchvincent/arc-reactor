@@ -4,16 +4,6 @@
 from unittest import TestCase
 from src.hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
 
-class PowerUSBStrip_Open(TestCase):
-
-    def setUp(self):
-        self.strip = PowerUSBStrip()
-        self.strip.open()
-
-    def tearDown(self):
-        self.strip.close()
-
-
 class PowerUSBSocket_Power(TestCase):
 
     def setUp(self):
@@ -25,50 +15,38 @@ class PowerUSBSocket_Power(TestCase):
         self.socket = PowerUSBSocket(self.strip, 1)
         self.strip.open()
         self.socket.power = "on"
-        print self.strip
-        print "Turn Outlet #1 on"
-        self.strip.close()
+        self.assertEqual(self.socket.power, "on")
 
     def test_One_Off(self):
         self.socket = PowerUSBSocket(self.strip, 1)
         self.strip.open()
         self.socket.power = "off"
-        print self.strip
-        print "Turn Outlet #1 off"
-        self.strip.close()
+        self.assertEqual(self.socket.power, "off")
 
     def test_Two_On(self):
         self.socket = PowerUSBSocket(self.strip, 2)
         self.strip.open()
         self.socket.power = "on"
-        print self.strip
-        print "Turn Outlet #2 on"
-        self.strip.close()
+        self.assertEqual(self.socket.power, "on")
 
     def test_Two_Off(self):
         self.socket = PowerUSBSocket(self.strip, 2)
         self.strip.open()
         self.socket.power = "off"
-        print self.strip
-        print "Turn Outlet #2 off"
-        self.strip.close()
+        self.assertEqual(self.socket.power, "off")
 
     def test_Three_On(self):
         self.socket = PowerUSBSocket(self.strip, 3)
         self.strip.open()
         self.socket.power = "on"
-        print self.strip
-        print "Turn Outlet #3 on"
-        self.strip.close()
+        self.assertEqual(self.socket.power, "on")
 
     def test_Three_Off(self):
         self.socket = PowerUSBSocket(self.strip, 3)
         self.strip.open()
         self.socket.power = "off"
-        print self.strip
-        print "Turn Outlet #3 off"
-        self.strip.close()
+        self.assertEqual(self.socket.power, "off")
 
     def tearDown(self):
-        print "yay"
-
+        self.strip.all_off()
+        self.strip.close()

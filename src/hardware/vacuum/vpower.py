@@ -2,7 +2,7 @@
 # Manage PowerUSB power strips.
 #  http://pwrusb.com
 #
-# Adapted from the below Mark Lamourine
+# Adapted from the below author
 # 2016
 #
 # Originally adapted from PowerUSB Linux source code
@@ -77,7 +77,6 @@ class PowerUSBStrip(object):
 
     @property
     def current(self):
-        """Current (mA)"""
         self.write(PowerUSBStrip._READ_CURRENT)
         time.sleep(PowerUSBStrip._sleep_duration)
         inbuffer = self.read()
@@ -99,16 +98,25 @@ class PowerUSBStrip(object):
         return float(n) / 500000.0
 
     def reset_power(self):
+        self.open()
         self.write(PowerUSBStrip._READ_CURRENT_CUM)
         time.sleep(PowerUSBStrip._sleep_duration)
 
     def all_on(self):
-        self.write(PowerUSBStrip._ALL_PORT_ON)
+        self.open()
+        self.socket[1].power = "on"
+        self.socket[2].power = "on"
+        self.socket[3].power = "on"
         time.sleep(PowerUSBStrip._sleep_duration)
+        self.close()
 
     def all_off(self):
-        self.write(PowerUSBStrip._ALL_PORT_OFF)
-        time.sleep(PowerUSBStri._sleep_duration)
+        self.open()
+        self.socket[1].power = "off"
+        self.socket[2].power = "off"
+        self.socket[3].power = "off"
+        time.sleep(PowerUSBStrip._sleep_duration)
+        self.close()
 
     def reset(self):
         self.write(PowerUSBStrip._RESET_BOARD)
@@ -124,7 +132,7 @@ class PowerUSBStrip(object):
     @overload.setter
     def overload(self, ol):
         self.write(int(ol))
-        time.sleep(PowerUSBStri._sleep_duration)    
+        time.sleep(PowerUSBStrip._sleep_duration)    
     
     @staticmethod
     def strips():
@@ -211,11 +219,12 @@ class PowerUSBSocket(object):
 
 def strip_status():
     strips = PowerUSBStrip.strips()
-    
     print "%d device(s) connected" % len(strips)
     for i in range(0, len(strips)):
         strip = strips[i]
         strip.open()
+        socket = PowerUSBSocket(strip, 1)
+        socket.strip.all_off()
         print "%d) %s" % (i, strip)
         strip.close()
 
