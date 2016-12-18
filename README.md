@@ -13,24 +13,82 @@ We will be using `git` as our version control system of choice.
 Atlassian has put together a great [tutorial](https://www.atlassian.com/git/tutorials/ "Become a git guru.") on `git` usage.
 Check out the [Feature Branch Workflow](https://es.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow/ "Feature Branch Workflow") tutorial.
 
-### Workflow 
+### Workflow
 
-When starting work on a new feature/topic/idea, create a separate feature branch for that development.
+When starting work on a new feature/topic/idea, create a separate feature branch for that development with a descriptive name.
 This is the feature branch workflow.
 
 ```bash
-git checkout -b feature-abc develop
+git checkout -b feature-descriptive-name-here develop
 ```
 
-When you have finished developing and testing your feature, merge it back into the `develop` branch.
+This will create a new branch `feature-descriptive-name-here` that originates at the `develop` branch head.
+If you have already created the branch, you can simply perform a checkout.
 
 ```bash
-git checkout master
-git merge feature-abc
+git checkout feature-descriptive-name-here
+```
+
+You can now commit your code on the `feature-descriptive-name-here` in as many commits as required.
+Once you have finished developing and testing your feature, merge it back into the `develop` branch.
+
+```bash
+git checkout develop
+git merge feature-descriptive-name-here
 ```
 
 All development should take place in the `develop` branch.
 The subteam leads are responsible for merging into the `master` branch.
+
+### Worked Example
+
+This section contains an example of adding a new feature to the codebase.
+Note that this process is most appropriate for significant new development that may interfere with others' work if done in the `develop` branch.
+For small bugfixes, working directly in the `develop` branch is fine.
+
+Start by cloning the repository and creating a feature branch.
+
+```bash
+git clone git@gitlab.oit.duke.edu:ARC-2017/reactor.git   # clone the repository
+git checkout -b feature-descriptive-name-here develop    # create and switch to new branch
+```
+Work on the codebase, periodically committing changes.
+These change remain local to your machine unless you push the branch.
+Pushing the feature branch is not necessary, but you can if you want to share your work-in-progress with others on your subteam.
+Add files to build your commit.
+
+```bash
+git add new-files-here                                   # add files for committing
+git add other-new-files-here                             # add more files
+git commit -m "working on descriptive-name-here"         # make commit
+```
+
+You can break up your work into as many commits as needed.
+Generally, many smaller commits are better than fewer larger commits.
+
+```bash
+git add edited-files-here                                # add edited files again
+git commit -m "done with descriptive-name-here"          # make commit
+```
+
+Once work on the feature is done and read for integration, merge it into the `develop` branch.
+Upload the changes to the GitLab repository by pushing the `develop` branch.
+
+```bash
+git checkout develop                                     # switch back to develop branch
+git merge descriptive-name-here                          # merge new branch into develop branch
+git push origin develop                                  # push updated develop branch
+```
+
+At this point you can delete the `feature-descriptive-name-here` branch if desired.
+Ensure that your changes have merged and pushed correctly before doing so.
+The command below will not let you delete an unmerged branch.
+
+```bash
+git branch -d feature-descriptive-name-here
+```
+
+Repeat the process for additional features.
 
 ### Guidelines
 
