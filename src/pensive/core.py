@@ -7,165 +7,204 @@ logger = logging.getLogger(__name__)
 
 import re
 
-class BoundKey(object):
+class Store(object):
     '''
-    Encapsulates operations on a specific dictionary key.
-    '''
+    Hierarchical, recursive key-value database for storing arbitrary objects.
 
-    def __init__(self, obj, key):
-        self._obj = obj
-        self._key = key
+    Objects are stored with hierarchical keys like file paths.
+    Each key level is delimited by a forward slash (`/`).
+    The delimiter can be escaped with a preceding backslash (`\`).
 
-    def set(self, value):
-        '''Set the value.'''
-        self._obj[self._key] = value
+    For example, a key might look like `some/data/here`.
+    The data can be accessed at the key `some`, `some/data`, or
+    `some/data/here`. Getting data an a non-terminal level will
+    return a dictionary of all keys and values below the requested
+    key.
 
-    def get(self):
-        '''Get the value.'''
-        return self._obj[self._key]
-
-    def delete(self):
-        '''Delete the key.'''
-        del self._obj[self._key]
-
-class MemoryStore(object):
-    '''
-    An in-memory hierarchical key-value database storing Python objects.
+    Values that equate to `False` are dropped form the database and
+    will thus not appear in results. Consequently, a key in the
+    database can be deleted by setting it to `None`.
     '''
 
     _separator = re.compile(r'(?<!\\)/')
 
-    def __init__(self, initial=None):
+    def __init__(self, data=None):
+        if data is not None:
+            self._deserialize(data)
+
+            self._needs_cull = True
+        else:
+            self._value = None
+            self._children = None
+
+            self._needs_cull = False
+
+    def get(self, key=None):
         '''
-        Construct a key-value database with initial contents `initial`.
+        Get the value referenced by `key` from the store.
         '''
 
-        self._root = {}
-        if initial:
-            self._root.update(initial)
+        if not key:
+            # null key indicates the value of this Store
+            return self._serialize()
+        else:
+            # split the key into parts if it is a string path
+            if isinstance(key, basestring):
+                key = self._separator.split(key)
+
+            # get of store without children is null
+            if not self._children:
+                return None
+
+            try:
+                # recurse
+                return self._children[key.pop(0)].get(key)
+            except KeyError:
+                # no such child
+                return None
 
     def put(self, key, value):
         '''
-        Put `value` in the database with path `key`.
+        Put `value` into the store.
+
+        If `key is None`, the store takes the value `value.
+        This erases all children. If `key is not None`, a
+        substore is created and `put` is called recursively.
+
+        If `value is None`, the store referenced by `key` is
+        deleted.
         '''
 
-        logger.info('put: "{}"'.format(key))
-        self._walk(key).set(value)
-
-    def get(self, key):
-        '''
-        Get the value from the database with path `key`.
-        '''
-
-        logger.info('get: "{}"'.format(key))
-        return self._walk(key).get()
-
-    def delete(self, key):
-        '''
-        Delete the value from the database with path `key`.
-        '''
-
-        logger.info('delete: "{}"'.format(key))
-        self._walk(key).delete()
-
-    def find(self, key=None):
-        '''
-        List all keys in the database staring with `key`.
-
-        If `key` is `None`, the entire database is considered.
-        '''
-
-        logger.info('find: "{}"'.format(key))
-
-        if key:
-            node = self._walk(key).get()
+        if not key:
+            # null key sets the value of this Store
+            self._value = value
+            # erase all children
+            self._children = None
         else:
-            node = self._root
+            # split the key into parts if it is a string path
+            if isinstance(key, basestring):
+                key = self._separator.split(key)
 
-        return self._keys(node)
+            # initialize the children map
+            if not self._children:
+                self._children = {}
+                self._value = None
 
-    def fork(self, key=None):
+            # create a child if needed and recurse
+            self._children.setdefault(key.pop(0), Store()).put(key, value)
+
+    def delete(self, key=None):
         '''
-        Make a shallow copy of the database starting with `key`.
-
-        If `key` is `None`, the entire database is considered.
+        Convenience function for deletion.  See `put`.
         '''
 
-        logger.info('fork: "{}"'.format(key))
+        self.put(key, None)
 
-        if key:
-            node = self._walk(key).get()
+    def index(self, key=None):
+        '''
+        Get an index of the store starting with `key`.
+
+        If `key` does not exist, the index is `None`.
+        If `key` does exist, the index is a dictionary of
+        dictionaries of keys terminated by dictionary keys
+        with `{}` values.
+        '''
+
+        if not key:
+            if self._children:
+                # recursively serialize
+                result = [(k, c.index()) for (k, c) \
+                    in self._children.iteritems()]
+                # remove null values
+                return {k: v for (k, v) in result if v is not None}
+            elif self._value is not None:
+                # an empty dictionary indicates a value
+                return {}
+            else:
+                return None
         else:
-            node = self._root
+            # split the key into parts if it is a string path
+            if isinstance(key, basestring):
+                key = self._separator.split(key)
 
-        return MemoryStore(self._copy(node))
+            # index of store without children is null
+            if not self._children:
+                return None
 
-    def _copy(self, node):
+            try:
+                # recurse
+                return self._children[key.pop(0)].index(key)
+            except KeyError:
+                # no such child
+                return None
+
+    def cull(self):
+        '''Clean out null keys from the database.'''
+
+        if self._children:
+            keys = self._children.keys()
+
+            for k in keys:
+                # cull all children
+                if self._children[k].cull():
+                    del self._children[k]
+
+            # check if this store should be culled
+            return len(self._children) == 0
+
+        else:
+            # cull null values
+            return self._value is None
+
+    def is_empty(self):
+        '''Test if the `Store` contains only null data.'''
+
+        if self._children:
+            # check that there exists a non-empty child
+            for (k, c) in self._children.iteritems():
+                if not c.is_empty():
+                    return False
+
+            return True
+        else:
+            # check if the stored value is non-null
+            return self._value is None
+
+    def _serialize(self, reversible=False):
         '''
-        Make a recursive shallow copy of `node`.
+        Construct a dictionary representation of this `Store`.
         '''
+
+        if self._children:
+            # recursively serialize
+            result = [(k, c._serialize()) for (k, c) \
+                in self._children.iteritems() ]
+            # remove null values
+            result = {k: v for (k, v) in result if v is not None}
+            # check if non-null result
+            if result:
+                return result
+            else:
+                return None
+        else:
+            return self._value
+
+    def _deserialize(self, data):
+        '''
+        Construct a `Store` from a dictionary representation.
+        '''
+
         try:
-            copy = node.copy()
+            # check if there are subkeys or not
+            keys = data.keys()
         except AttributeError:
-            return node
+            # set up a value Store
+            self._value = data
+            self._children = None
         else:
-            for k in copy.keys():
-                copy[k] = self._copy(copy[k])
-
-            return copy
-
-    def _keys(self, node):
-        '''
-        Make a list of keys starting with `node`.
-
-        Keys are returned as a list of tuples of key and subkeys.
-        '''
-
-        tree = []
-
-        try:
-            subkeys = node.keys()
-        except AttributeError:
-            return None
-        else:
-            for k in subkeys:
-                # recurse down the tree
-                tree.append((k, self._keys(node[k])))
-            return tree
-
-    def _walk(self, path, base=None):
-        '''
-        Walk through the key-value store to find the node referenced
-        by the iterable `path` starting at `base`.
-
-        If `path` is a string, it is separated into a list. If the path
-        does not exist, it is created. If the path terminates prematurely
-        with a value, `KeyError` is raised.
-        '''
-
-        if isinstance(path, basestring):
-            # split up the path into a list of keys
-            parts = self._separator.split(path)
-            logger.debug('split path: "{}" -> {}'.format(path, parts))
-
-            return self._walk(parts)
-
-        else:
-            # start walking from the base or the storage root
-            node = base or self._root
-
-            # iterate over all but the last key
-            for (i, k) in enumerate(path[:-1]):
-                try:
-                    node = node[k]
-                except KeyError:
-                    # no key so make it
-                    node[k] = {}
-                    node = node[k]
-                except Exception:
-                    # dictionary access not available
-                    logger.warn('path {} stops at {}'.format(path, path[:i]))
-                    raise KeyError(path)
-
-            # make a bound lookup for the final key
-            return BoundKey(node, path[-1])
+            # set up a subkey Store
+            self._value = None
+            self._children = {}
+            # recurse through the subkeys
+            for k in keys:
+                self._children[k] = Store(data[k])
