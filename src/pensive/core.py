@@ -37,8 +37,6 @@ class Store(object):
             self._value = None
             self._children = None
 
-            self._needs_cull = False
-
     def get(self, key=None):
         '''
         Get the value referenced by `key` from the store.
@@ -156,6 +154,12 @@ class Store(object):
             # cull null values
             return self._value is None
 
+    def fork(self):
+        '''
+        Make a shallow-copy of the `Store`.
+        '''
+        return self._copy()
+
     def is_empty(self):
         '''Test if the `Store` contains only null data.'''
 
@@ -170,7 +174,7 @@ class Store(object):
             # check if the stored value is non-null
             return self._value is None
 
-    def _serialize(self, reversible=False):
+    def _serialize(self):
         '''
         Construct a dictionary representation of this `Store`.
         '''
@@ -208,3 +212,28 @@ class Store(object):
             # recurse through the subkeys
             for k in keys:
                 self._children[k] = Store(data[k])
+
+    def _copy(self):
+        '''
+        Make a shallow copy of `Store`.
+        '''
+
+        if self._children:
+            # recursively copy
+            result = [(k, c._copy()) for (k, c) \
+                in self._children.iteritems() ]
+            # remove null values
+            result = {k: v for (k, v) in result if v is not None}
+            # check if non-null result
+            if result:
+                store = Store()
+                store._children = result
+                return store
+            else:
+                return None
+        elif self._value is not None:
+            store = Store()
+            store._value = self._value
+            return store
+        else:
+            return None
