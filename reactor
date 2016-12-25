@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+
+'''
+Launcher for the reactor system.
+'''
+
+# allow importing directly from src/
+import sys
+sys.path.append('src')
+
+# initialize colored logging
+import logging, traceback
+from rainbow_logging_handler import RainbowLoggingHandler
+
+handler = RainbowLoggingHandler(sys.stderr)
+handler.setFormatter(logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s'))
+
+logger = logging.getLogger()
+logger.setLevel(logging.WARN)
+logger.addHandler(handler)
+
+# setup argument parser for launcher
+from argparse import ArgumentParser
+
+parser = ArgumentParser(description='Reactor system launcher')
+parser.add_argument('-v', '--verbose', metavar='MODULE', action='append', help='verbose logging for specified modules')
+parser.add_argument('-d', '--debug', metavar='MODULE', action='append', help='debug logging for specified modules')
+parser.add_argument('command', metavar='COMMAND', choices=['db'], help='command to launch')
+
+args = parser.parse_args()
+
+# process logging verbosity flags
+for m in args.verbose or []:
+    logging.getLogger(m).setLevel(logging.INFO)
+
+for m in args.debug or []:
+    logging.getLogger(m).setLevel(logging.DEBUG)
+
+# launch the target command
+if args.command == 'db':
+    from pensive import PensiveServer
+
+    server = PensiveServer(('', 8000))
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+    server.server_close()
