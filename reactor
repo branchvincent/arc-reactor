@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2.7
 
 '''
 Launcher for the reactor system.
@@ -8,43 +8,58 @@ Launcher for the reactor system.
 import sys
 sys.path.append('src')
 
-# initialize colored logging
-import logging, traceback
-from rainbow_logging_handler import RainbowLoggingHandler
 
-handler = RainbowLoggingHandler(sys.stderr)
-handler.setFormatter(logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s'))
-
-logger = logging.getLogger()
-logger.setLevel(logging.WARN)
-logger.addHandler(handler)
-
-# setup argument parser for launcher
+# parse command-line arguments
 from argparse import ArgumentParser
 
 parser = ArgumentParser(description='Reactor system launcher')
 parser.add_argument('-v', '--verbose', metavar='MODULE', action='append', help='verbose logging for specified modules')
 parser.add_argument('-d', '--debug', metavar='MODULE', action='append', help='debug logging for specified modules')
 parser.add_argument('command', metavar='COMMAND', choices=['db'], help='command to launch')
+parser.add_argument('-l', '--log', metavar='LOG', default='log.txt', help='save log to file')
 
 args = parser.parse_args()
 
+# configure the root logger to accept all records
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.NOTSET)
+
+formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
+
+# set up colored logging to console
+from rainbow_logging_handler import RainbowLoggingHandler
+console_handler = RainbowLoggingHandler(sys.stderr)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+# set up logging to file for all records
+handler = logging.FileHandler(args.log)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# install level filter for console output only
+from util.log import LevelFilter
+lf = LevelFilter()
+console_handler.addFilter(lf)
+
+# default console output to WARN level
+lf.add('', logging.WARN)
+
 # process logging verbosity flags
 for m in args.verbose or []:
-    logging.getLogger(m).setLevel(logging.INFO)
+    lf.add(m, logging.INFO)
 
 for m in args.debug or []:
-    logging.getLogger(m).setLevel(logging.DEBUG)
+    lf.add(m, logging.DEBUG)
 
 # launch the target command
 if args.command == 'db':
     from pensive import PensiveServer
 
-    server = PensiveServer(('', 8000))
+    server = PensiveServer(8000)
 
     try:
-        server.serve_forever()
+        server.run()
     except KeyboardInterrupt:
         pass
-
-    server.server_close()
