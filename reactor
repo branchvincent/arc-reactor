@@ -45,6 +45,10 @@ if not log_path:
         os.path.basename(__file__), datetime.datetime.now())
     log_path = os.path.join('log', name)
 
+    # create the log directory if needed
+    if not os.path.exists('log'):
+        os.mkdir('log')
+
 handler = logging.FileHandler(log_path)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
