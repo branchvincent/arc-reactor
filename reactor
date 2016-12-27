@@ -73,11 +73,7 @@ if args.command == 'db':
     from pensive import PensiveServer
 
     server = PensiveServer(8000)
-
-    try:
-        server.run()
-    except KeyboardInterrupt:
-        pass
+    server.run()
 
 elif args.command == 'unittest':
     import unittest
