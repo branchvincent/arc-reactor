@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 import re
 
 class Store(object):
-    '''
+    r'''
     Hierarchical, recursive key-value database for storing arbitrary objects.
 
     Objects are stored with hierarchical keys like file paths.
@@ -74,10 +74,7 @@ class Store(object):
         '''
 
         if not key:
-            # null key sets the value of this Store
-            self._value = value
-            # erase all children
-            self._children = None
+            self._deserialize(value)
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
@@ -165,8 +162,8 @@ class Store(object):
 
         if self._children:
             # check that there exists a non-empty child
-            for (k, c) in self._children.iteritems():
-                if not c.is_empty():
+            for child in self._children.values():
+                if not child.is_empty():
                     return False
 
             return True
@@ -182,7 +179,7 @@ class Store(object):
         if self._children:
             # recursively serialize
             result = [(k, c._serialize()) for (k, c) \
-                in self._children.iteritems() ]
+                in self._children.iteritems()]
             # remove null values
             result = {k: v for (k, v) in result if v is not None}
             # check if non-null result
@@ -221,7 +218,7 @@ class Store(object):
         if self._children:
             # recursively copy
             result = [(k, c._copy()) for (k, c) \
-                in self._children.iteritems() ]
+                in self._children.iteritems()]
             # remove null values
             result = {k: v for (k, v) in result if v is not None}
             # check if non-null result
