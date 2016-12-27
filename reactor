@@ -13,10 +13,14 @@ sys.path.append('src')
 from argparse import ArgumentParser
 
 parser = ArgumentParser(description='Reactor system launcher')
-parser.add_argument('-v', '--verbose', metavar='MODULE', action='append', help='verbose logging for specified modules')
-parser.add_argument('-d', '--debug', metavar='MODULE', action='append', help='debug logging for specified modules')
-parser.add_argument('command', metavar='COMMAND', choices=['db'], help='command to launch')
-parser.add_argument('-l', '--log', metavar='LOG', default='log.txt', help='save log to file')
+parser.add_argument('-v', '--verbose', metavar='MODULE',
+    action='append', help='verbose logging for specified modules')
+parser.add_argument('-d', '--debug', metavar='MODULE',
+    action='append', help='debug logging for specified modules')
+parser.add_argument('command', metavar='COMMAND',
+    choices=['db'], help='command to launch')
+parser.add_argument('-l', '--log', metavar='LOG',
+    help='save log to file')
 
 args = parser.parse_args()
 
@@ -25,7 +29,8 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.NOTSET)
 
-formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
+formatter = logging.Formatter('%(asctime)s\t[%(name)s]'
+    '%(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
 
 # set up colored logging to console
 from rainbow_logging_handler import RainbowLoggingHandler
@@ -34,7 +39,13 @@ console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
 # set up logging to file for all records
-handler = logging.FileHandler(args.log)
+log_path = args.log
+if not log_path:
+    import os, datetime
+    log_path = '{}-{:%Y%m%d-%H%M%S}.log'.format(
+        os.path.basename(__file__), datetime.datetime.now())
+
+handler = logging.FileHandler(log_path)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
