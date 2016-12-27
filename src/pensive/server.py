@@ -132,11 +132,3 @@ class PensiveServer(Application):
         logger.info('Pensive started on {}:{}'.format(
             self._address or '*', self._port))
 
-        # NOTE: this blocks until the event loop finishes
-        try:
-            IOLoop.current().start()
-        except KeyboardInterrupt:
-            IOLoop.current().stop()
-
-        logger.info('Pensive stopped on {}:{}'.format(
-            self._address or '*', self._port))
