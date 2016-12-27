@@ -41,7 +41,6 @@ class Store(object):
         '''
         Get the value referenced by `key` from the store.
         '''
-
         if not key:
             # null key indicates the value of this Store
             return self._serialize()

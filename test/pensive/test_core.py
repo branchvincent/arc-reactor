@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from src.pensive.core import Store
+from pensive.core import Store
 
 class Store_Get(TestCase):
 
@@ -125,7 +125,6 @@ class Store_Index(TestCase):
     def tearDown(self):
         pass
 
-
 class Store_Cull(TestCase):
 
     def setUp(self):
@@ -187,7 +186,6 @@ class Store_Empty(TestCase):
 
     def tearDown(self):
         pass
-
 
 class Store_Fork(TestCase):
 

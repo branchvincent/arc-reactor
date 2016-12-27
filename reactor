@@ -8,7 +8,6 @@ Launcher for the reactor system.
 import sys
 sys.path.append('src')
 
-
 # parse command-line arguments
 from argparse import ArgumentParser
 
@@ -18,7 +17,7 @@ parser.add_argument('-v', '--verbose', metavar='MODULE',
 parser.add_argument('-d', '--debug', metavar='MODULE',
     action='append', help='debug logging for specified modules')
 parser.add_argument('command', metavar='COMMAND',
-    choices=['db'], help='command to launch')
+    choices=['db', 'unittest'], help='command to launch')
 parser.add_argument('-l', '--log', metavar='LOG',
     help='save log to file')
 
@@ -42,8 +41,9 @@ logger.addHandler(console_handler)
 log_path = args.log
 if not log_path:
     import os, datetime
-    log_path = '{}-{:%Y%m%d-%H%M%S}.log'.format(
+    name = '{}-{:%Y%m%d-%H%M%S}.log'.format(
         os.path.basename(__file__), datetime.datetime.now())
+    log_path = os.path.join('log', name)
 
 handler = logging.FileHandler(log_path)
 handler.setFormatter(formatter)
@@ -74,3 +74,7 @@ if args.command == 'db':
         server.run()
     except KeyboardInterrupt:
         pass
+
+elif args.command == 'unittest':
+    import unittest
+    unittest.main(argv=[__file__, 'discover', '-f', '-v'])
