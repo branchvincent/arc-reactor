@@ -123,12 +123,27 @@ class PensiveServer(Application):
             1000 * handler.request.request_time())
         )
 
-    def run(self):
+    def run(self, loop=None):
         '''
         Start servicing the Tornado event loop.
         '''
+
+        if not loop:
+            loop = IOLoop()
+
+        loop.make_current()
+
         # bind the socket
         self.listen(self._port, self._address)
         logger.info('Pensive started on {}:{}'.format(
             self._address or '*', self._port))
 
+        try:
+            loop.start()
+        except KeyboardInterrupt:
+            pass
+
+        loop.stop()
+        loop.close()
+
+        logger.info('Pensive stopped')
