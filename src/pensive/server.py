@@ -6,12 +6,13 @@ The server uses the following URL structure.
  * `/i/<instance>/<path>`: access the named store `instance`
  * `/s/<instance>`: control the named store `instance`
 
-When accessing a store, the HTTP verbs GET, POST, and DELETE are mapped to
-`get()`, `put()`, and `delete()`, respectively. The response to a GET is
-a JSON-encoded dictionary of the form `{"data": <value>}`. Similarly,
-the request body for a POST should be a JSON-encoded dictionary of the form
-`{"data": <value>}`.
-
+When accessing a store, the HTTP verbs are mapped as follows.
+ * `GET`: single `get()`
+ * `POST`: multiple `get()` or `delete()`
+ * `PUT`: single or multiple `put()`
+ * `DELETE`: single `delete()`
+Refer to the `StoreHandler` documentation for the expected request
+bodies.
 '''
 
 import logging
@@ -46,6 +47,9 @@ class StoreHandler(RequestHandler):
         '$schema': 'http://json-schema.org/draft-04/schema#',
         'type': 'object',
         'properties': {
+            'operation': {
+                'type': 'string'
+            },
             'keys': {
                 'type': 'array',
                 'items': {
@@ -55,7 +59,18 @@ class StoreHandler(RequestHandler):
                 'uniqueItems': True
             }
         },
-        'required': ['keys']
+        'required': ['operation', 'keys'],
+    }
+
+    PUT_SCHEMA = {
+        '$schema': 'http://json-schema.org/draft-04/schema#',
+        'type': 'object',
+        'properties': {
+            'keys': {
+                'type': 'object',
+            },
+            'value': {}
+        },
     }
 
     def initialize(self):
@@ -93,18 +108,20 @@ class StoreHandler(RequestHandler):
 
     def post(self, path, instance=None):
         '''
-        Handle POST requests.
+        Handle POST requests for multiple GET and DELETE.
 
         If `instance is None`, the default store is accessed.
 
-        The request body is decoded as JSON to retrieve multiple keys
+        The request body is decoded as JSON to manipulate multiple keys
         concurrently. The JSON must have the structure below.
         ```
         {
+            'operation': <command>
             'keys': [ <key1>, <key2>, ... ]
         }
         ```
-        The response body will be a JSON object with the structure below.
+        If the operation is `GET`, the response body will be a JSON object
+        with the structure below.
         ```
         {
             <key1>: <value1>,
@@ -112,7 +129,9 @@ class StoreHandler(RequestHandler):
             ...
         }
         ```
-        The keys are relative to the requested URL.
+        The keys are relative to the requested path.
+
+        If the operation is `DELETE`, there is no response body.
         '''
 
         try:
@@ -130,14 +149,42 @@ class StoreHandler(RequestHandler):
                 logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(exc, self.request.body))
                 self.send_error(400, reason='malformed payload')
             else:
-                # retrieve multiple values with relative path
-                if path:
+                if path and not path.endswith(Store.SEPARATOR):
                     path += Store.SEPARATOR
-                self.write({k: store.get(path + k) for k in obj['keys']})
+
+                if obj['operation'].lower() == 'get':
+                    # multiple GET
+                    self.write({key: store.get(path + key) for key in obj['keys']})
+                elif obj['operation'].lower() == 'delete':
+                    # multiple DELETE
+                    for key in obj['keys']:
+                        store.delete(path + key)
+                else:
+                    logger.warning('invalid operation: {}'.format(obj['operation']))
+                    self.send_error(400, reason='invalid operation')
 
     def put(self, path, instance=None):
         '''
         Handle PUT requests.
+
+        If `instance is None`, the default store is accessed.
+
+        The request body is decoded as JSON to put a single value or to put
+        multiple keys concurrently. The JSON must have the structure below.
+        ```
+        {
+            'keys': {
+                <key1>: <value1>,
+                <key2>: <value2>,
+                ...
+            }
+            -- OR --
+            'value': <value>
+        }
+        ```
+        The keys are relative to the requested path.
+
+        If both `keys` and `value` are provided, `keys` is ignored.
         '''
         try:
             store = self.manager.stores[instance]
@@ -146,16 +193,32 @@ class StoreHandler(RequestHandler):
             self.send_error(400, reason='unrecognized instance')
         else:
             try:
-                data = json_decode(self.request.body)['data']
-            except (ValueError, KeyError) as e:
-                logger.warn('malformed payload: {}\n\nPayload:\n{}'.format(e, self.request.body))
+                # decode and validate the request JSON
+                obj = json_decode(self.request.body)
+                jsonschema.validate(obj, StoreHandler.PUT_SCHEMA)
+            except (ValueError, jsonschema.ValidationError) as exc:
+                logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(
+                    exc, self.request.body))
                 self.send_error(400, reason='malformed payload')
             else:
-                store.put(path, data)
+                if 'value' in obj:
+                    # single put
+                    store.put(path, obj['value'])
+                elif 'keys' in obj:
+                    if path and not path.endswith(Store.SEPARATOR):
+                        path += Store.SEPARATOR
+                    # multiple put with relative path
+                    for (key, value) in obj['keys'].iteritems():
+                        store.put(path + key, value)
+                else:
+                    logger.warning('incomplete payload')
+                    self.send_error(400, reason='incomplete payload')
 
     def delete(self, path, instance=None):
         '''
         Handle DELETE requests.
+
+        If `instance is None`, the default store is accessed.
         '''
         try:
             store = self.manager.stores[instance]
@@ -163,7 +226,9 @@ class StoreHandler(RequestHandler):
             logger.warn('unrecognized instance: {}'.format(instance))
             self.send_error(400, reason='unrecognized instance')
         else:
+            # single delete
             store.delete(path)
+
 
 class PensiveServer(Application):
     '''
