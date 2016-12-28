@@ -42,13 +42,17 @@ class Store(object):
         '''
         Get the value referenced by `key` from the store.
         '''
+
+        logger.debug('get: "{}"'.format(key))
+        return self._get(key)
+
+    def _get(self, key):
         if not key:
             # null key indicates the value of this Store
             return self._serialize()
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
-                #logger.debug('get: "{}"'.format(key))
                 key = self._separator.split(key)
 
             # get of store without children is null
@@ -57,7 +61,7 @@ class Store(object):
 
             try:
                 # recurse
-                return self._children[key.pop(0)].get(key)
+                return self._children[key.pop(0)]._get(key)
             except KeyError:
                 # no such child
                 return None
@@ -74,12 +78,15 @@ class Store(object):
         deleted.
         '''
 
+        logger.debug('put: "{}" -> {}'.format(key, value))
+        return self._put(key, value)
+
+    def _put(self, key, value):
         if not key:
             self._deserialize(value)
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
-                #logger.debug('put: "{}"'.format(key))
                 key = self._separator.split(key)
 
             # initialize the children map
@@ -88,7 +95,7 @@ class Store(object):
                 self._value = None
 
             # create a child if needed and recurse
-            self._children.setdefault(key.pop(0), Store()).put(key, value)
+            self._children.setdefault(key.pop(0), Store())._put(key, value)
 
     def delete(self, key=None):
         '''
@@ -107,6 +114,10 @@ class Store(object):
         with `{}` values.
         '''
 
+        logger.debug('index: "{}"'.format(key))
+        return self._index(key)
+
+    def _index(self, key):
         if not key:
             if self._children:
                 # recursively serialize
@@ -122,7 +133,6 @@ class Store(object):
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
-                #logger.debug('index: "{}"'.format(key))
                 key = self._separator.split(key)
 
             # index of store without children is null
@@ -131,7 +141,7 @@ class Store(object):
 
             try:
                 # recurse
-                return self._children[key.pop(0)].index(key)
+                return self._children[key.pop(0)]._index(key)
             except KeyError:
                 # no such child
                 return None
@@ -139,12 +149,16 @@ class Store(object):
     def cull(self):
         '''Clean out null keys from the database.'''
 
+        logger.debug('cull')
+        return self._cull()
+
+    def _cull(self):
         if self._children:
             keys = self._children.keys()
 
             for k in keys:
                 # cull all children
-                if self._children[k].cull():
+                if self._children[k]._cull():
                     del self._children[k]
 
             # check if this store should be culled
@@ -158,6 +172,8 @@ class Store(object):
         '''
         Make a shallow-copy of the `Store`.
         '''
+
+        logger.debug('copy')
         return self._copy()
 
     def is_empty(self):
