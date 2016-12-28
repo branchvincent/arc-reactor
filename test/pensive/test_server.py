@@ -41,6 +41,11 @@ class ServerTest_POST(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertDictEqual(json_decode(response.body), {'c': 2})
 
+    def test_server_get_relative3(self):
+        response = self.fetch('/d/b/', method='POST', body=json_encode({'operation': 'get', 'keys': ['/c/']}))
+        self.assertEqual(response.code, 200)
+        self.assertDictEqual(json_decode(response.body), {'/c/': 2})
+
     def test_server_get_invalid(self):
         response = self.fetch('/d/', method='POST', body='')
         self.assertEqual(response.code, 400)
@@ -84,6 +89,10 @@ class ServerTest_PUT(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertDictEqual(self.server.manager.stores[None].get(), {'rel': {'a': 1234, 'b': {'c': 5678}}})
 
+    def test_server_put_multi_relative2(self):
+        response = self.fetch('/d/rel/', method='PUT', body=json_encode({'keys': {'a/': 1234, '/b/c/': 5678}}))
+        self.assertEqual(response.code, 200)
+        self.assertDictEqual(self.server.manager.stores[None].get(), {'rel': {'a': 1234, 'b': {'c': 5678}}})
 class ServerTest_DELETE(AsyncHTTPTestCase):
 
     def get_app(self):

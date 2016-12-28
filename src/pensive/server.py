@@ -154,11 +154,11 @@ class StoreHandler(RequestHandler):
 
                 if obj['operation'].lower() == 'get':
                     # multiple GET
-                    self.write({key: store.get(path + key) for key in obj['keys']})
+                    self.write({key: store.get(path + key.strip('/')) for key in obj['keys']})
                 elif obj['operation'].lower() == 'delete':
                     # multiple DELETE
                     for key in obj['keys']:
-                        store.delete(path + key)
+                        store.delete(path + key.strip('/'))
                 else:
                     logger.warning('invalid operation: {}'.format(obj['operation']))
                     self.send_error(400, reason='invalid operation')
@@ -209,7 +209,7 @@ class StoreHandler(RequestHandler):
                         path += Store.SEPARATOR
                     # multiple put with relative path
                     for (key, value) in obj['keys'].iteritems():
-                        store.put(path + key, value)
+                        store.put(path + key.strip('/'), value)
                 else:
                     logger.warning('incomplete payload')
                     self.send_error(400, reason='incomplete payload')
