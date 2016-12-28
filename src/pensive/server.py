@@ -27,16 +27,8 @@ from .core import Store
 
 logger = logging.getLogger(__name__)
 
-class StoreManager(object):
-    '''
-    Container class for a dictionary of names to `Store`.
-
-    The default `Store` has key of `None`.
-    '''
-    def __init__(self):
-        self.stores = {
-            None: Store()
-        }
+class ManagerHandler(RequestHandler):
+    pass
 
 class StoreHandler(RequestHandler):
     '''
@@ -73,12 +65,6 @@ class StoreHandler(RequestHandler):
         },
     }
 
-    def initialize(self):
-        '''
-        Initialize the handler with the applications `StoreManager`.
-        '''
-        self.manager = self.application.manager
-
     def prepare(self):
         pass
 
@@ -98,7 +84,7 @@ class StoreHandler(RequestHandler):
 
         try:
             # find the store
-            store = self.manager.stores[instance]
+            store = self.application.stores[instance]
         except KeyError:
             logger.warning('unrecognized instance: {}'.format(instance))
             self.send_error(400, reason='unrecognized instance')
@@ -136,7 +122,7 @@ class StoreHandler(RequestHandler):
 
         try:
             # find the store
-            store = self.manager.stores[instance]
+            store = self.application.stores[instance]
         except KeyError:
             logger.warning('unrecognized instance: {}'.format(instance))
             self.send_error(400, reason='unrecognized instance')
@@ -187,7 +173,7 @@ class StoreHandler(RequestHandler):
         If both `keys` and `value` are provided, `keys` is ignored.
         '''
         try:
-            store = self.manager.stores[instance]
+            store = self.application.stores[instance]
         except KeyError:
             logger.warn('unrecognized instance: {}'.format(instance))
             self.send_error(400, reason='unrecognized instance')
@@ -221,7 +207,7 @@ class StoreHandler(RequestHandler):
         If `instance is None`, the default store is accessed.
         '''
         try:
-            store = self.manager.stores[instance]
+            store = self.application.stores[instance]
         except KeyError:
             logger.warn('unrecognized instance: {}'.format(instance))
             self.send_error(400, reason='unrecognized instance')
@@ -239,7 +225,9 @@ class PensiveServer(Application):
         self._port = port
         self._address = address
 
-        self.manager = StoreManager()
+        self.stores = {
+            None: Store()
+        }
 
         # install handlers for various URLs
         self.add_handlers(r'.*', [(r'/d/(?P<path>.*)/*', StoreHandler)])
