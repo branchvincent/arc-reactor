@@ -16,28 +16,28 @@ class Store_Get(TestCase):
             'list': [1, 2, 3, {'c': 3}],
         })
 
-    def test_get_empty(self):
+    def test_store_get_empty(self):
         self.assertIsNone(self.store.get('empty'))
 
-    def test_get_empty2(self):
+    def test_store_get_empty2(self):
         self.assertIsNone(self.store.get('empty/reallyempty'))
 
-    def test_get_nonempty(self):
+    def test_store_get_nonempty(self):
         self.assertEqual(self.store.get('value'), 2)
 
-    def test_get_escaped_path(self):
+    def test_store_get_escaped_path(self):
         self.assertEqual(self.store.get('path\\/'), 4)
 
-    def test_get_nested_path(self):
+    def test_store_get_nested_path(self):
         self.assertEqual(self.store.get('nested/a'), 1)
 
-    def test_get_partial_path(self):
+    def test_store_get_partial_path(self):
         self.assertDictEqual(self.store.get('nested'), {'a': 1, 'b': 2})
 
-    def test_get_nonexisting(self):
+    def test_store_get_nonexisting(self):
         self.assertIsNone(self.store.get('nonexisting'))
 
-    def test_get_nooverwrite(self):
+    def test_store_get_nooverwrite(self):
         self.store.get('nested/a/asdf')
         self.assertDictEqual(self.store.get('nested'), {'a': 1, 'b': 2})
 
@@ -49,27 +49,31 @@ class Store_Put(TestCase):
     def setUp(self):
         self.store = Store()
 
-    def test_put_simple(self):
+    def test_store_put_simple(self):
         self.store.put('a', 4)
         self.assertDictEqual(self.store._serialize(), {'a': 4})
 
-    def test_put_nested(self):
+    def test_store_put_nested(self):
         self.store.put('a/b/c', 4)
         self.assertDictEqual(self.store._serialize(), {'a': {'b': {'c': 4}}})
 
-    def test_put_dict(self):
+    def test_store_put_dict(self):
         self.store.put('a', {'b': 2})
         self.assertDictEqual(self.store._serialize(), {'a': {'b': 2}})
 
-    def test_put_nested_existing(self):
+    def test_store_put_nested_existing(self):
         self.store.put('a/b/c', 4)
         self.store.put('a/b/c', 4)
         self.assertDictEqual(self.store._serialize(), {'a': {'b': {'c': 4}}})
 
-    def test_put_overwrite(self):
+    def test_store_put_overwrite(self):
         self.store.put('a/b', 3)
         self.store.put('a/b/c', 4)
         self.assertDictEqual(self.store._serialize(), {'a': {'b': {'c': 4}}})
+
+    def test_store_put_deserialize(self):
+        self.store.put('a', {'b': {'c': 4}})
+        self.assertEqual(self.store.get('a/b/c'), 4)
 
     def tearDown(self):
         pass
@@ -79,24 +83,24 @@ class Store_Delete(TestCase):
     def setUp(self):
         self.store = Store({'a': 4, 'b': {'c': 2, 'd': 3}})
 
-    def test_delete_simple(self):
+    def test_store_delete_simple(self):
         self.store.delete('a')
         self.assertDictEqual(self.store._serialize(), {'b': {'c': 2, 'd': 3}})
 
-    def test_delete_nested(self):
+    def test_store_delete_nested(self):
         self.store.delete('b/c')
         self.assertDictEqual(self.store._serialize(), {'a': 4, 'b': {'d': 3} })
 
-    def test_delete_double(self):
+    def test_store_delete_double(self):
         self.store.delete('b/c')
         self.store.delete('b/d')
         self.assertDictEqual(self.store._serialize(), {'a': 4 })
 
-    def test_delete_dict(self):
+    def test_store_delete_dict(self):
         self.store.delete('b')
         self.assertDictEqual(self.store._serialize(), {'a': 4})
 
-    def test_delete_nonexisting(self):
+    def test_store_delete_nonexisting(self):
         self.store.delete('nonexisting')
         self.assertDictEqual(self.store._serialize(), {'a': 4, 'b': {'c': 2, 'd': 3}})
 
@@ -116,10 +120,10 @@ class Store_Index(TestCase):
             'list': [1, 2, 3, {'c': 3}],
         })
 
-    def test_index(self):
+    def test_store_index(self):
         self.assertDictEqual(self.store.index(), { 'value': {}, 'nested': {'a': {}, 'b': {}}, 'list': {}})
 
-    def test_index_nested(self):
+    def test_store_index_nested(self):
         self.assertDictEqual(self.store.index('nested'), {'a': {}, 'b': {}})
 
     def tearDown(self):
@@ -143,11 +147,11 @@ class Store_Cull(TestCase):
             }
         })
 
-    def test_cull(self):
+    def test_store_cull(self):
         self.store.cull()
         self.assertDictEqual(self.store.get(), { 'value': 0, 'nested': {'a': 1, 'b': 2}, 'list': [1, 2, 3, {'c': 3}]})
 
-    def test_cull2(self):
+    def test_store_cull2(self):
         self.assertItemsEqual(self.store._children.keys(), ['empty', 'value', 'nested', 'list', 'empty_nested'])
         self.store.cull()
         self.assertItemsEqual(self.store._children.keys(), ['value', 'nested', 'list'])
@@ -172,14 +176,14 @@ class Store_Empty(TestCase):
             }
         })
 
-    def test_empty(self):
+    def test_store_empty(self):
         self.assertFalse(self.store.is_empty())
 
-    def test_empty2(self):
+    def test_store_empty2(self):
         self.store.delete('nested')
         self.assertFalse(self.store.is_empty())
 
-    def test_empty3(self):
+    def test_store_empty3(self):
         self.store.delete('nested')
         self.store.delete('value')
         self.assertTrue(self.store.is_empty())
@@ -198,7 +202,7 @@ class Store_Fork(TestCase):
             }
         })
 
-    def test_copy(self):
+    def test_store_copy(self):
         copy = self.store.fork()
         self.assertDictEqual(copy._serialize(), {'a': {'b1': 1, 'b2': [1, 2], 'b3': {'c': [3, 4]}}})
         self.assertIsNot(copy._children, self.store._children)
@@ -207,7 +211,7 @@ class Store_Fork(TestCase):
         self.assertIsNot(copy._children['a']._children['b3'], self.store._children['a']._children['b3'])
         self.assertIs(copy.get('a/b3/c'), self.store.get('a/b3/c'))
 
-    # def test_copy_nested(self):
+    # def test_store_copy_nested(self):
     #     copy = self.store.fork('a/b3')
     #     self.assertDictEqual(copy._root, {'c': [3, 4]})
     #     self.assertIsNot(copy._root, self.store._root)
