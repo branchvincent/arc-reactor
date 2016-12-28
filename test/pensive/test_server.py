@@ -1,44 +1,31 @@
-from unittest import TestCase
-
-from tornado.ioloop import IOLoop
-
-import requests
-
-from threading import Thread
+from tornado.escape import json_decode, json_encode
+from tornado.testing import AsyncHTTPTestCase
 
 from pensive.server import PensiveServer
 
-def background_server(loop, server):
-    loop.make_current()
+class ServerTest(AsyncHTTPTestCase):
 
-    server.run()
-    loop.start()
+    port = 8888
 
-class Store_Get(TestCase):
+    def get_app(self):
+        return PensiveServer(self.port)
 
-    def setUp(self):
-        port = 8888
+    def test_server_get(self):
+        response = self.fetch('/d/')
+        self.assertEqual(response.code, 200)
+        self.assertDictEqual(json_decode(response.body), {'data': None})
 
-        self.loop = IOLoop()
-        self.thread = Thread(target=background_server, args=(self.loop, PensiveServer(port)))
-        self.thread.start()
+    def test_server_post(self):
+        response = self.fetch('/d/key', method='POST', body=json_encode({'data': 1234}))
+        self.assertEqual(response.code, 200)
 
-        self.host = 'http://localhost:{}'.format(port)
+        response = self.fetch('/d/')
+        self.assertEqual(response.code, 200)
+        self.assertDictEqual(json_decode(response.body), {'data': {'key': 1234}})
 
-    def test_get_root(self):
-        r = requests.get(self.host + '/d/')
-        self.assertEqual(r.status_code, 200)
-        self.assertTrue('application/json' in r.headers['content-type'])
-        self.assertEqual(r.encoding.lower(), 'utf-8')
-        self.assertDictEqual(r.json(), {'data': None})
+    def test_server_delete(self):
+        response = self.fetch('/d/key', method='POST', body=json_encode({'data': 1234}))
+        self.assertEqual(response.code, 200)
 
-    # def test_post_root(self):
-    #     r = requests.post(self.host + '/d/key', data={'data': 1234})
-    #     self.assertEqual(r.status_code, 200)
-
-    #     r = requests.get(self.host + '/d/')
-    #     self.assertEqual(r.status_code, 200)
-    #     self.assertDictEqual(r.json(), {'data': {'key': 1234}})
-
-    def tearDown(self):
-        self.loop.stop()
+        response = self.fetch('/d/key', method='DELETE')
+        self.assertEqual(response.code, 200)
