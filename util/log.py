@@ -44,3 +44,37 @@ class LevelFilter(logging.Filter):
         Remove a module namespace level filter.
         '''
         self._rules = [x for x in self._rules if x[0] != namespace]
+
+# class NewStyleLogRecord(logging.LogRecord):
+#     def getMessage(self):
+#         """
+#         Return the message for this LogRecord.
+
+#         Return the message for this LogRecord after merging any user-supplied
+#         arguments with the message.
+#         """
+#         msg = self.msg
+#         if not isinstance(msg, basestring):
+#             try:
+#                 msg = str(self.msg)
+#             except UnicodeError:
+#                 msg = self.msg      #Defer encoding till later
+#         if self.args:
+#             msg = msg.format(*self.args)
+#         return msg
+
+# class NewStyleLogger(logging.Logger):
+#     def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None):
+#         """
+#         A factory method which can be overridden in subclasses to create
+#         specialized LogRecords.
+#         """
+#         rv = NewStyleLogRecord(name, level, fn, lno, msg, args, exc_info, func)
+#         if extra is not None:
+#             for key in extra:
+#                 if (key in ["message", "asctime"]) or (key in rv.__dict__):
+#                     raise KeyError("Attempt to overwrite %r in LogRecord" % key)
+#                 rv.__dict__[key] = extra[key]
+#         return rv
+
+# logging.setLoggerClass(NewStyleLogger)

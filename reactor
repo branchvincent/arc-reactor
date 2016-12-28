@@ -9,17 +9,26 @@ import sys
 sys.path.append('src')
 
 # parse command-line arguments
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, REMAINDER
 
 parser = ArgumentParser(description='Reactor system launcher')
-parser.add_argument('-v', '--verbose', metavar='MODULE',
-    action='append', help='verbose logging for specified modules')
-parser.add_argument('-d', '--debug', metavar='MODULE',
-    action='append', help='debug logging for specified modules')
-parser.add_argument('command', metavar='COMMAND',
-    choices=['db', 'unittest'], help='command to launch')
-parser.add_argument('-l', '--log', metavar='LOG',
-    help='save log to file')
+parser.add_argument('-v', '--verbose', metavar='MODULE', action='append', help='verbose logging for specified modules')
+parser.add_argument('-d', '--debug', metavar='MODULE', action='append', help='debug logging for specified modules')
+parser.add_argument('-l', '--log', metavar='LOG', help='override log file')
+
+subparsers = parser.add_subparsers(title='subcommands', dest='command')
+
+db_parser = subparsers.add_parser('db', help='database control',
+    description='control the system database',
+    formatter_class=ArgumentDefaultsHelpFormatter)
+db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=8888, help='server port')
+db_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
+
+test_parser = subparsers.add_parser('unittest', help='unit test discovery', description='discover and launch unit tests with logging')
+test_parser.add_argument('-c', '--continue', dest='cont', action='store_true', help='continue despite failures')
+test_parser.add_argument('-q', '--quiet', action='store_true', help='suppress verbose output')
+#test_parser.add_argument('-d', '--discover', action='store_true', help='run tests in directory')
+#test_parser.add_argument('test', nargs='*', metavar='TEST', help='multiple tests names or single search path')
 
 args = parser.parse_args()
 
@@ -72,7 +81,7 @@ for m in args.debug or []:
 if args.command == 'db':
     from pensive import PensiveServer
 
-    server = PensiveServer(8888)
+    server = PensiveServer(args.port)
     server.run()
 
 elif args.command == 'unittest':
@@ -80,5 +89,19 @@ elif args.command == 'unittest':
     # very likely intentionally generated during tests
     lf.add('', logging.ERROR)
 
+    subargs = [__file__, 'discover']
+    # if args.discover:
+    #     subargs.append('discover')
+    #     if args.test:
+    #         subargs.extend(['-s', args.test[0]])
+
+    if not args.cont:
+        subargs.append('-f')
+    if not args.quiet:
+        subargs.append('-v')
+
+    # if not args.discover:
+    #     subargs.extend(args.test)
+
     import unittest
-    unittest.main(argv=[__file__, 'discover', '-f', '-v'])
+    unittest.main(argv=subargs)
