@@ -2,10 +2,10 @@
 Core database components of Pensive.
 '''
 
+import re
+
 import logging
 logger = logging.getLogger(__name__)
-
-import re
 
 class Store(object):
     r'''

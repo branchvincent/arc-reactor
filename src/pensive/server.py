@@ -15,13 +15,14 @@ the request body for a POST should be a JSON-encoded dictionary of the form
 '''
 
 import logging
-logger = logging.getLogger(__name__)
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler, Application
 from tornado.escape import json_decode
 
 from .core import Store
+
+logger = logging.getLogger(__name__)
 
 class StoreManager(object):
     '''
