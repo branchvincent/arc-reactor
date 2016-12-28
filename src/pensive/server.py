@@ -17,8 +17,10 @@ the request body for a POST should be a JSON-encoded dictionary of the form
 import logging
 
 from tornado.ioloop import IOLoop
-from tornado.web import RequestHandler, Application
+from tornado.web import RequestHandler, Application, removeslash
 from tornado.escape import json_decode
+
+import jsonschema
 
 from .core import Store
 
@@ -40,27 +42,102 @@ class StoreHandler(RequestHandler):
     Handler for GET, POST, and DELETE for accessing the `Store`.
     '''
 
+    POST_SCHEMA = {
+        '$schema': 'http://json-schema.org/draft-04/schema#',
+        'type': 'object',
+        'properties': {
+            'keys': {
+                'type': 'array',
+                'items': {
+                    'type': 'string'
+                },
+                'minItems': 1,
+                'uniqueItems': True
+            }
+        },
+        'required': ['keys']
+    }
+
     def initialize(self):
         '''
         Initialize the handler with the applications `StoreManager`.
         '''
         self.manager = self.application.manager
 
+    def prepare(self):
+        pass
+
     def get(self, path, instance=None):
         '''
         Handle GET requests.
+
+        If `instance is None`, the default store is accessed.
+
+        The response body will be a JSON object with the structure below.
+        ```
+        {
+            'value': <value>
+        }
+        ```
         '''
+
         try:
+            # find the store
             store = self.manager.stores[instance]
         except KeyError:
-            logger.warn('unrecognized instance: {}'.format(instance))
+            logger.warning('unrecognized instance: {}'.format(instance))
             self.send_error(400, reason='unrecognized instance')
         else:
-            self.write({'data': store.get(path)})
+            # retrieve value
+            self.write({'value': store.get(path)})
 
     def post(self, path, instance=None):
         '''
         Handle POST requests.
+
+        If `instance is None`, the default store is accessed.
+
+        The request body is decoded as JSON to retrieve multiple keys
+        concurrently. The JSON must have the structure below.
+        ```
+        {
+            'keys': [ <key1>, <key2>, ... ]
+        }
+        ```
+        The response body will be a JSON object with the structure below.
+        ```
+        {
+            <key1>: <value1>,
+            <key2>: <value2>,
+            ...
+        }
+        ```
+        The keys are relative to the requested URL.
+        '''
+
+        try:
+            # find the store
+            store = self.manager.stores[instance]
+        except KeyError:
+            logger.warning('unrecognized instance: {}'.format(instance))
+            self.send_error(400, reason='unrecognized instance')
+        else:
+            try:
+                # decode and validate the request JSON
+                obj = json_decode(self.request.body)
+                jsonschema.validate(obj, StoreHandler.POST_SCHEMA)
+            except (ValueError, jsonschema.ValidationError) as exc:
+                logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(exc, self.request.body))
+                self.send_error(400, reason='malformed payload')
+            else:
+                # retrieve multiple values with relative path
+                if path:
+                    path += Store.SEPARATOR
+                self.write({k: store.get(path + k) for k in obj['keys']})
+
+    def put(self, path, instance=None):
+        '''
+        Handle PUT requests.
         '''
         try:
             store = self.manager.stores[instance]
@@ -71,7 +148,7 @@ class StoreHandler(RequestHandler):
             try:
                 data = json_decode(self.request.body)['data']
             except (ValueError, KeyError) as e:
-                logger.warn('malformed payload: {}\n{}'.format(e, self.request.body))
+                logger.warn('malformed payload: {}\n\nPayload:\n{}'.format(e, self.request.body))
                 self.send_error(400, reason='malformed payload')
             else:
                 store.put(path, data)
@@ -92,7 +169,7 @@ class PensiveServer(Application):
     '''
     Tornado web application for database access over HTTP.
     '''
-    def __init__(self, port, address=''):
+    def __init__(self, port=8888, address=''):
         super(PensiveServer, self).__init__()
         self._port = port
         self._address = address
@@ -100,8 +177,8 @@ class PensiveServer(Application):
         self.manager = StoreManager()
 
         # install handlers for various URLs
-        self.add_handlers(r'.*', [(r'/d/(?P<path>.*)', StoreHandler)])
-        self.add_handlers(r'.*', [(r'/i/(?P<instance>.+)/(?P<path>.*)', StoreHandler)])
+        self.add_handlers(r'.*', [(r'/d/(?P<path>.*)/*', StoreHandler)])
+        self.add_handlers(r'.*', [(r'/i/(?P<instance>.+)/(?P<path>.*)/*', StoreHandler)])
 
     def log_request(self, handler):
         '''

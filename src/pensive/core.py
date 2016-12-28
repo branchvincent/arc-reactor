@@ -26,7 +26,8 @@ class Store(object):
     database can be deleted by setting it to `None`.
     '''
 
-    _separator = re.compile(r'(?<!\\)/')
+    SEPARATOR = '/'
+    _separator = re.compile(r'(?<!\\)' + SEPARATOR)
 
     def __init__(self, data=None):
         if data is not None:
@@ -47,6 +48,7 @@ class Store(object):
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
+                #logger.debug('get: "{}"'.format(key))
                 key = self._separator.split(key)
 
             # get of store without children is null
@@ -77,6 +79,7 @@ class Store(object):
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
+                #logger.debug('put: "{}"'.format(key))
                 key = self._separator.split(key)
 
             # initialize the children map
@@ -119,6 +122,7 @@ class Store(object):
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
+                #logger.debug('index: "{}"'.format(key))
                 key = self._separator.split(key)
 
             # index of store without children is null
