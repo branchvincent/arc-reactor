@@ -72,9 +72,13 @@ for m in args.debug or []:
 if args.command == 'db':
     from pensive import PensiveServer
 
-    server = PensiveServer(8000)
+    server = PensiveServer(8888)
     server.run()
 
 elif args.command == 'unittest':
+    # suppress warnings by default because they are
+    # very likely intentionally generated during tests
+    lf.add('', logging.ERROR)
+
     import unittest
     unittest.main(argv=[__file__, 'discover', '-f', '-v'])
