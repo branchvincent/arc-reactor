@@ -24,11 +24,10 @@ db_parser = subparsers.add_parser('db', help='database control',
 db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=8888, help='server port')
 db_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
 
-test_parser = subparsers.add_parser('unittest', help='unit test discovery', description='discover and launch unit tests with logging')
+test_parser = subparsers.add_parser('test', help='unit test launcher', description='discover and launch unit tests with logging')
 test_parser.add_argument('-c', '--continue', dest='cont', action='store_true', help='continue despite failures')
-test_parser.add_argument('-q', '--quiet', action='store_true', help='suppress verbose output')
-#test_parser.add_argument('-d', '--discover', action='store_true', help='run tests in directory')
-#test_parser.add_argument('test', nargs='*', metavar='TEST', help='multiple tests names or single search path')
+test_parser.add_argument('-q', '--quiet', action='store_true', help='decrease verbosity')
+test_parser.add_argument('-v', '--verbose', action='store_true', help='increase verbosity')
 
 args = parser.parse_args()
 
@@ -84,24 +83,24 @@ if args.command == 'db':
     server = PensiveServer(args.port)
     server.run()
 
-elif args.command == 'unittest':
+elif args.command == 'test':
     # suppress warnings by default because they are
     # very likely intentionally generated during tests
     lf.add('', logging.ERROR)
 
-    subargs = [__file__, 'discover']
-    # if args.discover:
-    #     subargs.append('discover')
-    #     if args.test:
-    #         subargs.extend(['-s', args.test[0]])
+    subargs = ['--cov=src', '--cov-report=html' ]
 
     if not args.cont:
-        subargs.append('-f')
-    if not args.quiet:
+        subargs.append('--maxfail=1')
+    if args.quiet:
+        subargs.append('-q')
+    if args.verbose:
         subargs.append('-v')
 
     # if not args.discover:
     #     subargs.extend(args.test)
 
-    import unittest
-    unittest.main(argv=subargs)
+    subargs.append('test')
+
+    import pytest
+    pytest.main(subargs)

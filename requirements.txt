@@ -1,3 +1,4 @@
 rainbow-logging-handler
 tornado
 jsonschema
+pytest-cov

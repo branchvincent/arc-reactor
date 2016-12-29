@@ -38,6 +38,7 @@ Thumbs.db
 *.bak
 *~
 *.log
+*.coverage
 
 # qtcreator generated files
 *.pro.user*
@@ -126,6 +127,9 @@ ipch/
 tmp/
 # ignore both a directory as well as a symlink
 /share/qtcreator/QtProject
+.cache/
+db/
+htmlcov/
 ve/
 
 # Binaries
