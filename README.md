@@ -3,6 +3,8 @@
 This is the main repository for the Duke 2017 Amazon Robotics Challenge.
 Please read below regarding the project organization from a software standpoint.
 
+![Build Status](http://gitlab.oit.duke.edu/ARC-2017/reactor/badges/master/build.svg)](http://gitlab.oit.duke.edu/ARC-2017/reactor/commits/master)
+
 ## Getting Started
 
 If this is your first time using Gitlab, please update your profile to include your at least your first/given name.
