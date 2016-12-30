@@ -87,7 +87,7 @@ class StoreHandler(RequestHandler):
             store = self.application.stores[instance]
         except KeyError:
             logger.warning('unrecognized instance: {}'.format(instance))
-            self.send_error(400, reason='unrecognized instance')
+            self.send_error(404, reason='unrecognized instance')
         else:
             # retrieve value
             self.write({'value': store.get(path)})
@@ -125,7 +125,7 @@ class StoreHandler(RequestHandler):
             store = self.application.stores[instance]
         except KeyError:
             logger.warning('unrecognized instance: {}'.format(instance))
-            self.send_error(400, reason='unrecognized instance')
+            self.send_error(404, reason='unrecognized instance')
         else:
             try:
                 # decode and validate the request JSON
@@ -176,7 +176,7 @@ class StoreHandler(RequestHandler):
             store = self.application.stores[instance]
         except KeyError:
             logger.warn('unrecognized instance: {}'.format(instance))
-            self.send_error(400, reason='unrecognized instance')
+            self.send_error(404, reason='unrecognized instance')
         else:
             try:
                 # decode and validate the request JSON
@@ -210,7 +210,7 @@ class StoreHandler(RequestHandler):
             store = self.application.stores[instance]
         except KeyError:
             logger.warn('unrecognized instance: {}'.format(instance))
-            self.send_error(400, reason='unrecognized instance')
+            self.send_error(404, reason='unrecognized instance')
         else:
             # single delete
             store.delete(path)
