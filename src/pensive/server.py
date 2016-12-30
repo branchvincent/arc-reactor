@@ -231,7 +231,7 @@ class PensiveServer(Application):
 
         # install handlers for various URLs
         self.add_handlers(r'.*', [(r'/d/(?P<path>.*)/*', StoreHandler)])
-        self.add_handlers(r'.*', [(r'/i/(?P<instance>.+)/(?P<path>.*)/*', StoreHandler)])
+        self.add_handlers(r'.*', [(r'/i/(?P<instance>.+?)/(?P<path>.*)/*', StoreHandler)])
 
     def log_request(self, handler):
         '''
