@@ -24,10 +24,13 @@ db_parser = subparsers.add_parser('db', help='database control',
 db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=8888, help='server port')
 db_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
 
-test_parser = subparsers.add_parser('test', help='unit test launcher', description='discover and launch unit tests with logging')
+test_parser = subparsers.add_parser('test', help='unit test launcher',
+    description='discover and launch unit tests with logging',
+    formatter_class=ArgumentDefaultsHelpFormatter)
 test_parser.add_argument('-c', '--continue', dest='cont', action='store_true', help='continue despite failures')
 test_parser.add_argument('-q', '--quiet', action='store_true', help='decrease verbosity')
 test_parser.add_argument('-v', '--verbose', action='store_true', help='increase verbosity')
+test_parser.add_argument('path', nargs=REMAINDER, metavar='PATH', help='search path for tests')
 
 args = parser.parse_args()
 
@@ -97,10 +100,7 @@ elif args.command == 'test':
     if args.verbose:
         subargs.append('-v')
 
-    # if not args.discover:
-    #     subargs.extend(args.test)
-
-    subargs.append('test')
+    subargs.extend([ os.path.join('test', p) for p in args.path] or ['test'])
 
     import pytest
     pytest.main(subargs)
