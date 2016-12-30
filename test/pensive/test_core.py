@@ -126,6 +126,15 @@ class Store_Index(TestCase):
     def test_store_index_nested(self):
         self.assertDictEqual(self.store.index('nested'), {'a': {}, 'b': {}})
 
+    def test_store_index_nonexisting(self):
+        self.assertIsNone(self.store.index('nonexisting'))
+
+    def test_store_index_value(self):
+        self.assertDictEqual(self.store.index('value'), {})
+
+    def test_store_index_empty(self):
+        self.assertIsNone(self.store.index('value/empty'))
+
     def tearDown(self):
         pass
 
@@ -210,6 +219,15 @@ class Store_Fork(TestCase):
         self.assertIs(copy.get('a/b2'), self.store.get('a/b2'))
         self.assertIsNot(copy._children['a']._children['b3'], self.store._children['a']._children['b3'])
         self.assertIs(copy.get('a/b3/c'), self.store.get('a/b3/c'))
+
+    def test_store_copy_empty(self):
+        copy = Store().fork()
+        self.assertIsNone(copy)
+
+    def test_store_copy_empty2(self):
+        self.store.delete('a')
+        copy = self.store.fork()
+        self.assertIsNone(copy)
 
     # def test_store_copy_nested(self):
     #     copy = self.store.fork('a/b3')

@@ -19,6 +19,11 @@ class ServerTest_GET(AsyncHTTPTestCase):
         response = self.fetch('/d/b/c')
         self.assertEqual(response.code, 200)
         self.assertDictEqual(json_decode(response.body), {'value': 2})
+
+    def test_server_get_invalid(self):
+        response = self.fetch('/i/random/')
+        self.assertEqual(response.code, 404)
+
 class ServerTest_POST(AsyncHTTPTestCase):
 
     def get_app(self):
@@ -49,6 +54,7 @@ class ServerTest_POST(AsyncHTTPTestCase):
     def test_server_get_invalid(self):
         response = self.fetch('/d/', method='POST', body='')
         self.assertEqual(response.code, 400)
+        self.assertIn('malformed payload', response.body)
 
     def test_server_delete_multi(self):
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'delete', 'keys': ['a', 'b/c']}))
@@ -58,15 +64,28 @@ class ServerTest_POST(AsyncHTTPTestCase):
     def test_server_post_schema(self):
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'get', 'keys': []}))
         self.assertEqual(response.code, 400)
+        self.assertIn('malformed payload', response.body)
 
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'get', 'keys': [1]}))
         self.assertEqual(response.code, 400)
+        self.assertIn('malformed payload', response.body)
 
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'get', 'asdfad': ['a']}))
         self.assertEqual(response.code, 400)
+        self.assertIn('malformed payload', response.body)
 
         response = self.fetch('/d/', method='POST', body=json_encode({'random': 'get', 'keys': ['a']}))
         self.assertEqual(response.code, 400)
+        self.assertIn('malformed payload', response.body)
+
+        response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'random', 'keys': ['a']}))
+        self.assertEqual(response.code, 400)
+        self.assertIn('invalid operation', response.body)
+
+    def test_server_post_invalid(self):
+        response = self.fetch('/i/random/', method='POST', body=json_encode({'operation': 'get', 'keys': ['a', 'b/c']}))
+        self.assertEqual(response.code, 404)
+        self.assertIn('unrecognized instance', response.body)
 
 class ServerTest_PUT(AsyncHTTPTestCase):
 
@@ -93,6 +112,25 @@ class ServerTest_PUT(AsyncHTTPTestCase):
         response = self.fetch('/d/rel/', method='PUT', body=json_encode({'keys': {'a/': 1234, '/b/c/': 5678}}))
         self.assertEqual(response.code, 200)
         self.assertDictEqual(self.server.stores[None].get(), {'rel': {'a': 1234, 'b': {'c': 5678}}})
+
+    def test_server_put_schema(self):
+        response = self.fetch('/d/', method='PUT', body=json_encode({'keys': []}))
+        self.assertEqual(response.code, 400)
+        self.assertIn('malformed payload', response.body)
+
+        response = self.fetch('/d/', method='PUT', body=json_encode({'keys': 1234}))
+        self.assertEqual(response.code, 400)
+        self.assertIn('malformed payload', response.body)
+
+        response = self.fetch('/d/', method='PUT', body=json_encode({'random': {'a/': 1234, '/b/c/': 5678}}))
+        self.assertEqual(response.code, 400)
+        self.assertIn('incomplete payload', response.body)
+
+    def test_server_put_invalid(self):
+        response = self.fetch('/i/random/', method='PUT', body=json_encode({'keys': {'a/': 1234, '/b/c/': 5678}}))
+        self.assertEqual(response.code, 404)
+        self.assertIn('unrecognized instance', response.body)
+
 class ServerTest_DELETE(AsyncHTTPTestCase):
 
     def get_app(self):
@@ -104,3 +142,8 @@ class ServerTest_DELETE(AsyncHTTPTestCase):
         response = self.fetch('/d/key', method='DELETE')
         self.assertEqual(response.code, 200)
         self.assertDictEqual(self.server.stores[None].get(), {'key2': 5678})
+
+    def test_server_put_invalid(self):
+        response = self.fetch('/i/random/', method='DELETE')
+        self.assertEqual(response.code, 404)
+        self.assertIn('unrecognized instance', response.body)
