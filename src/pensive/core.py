@@ -38,15 +38,17 @@ class Store(object):
             self._value = None
             self._children = None
 
-    def get(self, key=None):
+    def get(self, key=None, strict=False):
         '''
         Get the value referenced by `key` from the store.
+
+        If `strict`, `KeyError` will be raised for an unknown `key`.
         '''
 
         logger.debug('get: "{}"'.format(key))
-        return self._get(key)
+        return self._get(key, strict)
 
-    def _get(self, key):
+    def _get(self, key, strict):
         if not key:
             # null key indicates the value of this Store
             return self._serialize()
@@ -57,13 +59,17 @@ class Store(object):
 
             # get of store without children is null
             if not self._children:
+                if strict:
+                    raise KeyError
                 return None
 
             try:
                 # recurse
-                return self._children[key.pop(0)]._get(key)
+                return self._children[key.pop(0)]._get(key, strict)
             except KeyError:
                 # no such child
+                if strict:
+                    raise
                 return None
 
     def put(self, key, value):

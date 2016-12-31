@@ -37,6 +37,18 @@ class Store_Get(TestCase):
     def test_store_get_nonexisting(self):
         self.assertIsNone(self.store.get('nonexisting'))
 
+    def test_store_get_nonexisting_strict(self):
+        with self.assertRaises(KeyError):
+            self.store.get('nonexisting', strict=True)
+
+    def test_store_get_nonexisting_strict2(self):
+        with self.assertRaises(KeyError):
+            self.store.get('value/a', strict=True)
+
+    def test_store_get_nonexisting_strict3(self):
+        with self.assertRaises(KeyError):
+            self.store.get('nested/c', strict=True)
+
     def test_store_get_nooverwrite(self):
         self.store.get('nested/a/asdf')
         self.assertDictEqual(self.store.get('nested'), {'a': 1, 'b': 2})
