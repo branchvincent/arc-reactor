@@ -183,7 +183,9 @@ class Store(object):
         return self._copy()
 
     def is_empty(self):
-        '''Test if the `Store` contains only null data.'''
+        '''
+        Test if the `Store` contains only null data.
+        '''
 
         if self._children:
             # check that there exists a non-empty child
@@ -195,6 +197,27 @@ class Store(object):
         else:
             # check if the stored value is non-null
             return self._value is None
+
+    def flatten(self, strict=False):
+        '''
+        Return a dictionary all of values in the `Store`.
+
+        The key is the complete path of the value.
+
+        If `strict`, empty values are included.
+        '''
+        if self._children:
+            result = {}
+            # recursively flatten
+            for (k, child) in self._children.iteritems():
+                # prepend the path with the child key and skip over
+                # empty values if not strict
+                result.update({((k + self.SEPARATOR + p).strip('/'), v) \
+                    for (p, v) in child.flatten(strict).iteritems() \
+                    if strict or v is not None})
+            return result
+        else:
+            return {'': self._value}
 
     def _serialize(self):
         '''

@@ -173,9 +173,9 @@ class Store_Cull(TestCase):
         self.assertDictEqual(self.store.get(), { 'value': 0, 'nested': {'a': 1, 'b': 2}, 'list': [1, 2, 3, {'c': 3}]})
 
     def test_store_cull2(self):
-        self.assertItemsEqual(self.store._children.keys(), ['empty', 'value', 'nested', 'list', 'empty_nested'])
+        self.assertItemsEqual(['empty', 'value', 'nested', 'list', 'empty_nested'], self.store._children.keys())
         self.store.cull()
-        self.assertItemsEqual(self.store._children.keys(), ['value', 'nested', 'list'])
+        self.assertItemsEqual(['value', 'nested', 'list'], self.store._children.keys())
 
     def tearDown(self):
         pass
@@ -246,6 +246,27 @@ class Store_Fork(TestCase):
     #     self.assertDictEqual(copy._root, {'c': [3, 4]})
     #     self.assertIsNot(copy._root, self.store._root)
     #     self.assertIs(copy._root['c'], self.store._root['a']['b3']['c'])
+
+    def tearDown(self):
+        pass
+
+class Store_Flatten(TestCase):
+
+    def setUp(self):
+        self.store = Store({
+            'a': {
+                'b1': 1,
+                'b2': 2,
+                'b3': {'c': 3},
+                'b4': None
+            }
+        })
+
+    def test_store_flatten(self):
+        self.assertDictEqual(self.store.flatten(), {'a/b1': 1, 'a/b2': 2, 'a/b3/c': 3})
+
+    def test_store_flatten_strict(self):
+        self.assertDictEqual(self.store.flatten(strict=True), {'a/b1': 1, 'a/b2': 2, 'a/b3/c': 3, 'a/b4': None})
 
     def tearDown(self):
         pass
