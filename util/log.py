@@ -16,16 +16,17 @@ class LevelFilter(logging.Filter):
     scheme.
     '''
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super(LevelFilter, self).__init__(*args, **kwargs)
         self._rules = []
 
     def filter(self, record):
         '''
         Implement Python `logging.Filter` interface.
         '''
-        for (ns, lvl) in self._rules:
-            if record.name.startswith(ns):
-                if record.levelno >= lvl:
+        for (namespace, level) in self._rules:
+            if record.name.startswith(namespace):
+                if record.levelno >= level:
                     return True
 
         return False

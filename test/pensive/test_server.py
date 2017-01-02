@@ -1,3 +1,5 @@
+# pylint: disable=line-too-long,missing-docstring,invalid-name,protected-access
+
 from tornado.escape import json_decode, json_encode
 from tornado.testing import AsyncHTTPTestCase
 

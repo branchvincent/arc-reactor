@@ -1,3 +1,5 @@
+# pylint: disable=line-too-long,missing-docstring,invalid-name,protected-access
+
 from unittest import TestCase
 
 from pensive.core import Store
@@ -101,12 +103,12 @@ class Store_Delete(TestCase):
 
     def test_store_delete_nested(self):
         self.store.delete('b/c')
-        self.assertDictEqual(self.store._serialize(), {'a': 4, 'b': {'d': 3} })
+        self.assertDictEqual(self.store._serialize(), {'a': 4, 'b': {'d': 3}})
 
     def test_store_delete_double(self):
         self.store.delete('b/c')
         self.store.delete('b/d')
-        self.assertDictEqual(self.store._serialize(), {'a': 4 })
+        self.assertDictEqual(self.store._serialize(), {'a': 4})
 
     def test_store_delete_dict(self):
         self.store.delete('b')
@@ -133,7 +135,7 @@ class Store_Index(TestCase):
         })
 
     def test_store_index(self):
-        self.assertDictEqual(self.store.index(), { 'value': {}, 'nested': {'a': {}, 'b': {}}, 'list': {}})
+        self.assertDictEqual(self.store.index(), {'value': {}, 'nested': {'a': {}, 'b': {}}, 'list': {}})
 
     def test_store_index_nested(self):
         self.assertDictEqual(self.store.index('nested'), {'a': {}, 'b': {}})
@@ -170,7 +172,7 @@ class Store_Cull(TestCase):
 
     def test_store_cull(self):
         self.store.cull()
-        self.assertDictEqual(self.store.get(), { 'value': 0, 'nested': {'a': 1, 'b': 2}, 'list': [1, 2, 3, {'c': 3}]})
+        self.assertDictEqual(self.store.get(), {'value': 0, 'nested': {'a': 1, 'b': 2}, 'list': [1, 2, 3, {'c': 3}]})
 
     def test_store_cull2(self):
         self.assertItemsEqual(['empty', 'value', 'nested', 'list', 'empty_nested'], self.store._children.keys())

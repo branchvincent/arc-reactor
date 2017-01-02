@@ -1,13 +1,17 @@
+'''
+Web client interface to `PensiveServer`.
+'''
+
+import logging
 
 from tornado.escape import json_encode, json_decode
 from tornado.httpclient import HTTPClient
 
-from pensive.core import Store
-
 import jsonschema
 
-import logging
-logger = logging.getLogger(__name__)
+from pensive.core import Store
+
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class StoreInterface(object):
     '''
@@ -100,7 +104,7 @@ class StoreProxy(BatchStoreInterface):
         if response.code == 404:
             raise KeyError(path)
         elif response.code != 200:
-            logger.error('unexpected HTTP response: {} {} \
+            logger.error('unexpected HTTP response: {} {}\
                 \n\nResponse:\n{}'.format(response.code,
                                           response.reason,
                                           response.body))
@@ -112,7 +116,7 @@ class StoreProxy(BatchStoreInterface):
                 obj = json_decode(response.body)
                 jsonschema.validate(obj, schema)
             except (ValueError, jsonschema.ValidationError) as exc:
-                logger.error('malformed response: {} \
+                logger.error('malformed response: {}\
                     \n\nResponse:\n{}'.format(exc, response.body))
                 raise RuntimeError('malformed response')
             else:

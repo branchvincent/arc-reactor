@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# pylint: disable=line-too-long,missing-docstring,invalid-name,wrong-import-position,multiple-imports
+
 '''
 Launcher for the reactor system.
 '''
@@ -18,15 +20,11 @@ parser.add_argument('-l', '--log', metavar='LOG', help='override log file')
 
 subparsers = parser.add_subparsers(title='subcommands', dest='command')
 
-db_parser = subparsers.add_parser('db', help='database control',
-    description='control the system database',
-    formatter_class=ArgumentDefaultsHelpFormatter)
+db_parser = subparsers.add_parser('db', help='database control', description='control the system database', formatter_class=ArgumentDefaultsHelpFormatter)
 db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=8888, help='server port')
 db_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
 
-test_parser = subparsers.add_parser('test', help='unit test launcher',
-    description='discover and launch unit tests with logging',
-    formatter_class=ArgumentDefaultsHelpFormatter)
+test_parser = subparsers.add_parser('test', help='unit test launcher', description='discover and launch unit tests with logging', formatter_class=ArgumentDefaultsHelpFormatter)
 test_parser.add_argument('-c', '--continue', dest='cont', action='store_true', help='continue despite failures')
 test_parser.add_argument('-q', '--quiet', action='store_true', help='decrease verbosity')
 test_parser.add_argument('-v', '--verbose', action='store_true', help='increase verbosity')
@@ -39,8 +37,7 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.NOTSET)
 
-formatter = logging.Formatter('%(asctime)s\t[%(name)s]'
-    '%(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
+formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
 
 # set up colored logging to console
 from rainbow_logging_handler import RainbowLoggingHandler
@@ -91,7 +88,7 @@ elif args.command == 'test':
     # very likely intentionally generated during tests
     lf.add('', logging.ERROR)
 
-    subargs = ['--cov=src', '--cov-report=html' ]
+    subargs = ['--cov=src', '--cov-report=html']
 
     if not args.cont:
         subargs.append('--maxfail=1')
@@ -100,7 +97,7 @@ elif args.command == 'test':
     if args.verbose:
         subargs.append('-v')
 
-    subargs.extend([ os.path.join('test', p) for p in args.path] or ['test'])
+    subargs.extend([os.path.join('test', p) for p in args.path] or ['test'])
 
     import pytest
     pytest.main(subargs)

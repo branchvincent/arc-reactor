@@ -18,14 +18,14 @@ bodies.
 import logging
 
 from tornado.ioloop import IOLoop
-from tornado.web import RequestHandler, Application, removeslash
+from tornado.web import RequestHandler, Application
 from tornado.escape import json_decode
 
 import jsonschema
 
 from .core import Store
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class ManagerHandler(RequestHandler):
     pass
@@ -132,7 +132,8 @@ class StoreHandler(RequestHandler):
                 obj = json_decode(self.request.body)
                 jsonschema.validate(obj, StoreHandler.POST_SCHEMA)
             except (ValueError, jsonschema.ValidationError) as exc:
-                logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(exc, self.request.body))
+                logger.warning('malformed payload: {}\n\n\
+                    Payload:\n{}'.format(exc, self.request.body))
                 self.send_error(400, reason='malformed payload')
             else:
                 if path and not path.endswith(Store.SEPARATOR):
@@ -251,8 +252,7 @@ class PensiveServer(Application):
             handler.request.method,
             handler.request.uri,
             handler.get_status(),
-            1000 * handler.request.request_time())
-        )
+            1000 * handler.request.request_time()))
 
     def run(self, loop=None):
         '''

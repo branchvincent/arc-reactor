@@ -2,10 +2,12 @@
 Core database components of Pensive.
 '''
 
+# pylint: disable=protected-access
+
 import re
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class Store(object):
     r'''

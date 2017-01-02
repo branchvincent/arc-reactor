@@ -1,18 +1,18 @@
+# pylint: disable=line-too-long,missing-docstring,invalid-name,protected-access
 
-from tornado.escape import json_decode
 from tornado.testing import AsyncHTTPTestCase
 
 from pensive.server import PensiveServer, Store
 from pensive.client import StoreProxy, StoreTransaction
 
-class FakeHTTPClient(object):
+class FakeHTTPClient(object):  # pylint: disable=too-few-public-methods
     def __init__(self, target):
         self._target = target
 
     def fetch(self, path, **kwargs):
         return self._target.fetch(path[len(self._target.get_url('')):], **kwargs)
 
-class Skip:
+class Skip(object):  # pylint: disable=too-few-public-methods
     class ClientTest(AsyncHTTPTestCase):
         def setUp(self):
             super(Skip.ClientTest, self).setUp()
@@ -56,7 +56,7 @@ class Skip:
 
         def test_client_delete_nested(self):
             self.proxy.delete('b/c')
-            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4 })
+            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4})
 
         def test_client_multi_delete(self):
             self.proxy.multi_delete(['a', 'b/c'])
@@ -64,7 +64,7 @@ class Skip:
 
         def test_client_multi_delete_root(self):
             self.proxy.multi_delete(['c'], root='b')
-            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4 })
+            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4})
 
 class ClientTest_Default(Skip.ClientTest):
     instance = None
