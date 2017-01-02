@@ -17,6 +17,8 @@ bodies.
 
 import logging
 
+import httplib
+
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler, Application
 from tornado.escape import json_decode
@@ -28,11 +30,107 @@ from .core import Store
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class ManagerHandler(RequestHandler):
-    pass
+    '''
+    Handler for GET, PUT, and DELETE for manipulating `Store` instances.
+    '''
+
+    PUT_SCHEMA = {
+        '$schema': 'http://json-schema.org/draft-04/schema#',
+        'type': 'object',
+        'properties': {
+            'parent': {
+                'type': 'string',
+            },
+        },
+        'required': ['parent'],
+    }
+
+    def get(self, instance=None):
+        '''
+        Access the store index.
+        '''
+
+        if instance:
+            # no utility for providing instance
+            self.send_error(httplib.NOT_FOUND)
+        else:
+            # send back the list of keys
+            self.write({'index': self.application.stores.keys()})
+
+    def put(self, instance=None):
+        '''
+        Create a new store named `instance`.
+
+        If a request body is provided, it is decoded as a JSON object
+        to specify the parent store. The JSON object must has the structure
+        below.
+        ```
+        {
+            'parent': <instance>
+        }
+        ```
+        If `parent is None`, the default instance is used.
+
+        If no request body is provided, an empty store is created.
+
+        If the `instance` already exists, no action is taken.
+        '''
+
+        if instance in self.application.stores:
+            # no action if instance already exists
+            self.set_status(httplib.NO_CONTENT)
+            logger.warning('silently ignored store re-creation request: "{}"'.format(instance))
+        elif self.request.body:
+            try:
+                # decode and validate the request JSON
+                obj = json_decode(self.request.body)
+                jsonschema.validate(obj, self.PUT_SCHEMA)
+            except (ValueError, jsonschema.ValidationError) as exc:
+                logger.warning('malformed payload: {}\n\n\
+                    Payload:\n{}'.format(exc, self.request.body))
+                self.send_error(400, reason='malformed payload')
+            else:
+                try:
+                    # find the parent
+                    parent = self.application.stores[obj['parent']]
+                except KeyError:
+                    logger.warning('unrecognized instance: {}'.format(instance))
+                    self.send_error(404, reason='unrecognized instance')
+                else:
+                    # fork the new instance
+                    self.application.stores[instance] = parent.fork()
+                    self.set_status(httplib.CREATED)
+                    logger.info('forked a new store "{}" -> "{}"'.format(obj['parent'], instance))
+        else:
+            # create an empty new store
+            self.application.stores[instance] = Store()
+            self.set_status(httplib.CREATED)
+            logger.info('created empty new store "{}"'.format(instance))
+
+    def delete(self, instance=None):
+        '''
+        Delete the store named `instance`.
+
+        The default store cannot be deleted.
+        '''
+
+        if instance is None:
+            self.send_error(httplib.BAD_REQUEST, reason='cannot delete default store')
+            logger.warning('attempted default store deletion')
+        else:
+            try:
+                # delete the instance
+                del self.application.stores[instance]
+            except KeyError:
+                logger.warning('unrecognized instance: {}'.format(instance))
+                self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
+            else:
+                logger.info('deleted store "{}"'.format(instance))
+                self.set_status(httplib.NO_CONTENT)
 
 class StoreHandler(RequestHandler):
     '''
-    Handler for GET, POST, and DELETE for accessing the `Store`.
+    Handler for GET, POST, PUT, and DELETE for accessing the `Store`.
     '''
 
     POST_SCHEMA = {
@@ -216,7 +314,6 @@ class StoreHandler(RequestHandler):
             # single delete
             store.delete(path)
 
-
 class PensiveServer(Application):
     '''
     Tornado web application for database access over HTTP.
@@ -233,6 +330,8 @@ class PensiveServer(Application):
         # install handlers for various URLs
         self.add_handlers(r'.*', [(r'/d/(?P<path>.*)/*', StoreHandler)])
         self.add_handlers(r'.*', [(r'/i/(?P<instance>.+?)/(?P<path>.*)/*', StoreHandler)])
+        self.add_handlers(r'.*', [(r'/s/*', ManagerHandler)])
+        self.add_handlers(r'.*', [(r'/s/(?P<instance>.+?)?/*', ManagerHandler)])
 
     def log_request(self, handler):
         '''
