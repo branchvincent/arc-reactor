@@ -88,7 +88,7 @@ elif args.command == 'test':
     # very likely intentionally generated during tests
     lf.add('', logging.ERROR)
 
-    subargs = ['--cov=src', '--cov-report=html']
+    subargs = ['--cov=src', '--cov-report=html', '--cov-report=term']
 
     if not args.cont:
         subargs.append('--maxfail=1')
