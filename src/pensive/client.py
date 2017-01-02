@@ -15,64 +15,12 @@ from pensive.core import Store
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class StoreInterface(object):
-    '''
-    Basic interface for a `Store`.
-    '''
+class JSONClient(object):
+    def __init__(self, base_url, client=None):
+        if not base_url.startswith('http://'):
+            base_url = 'http://' + base_url
 
-    def get(self, key):
-        raise NotImplementedError
-
-    def put(self, key, value):
-        raise NotImplementedError
-
-    def delete(self, key):
-        raise NotImplementedError
-
-class BatchStoreInterface(StoreInterface):
-    '''
-    Batch operation interface for `PensiveServer`.
-    '''
-
-    def multi_get(self, keys, root=None):
-        raise NotImplementedError
-
-    def multi_put(self, mapping, root=None):
-        raise NotImplementedError
-
-    def multi_delete(self, keys, root=None):
-        raise NotImplementedError
-
-class StoreProxy(BatchStoreInterface):
-    '''
-    Proxy for a `Store` served over HTTP.
-    '''
-
-    GET_SCHEMA = {
-        '$schema': 'http://json-schema.org/draft-04/schema#',
-        'type': 'object',
-        'properties': {
-            'value': {}
-        },
-        'required': ['value'],
-    }
-
-    MULTI_GET_SCHEMA = {
-        '$schema': 'http://json-schema.org/draft-04/schema#',
-        'type': 'object',
-    }
-
-    def __init__(self, host, instance=None, client=None):
-        self._host = host
-        self._instance = instance
-
-        if instance is None:
-            self._base_url = '{}/d/'.format(host)
-        else:
-            self._base_url = '{}/i/{}/'.format(host, instance)
-        if not self._base_url.startswith('http://'):
-            self._base_url = 'http://' + self._base_url
-
+        self._base_url = base_url.rstrip('/') + '/'
         self._client = client or HTTPClient()
 
     def _fetch(self, path, method, body=None, schema=None):
@@ -126,6 +74,61 @@ class StoreProxy(BatchStoreInterface):
                 raise RuntimeError('malformed response')
             else:
                 return obj
+
+class StoreInterface(object):
+    '''
+    Basic interface for a `Store`.
+    '''
+
+    def get(self, key):
+        raise NotImplementedError
+
+    def put(self, key, value):
+        raise NotImplementedError
+
+    def delete(self, key):
+        raise NotImplementedError
+
+class BatchStoreInterface(StoreInterface):
+    '''
+    Batch operation interface for `PensiveServer`.
+    '''
+
+    def multi_get(self, keys, root=None):
+        raise NotImplementedError
+
+    def multi_put(self, mapping, root=None):
+        raise NotImplementedError
+
+    def multi_delete(self, keys, root=None):
+        raise NotImplementedError
+
+class StoreProxy(JSONClient, BatchStoreInterface):
+    '''
+    Proxy for a `Store` served over HTTP.
+    '''
+
+    GET_SCHEMA = {
+        '$schema': 'http://json-schema.org/draft-04/schema#',
+        'type': 'object',
+        'properties': {
+            'value': {}
+        },
+        'required': ['value'],
+    }
+
+    MULTI_GET_SCHEMA = {
+        '$schema': 'http://json-schema.org/draft-04/schema#',
+        'type': 'object',
+    }
+
+    def __init__(self, host, instance=None, **kwargs):
+        if instance is None:
+            base_url = '{}/d/'.format(host)
+        else:
+            base_url = '{}/i/{}/'.format(host, instance)
+
+        super(StoreProxy, self).__init__(base_url, **kwargs)
 
     def get(self, key):
         '''
@@ -251,5 +254,78 @@ class StoreTransaction(StoreInterface):
 
         self._trans = Store()
 
-class PensiveClient(object):
-    pass
+class PensiveClient(JSONClient):
+    '''
+    Client for accessing and manipulating `Store`s on a PensiveServer.
+    '''
+
+    GET_SCHEMA = {
+        '$schema': 'http://json-schema.org/draft-04/schema#',
+        'type': 'object',
+        'properties': {
+            'index': {
+                'type': 'array',
+                'items': {
+                    'type': ['string', 'null'],
+                },
+                'uniqueItems': True
+            }
+        },
+        'required': ['index'],
+    }
+
+    def __init__(self, host=None, **kwargs):
+        self._host = host or 'http://localhost:8888/'
+
+        super(PensiveClient, self).__init__(self._host, **kwargs)
+
+    def default(self):
+        '''
+        Convenience method for explictly accessing default store.
+        '''
+
+        return self.store(None)
+
+    def store(self, instance=None):
+        '''
+        Get a `StoreProxy` for the requested instance.
+
+        Checks the existence of `instance` first but offers not guarantees
+        about race conditions.
+        '''
+
+        if instance not in self.index():
+            raise KeyError(instance)
+
+        return StoreProxy(self._host, instance)
+
+    def index(self):
+        '''
+        Return the list of all known `Store` instances.
+        '''
+
+        return self._fetch('s', 'GET', schema=self.GET_SCHEMA)['index']
+
+    def create(self, instance, parent=None):
+        '''
+        Creates a new instance and returns the corresponding `StoreProxy`.
+
+        If `instance` already exists, it is unchanged.
+
+        If `parent is None`, an empty instance is created. Otherwise,
+        the created instance is a fork of `parent`.
+        '''
+
+        if parent:
+            self._fetch('s/{}'.format(instance), 'PUT', body={'parent': parent})
+        else:
+            self._fetch('s/{}'.format(instance), 'PUT')
+
+        return self.store(instance)
+
+    def delete(self, instance):
+        '''
+        Deletes the store `instance`.
+        '''
+
+        return self._fetch('s/{}'.format(instance), 'DELETE')

@@ -3,7 +3,7 @@
 from tornado.testing import AsyncHTTPTestCase
 
 from pensive.server import PensiveServer, Store
-from pensive.client import StoreProxy, StoreTransaction
+from pensive.client import StoreProxy, StoreTransaction, PensiveClient
 
 class FakeHTTPClient(object):  # pylint: disable=too-few-public-methods
     def __init__(self, target):
@@ -101,3 +101,22 @@ class ClientTest_Transaction(AsyncHTTPTestCase):
 
         self.trans.commit(self.proxy)
         self.assertDictEqual(self.proxy.get(''), {'b': {'c': 2}})
+
+class ClientTest_PensiveClient(AsyncHTTPTestCase):
+    def setUp(self):
+        super(ClientTest_PensiveClient, self).setUp()
+        self.client = PensiveClient(self.get_url(''), client=FakeHTTPClient(self))
+
+    def get_app(self):
+        self.server = PensiveServer()
+        self.server.stores[None].put('', {'a': 4})
+        self.server.stores.setdefault('a', Store()).put('', {'b': 5})
+        return self.server
+
+    def test_client_pensive_index(self):
+        self.assertItemsEqual(self.client.index(), [None, 'a'])
+
+    # def test_client_pensive_store(self):
+    #     self.assertItemsEqual(self.client.store().get(''), {'a': 4})
+    #     self.assertItemsEqual(self.client.store('a').get(''), {'b': 5})
+    #     self.assertItemsEqual(self.client.default().get(''), {'a': 4})
