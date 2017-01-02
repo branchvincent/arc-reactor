@@ -17,17 +17,17 @@ class ServerTest_Store_GET(AsyncHTTPTestCase):
 
     def test_server_store_get_single(self):
         response = self.fetch('/d/')
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.OK)
         self.assertDictEqual(json_decode(response.body), {'value': {'a': 4, 'b': {'c': 2}}})
 
     def test_server_store_get_nested(self):
         response = self.fetch('/d/b/c')
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.OK)
         self.assertDictEqual(json_decode(response.body), {'value': 2})
 
     def test_server_store_get_invalid(self):
         response = self.fetch('/i/random/')
-        self.assertEqual(response.code, 404)
+        self.assertEqual(response.code, httplib.NOT_FOUND)
 
 class ServerTest_Store_POST(AsyncHTTPTestCase):
 
@@ -38,59 +38,59 @@ class ServerTest_Store_POST(AsyncHTTPTestCase):
 
     def test_server_store_get(self):
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'get', 'keys': ['a', 'b/c']}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.OK)
         self.assertDictEqual(json_decode(response.body), {'a': 4, 'b/c': 2})
 
     def test_server_store_get_relative(self):
         response = self.fetch('/d/b', method='POST', body=json_encode({'operation': 'get', 'keys': ['c']}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.OK)
         self.assertDictEqual(json_decode(response.body), {'c': 2})
 
     def test_server_store_get_relative2(self):
         response = self.fetch('/d/b/', method='POST', body=json_encode({'operation': 'get', 'keys': ['c']}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.OK)
         self.assertDictEqual(json_decode(response.body), {'c': 2})
 
     def test_server_store_get_relative3(self):
         response = self.fetch('/d/b/', method='POST', body=json_encode({'operation': 'get', 'keys': ['/c/']}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.OK)
         self.assertDictEqual(json_decode(response.body), {'/c/': 2})
 
     def test_server_store_get_invalid(self):
         response = self.fetch('/d/', method='POST', body='')
-        self.assertEqual(response.code, 400)
-        self.assertIn('malformed payload', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed payload')
 
     def test_server_store_delete_multi(self):
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'delete', 'keys': ['a', 'b/c']}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertIsNone(self.server.stores[None].get())
 
     def test_server_store_post_schema(self):
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'get', 'keys': []}))
-        self.assertEqual(response.code, 400)
-        self.assertIn('malformed payload', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed payload')
 
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'get', 'keys': [1]}))
-        self.assertEqual(response.code, 400)
-        self.assertIn('malformed payload', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed payload')
 
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'get', 'asdfad': ['a']}))
-        self.assertEqual(response.code, 400)
-        self.assertIn('malformed payload', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed payload')
 
         response = self.fetch('/d/', method='POST', body=json_encode({'random': 'get', 'keys': ['a']}))
-        self.assertEqual(response.code, 400)
-        self.assertIn('malformed payload', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed payload')
 
         response = self.fetch('/d/', method='POST', body=json_encode({'operation': 'random', 'keys': ['a']}))
-        self.assertEqual(response.code, 400)
-        self.assertIn('invalid operation', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'invalid operation')
 
     def test_server_store_post_invalid(self):
         response = self.fetch('/i/random/', method='POST', body=json_encode({'operation': 'get', 'keys': ['a', 'b/c']}))
-        self.assertEqual(response.code, 404)
-        self.assertIn('unrecognized instance', response.body)
+        self.assertEqual(response.code, httplib.NOT_FOUND)
+        self.assertEqual(response.reason, 'unrecognized instance')
 
 class ServerTest_Store_PUT(AsyncHTTPTestCase):
 
@@ -100,41 +100,41 @@ class ServerTest_Store_PUT(AsyncHTTPTestCase):
 
     def test_server_store_put_single(self):
         response = self.fetch('/d/key', method='PUT', body=json_encode({'value': 1234}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertDictEqual(self.server.stores[None].get(), {'key': 1234})
 
     def test_server_store_put_multi(self):
         response = self.fetch('/d/', method='PUT', body=json_encode({'keys': {'a': 1234, 'b/c': 5678}}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertDictEqual(self.server.stores[None].get(), {'a': 1234, 'b': {'c': 5678}})
 
     def test_server_store_put_multi_relative(self):
         response = self.fetch('/d/rel', method='PUT', body=json_encode({'keys': {'a': 1234, 'b/c': 5678}}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertDictEqual(self.server.stores[None].get(), {'rel': {'a': 1234, 'b': {'c': 5678}}})
 
     def test_server_store_put_multi_relative2(self):
         response = self.fetch('/d/rel/', method='PUT', body=json_encode({'keys': {'a/': 1234, '/b/c/': 5678}}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertDictEqual(self.server.stores[None].get(), {'rel': {'a': 1234, 'b': {'c': 5678}}})
 
     def test_server_store_put_schema(self):
         response = self.fetch('/d/', method='PUT', body=json_encode({'keys': []}))
-        self.assertEqual(response.code, 400)
-        self.assertIn('malformed payload', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed payload')
 
         response = self.fetch('/d/', method='PUT', body=json_encode({'keys': 1234}))
-        self.assertEqual(response.code, 400)
-        self.assertIn('malformed payload', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed payload')
 
         response = self.fetch('/d/', method='PUT', body=json_encode({'random': {'a/': 1234, '/b/c/': 5678}}))
-        self.assertEqual(response.code, 400)
-        self.assertIn('incomplete payload', response.body)
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'incomplete payload')
 
     def test_server_store_put_invalid(self):
         response = self.fetch('/i/random/', method='PUT', body=json_encode({'keys': {'a/': 1234, '/b/c/': 5678}}))
-        self.assertEqual(response.code, 404)
-        self.assertIn('unrecognized instance', response.body)
+        self.assertEqual(response.code, httplib.NOT_FOUND)
+        self.assertEqual(response.reason, 'unrecognized instance')
 
 class ServerTest_Store_DELETE(AsyncHTTPTestCase):
 
@@ -145,13 +145,13 @@ class ServerTest_Store_DELETE(AsyncHTTPTestCase):
 
     def test_server_store_delete_single(self):
         response = self.fetch('/d/key', method='DELETE')
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertDictEqual(self.server.stores[None].get(), {'key2': 5678})
 
     def test_server_store_put_invalid(self):
         response = self.fetch('/i/random/', method='DELETE')
-        self.assertEqual(response.code, 404)
-        self.assertIn('unrecognized instance', response.body)
+        self.assertEqual(response.code, httplib.NOT_FOUND)
+        self.assertEqual(response.reason, 'unrecognized instance')
 
 class ServerTest_Manager_GET(AsyncHTTPTestCase):
 
@@ -197,7 +197,7 @@ class ServerTest_Manager_GET(AsyncHTTPTestCase):
 
         value_copy = value[:]
         response = self.fetch('/i/c/list', method='PUT', body=json_encode({'value': 1}))
-        self.assertEqual(response.code, 200)
+        self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertItemsEqual(value_copy, value)
 
     def test_server_manager_create_fork_schema(self):

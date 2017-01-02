@@ -163,9 +163,6 @@ class StoreHandler(RequestHandler):
         },
     }
 
-    def prepare(self):
-        pass
-
     def get(self, path, instance=None):
         '''
         Handle GET requests.
@@ -185,7 +182,7 @@ class StoreHandler(RequestHandler):
             store = self.application.stores[instance]
         except KeyError:
             logger.warning('unrecognized instance: {}'.format(instance))
-            self.send_error(404, reason='unrecognized instance')
+            self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
         else:
             # retrieve value
             self.write({'value': store.get(path)})
@@ -223,7 +220,7 @@ class StoreHandler(RequestHandler):
             store = self.application.stores[instance]
         except KeyError:
             logger.warning('unrecognized instance: {}'.format(instance))
-            self.send_error(404, reason='unrecognized instance')
+            self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
         else:
             try:
                 # decode and validate the request JSON
@@ -232,7 +229,7 @@ class StoreHandler(RequestHandler):
             except (ValueError, jsonschema.ValidationError) as exc:
                 logger.warning('malformed payload: {}\n\n\
                     Payload:\n{}'.format(exc, self.request.body))
-                self.send_error(400, reason='malformed payload')
+                self.send_error(httplib.BAD_REQUEST, reason='malformed payload')
             else:
                 if path and not path.endswith(Store.SEPARATOR):
                     path += Store.SEPARATOR
@@ -244,9 +241,10 @@ class StoreHandler(RequestHandler):
                     # multiple DELETE
                     for key in obj['keys']:
                         store.delete(path + key.strip('/'))
+                    self.set_status(httplib.NO_CONTENT)
                 else:
                     logger.warning('invalid operation: {}'.format(obj['operation']))
-                    self.send_error(400, reason='invalid operation')
+                    self.send_error(httplib.BAD_REQUEST, reason='invalid operation')
 
     def put(self, path, instance=None):
         '''
@@ -275,7 +273,7 @@ class StoreHandler(RequestHandler):
             store = self.application.stores[instance]
         except KeyError:
             logger.warn('unrecognized instance: {}'.format(instance))
-            self.send_error(404, reason='unrecognized instance')
+            self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
         else:
             try:
                 # decode and validate the request JSON
@@ -284,20 +282,22 @@ class StoreHandler(RequestHandler):
             except (ValueError, jsonschema.ValidationError) as exc:
                 logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(
                     exc, self.request.body))
-                self.send_error(400, reason='malformed payload')
+                self.send_error(httplib.BAD_REQUEST, reason='malformed payload')
             else:
                 if 'value' in obj:
                     # single put
                     store.put(path, obj['value'])
+                    self.set_status(httplib.NO_CONTENT)
                 elif 'keys' in obj:
                     if path and not path.endswith(Store.SEPARATOR):
                         path += Store.SEPARATOR
                     # multiple put with relative path
                     for (key, value) in obj['keys'].iteritems():
                         store.put(path + key.strip('/'), value)
+                    self.set_status(httplib.NO_CONTENT)
                 else:
                     logger.warning('incomplete payload')
-                    self.send_error(400, reason='incomplete payload')
+                    self.send_error(httplib.BAD_REQUEST, reason='incomplete payload')
 
     def delete(self, path, instance=None):
         '''
@@ -309,10 +309,11 @@ class StoreHandler(RequestHandler):
             store = self.application.stores[instance]
         except KeyError:
             logger.warn('unrecognized instance: {}'.format(instance))
-            self.send_error(404, reason='unrecognized instance')
+            self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
         else:
             # single delete
             store.delete(path)
+            self.set_status(httplib.NO_CONTENT)
 
 class PensiveServer(Application):
     '''
