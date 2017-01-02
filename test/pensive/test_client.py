@@ -3,7 +3,7 @@ from tornado.escape import json_decode
 from tornado.testing import AsyncHTTPTestCase
 
 from pensive.server import PensiveServer, Store
-from pensive.client import StoreProxy
+from pensive.client import StoreProxy, StoreTransaction
 
 class FakeHTTPClient(object):
     def __init__(self, target):
@@ -71,3 +71,33 @@ class ClientTest_Default(Skip.ClientTest):
 
 class ClientTest_Instance(Skip.ClientTest):
     instance = 'random'
+
+class ClientTest_Transaction(AsyncHTTPTestCase):
+    def setUp(self):
+        super(ClientTest_Transaction, self).setUp()
+        self.proxy = StoreProxy(self.get_url(''), client=FakeHTTPClient(self))
+        self.trans = StoreTransaction(self.proxy)
+
+    def get_app(self):
+        self.server = PensiveServer()
+        self.server.stores[None].put('', {'a': 4, 'b': {'c': 2}})
+        return self.server
+
+    def test_transaction_get(self):
+        self.assertEqual(self.trans.get('a'), 4)
+
+    def test_transaction_put(self):
+        self.trans.put('d/a', 5)
+        self.assertEquals(self.trans.get('d/a'), 5)
+        self.assertDictEqual(self.proxy.get(''), {'a': 4, 'b': {'c': 2}})
+
+        self.trans.commit(self.proxy)
+        self.assertDictEqual(self.proxy.get(''), {'a': 4, 'b': {'c': 2}, 'd': {'a': 5}})
+
+    def test_transaction_delete(self):
+        self.trans.delete('a')
+        self.assertIsNone(self.trans.get('a'))
+        self.assertDictEqual(self.proxy.get(''), {'a': 4, 'b': {'c': 2}})
+
+        self.trans.commit(self.proxy)
+        self.assertDictEqual(self.proxy.get(''), {'b': {'c': 2}})

@@ -14,10 +14,10 @@ class StoreInterface(object):
     Basic interface for a `Store`.
     '''
 
-    def get(self, path):
+    def get(self, key):
         raise NotImplementedError
 
-    def put(self, key, path):
+    def put(self, key, value):
         raise NotImplementedError
 
     def delete(self, key):
@@ -28,13 +28,13 @@ class BatchStoreInterface(StoreInterface):
     Batch operation interface for `PensiveServer`.
     '''
 
-    def multi_get(self, paths, root=None):
+    def multi_get(self, keys, root=None):
         raise NotImplementedError
 
     def multi_put(self, mapping, root=None):
         raise NotImplementedError
 
-    def multi_delete(self, paths, root=None):
+    def multi_delete(self, keys, root=None):
         raise NotImplementedError
 
 class StoreProxy(BatchStoreInterface):
@@ -118,30 +118,30 @@ class StoreProxy(BatchStoreInterface):
             else:
                 return obj
 
-    def get(self, path):
+    def get(self, key):
         '''
         Call `get()` on the remote `Store`.
         '''
 
-        return self._fetch(path, 'GET', schema=StoreProxy.GET_SCHEMA)['value']
+        return self._fetch(key, 'GET', schema=StoreProxy.GET_SCHEMA)['value']
 
-    def multi_get(self, paths, root=None):
+    def multi_get(self, keys, root=None):
         '''
         Perform a batch `get()` on the remote `Store`
         in a single HTTP request.
         '''
 
         return self._fetch(root or '', 'POST',
-                           body={'operation': 'GET', 'keys': paths},
+                           body={'operation': 'GET', 'keys': keys},
                            schema=StoreProxy.MULTI_GET_SCHEMA)
 
 
-    def put(self, path, value):
+    def put(self, key, value):
         '''
         Call `put()` on the remote `Store`.
         '''
 
-        return self._fetch(path, 'PUT', body={'value': value})
+        return self._fetch(key, 'PUT', body={'value': value})
 
     def multi_put(self, mapping, root=None):
         '''
@@ -151,28 +151,96 @@ class StoreProxy(BatchStoreInterface):
 
         return self._fetch(root or '', 'PUT', body={'keys': mapping})
 
-    def delete(self, path):
+    def delete(self, key):
         '''
         Call `delete()` on the remote `Store`.
         '''
 
-        return self._fetch(path, 'DELETE')
+        return self._fetch(key, 'DELETE')
 
-    def multi_delete(self, paths, root=None):
+    def multi_delete(self, keys, root=None):
         '''
         Perform a batch `delete()` on the remote `Store`
         in a single HTTP request.
         '''
 
         return self._fetch(root or '', 'POST',
-                           body={'operation': 'DELETE', 'keys': paths})
+                           body={'operation': 'DELETE', 'keys': keys})
 
-class Transaction(StoreInterface):
-    def __init__(self, base=None):
-        self._base = base
+class StoreTransaction(StoreInterface):
+    '''
+    Helper class for building a batch modification to a `Store`.
 
-    def commit(self):
-        pass
+    The `StoreTransaction` acts as a changelog for puts and deletes for
+    a store. All puts and deletes are buffered until `commit()` is called,
+    which flushes the changelog to the destination which must implement
+    `BatchStoreInterface`. All puts and deletes on the `StoreTransaction`
+    are withheld until committed.
+    '''
+
+    def __init__(self, source=None):
+        '''
+        Initialize a `StoreTransaction`.
+
+        If `source`, all lookups into the transaction will be routed
+        to `source` if the given key has not been modified by the
+        transaction. This allows the `StoreTransaction` to work as a drop-in
+        replacement for any object implementing `StoreInterface`.
+        '''
+
+        self._source = source
+        self.reset()
+
+    def get(self, key):
+        '''
+        Perform a lookup in the `StoreTransaction`.
+
+        If `key` is set in the cached transaction changes, the lookup
+        will be into the changes. Otherwise, the lookup will pass through
+        to the transaction source if one is provided.
+        '''
+
+        try:
+            # attempt lookup from transaction
+            return self._trans.get(key, strict=True)
+        except KeyError:
+            pass
+
+        # attempt lookup from source
+        if self._source:
+            return self._source.get(key)
+
+        # default
+        return None
+
+    def put(self, key, value):
+        '''
+        Record a `put()` in the transaction.
+        '''
+
+        self._trans.put(key, value)
+
+    def delete(self, key):
+        '''
+        Record a `delete()` in the transaction.
+        '''
+
+        self._trans.delete(key)
+
+    def commit(self, destination):
+        '''
+        Flush all puts and deletes from in this transaction to
+        `destination`, which must implement `BatchStoreInterface`.
+        '''
+
+        destination.multi_put(self._trans.flatten(strict=True))
+
+    def reset(self):
+        '''
+        Clear all recorded puts and deletes from the transaction.
+        '''
+
+        self._trans = Store()
 
 class PensiveClient(object):
     pass
