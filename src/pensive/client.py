@@ -4,6 +4,8 @@ Web client interface to `PensiveServer`.
 
 import logging
 
+import httplib
+
 from tornado.escape import json_encode, json_decode
 from tornado.httpclient import HTTPClient
 
@@ -103,7 +105,7 @@ class StoreProxy(BatchStoreInterface):
         # map common HTTP errors to exceptions
         if response.code == 404:
             raise KeyError(path)
-        elif response.code != 200:
+        elif response.code not in [httplib.OK, httplib.NO_CONTENT]:
             logger.error('unexpected HTTP response: {} {}\
                 \n\nResponse:\n{}'.format(response.code,
                                           response.reason,
@@ -112,6 +114,9 @@ class StoreProxy(BatchStoreInterface):
 
         # decode the response using JSON if a schema is provided
         if schema:
+            if response.code == httplib.NO_CONTENT:
+                raise RuntimeError('server indicated no content when expecting response body')
+
             try:
                 obj = json_decode(response.body)
                 jsonschema.validate(obj, schema)
