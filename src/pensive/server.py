@@ -26,10 +26,11 @@ from tornado.escape import json_decode
 import jsonschema
 
 from .core import Store
+from . import DEFAULT_PORT
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class ManagerHandler(RequestHandler):
+class ManagerHandler(RequestHandler):  # pylint: disable=abstract-method
     '''
     Handler for GET, PUT, and DELETE for manipulating `Store` instances.
     '''
@@ -45,7 +46,7 @@ class ManagerHandler(RequestHandler):
         'required': ['parent'],
     }
 
-    def get(self, instance=None):
+    def get(self, instance=None):  # pylint: disable=arguments-differ
         '''
         Access the store index.
         '''
@@ -57,7 +58,7 @@ class ManagerHandler(RequestHandler):
             # send back the list of keys
             self.write({'index': self.application.stores.keys()})
 
-    def put(self, instance=None):
+    def put(self, instance=None):  # pylint: disable=arguments-differ
         '''
         Create a new store named `instance`.
 
@@ -107,7 +108,7 @@ class ManagerHandler(RequestHandler):
             self.set_status(httplib.CREATED)
             logger.info('created empty new store "{}"'.format(instance))
 
-    def delete(self, instance=None):
+    def delete(self, instance=None):  # pylint: disable=arguments-differ
         '''
         Delete the store named `instance`.
 
@@ -128,7 +129,7 @@ class ManagerHandler(RequestHandler):
                 logger.info('deleted store "{}"'.format(instance))
                 self.set_status(httplib.NO_CONTENT)
 
-class StoreHandler(RequestHandler):
+class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
     '''
     Handler for GET, POST, PUT, and DELETE for accessing the `Store`.
     '''
@@ -163,7 +164,7 @@ class StoreHandler(RequestHandler):
         },
     }
 
-    def get(self, path, instance=None):
+    def get(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
         Handle GET requests.
 
@@ -187,7 +188,7 @@ class StoreHandler(RequestHandler):
             # retrieve value
             self.write({'value': store.get(path)})
 
-    def post(self, path, instance=None):
+    def post(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
         Handle POST requests for multiple GET and DELETE.
 
@@ -246,7 +247,7 @@ class StoreHandler(RequestHandler):
                     logger.warning('invalid operation: {}'.format(obj['operation']))
                     self.send_error(httplib.BAD_REQUEST, reason='invalid operation')
 
-    def put(self, path, instance=None):
+    def put(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
         Handle PUT requests.
 
@@ -299,7 +300,7 @@ class StoreHandler(RequestHandler):
                     logger.warning('incomplete payload')
                     self.send_error(httplib.BAD_REQUEST, reason='incomplete payload')
 
-    def delete(self, path, instance=None):
+    def delete(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
         Handle DELETE requests.
 
@@ -319,11 +320,12 @@ class PensiveServer(Application):
     '''
     Tornado web application for database access over HTTP.
     '''
-    def __init__(self, port=8888, address=''):
+    def __init__(self, port=None, address=None):
         super(PensiveServer, self).__init__()
-        self._port = port
+        self._port = port or DEFAULT_PORT
         self._address = address
 
+        # create default store
         self.stores = {
             None: Store()
         }

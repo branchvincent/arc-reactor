@@ -6,16 +6,23 @@ import logging
 
 import httplib
 
+from os import environ
+
 from tornado.escape import json_encode, json_decode
 from tornado.httpclient import HTTPClient
 
 import jsonschema
 
-from pensive.core import Store
+from .core import Store
+from . import DEFAULT_PORT
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class JSONClient(object):
+class JSONClientMixin(object):
+    '''
+    Internal convenience class for sending/receiving JSON over HTTP.
+    '''
+
     def __init__(self, base_url, client=None):
         if not base_url.startswith('http://'):
             base_url = 'http://' + base_url
@@ -103,7 +110,7 @@ class BatchStoreInterface(StoreInterface):
     def multi_delete(self, keys, root=None):
         raise NotImplementedError
 
-class StoreProxy(JSONClient, BatchStoreInterface):
+class StoreProxy(JSONClientMixin, BatchStoreInterface):
     '''
     Proxy for a `Store` served over HTTP.
     '''
@@ -254,7 +261,7 @@ class StoreTransaction(StoreInterface):
 
         self._trans = Store()
 
-class PensiveClient(JSONClient):
+class PensiveClient(JSONClientMixin):
     '''
     Client for accessing and manipulating `Store`s on a PensiveServer.
     '''
@@ -277,7 +284,13 @@ class PensiveClient(JSONClient):
     NO_PARENT = object()
 
     def __init__(self, host=None, **kwargs):
-        self._host = host or 'http://localhost:8888/'
+        self._host = host
+        if not self._host:
+            # fall back to environment variable
+            self._host = environ.get('PENSIVE_SERVER', None)
+        if not self._host:
+            # call back to default
+            self._host = 'http://localhost:{}/'.format(DEFAULT_PORT)
 
         super(PensiveClient, self).__init__(self._host, **kwargs)
 
