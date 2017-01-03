@@ -74,11 +74,11 @@ class Store(object):
                     raise
                 return None
 
-    def put(self, key, value):
+    def put(self, key=None, value=None):
         '''
         Put `value` into the store.
 
-        If `key is None`, the store takes the value `value.
+        If `key is None`, the store takes the value `value`.
         This erases all children. If `key is not None`, a
         substore is created and `put` is called recursively.
 
