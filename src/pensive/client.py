@@ -124,9 +124,9 @@ class StoreProxy(JSONClient, BatchStoreInterface):
 
     def __init__(self, host, instance=None, **kwargs):
         if instance is None:
-            base_url = '{}/d/'.format(host)
+            base_url = '{}/d/'.format(host.rstrip('/'))
         else:
-            base_url = '{}/i/{}/'.format(host, instance)
+            base_url = '{}/i/{}/'.format(host.rstrip('/'), instance)
 
         super(StoreProxy, self).__init__(base_url, **kwargs)
 
