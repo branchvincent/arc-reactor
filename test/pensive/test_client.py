@@ -20,14 +20,14 @@ class Skip(object):  # pylint: disable=too-few-public-methods
 
         def get_app(self):
             self.server = PensiveServer()
-            self.server.stores.setdefault(self.instance, Store()).put('', {'a': 4, 'b': {'c': 2}})
+            self.server.stores.setdefault(self.instance, Store()).put(value={'a': 4, 'b': {'c': 2}})
             return self.server
 
         def test_client_get(self):
             self.assertEqual(self.proxy.get('a'), 4)
             self.assertEqual(self.proxy.get('b/c'), 2)
             self.assertDictEqual(self.proxy.get('b'), {'c': 2})
-            self.assertDictEqual(self.proxy.get(''), {'a': 4, 'b': {'c': 2}})
+            self.assertDictEqual(self.proxy.get(), {'a': 4, 'b': {'c': 2}})
             self.assertIsNone(self.proxy.get('nonexistent'))
 
         def test_client_mutil_get(self):
@@ -38,33 +38,33 @@ class Skip(object):  # pylint: disable=too-few-public-methods
 
         def test_client_put(self):
             self.proxy.put('b', 5)
-            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4, 'b': 5})
+            self.assertDictEqual(self.server.stores[self.instance].get(), {'a': 4, 'b': 5})
             self.proxy.put('c', {'d': 6})
-            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4, 'b': 5, 'c': {'d': 6}})
+            self.assertDictEqual(self.server.stores[self.instance].get(), {'a': 4, 'b': 5, 'c': {'d': 6}})
 
         def test_client_multi_put(self):
             self.proxy.multi_put({'b': 5, 'c': {'d': 6}})
-            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4, 'b': 5, 'c': {'d': 6}})
+            self.assertDictEqual(self.server.stores[self.instance].get(), {'a': 4, 'b': 5, 'c': {'d': 6}})
 
         def test_client_multi_put_root(self):
             self.proxy.multi_put({'d': 7}, root='b')
-            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4, 'b': {'c': 2, 'd': 7}})
+            self.assertDictEqual(self.server.stores[self.instance].get(), {'a': 4, 'b': {'c': 2, 'd': 7}})
 
         def test_client_delete(self):
             self.proxy.delete('a')
-            self.assertDictContainsSubset(self.server.stores[self.instance].get(''), {'b': {'c': 2}})
+            self.assertDictContainsSubset(self.server.stores[self.instance].get(), {'b': {'c': 2}})
 
         def test_client_delete_nested(self):
             self.proxy.delete('b/c')
-            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4})
+            self.assertDictEqual(self.server.stores[self.instance].get(), {'a': 4})
 
         def test_client_multi_delete(self):
             self.proxy.multi_delete(['a', 'b/c'])
-            self.assertIsNone(self.server.stores[self.instance].get(''))
+            self.assertIsNone(self.server.stores[self.instance].get())
 
         def test_client_multi_delete_root(self):
             self.proxy.multi_delete(['c'], root='b')
-            self.assertDictEqual(self.server.stores[self.instance].get(''), {'a': 4})
+            self.assertDictEqual(self.server.stores[self.instance].get(), {'a': 4})
 
 class ClientTest_Default(Skip.ClientTest):
     instance = None
@@ -80,7 +80,7 @@ class ClientTest_Transaction(AsyncHTTPTestCase):
 
     def get_app(self):
         self.server = PensiveServer()
-        self.server.stores[None].put('', {'a': 4, 'b': {'c': 2}})
+        self.server.stores[None].put(value={'a': 4, 'b': {'c': 2}})
         return self.server
 
     def test_transaction_get(self):
@@ -89,18 +89,18 @@ class ClientTest_Transaction(AsyncHTTPTestCase):
     def test_transaction_put(self):
         self.trans.put('d/a', 5)
         self.assertEquals(self.trans.get('d/a'), 5)
-        self.assertDictEqual(self.proxy.get(''), {'a': 4, 'b': {'c': 2}})
+        self.assertDictEqual(self.proxy.get(), {'a': 4, 'b': {'c': 2}})
 
         self.trans.commit(self.proxy)
-        self.assertDictEqual(self.proxy.get(''), {'a': 4, 'b': {'c': 2}, 'd': {'a': 5}})
+        self.assertDictEqual(self.proxy.get(), {'a': 4, 'b': {'c': 2}, 'd': {'a': 5}})
 
     def test_transaction_delete(self):
         self.trans.delete('a')
         self.assertIsNone(self.trans.get('a'))
-        self.assertDictEqual(self.proxy.get(''), {'a': 4, 'b': {'c': 2}})
+        self.assertDictEqual(self.proxy.get(), {'a': 4, 'b': {'c': 2}})
 
         self.trans.commit(self.proxy)
-        self.assertDictEqual(self.proxy.get(''), {'b': {'c': 2}})
+        self.assertDictEqual(self.proxy.get(), {'b': {'c': 2}})
 
 class ClientTest_PensiveClient(AsyncHTTPTestCase):
     def setUp(self):
@@ -109,14 +109,40 @@ class ClientTest_PensiveClient(AsyncHTTPTestCase):
 
     def get_app(self):
         self.server = PensiveServer()
-        self.server.stores[None].put('', {'a': 4})
-        self.server.stores.setdefault('a', Store()).put('', {'b': 5})
+        self.server.stores[None].put(value={'a': 4})
+        self.server.stores.setdefault('a', Store()).put(value={'b': 5})
         return self.server
 
     def test_client_pensive_index(self):
         self.assertItemsEqual(self.client.index(), [None, 'a'])
 
-    # def test_client_pensive_store(self):
-    #     self.assertItemsEqual(self.client.store().get(''), {'a': 4})
-    #     self.assertItemsEqual(self.client.store('a').get(''), {'b': 5})
-    #     self.assertItemsEqual(self.client.default().get(''), {'a': 4})
+    def test_client_pensive_store(self):
+        self.assertDictEqual(self.client.store().get(), {'a': 4})
+        self.assertDictEqual(self.client.store('a').get(), {'b': 5})
+        self.assertDictEqual(self.client.default().get(), {'a': 4})
+
+    def test_client_pensive_delete(self):
+        self.client.delete('a')
+        self.assertItemsEqual(self.client.index(), [None])
+        with self.assertRaises(KeyError):
+            self.client.store('a')
+
+    def test_client_pensive_create_default(self):
+        store = self.client.create('b')
+        self.assertDictEqual(store.get(), {'a': 4})
+
+    def test_client_pensive_create_duplicate(self):
+        with self.assertRaises(ValueError):
+            store = self.client.create('a')
+
+    def test_client_pensive_create_duplicate_force(self):
+        store = self.client.create('a', force=True)
+        self.assertDictEqual(store.get(), {'a': 4})
+
+    def test_client_pensive_create_fork(self):
+        store = self.client.create('c', 'a')
+        self.assertDictEqual(store.get(), {'b': 5})
+
+    def test_client_pensive_create_empty(self):
+        store = self.client.create('c', PensiveClient.NO_PARENT)
+        self.assertIsNone(store.get())

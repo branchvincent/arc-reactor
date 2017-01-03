@@ -53,7 +53,7 @@ class JSONClient(object):
         # map common HTTP errors to exceptions
         if response.code == 404:
             raise KeyError(path)
-        elif response.code not in [httplib.OK, httplib.NO_CONTENT]:
+        elif response.code not in [httplib.OK, httplib.CREATED, httplib.NO_CONTENT]:
             logger.error('unexpected HTTP response: {} {}\
                 \n\nResponse:\n{}'.format(response.code,
                                           response.reason,
@@ -80,13 +80,13 @@ class StoreInterface(object):
     Basic interface for a `Store`.
     '''
 
-    def get(self, key):
+    def get(self, key=None):
         raise NotImplementedError
 
-    def put(self, key, value):
+    def put(self, key=None, value=None):
         raise NotImplementedError
 
-    def delete(self, key):
+    def delete(self, key=None):
         raise NotImplementedError
 
 class BatchStoreInterface(StoreInterface):
@@ -130,12 +130,12 @@ class StoreProxy(JSONClient, BatchStoreInterface):
 
         super(StoreProxy, self).__init__(base_url, **kwargs)
 
-    def get(self, key):
+    def get(self, key=None):
         '''
         Call `get()` on the remote `Store`.
         '''
 
-        return self._fetch(key, 'GET', schema=StoreProxy.GET_SCHEMA)['value']
+        return self._fetch(key or '', 'GET', schema=StoreProxy.GET_SCHEMA)['value']
 
     def multi_get(self, keys, root=None):
         '''
@@ -148,12 +148,12 @@ class StoreProxy(JSONClient, BatchStoreInterface):
                            schema=StoreProxy.MULTI_GET_SCHEMA)
 
 
-    def put(self, key, value):
+    def put(self, key=None, value=None):
         '''
         Call `put()` on the remote `Store`.
         '''
 
-        return self._fetch(key, 'PUT', body={'value': value})
+        return self._fetch(key or '', 'PUT', body={'value': value})
 
     def multi_put(self, mapping, root=None):
         '''
@@ -163,12 +163,12 @@ class StoreProxy(JSONClient, BatchStoreInterface):
 
         return self._fetch(root or '', 'PUT', body={'keys': mapping})
 
-    def delete(self, key):
+    def delete(self, key=None):
         '''
         Call `delete()` on the remote `Store`.
         '''
 
-        return self._fetch(key, 'DELETE')
+        return self._fetch(key or '', 'DELETE')
 
     def multi_delete(self, keys, root=None):
         '''
@@ -203,7 +203,7 @@ class StoreTransaction(StoreInterface):
         self._source = source
         self.reset()
 
-    def get(self, key):
+    def get(self, key=None):
         '''
         Perform a lookup in the `StoreTransaction`.
 
@@ -225,14 +225,14 @@ class StoreTransaction(StoreInterface):
         # default
         return None
 
-    def put(self, key, value):
+    def put(self, key=None, value=None):
         '''
         Record a `put()` in the transaction.
         '''
 
         self._trans.put(key, value)
 
-    def delete(self, key):
+    def delete(self, key=None):
         '''
         Record a `delete()` in the transaction.
         '''
@@ -274,6 +274,8 @@ class PensiveClient(JSONClient):
         'required': ['index'],
     }
 
+    NO_PARENT = object()
+
     def __init__(self, host=None, **kwargs):
         self._host = host or 'http://localhost:8888/'
 
@@ -281,7 +283,7 @@ class PensiveClient(JSONClient):
 
     def default(self):
         '''
-        Convenience method for explictly accessing default store.
+        Convenience method for explicitly accessing default store.
         '''
 
         return self.store(None)
@@ -297,7 +299,7 @@ class PensiveClient(JSONClient):
         if instance not in self.index():
             raise KeyError(instance)
 
-        return StoreProxy(self._host, instance)
+        return StoreProxy(self._host, instance, client=self._client)
 
     def index(self):
         '''
@@ -306,20 +308,27 @@ class PensiveClient(JSONClient):
 
         return self._fetch('s', 'GET', schema=self.GET_SCHEMA)['index']
 
-    def create(self, instance, parent=None):
+    def create(self, instance, parent=None, force=False):
         '''
         Creates a new instance and returns the corresponding `StoreProxy`.
 
-        If `instance` already exists, it is unchanged.
+        If `instance` already exists and not `force`, `ValueError` is raised.
+        Otherwise, the existing instance is first deleted.
 
         If `parent is None`, an empty instance is created. Otherwise,
         the created instance is a fork of `parent`.
         '''
 
-        if parent:
-            self._fetch('s/{}'.format(instance), 'PUT', body={'parent': parent})
+        if instance in self.index():
+            if force:
+                self.delete(instance)
+            else:
+                raise ValueError('instance already exists')
+
+        if parent is self.NO_PARENT:
+            self._fetch('s/{}'.format(instance), 'PUT', body='')
         else:
-            self._fetch('s/{}'.format(instance), 'PUT')
+            self._fetch('s/{}'.format(instance), 'PUT', body={'parent': parent})
 
         return self.store(instance)
 

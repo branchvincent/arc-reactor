@@ -39,7 +39,7 @@ class ManagerHandler(RequestHandler):
         'type': 'object',
         'properties': {
             'parent': {
-                'type': 'string',
+                'type': ['string', 'null'],
             },
         },
         'required': ['parent'],
