@@ -1,0 +1,103 @@
+#!/usr/bin/env python
+
+# pylint: disable=line-too-long,missing-docstring,invalid-name,wrong-import-position,multiple-imports
+
+'''
+Launcher for the reactor system.
+'''
+
+# allow importing directly from src/
+import sys
+sys.path.append('src')
+
+# parse command-line arguments
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, REMAINDER
+
+parser = ArgumentParser(description='Reactor system launcher')
+parser.add_argument('-v', '--verbose', metavar='MODULE', action='append', help='verbose logging for specified modules')
+parser.add_argument('-d', '--debug', metavar='MODULE', action='append', help='debug logging for specified modules')
+parser.add_argument('-l', '--log', metavar='LOG', help='override log file')
+
+subparsers = parser.add_subparsers(title='subcommands', dest='command')
+
+db_parser = subparsers.add_parser('db', help='database control', description='control the system database', formatter_class=ArgumentDefaultsHelpFormatter)
+db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=8888, help='server port')
+db_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
+
+test_parser = subparsers.add_parser('test', help='unit test launcher', description='discover and launch unit tests with logging', formatter_class=ArgumentDefaultsHelpFormatter)
+test_parser.add_argument('-c', '--continue', dest='cont', action='store_true', help='continue despite failures')
+test_parser.add_argument('-q', '--quiet', action='store_true', help='decrease verbosity')
+test_parser.add_argument('-v', '--verbose', action='store_true', help='increase verbosity')
+test_parser.add_argument('path', nargs=REMAINDER, metavar='PATH', help='search path for tests')
+
+args = parser.parse_args()
+
+# configure the root logger to accept all records
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.NOTSET)
+
+formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
+
+# set up colored logging to console
+from rainbow_logging_handler import RainbowLoggingHandler
+console_handler = RainbowLoggingHandler(sys.stderr)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+# set up logging to file for all records
+log_path = args.log
+if not log_path:
+    import os, datetime
+    name = '{}-{:%Y%m%d-%H%M%S}.log'.format(
+        os.path.basename(__file__), datetime.datetime.now())
+    log_path = os.path.join('log', name)
+
+    # create the log directory if needed
+    if not os.path.exists('log'):
+        os.mkdir('log')
+
+handler = logging.FileHandler(log_path)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# install level filter for console output only
+from util.log import LevelFilter
+lf = LevelFilter()
+console_handler.addFilter(lf)
+
+# default console output to WARN level
+lf.add('', logging.WARN)
+
+# process logging verbosity flags
+for m in args.verbose or []:
+    lf.add(m, logging.INFO)
+
+for m in args.debug or []:
+    lf.add(m, logging.DEBUG)
+
+# launch the target command
+if args.command == 'db':
+    from pensive import PensiveServer
+
+    server = PensiveServer(args.port)
+    server.run()
+
+elif args.command == 'test':
+    # suppress warnings by default because they are
+    # very likely intentionally generated during tests
+    lf.add('', logging.ERROR)
+
+    subargs = ['--cov=src', '--cov-report=html', '--cov-report=term']
+
+    if not args.cont:
+        subargs.append('--maxfail=1')
+    if args.quiet:
+        subargs.append('-q')
+    if args.verbose:
+        subargs.append('-v')
+
+    subargs.extend([os.path.join('test', p) for p in args.path] or ['test'])
+
+    import pytest
+    pytest.main(subargs)
