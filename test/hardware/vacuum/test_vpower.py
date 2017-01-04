@@ -1,7 +1,7 @@
 # Test PowerUSB code for turning the vacuum(s) off and on
 #
 
-from unittest import TestCase
+from unittest import TestCase, SkipTest
 from src.hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
 
 class PowerUSBSocket_Power(TestCase):
@@ -9,8 +9,13 @@ class PowerUSBSocket_Power(TestCase):
     def setUp(self):
         self.pwrstrip = PowerUSBStrip()
         self.strips = self.pwrstrip.strips()
+
+        # tests cannot proceed without at least one PowerUSB strip
+        if not len(self.strips):
+            self.skipTest('no PowerUSB strips detected')
+
         self.strip = self.strips[0]
-    
+
     def test_One_On(self):
         self.socket = PowerUSBSocket(self.strip, 1)
         self.strip.open()
