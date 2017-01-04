@@ -1,4 +1,12 @@
+# general logging
 rainbow-logging-handler
+
+# database server
 tornado
 jsonschema
+
+# vacuum interface
+pyusb
+
+# unit test coverage
 pytest-cov
