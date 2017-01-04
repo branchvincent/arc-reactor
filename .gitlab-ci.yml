@@ -4,9 +4,14 @@ stages:
 - Build
 - Test
 
+before_script:
+- apt update
+- apt -y install cmake
+
 cmake:
     stage: Build
     script:
+    -
     - mkdir build
     - cd build
     - cmake -f ..
