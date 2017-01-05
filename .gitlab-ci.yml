@@ -8,7 +8,7 @@ stages:
 cmake:
     stage: Build
     script:
-    - apt-get update -qq & & apt-get install -y -qq cmake
+    - apt-get update -qq && apt-get install -y -qq cmake
     - mkdir build && cd build
     - cmake -f ..
     - make all
@@ -20,7 +20,7 @@ cmake:
 cpp-unittest:
     stage: Test
     script:
-    - apt-get update -qq & & apt-get install -y -qq cmake
+    - apt-get update -qq && apt-get install -y -qq cmake
     - mkdir build && cd build
     - cmake -f ..
     - make test
@@ -34,7 +34,7 @@ python-unittest:
 doxygen:
     stage: Document
     script:
-    - apt-get update -qq & & apt-get install -y -qq doxygen
+    - apt-get update -qq && apt-get install -y -qq doxygen
     - doxygen Doxyfile
     artifacts:
         paths:
