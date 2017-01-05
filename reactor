@@ -78,7 +78,7 @@ for m in args.debug or []:
 
 # launch the target command
 if args.command == 'db':
-    from pensive import PensiveServer
+    from pensive.server import PensiveServer
 
     server = PensiveServer(args.port)
     server.run()
@@ -100,4 +100,7 @@ elif args.command == 'test':
     subargs.extend([os.path.join('test', p) for p in args.path] or ['test'])
 
     import pytest
-    pytest.main(subargs)
+    result = pytest.main(subargs)
+
+    # return the pytest error code for CI build status use
+    raise SystemExit(result)
