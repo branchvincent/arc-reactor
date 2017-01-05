@@ -7,7 +7,7 @@ Please read below regarding the project organization from a software standpoint.
 
 ## Getting Started
 
-If this is your first time using Gitlab, please update your profile to include your at least your first/given name.
+If this is your first time using Gitlab, please update your profile to include at least your first/given name.
 
 ## Version Control
 
@@ -125,7 +125,7 @@ Extensive and structured logging will greatly facilitate debugging and diagnosti
 Create a logger instance at the start of each module.
 
 ```python
-import logging, traceback
+import logging
 logger = logging.getLogger(__name__)
 ```
 
@@ -144,12 +144,12 @@ Use the following hints for deciding the severity level for a message.
 ### Exceptions
 
 Log all exceptions with a traceback to facilitate debugging.
+This is most readily accomplished with the `exception()` logging method which automatically captures the traceback.
 ```python
 try:
     ...
 except Exception as e:
-    logger.error('something is wrong: {}'.format(e))
-    logger.error(traceback.format_exc())
+    logger.exception('something went wrong')
 ```
 
 ## Directory Structure
@@ -160,3 +160,4 @@ The plan for organizing this repository is below.
 - `data/`: Symbolic links (or directory junctions) to synced folders (e.g., Duke Box, Dropbox, Google Drive, etc.) with large and/or binary files.
 - `doc/`: External text-based documentation not already added with Doxygen into Python docstrings or C/C++ comments.
 - `src/`: Top-level directory for all source code, further subdivided into modules (e.g., `src/perception/`, `src/grasp/`, etc.).
+- `test/`: Top-level directory for all test code, mirroring the source directory tree.
