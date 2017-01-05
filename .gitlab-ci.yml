@@ -4,15 +4,11 @@ stages:
 - Build
 - Test
 
-before_script:
-- apt update
-- apt -y install cmake
-
 cmake:
     stage: Build
     script:
-    - mkdir build
-    - cd build
+    - apt-get update -qq & & apt-get install -y -qq cmake
+    - mkdir build && cd build
     - cmake -f ..
     - make all
     artifacts:
@@ -23,7 +19,9 @@ cmake:
 cpp-unittest:
     stage: Test
     script:
-    - cd build
+    - apt-get update -qq & & apt-get install -y -qq cmake
+    - mkdir build && cd build
+    - cmake -f ..
     - make test
 
 python-unittest:
