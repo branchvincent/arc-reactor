@@ -28,7 +28,7 @@ cpp-unittest:
 python-unittest:
     stage: Test
     script:
-    - pip install -r requirements.txt
+    - pip install -q -r requirements.txt
     - python reactor test -c
 
 doxygen:

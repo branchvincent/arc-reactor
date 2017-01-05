@@ -2,11 +2,20 @@
 #
 
 from unittest import TestCase, SkipTest
-from src.hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
+
+import usb
+
+from hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
 
 class PowerUSBSocket_Power(TestCase):
 
     def setUp(self):
+        # check that PyUSB works by enumerating all busses
+        try:
+            list(usb.busses())
+        except usb.USBError:
+            self.skipTest('PyUSB does not function on this platform')
+
         self.pwrstrip = PowerUSBStrip()
         self.strips = self.pwrstrip.strips()
 
