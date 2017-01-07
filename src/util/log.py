@@ -4,6 +4,8 @@ Utility classes and functions for logging.
 
 import logging
 
+logger = logging.getLogger(__name__)
+
 class LevelFilter(logging.Filter):
     '''
     Python logging filter to replicate `logging.Logger.setLevel()` functionality
@@ -64,13 +66,20 @@ class LevelFilter(logging.Filter):
 #             msg = msg.format(*self.args)
 #         return msg
 
-# class NewStyleLogger(logging.Logger):
+# class MultiStyleLogger(logging.Logger):
+#     def __init__(self, name, level=logging.NOTSET, record_class=logging.LogRecord):
+#         super(MultiStyleLogger, self).__init__(name, level=level)
+#         self._record_class = record_class
+
+#     def setRecordClass(self, klass):
+#         self._record_class = klass
+
 #     def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None):
 #         """
 #         A factory method which can be overridden in subclasses to create
 #         specialized LogRecords.
 #         """
-#         rv = NewStyleLogRecord(name, level, fn, lno, msg, args, exc_info, func)
+#         rv = self._record_class(name, level, fn, lno, msg, args, exc_info, func)
 #         if extra is not None:
 #             for key in extra:
 #                 if (key in ["message", "asctime"]) or (key in rv.__dict__):
@@ -78,4 +87,9 @@ class LevelFilter(logging.Filter):
 #                 rv.__dict__[key] = extra[key]
 #         return rv
 
-# logging.setLoggerClass(NewStyleLogger)
+# logging.setLoggerClass(MultiStyleLogger)
+
+# def getNewStyleLogger(name):
+#     logger = logging.getLogger(name)
+#     logger.setRecordClass(NewStyleLogRecord)
+#     return logger
