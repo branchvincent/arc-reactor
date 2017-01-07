@@ -5,6 +5,9 @@ rainbow-logging-handler
 tornado
 jsonschema
 
+# log server
+sqlalchemy
+
 # vacuum interface
 pyusb
 
