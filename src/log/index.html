@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Log Server</title>
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="css/bootstrap.css">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="css/bootstrap-theme.css">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="container-fluid">
+
+        <div class="row">
+            <div class="col-md-2">
+                <div class="checkbox">
+                    <label>
+                        <input type="checkbox"> Debug
+                    </label>
+                </div>
+                <div class="checkbox">
+                    <label>
+                        <input type="checkbox"> Info
+                    </label>
+                </div>
+                <div class="checkbox">
+                    <label>
+                        <input type="checkbox"> Warning
+                    </label>
+                </div>
+                <div class="checkbox">
+                    <label>
+                        <input type="checkbox"> Error
+                    </label>
+                </div>
+            </div>
+
+            <div class="col-md-10">
+                <table id="records" class="table table-hover table-condensed">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Source</th>
+                            <th>Location</th>
+                            <th></th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+
+                </table>
+            </div>
+        </div>
+
+
+    </div>
+    <!-- /container -->
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="js/jquery.min.js"></script>
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="js/bootstrap.min.js"></script>
+
+    <script type="text/javascript">
+        var level2name = [];
+        level2name[10] = "DEBG",
+        level2name[20] = "INFO";
+        level2name[30] = "WARN";
+        level2name[40] = "ERRR";
+
+        var level2class = [];
+        level2class[10] = "",
+        level2class[20] = "info";
+        level2class[30] = "warning";
+        level2class[40] = "danger";
+
+        $(document).ready(function() {
+            $.ajax({ url: "records", type: "GET", dataType: "json"})
+            .done(function(obj){
+                for(var i = 0; i < obj.records.length; i++) {
+                    var record = obj.records[i];
+
+                    var icon = $("<span>");
+                    if(record.levelno >= 40) {
+                        icon.addClass("glyphicon glyphicon-exclamation-sign");
+                    } else if(record.levelno >= 30) {
+                        icon.addClass("glyphicon glyphicon-alert");
+                    }
+
+                    var message;
+                    var idx = record.message.indexOf("\n");
+                    if(idx >= 0) {
+                        message = $("<td>").text(record.message.substring(0, idx).trim() + " ")
+                        .append($("<a role=\"button\" data-toggle=\"collapse\" href=\"#extra" + record.id + "\">").text(">>>"))
+                        .append($("<pre id=\"extra" + record.id + "\">").addClass("collapse").text(record.message.substring(idx).trim()));
+                    } else {
+                        message = $("<td>").text(record.message);
+                    }
+
+                    $("<tr>").append(
+                        $("<td>").text(record.created),
+                        $("<td>").text(record.host + "/" + record.name),
+                        $("<td>").text(record.pathname + ":" + record.lineno),
+                        $("<td>").append(icon),
+                        message
+                    ).addClass(level2class[record.levelno]).appendTo("#records");
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

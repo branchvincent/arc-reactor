@@ -8,7 +8,7 @@ from tornado.tcpserver import TCPServer
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.escape import json_decode
-from tornado.web import RequestHandler, Application
+from tornado.web import RequestHandler, StaticFileHandler, Application
 from tornado import gen
 
 from sqlalchemy import create_engine
@@ -43,6 +43,7 @@ def _make_sqlalchemy_schema():
     schema = {
         '__tablename__': 'record',
         'id': Column(Integer, primary_key=True, autoincrement=True),
+        'host': Column(String(2014)),
     }
 
     for attr in INTEGER_ATTR:
@@ -96,6 +97,7 @@ class LogRecordServer(TCPServer):
                 break
 
             record = LogRecord()
+            record.host = '{}:{}'.format(*address)
 
             for attr in INTEGER_ATTR + FLOAT_ATTR:
                 setattr(record, attr, obj.get(attr, 0))
@@ -136,7 +138,7 @@ class RecordsIndexHandler(RequestHandler):
 
         objs = []
         for record in records:
-            obj = {'id': record.id}
+            obj = {'id': record.id, 'host': record.host}
 
             for attr in INTEGER_ATTR + FLOAT_ATTR + STRING_ATTR + TEXT_ATTR:
                 obj[attr] = getattr(record, attr)
@@ -154,7 +156,7 @@ class RecordHandler(RequestHandler):
         else:
             record = records.first()
 
-            obj = {'id': id}
+            obj = {'id': id, 'host': record.host}
             for attr in INTEGER_ATTR + FLOAT_ATTR + STRING_ATTR + TEXT_ATTR:
                 obj[attr] = getattr(record, attr)
 
@@ -179,6 +181,7 @@ class LogWebServer(Application):
         # install handlers for various URLs
         self.add_handlers(r'.*', [(r'/record/(?P<id>\d*)/*', RecordHandler)])
         self.add_handlers(r'.*', [(r'/records/*', RecordsIndexHandler)])
+        self.add_handlers(r'.*', [(r'/(.*)/*', StaticFileHandler, {'path': 'src/log'})])
 
     def log_request(self, handler):
         '''
