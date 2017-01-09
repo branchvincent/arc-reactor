@@ -93,6 +93,12 @@
         level2class[30] = "warning";
         level2class[40] = "danger";
 
+        var format_date = function(millis) {
+            var date = new Date(millis);
+
+            return (date.getMonth() + 1) + "/" + date.getDate() + "/" + date.getFullYear() + "-" + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "." + date.getMilliseconds();
+        }
+
         var load_records = function(table, skip, count, next) {
             $.ajax({ url: "records", type: "GET", data: {order: undefined, skip: skip, count: count}, dataType: "json"})
             .done(function(obj){
@@ -107,9 +113,9 @@
                     }
 
                     var lines = record.message.split(/(?:\n|\r)+/g);
-                    var message = $("<td>").append(lines[0]);
+                    var message = $("<td>").append(lines[0].trim());
                     for(var j = 1; j < lines.length; j++) {
-                        message.append("<br />").append(lines[j]);
+                        message.append("<br />").append(lines[j].trim());
                     }
 
                     if(record.exception) {
@@ -128,7 +134,7 @@
                     }
 
                     $("<tr>").attr("id", "record" + record.id).append(
-                        $("<td>").text(record.created),
+                        $("<td>").text(format_date(1000 * record.created)),
                         $("<td>").text(record.host),
                         $("<td>").text(record.name),
                         $("<td>").text(record.pathname + ":" + record.lineno),
