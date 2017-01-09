@@ -49,6 +49,8 @@
                         <input type="checkbox"> Error
                     </label>
                 </div>
+
+                <div id="progress" class="progress-bar progress-bar-striped" style="width: 0%">&nbsp;</div>
             </div>
 
             <div class="col-md-10">
@@ -56,6 +58,7 @@
                     <thead>
                         <tr>
                             <th>Timestamp</th>
+                            <th>Host</th>
                             <th>Source</th>
                             <th>Location</th>
                             <th></th>
@@ -90,8 +93,8 @@
         level2class[30] = "warning";
         level2class[40] = "danger";
 
-        $(document).ready(function() {
-            $.ajax({ url: "records", type: "GET", dataType: "json"})
+        var load_records = function(table, skip, count, next) {
+            $.ajax({ url: "records", type: "GET", data: {order: undefined, skip: skip, count: count}, dataType: "json"})
             .done(function(obj){
                 for(var i = 0; i < obj.records.length; i++) {
                     var record = obj.records[i];
@@ -99,29 +102,69 @@
                     var icon = $("<span>");
                     if(record.levelno >= 40) {
                         icon.addClass("glyphicon glyphicon-exclamation-sign");
-                    } else if(record.levelno >= 30) {
-                        icon.addClass("glyphicon glyphicon-alert");
+                    //} else if(record.levelno >= 30) {
+                    //    icon.addClass("glyphicon glyphicon-alert");
                     }
 
-                    var message;
-                    var idx = record.message.indexOf("\n");
-                    if(idx >= 0) {
-                        message = $("<td>").text(record.message.substring(0, idx).trim() + " ")
-                        .append($("<a role=\"button\" data-toggle=\"collapse\" href=\"#extra" + record.id + "\">").text(">>>"))
-                        .append($("<pre id=\"extra" + record.id + "\">").addClass("collapse").text(record.message.substring(idx).trim()));
-                    } else {
-                        message = $("<td>").text(record.message);
+                    var lines = record.message.split(/(?:\n|\r)+/g);
+                    var message = $("<td>").append(lines[0]);
+                    for(var j = 1; j < lines.length; j++) {
+                        message.append("<br />").append(lines[j]);
                     }
 
-                    $("<tr>").append(
+                    if(record.exception) {
+                        message
+                        .append("&nbsp;")
+                        .append($("<a>")
+                                .attr("role", "button")
+                                .attr("data-toggle", "collapse")
+                                .attr("data-target", "#extra" + record.id)
+                                .attr("href", "#record" + record.id)
+                                .text(">>>"))
+                        .append($("<pre>")
+                            .attr("id", "extra" + record.id)
+                            .addClass("collapse")
+                            .text(record.exception));
+                    }
+
+                    $("<tr>").attr("id", "record" + record.id).append(
                         $("<td>").text(record.created),
-                        $("<td>").text(record.host + "/" + record.name),
+                        $("<td>").text(record.host),
+                        $("<td>").text(record.name),
                         $("<td>").text(record.pathname + ":" + record.lineno),
                         $("<td>").append(icon),
                         message
                     ).addClass(level2class[record.levelno]).appendTo("#records");
                 }
+
+                var n = skip + obj.records.length;
+
+                $("#progress").css("width", 100.0 * n / obj.available + "%");
+
+                next(table, skip, obj.records.length);
             });
+        }
+
+        var load_all_records = function(table, rate) {
+            var next = function(table, skip, count) {
+                if(count < rate) {
+                    $("#progress").hide();
+                } else {
+                    load_records(table, skip + rate, rate, next)
+                }
+            };
+
+            $("#progress").css("width", 0).show();
+
+            load_records("#records", 0, rate, next);
+        }
+
+        var clear_all_records = function(table) {
+            $(table).empty();
+        }
+
+        $(document).ready(function() {
+            load_all_records("#records", 50);
         });
     </script>
 
