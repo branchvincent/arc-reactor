@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-from . import INTEGER_ATTR, FLOAT_ATTR, STRING_ATTR, TEXT_ATTR, DEFAULT_RECORD_PORT, DEFAULT_WEB_PORT
+from . import INTEGER_ATTR, FLOAT_ATTR, STRING_ATTR, TEXT_ATTR, ALL_ATTR, DEFAULT_RECORD_PORT, DEFAULT_WEB_PORT
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -27,7 +27,7 @@ def _make_json_schema():
         'type': 'object',
         'properties': {
         },
-        #'required': ['levelno', 'lineno', 'name', 'pathname', 'filename', 'module', 'funcName', 'message'],
+        'required': ['levelno', 'lineno', 'name', 'pathname', 'filename', 'module', 'funcName', 'message'],
     }
 
     for attr in INTEGER_ATTR + FLOAT_ATTR:
@@ -134,30 +134,50 @@ class LogRecordServer(TCPServer):
 
 class RecordsIndexHandler(RequestHandler):
     def get(self):
-        records = self.application.session.query(LogRecord).order_by(LogRecord.created)
+        records = self.application.session.query(LogRecord)
+
+        order = self.get_query_argument("order", "created")
+        if order in ALL_ATTR:
+            field = getattr(LogRecord, order)
+            records = records.order_by(field)
+
+        count = self.get_query_argument("count", None)
+        if count:
+            try:
+                records = records.limit(int(count))
+            except ValueError:
+                raise
+                pass
+
+        skip = self.get_query_argument("skip", None)
+        if skip:
+            try:
+                records = records.offset(int(skip))
+            except ValueError:
+                pass
 
         objs = []
         for record in records:
             obj = {'id': record.id, 'host': record.host}
 
-            for attr in INTEGER_ATTR + FLOAT_ATTR + STRING_ATTR + TEXT_ATTR:
+            for attr in ALL_ATTR:
                 obj[attr] = getattr(record, attr)
 
             objs.append(obj)
 
-        self.write({'records': objs})
+        available = self.application.session.query(LogRecord).count()
+
+        self.write({'records': objs, 'available': available})
 
 class RecordHandler(RequestHandler):
     def get(self, id):
-        records = self.application.session.query(LogRecord).filter_by(id=id)
+        record = self.application.session.query(LogRecord).get(id=id)
 
-        if not records:
+        if not record:
             self.send_error(httplib.NOT_FOUND)
         else:
-            record = records.first()
-
             obj = {'id': id, 'host': record.host}
-            for attr in INTEGER_ATTR + FLOAT_ATTR + STRING_ATTR + TEXT_ATTR:
+            for attr in ALL_ATTR:
                 obj[attr] = getattr(record, attr)
 
             self.write({'record': obj})
