@@ -136,17 +136,25 @@ class RecordsIndexHandler(RequestHandler):
     def get(self):
         records = self.application.session.query(LogRecord)
 
+        level = self.get_query_argument('level', None)
+        if level:
+            try:
+                records = records.filter(LogRecord.levelno >= int(level))
+            except ValueError:
+                pass
+
         order = self.get_query_argument("order", "created")
         if order in ALL_ATTR:
             field = getattr(LogRecord, order)
             records = records.order_by(field)
+
+        available = records.count()
 
         count = self.get_query_argument("count", None)
         if count:
             try:
                 records = records.limit(int(count))
             except ValueError:
-                raise
                 pass
 
         skip = self.get_query_argument("skip", None)
@@ -164,8 +172,6 @@ class RecordsIndexHandler(RequestHandler):
                 obj[attr] = getattr(record, attr)
 
             objs.append(obj)
-
-        available = self.application.session.query(LogRecord).count()
 
         self.write({'records': objs, 'available': available})
 
