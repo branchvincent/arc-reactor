@@ -87,8 +87,7 @@ class ManagerHandler(RequestHandler):  # pylint: disable=abstract-method
                 obj = json_decode(self.request.body)
                 jsonschema.validate(obj, self.PUT_SCHEMA)
             except (ValueError, jsonschema.ValidationError) as exc:
-                logger.warning('malformed payload: {}\n\n\
-                    Payload:\n{}'.format(exc, self.request.body))
+                logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(exc, self.request.body))
                 self.send_error(400, reason='malformed payload')
             else:
                 try:
@@ -228,8 +227,7 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
                 obj = json_decode(self.request.body)
                 jsonschema.validate(obj, StoreHandler.POST_SCHEMA)
             except (ValueError, jsonschema.ValidationError) as exc:
-                logger.warning('malformed payload: {}\n\n\
-                    Payload:\n{}'.format(exc, self.request.body))
+                logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(exc, self.request.body))
                 self.send_error(httplib.BAD_REQUEST, reason='malformed payload')
             else:
                 if path and not path.endswith(Store.SEPARATOR):
@@ -281,8 +279,7 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
                 obj = json_decode(self.request.body)
                 jsonschema.validate(obj, StoreHandler.PUT_SCHEMA)
             except (ValueError, jsonschema.ValidationError) as exc:
-                logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(
-                    exc, self.request.body))
+                logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(exc, self.request.body))
                 self.send_error(httplib.BAD_REQUEST, reason='malformed payload')
             else:
                 if 'value' in obj:
