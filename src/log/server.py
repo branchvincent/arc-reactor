@@ -177,7 +177,7 @@ class RecordsIndexHandler(RequestHandler):
 
 class RecordHandler(RequestHandler):
     def get(self, id):
-        record = self.application.session.query(LogRecord).get(id=id)
+        record = self.application.session.query(LogRecord).get(id)
 
         if not record:
             self.send_error(httplib.NOT_FOUND)
@@ -205,9 +205,11 @@ class LogWebServer(Application):
         self.session = sessionmaker(bind=self.engine)()
 
         # install handlers for various URLs
-        self.add_handlers(r'.*', [(r'/record/(?P<id>\d*)/*', RecordHandler)])
-        self.add_handlers(r'.*', [(r'/records/*', RecordsIndexHandler)])
-        self.add_handlers(r'.*', [(r'/(.*)/*', StaticFileHandler, {'path': 'src/log'})])
+        self.add_handlers(r'.*', [
+            (r'/record/(?P<id>\d*)/*', RecordHandler),
+            (r'/records/*', RecordsIndexHandler),
+            (r'/(.*)/*', StaticFileHandler, {'path': 'src/log'})
+        ])
 
     def log_request(self, handler):
         '''
