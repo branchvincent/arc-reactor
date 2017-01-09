@@ -1,7 +1,7 @@
 INTEGER_ATTR = ['levelno', 'lineno', 'thread', 'process']
 FLOAT_ATTR = ['created', 'msecs', 'relativeCreated']
 STRING_ATTR = ['name', 'pathname', 'filename', 'module', 'funcName', 'threadName', 'processName']
-TEXT_ATTR = ['message']
+TEXT_ATTR = ['message', 'exception']
 
 ALL_ATTR = INTEGER_ATTR + FLOAT_ATTR + STRING_ATTR + TEXT_ATTR
 
