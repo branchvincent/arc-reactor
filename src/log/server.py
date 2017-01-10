@@ -208,7 +208,9 @@ class LogWebServer(Application):
         self.add_handlers(r'.*', [
             (r'/record/(?P<id>\d*)/*', RecordHandler),
             (r'/records/*', RecordsIndexHandler),
-            (r'/(.*)/*', StaticFileHandler, {'path': 'src/log'})
+            (r'//*()', StaticFileHandler, {'path': 'src/log/viewer.html'}),
+            (r'/js/viewer.js()', StaticFileHandler, {'path': 'src/log/viewer.js'}),
+            (r'/(.*)/*', StaticFileHandler, {'path': 'data/log/static/'})
         ])
 
     def log_request(self, handler):
