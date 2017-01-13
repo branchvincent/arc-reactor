@@ -16,6 +16,7 @@ from tornado import gen
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql.expression import and_
 
 from . import INTEGER_ATTR, FLOAT_ATTR, STRING_ATTR, TEXT_ATTR, ALL_ATTR, DEFAULT_RECORD_PORT, DEFAULT_WEB_PORT
 
@@ -142,9 +143,24 @@ class LogRecordServer(TCPServer):
 
         logger.info('Logger stopped')
 
+def _record_to_dict(record):
+    obj = {
+        'id': record.id,
+        'hostname': record.hostname,
+        'ip': record.ip,
+        'port': record.port,
+    }
+
+    for attr in ALL_ATTR:
+        obj[attr] = getattr(record, attr)
+
+    return obj
+
 class RecordsIndexHandler(RequestHandler):
     def get(self):
         records = self.application.session.query(LogRecord)
+
+        names = [ r.name for r in records.group_by(LogRecord.name) ]
 
         level = self.get_query_argument('level', None)
         if level:
@@ -152,6 +168,16 @@ class RecordsIndexHandler(RequestHandler):
                 records = records.filter(LogRecord.levelno >= int(level))
             except ValueError:
                 pass
+
+        filters = self.get_query_argument('filter', None)
+        if filters:
+            for f in filters.split('!'):
+                name, _, level = f.partition(':')
+                print name, level
+                try:
+                    records = records.filter(~and_(LogRecord.name == name, LogRecord.levelno < int(level)))
+                except ValueError:
+                    pass
 
         order = self.get_query_argument("order", "created")
         if order in ALL_ATTR:
@@ -174,16 +200,9 @@ class RecordsIndexHandler(RequestHandler):
             except ValueError:
                 pass
 
-        objs = []
-        for record in records:
-            obj = {'id': record.id, 'host': record.host}
+        objs = [_record_to_dict(r) for r in records]
 
-            for attr in ALL_ATTR:
-                obj[attr] = getattr(record, attr)
-
-            objs.append(obj)
-
-        self.write({'records': objs, 'available': available})
+        self.write({'records': objs, 'available': available, 'names': names})
 
 class RecordHandler(RequestHandler):
     def get(self, id):
@@ -192,11 +211,7 @@ class RecordHandler(RequestHandler):
         if not record:
             self.send_error(httplib.NOT_FOUND)
         else:
-            obj = {'id': id, 'host': record.host}
-            for attr in ALL_ATTR:
-                obj[attr] = getattr(record, attr)
-
-            self.write({'record': obj})
+            self.write({'record': _record_to_dict(record)})
 
 class LogWebServer(Application):
     def __init__(self, port=None, address=None):

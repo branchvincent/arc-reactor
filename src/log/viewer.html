@@ -22,6 +22,22 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
+
+    <style type="text/css">
+        .no-transition {
+            transition: none !important;
+        }
+
+        #reload {
+            margin-right: 1em;
+        }
+
+        .progress-container {
+            padding-top: 5px;
+            padding-bottom: 5px;
+        }
+    </style>
+
 </head>
 
 <body>
@@ -29,24 +45,63 @@
 
         <div class="row">
             <div class="col-md-2">
+
+                <h3>Filter</h3>
+
+                <form class="form-horizontal">
+                    <div class="form-group">
+                        <label for="filter" class="col-sm-4 control-label">Global Level</label>
+                        <div class="col-sm-8">
+                            <select id="filter"></select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="date_12hr" class="col-sm-4 control-label">Time</label>
+                        <div class="col-sm-8">
+                            <div class="btn-group btn-group-justified" role="group" data-toggle="buttons">
+                                <label class="btn btn-default active">
+                                    <input type="radio" name="time" id="time_24hr" autocomplete="off" checked>24 hr
+                                </label>
+                                <label class="btn btn-default">
+                                    <input type="radio" name="time" id="time_12hr" autocomplete="off">12 hr
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="host_ip" class="col-sm-4 control-label">Host</label>
+                        <div class="col-sm-8">
+                            <div class="btn-group btn-group-justified" role="group" data-toggle="buttons">
+                                <label class="btn btn-default active">
+                                    <input type="radio" name="host" id="host_name" autocomplete="off" checked>Name
+                                </label>
+                                <label class="btn btn-default">
+                                    <input type="radio" name="host" id="host_ip" autocomplete="off">IP
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="source_filters">
+                        Filters
+                    </div>
+                </form>
+
                 <div>
-                <select id="filter" class="form-control"></select>
-                <a id="reload" class="btn"><span class="glyphicon glyphicon-refresh"></span></a>
+                    <button id="reload" class="btn btn-sm btn-primary pull-left"><span class="glyphicon glyphicon-refresh"></span></button>
+                    <div class="progress-container">
+                        <div class="progress">
+                            <div id="progress" class="progress-bar progress-bar-striped no-transition" style="width: 0%;">&nbsp;</div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="btn-group" data-toggle="buttons">
-                    <label class="btn btn-primary">
-                        <input type="radio" name="date" id="date_12hr" autocomplete="off">12 hr
-                    </label>
-                    <label class="btn btn-primary active">
-                        <input type="radio" name="date" id="date_24hr" autocomplete="off" checked>24 hr
-                    </label>
-                </div>
-
-                <div id="progress" class="progress-bar progress-bar-striped" style="width: 0%">&nbsp;</div>
             </div>
 
             <div class="col-md-10">
+                <h3>Records</h3>
+
                 <table id="records" class="table table-hover table-condensed">
                     <thead>
                         <tr>

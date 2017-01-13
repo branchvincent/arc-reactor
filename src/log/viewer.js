@@ -1,9 +1,10 @@
 var level2name = [];
-level2name[0] = "None";
+level2name[0] = "All";
 level2name[10] = "Debug",
 level2name[20] = "Info";
 level2name[30] = "Warn";
 level2name[40] = "Error";
+level2name[50] = "None";
 
 var level2class = [];
 level2class[10] = "",
@@ -11,17 +12,28 @@ level2class[20] = "info";
 level2class[30] = "warning";
 level2class[40] = "danger";
 
-var setup = function() {
-    // setup filter dropdown
-    var filter = $("#filter");
-    for(var i = 0; i <= 40; i += 10) {
+var populate_filter = function(id) {
+    var filter = $(id);
+    for(var i = 0; i <= 50; i += 10) {
         filter.append($("<option>").attr("value", i).text(level2name[i]));
     }
+
+}
+
+var setup = function() {
+    // setup filter dropdown
+    populate_filter("#filter");
 
     $("#reload").click(function() {
         var level = $("#filter option:selected").val();
         clear_all_records("#records");
-        load_all_records("#records", 50, level);
+
+        var filters = [];
+        $("#source_filters").find("select").each(function(index, element) {
+            filters[$(element).attr("id").substring(7).replace("_", ".")] = $(element).children(":selected").val();
+        });
+
+        load_all_records("#records", 50, level, filters);
     });
 }
 
@@ -42,10 +54,39 @@ var format_date = function(millis, ampm) {
     return s;
 }
 
-var load_records = function(table, skip, count, level, next) {
-    $.ajax({ url: "records", type: "GET", data: {level: level, skip: skip, count: count}, dataType: "json"})
+var load_records = function(table, skip, count, level, filters, next) {
+    s = '';
+    for(var key in filters) {
+        if(filters.hasOwnProperty(key)) {
+            s += key + ":" + filters[key] + "!";
+        }
+    }
+    s = s.substring(0, s.length - 1);
+
+    $.ajax({ url: "records", type: "GET", data: {level: level, skip: skip, count: count, filter: s}, dataType: "json"})
     .done(function(obj){
-        var ampm = $("#date_12hr").is(":checked");
+        var ampm = $("#time_12hr").is(":checked");
+        var hostname = $("#host_name").is(":checked");
+
+        var sources = obj.names;
+        for(var i = 0; i < sources.length; i++) {
+            var id = "filter_" + sources[i].replace('.', '_');
+
+            if($("#" + id).length) {
+                continue;
+            }
+
+            $("<div>").addClass("form-group").append(
+                $("<label>").addClass("col-sm-4 control-label").attr("for", id).text(sources[i].replace(".", " ")),
+                $("<div>").addClass("col-sm-8").append(
+                    $("<select>").attr("id", id).addClass("form_control")
+                )
+            ).appendTo("#source_filters");
+
+            populate_filter("#" + id);
+        }
+
+        // sort divs after adding filter entries
 
         for(var i = 0; i < obj.records.length; i++) {
             var record = obj.records[i];
@@ -88,30 +129,27 @@ var load_records = function(table, skip, count, level, next) {
             ).addClass(level2class[record.levelno]).appendTo("#records");
         }
 
-        var n = skip + obj.records.length;
+        var percent = 100.0 * (skip + obj.records.length) / obj.available;
 
-        $("#progress").css("width", 100.0 * n / obj.available + "%");
+        $("#progress").css("width", percent + "%");
 
         next(table, skip, obj.records.length);
     });
 }
 
-var load_all_records = function(table, rate, level) {
+var load_all_records = function(table, rate, level, filters) {
     var next = function(table, skip, count) {
         if(count < rate) {
-            $("#progress").hide();
+            // done
         } else {
-            load_records(table, skip + rate, rate, level, next)
+            load_records(table, skip + rate, rate, level, filters, next)
         }
     };
 
-    $("#progress").css("width", 0).show();
-
-    load_records("#records", 0, rate, level, next);
+    load_records("#records", 0, rate, level, filters, next);
 }
 
 var clear_all_records = function(table) {
-    console.log('clear ' + table);
     $(table + " > tbody").empty();
 }
 
