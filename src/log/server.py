@@ -1,5 +1,7 @@
 import logging
 
+import socket
+
 import jsonschema
 
 import httplib
@@ -43,7 +45,9 @@ def _make_sqlalchemy_schema():
     schema = {
         '__tablename__': 'record',
         'id': Column(Integer, primary_key=True, autoincrement=True),
-        'host': Column(String(2014)),
+        'ip': Column(String(2014)),
+        'hostname': Column(String(2014)),
+        'port': Column(Integer)
     }
 
     for attr in INTEGER_ATTR:
@@ -82,6 +86,11 @@ class LogRecordServer(TCPServer):
     def handle_stream(self, stream, address):
         logger.info('connection {}:{}'.format(*address))
 
+        try:
+            hostname = socket.gethostbyaddr(address[0])[0]
+        except socket.herror:
+            hostname = None
+
         while True:
             try:
                 line = yield stream.read_until('\n')
@@ -97,7 +106,8 @@ class LogRecordServer(TCPServer):
                 break
 
             record = LogRecord()
-            record.host = '{}:{}'.format(*address)
+            (record.ip, record.port) = address
+            record.hostname = hostname or record.ip
 
             for attr in INTEGER_ATTR + FLOAT_ATTR:
                 setattr(record, attr, obj.get(attr, 0))

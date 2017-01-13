@@ -80,7 +80,7 @@ var load_records = function(table, skip, count, level, next) {
 
             $("<tr>").attr("id", "record" + record.id).append(
                 $("<td>").append(format_date(1000 * record.created, ampm)),
-                $("<td>").text(record.host),
+                $("<td>").text((hostname ? record.hostname : record.ip) + ":" + record.port),
                 $("<td>").text(record.name),
                 $("<td>").text(record.pathname + ":" + record.lineno),
                 $("<td>").append(icon),
