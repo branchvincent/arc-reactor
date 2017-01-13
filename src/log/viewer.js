@@ -43,6 +43,30 @@ var setup = function() {
     $("#source_button").click(function() {
         $("#source_filters").toggle();
     });
+
+    $(document).bind("keypress", function(e) {
+        var code = e.keyCode || e.which;
+
+        switch(code) {
+        case 114: // r
+            $("#reload").click();
+            e.preventDefault();
+            break;
+
+        case 111: // o
+            $("#options_button").click();
+            e.preventDefault();
+            break;
+
+        case 102: // f
+            $("#source_button").click();
+            e.preventDefault();
+            break;
+
+        default:
+            break;
+        }
+    });
 }
 
 var pad = function(v, n) {
