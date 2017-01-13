@@ -29,8 +29,8 @@ var setup = function() {
         clear_all_records("#records");
 
         var filters = [];
-        $("#source_filters").find("select").each(function(index, element) {
-            filters[$(element).attr("id").substring(7).replace("_", ".")] = $(element).children(":selected").val();
+        $("#source_filters").find("select").each(function(i, e) {
+            filters[$(e).data("name")] = $(e).children(":selected").val();
         });
 
         load_all_records("#records", 50, level, filters);
@@ -68,6 +68,8 @@ var load_records = function(table, skip, count, level, filters, next) {
         var ampm = $("#time_12hr").is(":checked");
         var hostname = $("#host_name").is(":checked");
 
+        var name_update = false;
+
         var sources = obj.names;
         for(var i = 0; i < sources.length; i++) {
             var id = "filter_" + sources[i].replace('.', '_');
@@ -75,11 +77,12 @@ var load_records = function(table, skip, count, level, filters, next) {
             if($("#" + id).length) {
                 continue;
             }
+            name_update = true;
 
-            $("<div>").addClass("form-group").append(
+            $("<div>").data("name", sources[i]).addClass("form-group").append(
                 $("<label>").addClass("col-sm-4 control-label").attr("for", id).text(sources[i].replace(".", " ")),
                 $("<div>").addClass("col-sm-8").append(
-                    $("<select>").attr("id", id).addClass("form_control")
+                    $("<select>").attr("id", id).data("name", sources[i]).addClass("form_control")
                 )
             ).appendTo("#source_filters");
 
@@ -87,6 +90,11 @@ var load_records = function(table, skip, count, level, filters, next) {
         }
 
         // sort divs after adding filter entries
+        if(name_update) {
+            $("#source_filters").children("div").sort(function(a, b) {
+                return $(a).data("name") > $(b).data("name");
+            }).appendTo("#source_filters");
+        }
 
         for(var i = 0; i < obj.records.length; i++) {
             var record = obj.records[i];
