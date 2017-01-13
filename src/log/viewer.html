@@ -29,12 +29,27 @@
         }
 
         #reload {
+            margin-top: 5px;
             margin-right: 1em;
         }
 
         .progress-container {
-            padding-top: 5px;
-            padding-bottom: 5px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        .progress {
+            margin-bottom: 0;
+        }
+
+        .panel-header {
+            font-size: 2em;
+        }
+
+        .panel-content {
+            margin-bottom: 1em;
+            margin-top: 1em;
+            display: none;
         }
     </style>
 
@@ -44,64 +59,57 @@
     <div class="container-fluid">
 
         <div class="row">
-            <div class="col-md-2">
 
-                <h3>Filter</h3>
+           <a id="source_button" class="panel-header col-md-1" role="button" href="#">Filters</a>
 
-                <form class="form-horizontal">
-                    <div class="form-group">
-                        <label for="filter" class="col-sm-4 control-label">Global Level</label>
-                        <div class="col-sm-8">
-                            <select id="filter"></select>
-                        </div>
-                    </div>
+            <div id="source_filters" class="panel-content form-inline col-md-12">
+            </div>
 
-                    <div class="form-group">
-                        <label for="date_12hr" class="col-sm-4 control-label">Time</label>
-                        <div class="col-sm-8">
-                            <div class="btn-group btn-group-justified" role="group" data-toggle="buttons">
-                                <label class="btn btn-default active">
-                                    <input type="radio" name="time" id="time_24hr" autocomplete="off" checked>24 hr
-                                </label>
-                                <label class="btn btn-default">
-                                    <input type="radio" name="time" id="time_12hr" autocomplete="off">12 hr
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="host_ip" class="col-sm-4 control-label">Host</label>
-                        <div class="col-sm-8">
-                            <div class="btn-group btn-group-justified" role="group" data-toggle="buttons">
-                                <label class="btn btn-default active">
-                                    <input type="radio" name="host" id="host_name" autocomplete="off" checked>Name
-                                </label>
-                                <label class="btn btn-default">
-                                    <input type="radio" name="host" id="host_ip" autocomplete="off">IP
-                                </label>
-                            </div>
-                        </div>
-                    </div>
+            <a id="options_button" class="panel-header col-md-1" role="button" href="#">Options</a>
 
-                    <div id="source_filters">
-                        Filters
-                    </div>
-                </form>
+            <div id="options_panel" class="panel-content form-inline col-md-12">
+                <div class="form-group col-md-2">
+                    <label for="filter" class="control-label">Global Level</label>
+                    <select id="filter"></select>
+                </div>
 
-                <div>
-                    <button id="reload" class="btn btn-sm btn-primary pull-left"><span class="glyphicon glyphicon-refresh"></span></button>
-                    <div class="progress-container">
-                        <div class="progress">
-                            <div id="progress" class="progress-bar progress-bar-striped no-transition" style="width: 0%;">&nbsp;</div>
-                        </div>
+                <div class="form-group col-md-2">
+                    <label for="date_12hr" class="control-label">Time</label>
+                    <div class="btn-group" role="group" data-toggle="buttons">
+                        <label class="btn btn-default active">
+                            <input type="radio" name="time" id="time_24hr" autocomplete="off" checked>24 hr
+                        </label>
+                        <label class="btn btn-default">
+                            <input type="radio" name="time" id="time_12hr" autocomplete="off">12 hr
+                        </label>
                     </div>
                 </div>
 
+                <div class="form-group col-md-2">
+                    <label for="host_ip" class="control-label">Host</label>
+                    <div class="btn-group" role="group" data-toggle="buttons">
+                        <label class="btn btn-default active">
+                            <input type="radio" name="host" id="host_name" autocomplete="off" checked>Name
+                        </label>
+                        <label class="btn btn-default">
+                            <input type="radio" name="host" id="host_ip" autocomplete="off">IP
+                        </label>
+                    </div>
+                </div>
             </div>
 
-            <div class="col-md-10">
-                <h3>Records</h3>
+            <a class="panel-header col-md-1" role="button" href="#">Records</a>
 
+            <div class="col-md-3">
+                <button id="reload" class="btn btn-sm btn-primary pull-left"><span class="glyphicon glyphicon-refresh"></span></button>
+                <div class="progress-container">
+                    <div class="progress">
+                        <div id="progress" class="progress-bar progress-bar-striped no-transition" style="width: 0%;">&nbsp;</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-12">
                 <table id="records" class="table table-hover table-condensed">
                     <thead>
                         <tr>
@@ -117,7 +125,6 @@
                 </table>
             </div>
         </div>
-
 
     </div>
     <!-- /container -->

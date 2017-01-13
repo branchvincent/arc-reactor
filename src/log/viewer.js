@@ -35,18 +35,34 @@ var setup = function() {
 
         load_all_records("#records", 50, level, filters);
     });
+
+    $("#options_button").click(function() {
+        $("#options_panel").toggle();
+    });
+
+    $("#source_button").click(function() {
+        $("#source_filters").toggle();
+    });
+}
+
+var pad = function(v, n) {
+    var s = v.toString();
+    while(s.length < n) {
+        s = "0" + s;
+    }
+    return s;
 }
 
 var format_date = function(millis, ampm) {
     var date = new Date(millis);
 
-    var s = (date.getMonth() + 1) + "/" + date.getDate() + "/" + date.getFullYear() + "&nbsp;";
+    var s = (date.getMonth() + 1) + "/" + pad(date.getDate(), 2) + "/" + date.getFullYear() + "&nbsp;";
     if(ampm) {
         s += (date.getHours() % 12) || 12;
     } else {
         s += date.getHours();
     }
-    s += ":" + date.getMinutes() + ":" + date.getSeconds() + "." + date.getMilliseconds();
+    s += ":" + pad(date.getMinutes(), 2) + ":" + pad(date.getSeconds(), 2) + "." + pad(date.getMilliseconds(), 3);
     if(ampm) {
         s += "&nbsp;" + (date.getHours() < 12 ? "am" : "pm");
     }
@@ -72,18 +88,16 @@ var load_records = function(table, skip, count, level, filters, next) {
 
         var sources = obj.names;
         for(var i = 0; i < sources.length; i++) {
-            var id = "filter_" + sources[i].replace('.', '_');
+            var id = "filter-" + sources[i].replace('.', '-');
 
             if($("#" + id).length) {
                 continue;
             }
             name_update = true;
 
-            $("<div>").data("name", sources[i]).addClass("form-group").append(
-                $("<label>").addClass("col-sm-4 control-label").attr("for", id).text(sources[i].replace(".", " ")),
-                $("<div>").addClass("col-sm-8").append(
-                    $("<select>").attr("id", id).data("name", sources[i]).addClass("form_control")
-                )
+            $("<div>").data("name", sources[i]).addClass("form-group col-md-2").append(
+                $("<label>").addClass("control-label").attr("for", id).text(sources[i]).append("&nbsp;"),
+                $("<select>").attr("id", id).data("name", sources[i]).addClass("form_control")
             ).appendTo("#source_filters");
 
             populate_filter("#" + id);
