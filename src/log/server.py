@@ -41,7 +41,8 @@ def _make_json_schema():
     return schema
 
 def _make_sqlalchemy_schema():
-    from sqlalchemy import Column, Float, Integer, String, Text
+    from sqlalchemy import Column, Float, Integer
+    from .regex import String, Text
 
     schema = {
         '__tablename__': 'record',
@@ -180,13 +181,12 @@ class RecordsIndexHandler(RequestHandler):
 
         search = self.get_query_argument('search', None)
         if search:
-            search = search.replace('*', '%').replace('?', '_')
             records = records.filter(or_(
-                LogRecord.name.like(search),
-                LogRecord.pathname.like(search),
-                LogRecord.hostname.like(search),
-                LogRecord.message.like(search),
-                LogRecord.exception.like(search)
+                LogRecord.name.iregexp(search),
+                LogRecord.pathname.iregexp(search),
+                LogRecord.hostname.iregexp(search),
+                LogRecord.message.iregexp(search),
+                LogRecord.exception.iregexp(search)
             ))
 
         order = self.get_query_argument("order", "created")
