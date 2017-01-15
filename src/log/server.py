@@ -16,7 +16,7 @@ from tornado import gen
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql.expression import and_
+from sqlalchemy.sql.expression import and_, or_
 
 from . import INTEGER_ATTR, FLOAT_ATTR, STRING_ATTR, TEXT_ATTR, ALL_ATTR, DEFAULT_RECORD_PORT, DEFAULT_WEB_PORT
 
@@ -173,11 +173,21 @@ class RecordsIndexHandler(RequestHandler):
         if filters:
             for f in filters.split('!'):
                 name, _, level = f.partition(':')
-                print name, level
                 try:
                     records = records.filter(~and_(LogRecord.name == name, LogRecord.levelno < int(level)))
                 except ValueError:
                     pass
+
+        search = self.get_query_argument('search', None)
+        if search:
+            search = search.replace('*', '%').replace('?', '_')
+            records = records.filter(or_(
+                LogRecord.name.like(search),
+                LogRecord.pathname.like(search),
+                LogRecord.hostname.like(search),
+                LogRecord.message.like(search),
+                LogRecord.exception.like(search)
+            ))
 
         order = self.get_query_argument("order", "created")
         if order in ALL_ATTR:

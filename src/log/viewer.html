@@ -51,6 +51,11 @@
             margin-top: 1em;
             display: none;
         }
+
+        .search-panel {
+            margin-top: 3px;
+            margin-bottom: 3px;
+        }
     </style>
 
 </head>
@@ -100,7 +105,14 @@
 
             <a class="panel-header col-md-1" role="button" href="#">Records</a>
 
-            <div class="col-md-3">
+            <div class="col-md-4 col-md-offset-1 search-panel">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="search" placeholder="Search">
+                    <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
                 <button id="reload" class="btn btn-sm btn-primary pull-left"><span class="glyphicon glyphicon-refresh"></span></button>
                 <div class="progress-container">
                     <div class="progress">

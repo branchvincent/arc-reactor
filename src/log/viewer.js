@@ -33,7 +33,7 @@ var setup = function() {
             filters[$(e).data("name")] = $(e).children(":selected").val();
         });
 
-        load_all_records("#records", 50, level, filters);
+        load_all_records("#records", 50, level, filters, $("#search").val());
     });
 
     $("#options_button").click(function() {
@@ -45,6 +45,10 @@ var setup = function() {
     });
 
     $(document).bind("keypress", function(e) {
+        if(e.target.tagName.toLowerCase() == "input") {
+            return;
+        }
+
         var code = e.keyCode || e.which;
 
         switch(code) {
@@ -63,10 +67,26 @@ var setup = function() {
             e.preventDefault();
             break;
 
+        case 115: // s
+            $("#search").select();
+            break;
+
         default:
             break;
         }
     });
+
+    $("#search").bind("keypress", function(e) {
+        var code = e.keyCode || e.which;
+
+        if(code == 13) {
+            $("#reload").click();
+            e.preventDefault();
+        } else if(code == 27) {
+            $("#search").blur();
+            e.preventDefault();
+        }
+    })
 }
 
 var pad = function(v, n) {
@@ -94,7 +114,7 @@ var format_date = function(millis, ampm) {
     return s;
 }
 
-var load_records = function(table, skip, count, level, filters, next) {
+var load_records = function(table, skip, count, level, filters, search, next) {
     s = '';
     for(var key in filters) {
         if(filters.hasOwnProperty(key)) {
@@ -103,7 +123,7 @@ var load_records = function(table, skip, count, level, filters, next) {
     }
     s = s.substring(0, s.length - 1);
 
-    $.ajax({ url: "records", type: "GET", data: {level: level, skip: skip, count: count, filter: s}, dataType: "json"})
+    $.ajax({ url: "records", type: "GET", data: {level: level, skip: skip, count: count, filter: s, search: search}, dataType: "json"})
     .done(function(obj){
         var ampm = $("#time_12hr").is(":checked");
         var hostname = $("#host_name").is(":checked");
@@ -120,7 +140,7 @@ var load_records = function(table, skip, count, level, filters, next) {
             name_update = true;
 
             $("<div>").data("name", sources[i]).addClass("form-group col-md-2").append(
-                $("<label>").addClass("control-label").attr("for", id).text(sources[i]).append("&nbsp;"),
+                $("<label>").addClass("control-label").attr("for", id).text(sources[i].replace(".", ".\u200B")).append("&nbsp;"),
                 $("<select>").attr("id", id).data("name", sources[i]).addClass("form_control")
             ).appendTo("#source_filters");
 
@@ -168,7 +188,7 @@ var load_records = function(table, skip, count, level, filters, next) {
             $("<tr>").attr("id", "record" + record.id).append(
                 $("<td>").append(format_date(1000 * record.created, ampm)),
                 $("<td>").text((hostname ? record.hostname : record.ip) + ":" + record.port),
-                $("<td>").text(record.name),
+                $("<td>").text(record.name.replace(".", ".\u200B")),
                 $("<td>").text(record.pathname + ":" + record.lineno),
                 $("<td>").append(icon),
                 message
@@ -183,16 +203,16 @@ var load_records = function(table, skip, count, level, filters, next) {
     });
 }
 
-var load_all_records = function(table, rate, level, filters) {
+var load_all_records = function(table, rate, level, filters, search) {
     var next = function(table, skip, count) {
         if(count < rate) {
             // done
         } else {
-            load_records(table, skip + rate, rate, level, filters, next)
+            load_records(table, skip + rate, rate, level, filters, search, next)
         }
     };
 
-    load_records("#records", 0, rate, level, filters, next);
+    load_records("#records", 0, rate, level, filters, search, next);
 }
 
 var clear_all_records = function(table) {
@@ -201,5 +221,5 @@ var clear_all_records = function(table) {
 
 $(document).ready(function() {
     setup();
-    load_all_records("#records", 50, 0);
+    load_all_records("#records", 50);
 });
