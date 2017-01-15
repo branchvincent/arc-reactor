@@ -24,8 +24,6 @@ class LogServerHandler(logging.handlers.SocketHandler):
         Format the record in JSON instead of Pickle for the log server.
         '''
 
-        print record.levelno
-
         obj = {}
         # create a dictionary of all record details
         for attr in ALL_ATTR:
