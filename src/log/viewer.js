@@ -36,6 +36,10 @@ var setup = function() {
         load_all_records("#records", 50, level, filters, $("#search").val());
     });
 
+    $("#do_search").click(function() {
+        $("#reload").click();
+    })
+
     $("#options_button").click(function() {
         $("#options_panel").toggle();
     });
@@ -100,7 +104,7 @@ var pad = function(v, n) {
 var format_date = function(millis, ampm) {
     var date = new Date(millis);
 
-    var s = (date.getMonth() + 1) + "/" + pad(date.getDate(), 2) + "/" + date.getFullYear() + "&nbsp;";
+    var s = (date.getMonth() + 1) + "/" + pad(date.getDate(), 2) + "/" + date.getFullYear() + " ";
     if(ampm) {
         s += (date.getHours() % 12) || 12;
     } else {
@@ -108,7 +112,7 @@ var format_date = function(millis, ampm) {
     }
     s += ":" + pad(date.getMinutes(), 2) + ":" + pad(date.getSeconds(), 2) + "." + pad(date.getMilliseconds(), 3);
     if(ampm) {
-        s += "&nbsp;" + (date.getHours() < 12 ? "am" : "pm");
+        s += " " + (date.getHours() < 12 ? "am" : "pm");
     }
 
     return s;
@@ -127,6 +131,7 @@ var load_records = function(table, skip, count, level, filters, search, next) {
     .done(function(obj){
         var ampm = $("#time_12hr").is(":checked");
         var hostname = $("#host_name").is(":checked");
+        var reverse = $("#order_up").is(":checked");
 
         var name_update = false;
 
@@ -139,9 +144,9 @@ var load_records = function(table, skip, count, level, filters, search, next) {
             }
             name_update = true;
 
-            $("<div>").data("name", sources[i]).addClass("form-group col-md-2").append(
+            var row = $("<div>").data("name", sources[i]).addClass("form-group col-md-2").append(
                 $("<label>").addClass("control-label").attr("for", id).text(sources[i].replace(".", ".\u200B")).append("&nbsp;"),
-                $("<select>").attr("id", id).data("name", sources[i]).addClass("form_control")
+                $("<select>").attr("id", id).data("name", sources[i]).addClass("form-control")
             ).appendTo("#source_filters");
 
             populate_filter("#" + id);
@@ -185,14 +190,20 @@ var load_records = function(table, skip, count, level, filters, search, next) {
                     .text(record.exception));
             }
 
-            $("<tr>").attr("id", "record" + record.id).append(
+            var row = $("<tr>").attr("id", "record" + record.id).append(
                 $("<td>").append(format_date(1000 * record.created, ampm)),
-                $("<td>").text((hostname ? record.hostname : record.ip) + ":" + record.port),
+                $("<td>").text((hostname ? record.hostname : record.ip) + "\u200B:" + record.port),
                 $("<td>").text(record.name.replace(".", ".\u200B")),
-                $("<td>").text(record.pathname + ":" + record.lineno),
+                $("<td>").text(record.pathname.replace("/", "/\u200B") + "\u200B:" + record.lineno),
                 $("<td>").append(icon),
                 message
-            ).addClass(level2class[record.levelno]).appendTo("#records");
+            ).addClass(level2class[record.levelno]);
+
+            if(reverse) {
+                row.prependTo("#records tbody");
+            } else {
+                row.appendTo("#records tbody");
+            }
         }
 
         var percent = 100.0 * (skip + obj.records.length) / obj.available;

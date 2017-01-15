@@ -29,13 +29,14 @@
         }
 
         #reload {
-            margin-top: 5px;
+            margin-top: 4px;
+            margin-bottom: 4px;
             margin-right: 1em;
         }
 
         .progress-container {
-            padding-top: 10px;
-            padding-bottom: 10px;
+            margin-top: 9px;
+            margin-bottom: 9px;
         }
 
         .progress {
@@ -53,8 +54,12 @@
         }
 
         .search-panel {
-            margin-top: 3px;
-            margin-bottom: 3px;
+            margin-top: 1px;
+            margin-bottom: 1px;
+        }
+
+        .table > tbody > tr > td {
+            vertical-align: middle;
         }
     </style>
 
@@ -75,7 +80,7 @@
             <div id="options_panel" class="panel-content form-inline col-md-12">
                 <div class="form-group col-md-2">
                     <label for="filter" class="control-label">Global Level</label>
-                    <select id="filter"></select>
+                    <select id="filter" class="form-control"></select>
                 </div>
 
                 <div class="form-group col-md-2">
@@ -86,6 +91,18 @@
                         </label>
                         <label class="btn btn-default">
                             <input type="radio" name="time" id="time_12hr" autocomplete="off">12 hr
+                        </label>
+                    </div>
+                </div>
+
+               <div class="form-group col-md-2">
+                    <label for="order_down" class="control-label">Order</label>
+                    <div class="btn-group" role="group" data-toggle="buttons">
+                        <label class="btn btn-default active">
+                            <input type="radio" name="time" id="order_down" autocomplete="off" checked><span class="glyphicon glyphicon-arrow-down"></span>
+                        </label>
+                        <label class="btn btn-default">
+                            <input type="radio" name="time" id="order_up" autocomplete="off"><span class="glyphicon glyphicon-arrow-up"></span>
                         </label>
                     </div>
                 </div>
@@ -108,7 +125,9 @@
             <div class="col-md-4 col-md-offset-1 search-panel">
                 <div class="input-group">
                     <input type="text" class="form-control" id="search" placeholder="Search">
-                    <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+                    <span class="input-group-btn">
+                        <button id="do_search" class="btn btn-small btn-primary" type="button"><span class="glyphicon glyphicon-search"></span></button>
+                    </span>
                 </div>
             </div>
 
@@ -133,7 +152,9 @@
                             <th>Message</th>
                         </tr>
                     </thead>
+                    <tbody>
 
+                    </tbody>
                 </table>
             </div>
         </div>
