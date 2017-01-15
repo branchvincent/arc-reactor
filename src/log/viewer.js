@@ -25,8 +25,9 @@ var setup = function() {
     populate_filter("#filter");
 
     $("#reload").click(function() {
-        var level = $("#filter option:selected").val();
         clear_all_records("#records");
+
+        var level = $("#filter option:selected").val();
 
         var filters = [];
         $("#source_filters").find("select").each(function(i, e) {
@@ -131,7 +132,7 @@ var load_records = function(table, skip, count, level, filters, search, next) {
     .done(function(obj){
         var ampm = $("#time_12hr").is(":checked");
         var hostname = $("#host_name").is(":checked");
-        var reverse = $("#order_up").is(":checked");
+        var reverse = !$("#order_down").is(":checked");
 
         var name_update = false;
 
@@ -217,7 +218,16 @@ var load_records = function(table, skip, count, level, filters, search, next) {
 var load_all_records = function(table, rate, level, filters, search) {
     var next = function(table, skip, count) {
         if(count < rate) {
-            // done
+            if(!$("#auto_off").is(":checked")) {
+                // start auto update
+                auto_update = function() {
+                    load_records("#records", $('#records tr').length, rate, level, filters, search, next);
+                };
+
+                auto_timer = setTimeout(auto_update, 500);
+            } else {
+                auto_timer = 0;
+            }
         } else {
             load_records(table, skip + rate, rate, level, filters, search, next)
         }
@@ -227,8 +237,15 @@ var load_all_records = function(table, rate, level, filters, search) {
 }
 
 var clear_all_records = function(table) {
+    if(auto_timer) {
+        clearTimeout(auto_timer);
+    }
+
     $(table + " > tbody").empty();
 }
+
+var auto_update = 0;
+var auto_timer = 0;
 
 $(document).ready(function() {
     setup();
