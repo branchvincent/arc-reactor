@@ -12,7 +12,7 @@ level2class[20] = "info";
 level2class[30] = "warning";
 level2class[40] = "danger";
 
-var populate_filter = function(id) {
+var populate_filter_dropdown = function(id) {
     var filter = $(id);
     for(var i = 0; i <= 50; i += 10) {
         filter.append($("<option>").attr("value", i).text(level2name[i]));
@@ -20,37 +20,240 @@ var populate_filter = function(id) {
 
 }
 
+var pad = function(v, n) {
+    var s = v.toString();
+    while(s.length < n) {
+        s = "0" + s;
+    }
+    return s;
+}
+
+var break_on = function(char, str) {
+    return str.replace(char, char + '\u200B');
+}
+
+var format_date = function(ms, ampm) {
+    var date = new Date(ms);
+
+    // form the date
+    var s = (date.getMonth() + 1) + '/' + pad(date.getDate(), 2) + '/' + date.getFullYear() + ' ';
+
+    // form the time
+    if(ampm) {
+        s += (date.getHours() % 12) || 12;
+    } else {
+        s += date.getHours();
+    }
+    s += ':' + pad(date.getMinutes(), 2) + ':' + pad(date.getSeconds(), 2) + '\u200B.' + pad(date.getMilliseconds(), 3);
+
+    // add the suffix
+    if(ampm) {
+        s += ' ' + (date.getHours() < 12 ? 'am' : 'pm');
+    }
+
+    return s;
+}
+
+var build_record_row = function(record, options) {
+    var icon = $("<span>");
+    if(record.levelno >= 40) {
+        icon.addClass("glyphicon glyphicon-exclamation-sign");
+    //} else if(record.levelno >= 30) {
+    //    icon.addClass("glyphicon glyphicon-alert");
+    }
+
+    var lines = record.message.split(/(?:\n|\r)+/g);
+    var message = $('<td>').append($('<div>').text(lines[0].trim()));
+    for(var j = 1; j < lines.length; j++) {
+        message.append($('<div>').text(lines[j].trim()));
+    }
+
+    if(record.exception) {
+        // build exception expand link and panel
+        message.children('div').last().append(
+            ' ',
+            $('<a>')
+                .attr('role', 'button')
+                .attr('href', '#')
+                .text('>>>')
+                .click(function() { $('#e' + record.id).toggle(); }),
+            $('<pre>')
+                .attr('id', 'e' + record.id)
+                .text(record.exception)
+                .hide()
+        );
+    }
+
+    var row = $('<tr>').attr('id', 'r' + record.id).append(
+        $('<td>').text(format_date(1000 * record.created, options.ampm)),
+        $('<td>').text((options.hostname ? record.hostname : record.ip) + '\u200B:' + record.port),
+        $('<td>').text(break_on('.', record.name)),
+        $('<td>').text(break_on('/', record.pathname) + '\u200B:' + record.lineno),
+        $('<td>').append(icon),
+        message
+    ).addClass(level2class[record.levelno]);
+
+    return row;
+}
+
+var update_source_filters = function(sources) {
+    var sort = false;
+
+    for(var i = 0; i < sources.length; i++) {
+        var id = 'filter-' + sources[i].replace('.', '-');
+
+        if($('#' + id).length) {
+            continue;
+        }
+        sort = true;
+
+        $('<div>').data('name', sources[i]).addClass('form-group col-md-2').append(
+            $('<label>')
+                .addClass('control-label')
+                .attr('for', id)
+                .text(break_on('.', sources[i]))
+                .append('&nbsp;'),
+            $('<select>')
+                .attr('id', id)
+                .data('name', sources[i])
+                .addClass('form-control')
+        ).appendTo('#source_filters');
+
+        populate_filter_dropdown('#' + id);
+    }
+
+    if(sort) {
+        $("#source_filters").children("div").sort(function(a, b) {
+            return $(a).data("name") > $(b).data("name");
+        }).appendTo("#source_filters");
+    }
+}
+
+var options;
+
+var load = function(table, skip, count) {
+    var filter = '';
+    // build the filter query argument
+    for(var key in options.filters) {
+        if(options.filters.hasOwnProperty(key)) {
+            filter += key + ':' + options.filters[key] + '!';
+        }
+    }
+    // drop the trailing delimiter
+    filter = filter.substring(0, filter.length - 1);
+
+    // assemble payload
+    var payload = {
+        skip: skip,
+        count: count,
+
+        level: options.level,
+        filter: filter,
+        search: options.search,
+    };
+
+    var dfd = new $.Deferred();
+
+    request = $.getJSON('records', payload)
+    .always(function() {
+        request = null;
+    })
+    .done(function(response) {
+        update_source_filters(response.names);
+
+        for(var i = 0; i < response.records.length; i++) {
+            var row = build_record_row(response.records[i], options);
+            if(options.reverse) {
+                row.prependTo("#records tbody");
+            } else {
+                row.appendTo("#records tbody");
+            }
+        }
+
+        var percent = 100.0 * (skip + response.records.length) / response.available;
+        $("#progress").css("width", percent + "%");
+
+        dfd.resolve(response.records.length);
+    })
+    .fail(function(xhr, status, error) {
+        dfd.fail(status);
+    });
+
+    return dfd;
+}
+
+var clear = function() {
+    // cancel any active request
+    if(request) {
+        request.abort();
+        updating = false;
+    }
+
+    $("#records tbody").empty();
+}
+
+var updating = false;
+var request = null;
+
+var update = function(force) {
+    // prevent concurrent updates
+    if(updating) {
+        return;
+    }
+    updating = true;
+
+    load('#records', $('#records tr').length, 50, options)
+    .always(function() {
+        updating = false;
+    })
+    .done(function(count) {
+        if(count) {
+            // load more
+            update();
+        } else {
+            // done
+        }
+    });
+}
+
+var reload = function() {
+    // reset any current operations
+    clear();
+
+    // generate and cache display options for timer updates
+    options = {
+        level: $('#filter option:selected').val(),
+        filters: {},
+
+        ampm: $("#time_12hr").is(":checked"),
+        hostname: $("#host_name").is(":checked"),
+        reverse: !$("#order_down").is(":checked"),
+
+        search: $('#search').val()
+    }
+
+    $("#source_filters").find("select").each(function(i, e) {
+        options.filters[$(e).data("name")] = $(e).children(":selected").val();
+    });
+
+    // trigger an update
+    update();
+}
+
 var setup = function() {
     // setup filter dropdown
-    populate_filter("#filter");
+    populate_filter_dropdown("#filter");
 
-    $("#reload").click(function() {
-        clear_all_records("#records");
+    $("#reload").click(reload);
+    $("#do_search").click(reload);
 
-        var level = $("#filter option:selected").val();
+    $("#options_button").click(function() { $("#options_panel").toggle(); });
+    $("#source_button").click(function() { $("#source_filters").toggle(); });
 
-        var filters = [];
-        $("#source_filters").find("select").each(function(i, e) {
-            filters[$(e).data("name")] = $(e).children(":selected").val();
-        });
-
-        load_all_records("#records", 50, level, filters, $("#search").val());
-    });
-
-    $("#do_search").click(function() {
-        $("#reload").click();
-    })
-
-    $("#options_button").click(function() {
-        $("#options_panel").toggle();
-    });
-
-    $("#source_button").click(function() {
-        $("#source_filters").toggle();
-    });
-
+    // handy shortcuts for the various panels
     $(document).bind("keypress", function(e) {
-        if(e.target.tagName.toLowerCase() == "input") {
+        // pass input to search box
+        if($(e.target).attr('id') === 'search') {
             return;
         }
 
@@ -81,6 +284,7 @@ var setup = function() {
         }
     });
 
+    // handy shortcuts for enter and escape
     $("#search").bind("keypress", function(e) {
         var code = e.keyCode || e.which;
 
@@ -94,160 +298,14 @@ var setup = function() {
     })
 }
 
-var pad = function(v, n) {
-    var s = v.toString();
-    while(s.length < n) {
-        s = "0" + s;
-    }
-    return s;
-}
-
-var format_date = function(millis, ampm) {
-    var date = new Date(millis);
-
-    var s = (date.getMonth() + 1) + "/" + pad(date.getDate(), 2) + "/" + date.getFullYear() + " ";
-    if(ampm) {
-        s += (date.getHours() % 12) || 12;
-    } else {
-        s += date.getHours();
-    }
-    s += ":" + pad(date.getMinutes(), 2) + ":" + pad(date.getSeconds(), 2) + "." + pad(date.getMilliseconds(), 3);
-    if(ampm) {
-        s += " " + (date.getHours() < 12 ? "am" : "pm");
-    }
-
-    return s;
-}
-
-var load_records = function(table, skip, count, level, filters, search, next) {
-    s = '';
-    for(var key in filters) {
-        if(filters.hasOwnProperty(key)) {
-            s += key + ":" + filters[key] + "!";
-        }
-    }
-    s = s.substring(0, s.length - 1);
-
-    $.ajax({ url: "records", type: "GET", data: {level: level, skip: skip, count: count, filter: s, search: search}, dataType: "json"})
-    .done(function(obj){
-        var ampm = $("#time_12hr").is(":checked");
-        var hostname = $("#host_name").is(":checked");
-        var reverse = !$("#order_down").is(":checked");
-
-        var name_update = false;
-
-        var sources = obj.names;
-        for(var i = 0; i < sources.length; i++) {
-            var id = "filter-" + sources[i].replace('.', '-');
-
-            if($("#" + id).length) {
-                continue;
-            }
-            name_update = true;
-
-            var row = $("<div>").data("name", sources[i]).addClass("form-group col-md-2").append(
-                $("<label>").addClass("control-label").attr("for", id).text(sources[i].replace(".", ".\u200B")).append("&nbsp;"),
-                $("<select>").attr("id", id).data("name", sources[i]).addClass("form-control")
-            ).appendTo("#source_filters");
-
-            populate_filter("#" + id);
-        }
-
-        // sort divs after adding filter entries
-        if(name_update) {
-            $("#source_filters").children("div").sort(function(a, b) {
-                return $(a).data("name") > $(b).data("name");
-            }).appendTo("#source_filters");
-        }
-
-        for(var i = 0; i < obj.records.length; i++) {
-            var record = obj.records[i];
-
-            var icon = $("<span>");
-            if(record.levelno >= 40) {
-                icon.addClass("glyphicon glyphicon-exclamation-sign");
-            //} else if(record.levelno >= 30) {
-            //    icon.addClass("glyphicon glyphicon-alert");
-            }
-
-            var lines = record.message.split(/(?:\n|\r)+/g);
-            var message = $("<td>").append(lines[0].trim());
-            for(var j = 1; j < lines.length; j++) {
-                message.append("<br />").append(lines[j].trim());
-            }
-
-            if(record.exception) {
-                message
-                .append("&nbsp;")
-                .append($("<a>")
-                        .attr("role", "button")
-                        .attr("data-toggle", "collapse")
-                        .attr("data-target", "#extra" + record.id)
-                        .attr("href", "#record" + record.id)
-                        .text(">>>"))
-                .append($("<pre>")
-                    .attr("id", "extra" + record.id)
-                    .addClass("collapse")
-                    .text(record.exception));
-            }
-
-            var row = $("<tr>").attr("id", "record" + record.id).append(
-                $("<td>").append(format_date(1000 * record.created, ampm)),
-                $("<td>").text((hostname ? record.hostname : record.ip) + "\u200B:" + record.port),
-                $("<td>").text(record.name.replace(".", ".\u200B")),
-                $("<td>").text(record.pathname.replace("/", "/\u200B") + "\u200B:" + record.lineno),
-                $("<td>").append(icon),
-                message
-            ).addClass(level2class[record.levelno]);
-
-            if(reverse) {
-                row.prependTo("#records tbody");
-            } else {
-                row.appendTo("#records tbody");
-            }
-        }
-
-        var percent = 100.0 * (skip + obj.records.length) / obj.available;
-
-        $("#progress").css("width", percent + "%");
-
-        next(table, skip, obj.records.length);
-    });
-}
-
-var load_all_records = function(table, rate, level, filters, search) {
-    var next = function(table, skip, count) {
-        if(count < rate) {
-            if(!$("#auto_off").is(":checked")) {
-                // start auto update
-                auto_update = function() {
-                    load_records("#records", $('#records tr').length, rate, level, filters, search, next);
-                };
-
-                auto_timer = setTimeout(auto_update, 500);
-            } else {
-                auto_timer = 0;
-            }
-        } else {
-            load_records(table, skip + rate, rate, level, filters, search, next)
-        }
-    };
-
-    load_records("#records", 0, rate, level, filters, search, next);
-}
-
-var clear_all_records = function(table) {
-    if(auto_timer) {
-        clearTimeout(auto_timer);
-    }
-
-    $(table + " > tbody").empty();
-}
-
-var auto_update = 0;
-var auto_timer = 0;
-
 $(document).ready(function() {
     setup();
-    load_all_records("#records", 50);
+    reload();
+
+    // periodically trigger an update
+    setInterval(function() {
+        if(!$("#auto_off").is(":checked")) {
+            update();
+        }
+    }, 500);
 });
