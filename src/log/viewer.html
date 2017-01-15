@@ -29,22 +29,26 @@
         }
 
         #reload {
-            margin-top: 4px;
-            margin-bottom: 4px;
             margin-right: 1em;
         }
 
+        #search {
+            height: 35.5px;
+        }
+
         .progress-container {
-            margin-top: 9px;
-            margin-bottom: 9px;
+            padding-top: 5.25px;
+            padding-bottom: 5.25px;
         }
 
         .progress {
             margin-bottom: 0;
+            height: 25px;
         }
 
         .panel-header {
-            font-size: 2em;
+            height: 35.5px;
+            font-size: 1.7em;
         }
 
         .panel-content {
@@ -138,18 +142,17 @@
                 <div class="input-group">
                     <input type="text" class="form-control" id="search" placeholder="Search">
                     <span class="input-group-btn">
-                        <button id="do_search" class="btn btn-small btn-primary" type="button"><span class="glyphicon glyphicon-search"></span></button>
+                        <button id="do_search" class="btn btn-primary btn-sm" type="button"><span class="glyphicon glyphicon-search"></span></button>
                     </span>
                 </div>
             </div>
 
             <div class="col-md-4">
-                <button id="reload" class="btn btn-sm btn-primary pull-left"><span class="glyphicon glyphicon-refresh"></span></button>
+                <button id="reload" class="btn btn-primary btn-sm pull-left"><span class="glyphicon glyphicon-refresh"></span></button>
                 <div class="progress-container">
-                    <div class="progress">
-                        <div id="progress" class="progress-bar progress-bar-striped no-transition" style="width: 0%;">&nbsp;</div>
-                    </div>
-                </div>
+                <div class="progress">
+                    <div id="progress" class="progress-bar progress-bar-striped no-transition" style="width: 0%;"></div>
+    </div></div>
             </div>
 
             <div class="col-md-12">

@@ -29,7 +29,7 @@ var pad = function(v, n) {
 }
 
 var break_on = function(char, str) {
-    return str.replace(char, char + '\u200B');
+    return str.split(char).join(char + '\u200B');
 }
 
 var format_date = function(ms, ampm) {
