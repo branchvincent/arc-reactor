@@ -1,0 +1,14 @@
+#!/bin/sh
+
+echo -n "jQuery... "
+wget -q https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js -O jquery-1.12.4.min.js
+echo "done!"
+
+echo -n "Bootstrap... "
+wget -q https://github.com/twbs/bootstrap/releases/download/v3.3.7/bootstrap-3.3.7-dist.zip -O bootstrap-3.3.7-dist.zip
+unzip -q -o bootstrap-3.3.7-dist.zip
+echo "done!"
+
+echo -n "Bootstrap Darkly... "
+wget -q https://bootswatch.com/darkly/bootstrap.min.css -O bootstrap-darkly.min.css
+echo "done!"
