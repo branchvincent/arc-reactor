@@ -1,21 +1,21 @@
 var level2name = [];
-level2name[0] = "All";
-level2name[10] = "Debug",
-level2name[20] = "Info";
-level2name[30] = "Warn";
-level2name[40] = "Error";
-level2name[50] = "None";
+level2name[0] = 'All';
+level2name[10] = 'Debug',
+level2name[20] = 'Info';
+level2name[30] = 'Warn';
+level2name[40] = 'Error';
+level2name[50] = 'None';
 
 var level2class = [];
-level2class[10] = "",
-level2class[20] = "info";
-level2class[30] = "warning";
-level2class[40] = "danger";
+level2class[10] = '',
+level2class[20] = 'info';
+level2class[30] = 'warning';
+level2class[40] = 'danger';
 
 var populate_filter_dropdown = function(id) {
     var filter = $(id);
     for(var i = 0; i <= 50; i += 10) {
-        filter.append($("<option>").attr("value", i).text(level2name[i]));
+        filter.append($('<option>').attr('value', i).text(level2name[i]));
     }
 
 }
@@ -23,7 +23,7 @@ var populate_filter_dropdown = function(id) {
 var pad = function(v, n) {
     var s = v.toString();
     while(s.length < n) {
-        s = "0" + s;
+        s = '0' + s;
     }
     return s;
 }
@@ -55,18 +55,15 @@ var format_date = function(ms, ampm) {
 }
 
 var build_record_row = function(record, options) {
-    var icon = $("<span>");
+    var icon = $('<span>');
     if(record.levelno >= 40) {
-        icon.addClass("glyphicon glyphicon-exclamation-sign");
+        icon.addClass('glyphicon glyphicon-exclamation-sign');
     //} else if(record.levelno >= 30) {
-    //    icon.addClass("glyphicon glyphicon-alert");
+    //    icon.addClass('glyphicon glyphicon-alert');
     }
 
-    var lines = record.message.split(/(?:\n|\r)+/g);
-    var message = $('<td>').append($('<div>').text(lines[0].trim()));
-    for(var j = 1; j < lines.length; j++) {
-        message.append($('<div>').text(lines[j].trim()));
-    }
+    var message = $('<td>').addClass('whitespace')
+        .append($('<div>').text(record.message));
 
     if(record.exception) {
         // build exception expand link and panel
@@ -77,8 +74,9 @@ var build_record_row = function(record, options) {
                 .attr('href', '#')
                 .text('>>>')
                 .click(function() { $('#e' + record.id).toggle(); }),
-            $('<pre>')
+            $('<div>')
                 .attr('id', 'e' + record.id)
+                .addClass('well well-sm')
                 .text(record.exception)
                 .hide()
         );
@@ -123,9 +121,9 @@ var update_source_filters = function(sources) {
     }
 
     if(sort) {
-        $("#source_filters").children("div").sort(function(a, b) {
-            return $(a).data("name") > $(b).data("name");
-        }).appendTo("#source_filters");
+        $('#source_filters').children('div').sort(function(a, b) {
+            return $(a).data('name') > $(b).data('name');
+        }).appendTo('#source_filters');
     }
 }
 
@@ -148,8 +146,8 @@ var load = function(table, skip, count) {
         count: count,
 
         level: options.level,
-        filter: filter,
-        search: options.search,
+        filter: filter || undefined,
+        search: options.search || undefined,
     };
 
     var dfd = new $.Deferred();
@@ -164,19 +162,21 @@ var load = function(table, skip, count) {
         for(var i = 0; i < response.records.length; i++) {
             var row = build_record_row(response.records[i], options);
             if(options.reverse) {
-                row.prependTo("#records tbody");
+                row.prependTo('#records tbody');
             } else {
-                row.appendTo("#records tbody");
+                row.appendTo('#records tbody');
             }
         }
 
         var percent = 100.0 * (skip + response.records.length) / response.available;
-        $("#progress").css("width", percent + "%");
+        $('#progress')
+            .css('width', percent + '%')
+            .text((skip + response.records.length) + ' / ' + response.available);
 
         dfd.resolve(response.records.length);
     })
     .fail(function(xhr, status, error) {
-        dfd.fail(status);
+        dfd.reject(status, error);
     });
 
     return dfd;
@@ -189,7 +189,7 @@ var clear = function() {
         updating = false;
     }
 
-    $("#records tbody").empty();
+    $('#records tbody').empty();
 }
 
 var updating = false;
@@ -207,11 +207,25 @@ var update = function(force) {
         updating = false;
     })
     .done(function(count) {
+        $('#reload').removeClass('btn-warning btn-danger').addClass('btn-primary');
+        $('#progress').removeClass('progress-bar-warning progress-bar-danger');
+
         if(count) {
             // load more
             update();
         } else {
             // done
+        }
+    })
+    .fail(function(status, error) {
+        if(status === 'abort') {
+            // ignore
+        } else if(status === 'timeout') {
+            $('#reload').removeClass('btn-primary btn-danger').addClass('btn-warning');
+            $('#progress').removeClass('progress-bar-danger').addClass('progress-bar-warning');
+        } else {
+            $('#reload').removeClass('btn-primary btn-warning').addClass('btn-danger');
+            $('#progress').removeClass('progress-bar-warning').addClass('progress-bar-danger');
         }
     });
 }
@@ -225,15 +239,19 @@ var reload = function() {
         level: $('#filter option:selected').val(),
         filters: {},
 
-        ampm: $("#time_12hr").is(":checked"),
-        hostname: $("#host_name").is(":checked"),
-        reverse: !$("#order_down").is(":checked"),
+        ampm: $('#time_12hr').is(':checked'),
+        hostname: $('#host_name').is(':checked'),
+        reverse: !$('#order_down').is(':checked'),
 
         search: $('#search').val()
     }
 
-    $("#source_filters").find("select").each(function(i, e) {
-        options.filters[$(e).data("name")] = $(e).children(":selected").val();
+    $('#source_filters').find('select').each(function(i, e) {
+        var level = $(e).children(':selected').val();
+
+        if(level > 0) {
+            options.filters[$(e).data('name')] = level;
+        }
     });
 
     // trigger an update
@@ -242,16 +260,16 @@ var reload = function() {
 
 var setup = function() {
     // setup filter dropdown
-    populate_filter_dropdown("#filter");
+    populate_filter_dropdown('#filter');
 
-    $("#reload").click(reload);
-    $("#do_search").click(reload);
+    $('#reload').click(reload);
+    $('#do_search').click(reload);
 
-    $("#options_button").click(function() { $("#options_panel").toggle(); });
-    $("#source_button").click(function() { $("#source_filters").toggle(); });
+    $('#options_button').click(function() { $('#options_panel').toggle(); });
+    $('#source_button').click(function() { $('#source_filters').toggle(); });
 
     // handy shortcuts for the various panels
-    $(document).bind("keypress", function(e) {
+    $(document).bind('keypress', function(e) {
         // pass input to search box
         if($(e.target).attr('id') === 'search') {
             return;
@@ -261,22 +279,22 @@ var setup = function() {
 
         switch(code) {
         case 114: // r
-            $("#reload").click();
+            $('#reload').click();
             e.preventDefault();
             break;
 
         case 111: // o
-            $("#options_button").click();
+            $('#options_button').click();
             e.preventDefault();
             break;
 
         case 102: // f
-            $("#source_button").click();
+            $('#source_button').click();
             e.preventDefault();
             break;
 
         case 115: // s
-            $("#search").select();
+            $('#search').select();
             break;
 
         default:
@@ -285,26 +303,29 @@ var setup = function() {
     });
 
     // handy shortcuts for enter and escape
-    $("#search").bind("keypress", function(e) {
+    $('#search').bind('keypress', function(e) {
         var code = e.keyCode || e.which;
 
         if(code == 13) {
-            $("#reload").click();
+            $('#reload').click();
             e.preventDefault();
         } else if(code == 27) {
-            $("#search").blur();
+            $('#search').blur();
             e.preventDefault();
         }
     })
 }
 
 $(document).ready(function() {
+    $.ajaxSetup({timeout: 1000});
+
     setup();
+
     reload();
 
     // periodically trigger an update
     setInterval(function() {
-        if(!$("#auto_off").is(":checked")) {
+        if(!$('#auto_off').is(':checked')) {
             update();
         }
     }, 500);
