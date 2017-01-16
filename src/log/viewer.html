@@ -29,25 +29,31 @@
         }
 
         #reload {
+            margin: 5px 0px;
             margin-right: 1em;
         }
 
         #search {
-            height: 35.5px;
+            margin: 5px 0px;
+        }
+
+        .form-control {
+            height: 25.5px;
+            margin: 5px 0px;
+            padding: 0px 10px;
         }
 
         .progress-container {
-            padding-top: 5.25px;
-            padding-bottom: 5.25px;
+            padding: 5px 0px;
         }
 
         .progress {
             margin-bottom: 0;
-            height: 25px;
+            height: 25.5px;
         }
 
         #progress {
-            line-height: 25px;
+            line-height: 25.5px;
             font-size: 15px;
         }
 
@@ -67,10 +73,6 @@
             margin-bottom: 1px;
         }
 
-        .table > tbody > tr > td {
-            vertical-align: middle;
-        }
-
         .whitespace {
             white-space: pre-wrap;
         }
@@ -78,6 +80,15 @@
         .well {
             margin-bottom: 0;
         }
+
+        /* ref: https://github.com/twbs/bootstrap/issues/16064 */
+        .form-inline {
+            margin: -5px -10px;
+        }
+        .form-inline .form-group {
+            margin: 5px 10px;
+        }
+
     </style>
 
 </head>
@@ -87,22 +98,22 @@
 
         <div class="row">
 
-           <a id="source_button" class="panel-header col-md-1" role="button" href="#">Filters</a>
+           <a id="source_button" class="panel-header col-md-1" role="button" href="#">Filter</a>
 
             <div id="source_filters" class="panel-content form-inline col-md-12">
             </div>
 
-            <a id="options_button" class="panel-header col-md-1" role="button" href="#">Options</a>
+            <a id="options_button" class="panel-header col-md-1" role="button" href="#">Option</a>
 
             <div id="options_panel" class="panel-content form-inline col-md-12">
-                <div class="form-group col-md-2">
+                <div class="form-group ">
                     <label for="filter" class="control-label">Global Level</label>
                     <select id="filter" class="form-control"></select>
                 </div>
 
-               <div class="form-group col-md-2">
+               <div class="form-group ">
                     <label for="auto_on" class="control-label">Watch</label>
-                    <div class="btn-group" role="group" data-toggle="buttons">
+                    <div class="btn-group btn-group-xs" role="group" data-toggle="buttons">
                         <label class="btn btn-default active">
                             <input type="radio" name="time" id="auto_on" autocomplete="off" checked><span class="glyphicon glyphicon-eye-open"></span>
                         </label>
@@ -112,9 +123,9 @@
                     </div>
                 </div>
 
-               <div class="form-group col-md-2">
+               <div class="form-group ">
                     <label for="order_up" class="control-label">Order</label>
-                    <div class="btn-group" role="group" data-toggle="buttons">
+                    <div class="btn-group btn-group-xs" role="group" data-toggle="buttons">
                         <label class="btn btn-default active">
                             <input type="radio" name="time" id="order_up" autocomplete="off" checked><span class="glyphicon glyphicon-arrow-up"></span>
                         </label>
@@ -124,9 +135,9 @@
                     </div>
                 </div>
 
-                <div class="form-group col-md-2">
+                <div class="form-group ">
                     <label for="date_12hr" class="control-label">Time</label>
-                    <div class="btn-group" role="group" data-toggle="buttons">
+                    <div class="btn-group btn-group-xs" role="group" data-toggle="buttons">
                         <label class="btn btn-default active">
                             <input type="radio" name="time" id="time_24hr" autocomplete="off" checked>24 hr
                         </label>
@@ -136,9 +147,9 @@
                     </div>
                 </div>
 
-                <div class="form-group col-md-2">
+                <div class="form-group ">
                     <label for="host_ip" class="control-label">Host</label>
-                    <div class="btn-group" role="group" data-toggle="buttons">
+                    <div class="btn-group btn-group-xs" role="group" data-toggle="buttons">
                         <label class="btn btn-default active">
                             <input type="radio" name="host" id="host_name" autocomplete="off" checked>Name
                         </label>
@@ -165,13 +176,13 @@
                 <div class="input-group">
                     <input type="text" class="form-control" id="search" placeholder="Search">
                     <span class="input-group-btn">
-                        <button id="do_search" class="btn btn-primary btn-sm" type="button"><span class="glyphicon glyphicon-search"></span></button>
+                        <button id="do_search" class="btn btn-primary btn-xs" type="button"><span class="glyphicon glyphicon-search"></span></button>
                     </span>
                 </div>
             </div>
 
             <div class="col-md-4">
-                <button id="reload" class="btn btn-primary btn-sm pull-left"><span class="glyphicon glyphicon-refresh"></span></button>
+                <button id="reload" class="btn btn-primary btn-xs pull-left"><span class="glyphicon glyphicon-refresh"></span></button>
                 <div class="progress-container">
                 <div class="progress">
                     <div id="progress" class="progress-bar progress-bar-striped no-transition" style="width: 0%;"></div>

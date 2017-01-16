@@ -105,7 +105,7 @@ var update_source_filters = function(sources) {
         }
         sort = true;
 
-        $('<div>').data('name', sources[i]).addClass('form-group col-md-2').append(
+        $('<div>').data('name', sources[i]).addClass('form-group').append(
             $('<label>')
                 .addClass('control-label')
                 .attr('for', id)
