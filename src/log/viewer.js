@@ -129,7 +129,7 @@ var update_source_filters = function(sources) {
 
 var options;
 
-var load = function(table, skip, count) {
+var load = function(table, count) {
     var filter = '';
     // build the filter query argument
     for(var key in options.filters) {
@@ -140,12 +140,17 @@ var load = function(table, skip, count) {
     // drop the trailing delimiter
     filter = filter.substring(0, filter.length - 1);
 
+    var skip = loaded || 0;
+    if(loaded === undefined && options.display) {
+        skip = -options.display;
+    }
+
     // assemble payload
     var payload = {
-        skip: skip,
-        count: count,
+        skip: (skip != 0 ? skip : undefined),
+        count: (count != 0 ? count : undefined),
 
-        level: options.level,
+        level: (options.level != 0 ? options.level : undefined),
         filter: filter || undefined,
         search: options.search || undefined,
     };
@@ -157,21 +162,43 @@ var load = function(table, skip, count) {
         request = null;
     })
     .done(function(response) {
+        if(loaded === undefined) {
+            loaded = response.skip + response.records.length;
+        } else {
+            loaded += response.records.length;
+        }
+
         update_source_filters(response.names);
 
-        for(var i = 0; i < response.records.length; i++) {
-            var row = build_record_row(response.records[i], options);
-            if(options.reverse) {
-                row.prependTo('#records tbody');
+        var limit = response.records.length;
+        if(options.display) {
+            var idx = $(table + ' tbody tr').length + response.records.length;
+            if(idx > 0) {
+                $(table + ' tbody tr:gt(' + (options.display - 1) + ')').remove();
             } else {
-                row.appendTo('#records tbody');
+                if(limit > options.display) {
+                    limit = options.display;
+                }
+                $('#records tbody').empty();
             }
         }
 
-        var percent = 100.0 * (skip + response.records.length) / response.available;
+        for(var i = 0; i < limit; i++) {
+            var row = build_record_row(response.records[i], options);
+            if(options.reverse) {
+                row.prependTo(table + ' tbody');
+            } else {
+                row.appendTo(table + ' tbody');
+            }
+        }
+
+        var percent = 100;
+        if(response.available) {
+            percent = 100.0 * (skip + response.records.length) / response.available;
+        }
         $('#progress')
             .css('width', percent + '%')
-            .text((skip + response.records.length) + ' / ' + response.available);
+            .text($(table + ' tbody tr').length + ' / ' + response.available);
 
         dfd.resolve(response.records.length);
     })
@@ -186,14 +213,17 @@ var clear = function() {
     // cancel any active request
     if(request) {
         request.abort();
-        updating = false;
     }
+
+    updating = false;
+    loaded = undefined;
 
     $('#records tbody').empty();
 }
 
 var updating = false;
 var request = null;
+var loaded = undefined;
 
 var update = function(force) {
     // prevent concurrent updates
@@ -202,7 +232,7 @@ var update = function(force) {
     }
     updating = true;
 
-    load('#records', $('#records tr').length, 50, options)
+    load('#records', 50, options)
     .always(function() {
         updating = false;
     })
@@ -243,7 +273,9 @@ var reload = function() {
         hostname: $('#host_name').is(':checked'),
         reverse: !$('#order_down').is(':checked'),
 
-        search: $('#search').val()
+        search: $('#search').val(),
+
+        display: $('#display option:selected').val(),
     }
 
     $('#source_filters').find('select').each(function(i, e) {

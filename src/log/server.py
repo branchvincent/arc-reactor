@@ -228,13 +228,18 @@ class RecordsIndexHandler(RequestHandler):
         skip = self.get_query_argument('skip', None)
         if skip:
             try:
-                records = records.offset(int(skip))
+                skip = int(skip)
             except ValueError:
                 pass
+            else:
+                if skip < 0:
+                    skip = max([0, available + skip])
+
+                records = records.offset(skip)
 
         objs = [_record_to_dict(r) for r in records]
 
-        self.write({'records': objs, 'available': available, 'names': names})
+        self.write({'records': objs, 'available': available, 'skip': skip or 0, 'names': names})
 
 class RecordHandler(RequestHandler):
     def get(self, id):
