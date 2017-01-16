@@ -6,6 +6,8 @@ import jsonschema
 
 import httplib
 
+import re
+
 from tornado.tcpserver import TCPServer
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -181,29 +183,49 @@ class RecordsIndexHandler(RequestHandler):
 
         search = self.get_query_argument('search', None)
         if search:
-            records = records.filter(or_(
-                LogRecord.name.iregexp(search),
-                LogRecord.pathname.iregexp(search),
-                LogRecord.hostname.iregexp(search),
-                LogRecord.message.iregexp(search),
-                LogRecord.exception.iregexp(search)
-            ))
+            try:
+                # validate regex syntax
+                re.compile(search)
+            except re.error:
+                regex = False
+            else:
+                regex = True
 
-        order = self.get_query_argument("order", "created")
+            if regex:
+                # apply as regex filter
+                records = records.filter(or_(
+                    LogRecord.name.iregexp(search),
+                    LogRecord.pathname.iregexp(search),
+                    LogRecord.hostname.iregexp(search),
+                    LogRecord.message.iregexp(search),
+                    LogRecord.exception.iregexp(search)
+                ))
+            else:
+                # apply as like filter
+                search = search.replace('*', '%').replace('?', '_')
+                records = records.filter(or_(
+                    LogRecord.name.like(search),
+                    LogRecord.pathname.like(search),
+                    LogRecord.hostname.like(search),
+                    LogRecord.message.like(search),
+                    LogRecord.exception.like(search)
+                ))
+
+        order = self.get_query_argument('order', 'created')
         if order in ALL_ATTR:
             field = getattr(LogRecord, order)
             records = records.order_by(field)
 
         available = records.count()
 
-        count = self.get_query_argument("count", None)
+        count = self.get_query_argument('count', None)
         if count:
             try:
                 records = records.limit(int(count))
             except ValueError:
                 pass
 
-        skip = self.get_query_argument("skip", None)
+        skip = self.get_query_argument('skip', None)
         if skip:
             try:
                 records = records.offset(int(skip))
