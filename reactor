@@ -10,22 +10,28 @@ Launcher for the reactor system.
 import sys
 sys.path.append('src')
 
+from pensive import DEFAULT_PORT as PENSIVE_DEFAULT_PORT
+from log import DEFAULT_RECORD_PORT as LOG_DEFAULT_RECORD_PORT, DEFAULT_WEB_PORT as LOG_DEFAULT_WEB_PORT
+
 # parse command-line arguments
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, REMAINDER
 
-parser = ArgumentParser(description='Reactor system launcher')
+parser = ArgumentParser(description='Reactor system launcher', formatter_class=ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--verbose', metavar='MODULE', action='append', help='verbose logging for specified modules')
 parser.add_argument('-d', '--debug', metavar='MODULE', action='append', help='debug logging for specified modules')
-parser.add_argument('-l', '--log', metavar='LOG', help='override log file')
+parser.add_argument('-lf', '--log-file', metavar='LOG_FILE', help='override log file')
+parser.add_argument('-lh', '--log-host', metavar='LOG_HOST', help='log server hostname', default='localhost')
+parser.add_argument('-lp', '--log-port', metavar='LOG_PORT', type=int, help='log server port', default=LOG_DEFAULT_RECORD_PORT)
 
 subparsers = parser.add_subparsers(title='subcommands', dest='command')
 
 db_parser = subparsers.add_parser('db', help='database control', description='control the system database', formatter_class=ArgumentDefaultsHelpFormatter)
-db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=8888, help='server port')
+db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=PENSIVE_DEFAULT_PORT, help='server port')
 db_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
 
 log_parser = subparsers.add_parser('log', help='log control', description='control the log server', formatter_class=ArgumentDefaultsHelpFormatter)
-log_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=7777, help='server port')
+log_parser.add_argument('-rp', '--record-port', metavar='RECORD_PORT', type=int, default=LOG_DEFAULT_RECORD_PORT, help='server record port')
+log_parser.add_argument('-wp', '--web-port', metavar='WEB_PORT', type=int, default=LOG_DEFAULT_WEB_PORT, help='server web port')
 log_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
 
 test_parser = subparsers.add_parser('test', help='unit test launcher', description='discover and launch unit tests with logging', formatter_class=ArgumentDefaultsHelpFormatter)
@@ -33,6 +39,9 @@ test_parser.add_argument('-c', '--continue', dest='cont', action='store_true', h
 test_parser.add_argument('-q', '--quiet', action='store_true', help='decrease verbosity')
 test_parser.add_argument('-v', '--verbose', action='store_true', help='increase verbosity')
 test_parser.add_argument('path', nargs=REMAINDER, metavar='PATH', help='search path for tests')
+
+test_parser = subparsers.add_parser('shell', help='Python shell', description='launch Python', formatter_class=ArgumentDefaultsHelpFormatter)
+test_parser.add_argument('-m', '--module', metavar='MODULE', help='run module')
 
 args = parser.parse_args()
 
@@ -50,7 +59,7 @@ console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
 # set up logging to file for all records
-log_path = args.log
+log_path = args.log_file
 if not log_path:
     import os, datetime
     name = '{}-{:%Y%m%d-%H%M%S}.log'.format(
@@ -67,7 +76,7 @@ logger.addHandler(handler)
 
 # set up logging to server for all records
 from log.handler import LogServerHandler
-handler = LogServerHandler('localhost', 7777)
+handler = LogServerHandler(args.log_host, args.log_port)
 logger.addHandler(handler)
 
 # install level filter for console output only
@@ -92,12 +101,15 @@ if args.command == 'db':
 
 elif args.command == 'log':
     from log.server import LogWebServer, LogRecordServer
-    #LogServer(args.port).run()
-    LogRecordServer().listen(port=7777)
-    LogWebServer().listen(port=7778)
+
+    LogRecordServer().listen(port=args.record_port)
+    LogWebServer().listen(port=args.web_port)
 
     from tornado.ioloop import IOLoop
-    IOLoop.current().start()
+    try:
+        IOLoop.current().start()
+    except KeyboardInterrupt:
+        pass
 
 elif args.command == 'test':
     # suppress warnings by default because they are
@@ -120,3 +132,13 @@ elif args.command == 'test':
 
     # return the pytest error code for CI build status use
     raise SystemExit(result)
+
+elif args.command == 'shell':
+    if args.module:
+        # run the module directly
+        import runpy
+        runpy.run_module(args.module, run_name='__main__')
+
+    else:
+        import code
+        code.interact()
