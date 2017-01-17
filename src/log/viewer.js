@@ -172,14 +172,20 @@ var load = function(table, count) {
 
         var limit = response.records.length;
         if(options.display) {
-            var idx = $(table + ' tbody tr').length + response.records.length;
-            if(idx > 0) {
-                $(table + ' tbody tr:gt(' + (options.display - 1) + ')').remove();
-            } else {
-                if(limit > options.display) {
-                    limit = options.display;
-                }
+            if(limit > options.display) {
+                limit = options.display;
+            }
+
+            var shown = $(table + ' tbody tr').length;
+            var overage = shown + response.records.length - options.display;
+            if(overage >= shown) {
                 $('#records tbody').empty();
+            } else if(overage > 0) {
+                if(options.reverse) {
+                    $(table + ' tbody tr:gt(' + (shown - overage - 1) + ')').remove();
+                } else {
+                    $(table + ' tbody tr:lt(' + overage + ')').remove();
+                }
             }
         }
 
