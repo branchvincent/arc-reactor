@@ -8,6 +8,9 @@ import httplib
 
 import re
 
+import os
+import os.path
+
 from tornado.tcpserver import TCPServer
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -68,21 +71,22 @@ def _make_sqlalchemy_schema():
 LogRecord = _make_sqlalchemy_schema()  # pylint: disable=invalid-name
 
 class LogRecordServer(TCPServer):
+    '''
+    Tornado TCP application for receiving `LogRecords` sent by the
+    corresponding logging handler.
+    '''
+
     SCHEMA = _make_json_schema()
 
-    def __init__(self, port=None, address=None):
-        self._port = port or DEFAULT_RECORD_PORT
-        self._address = address or ''
-
+    def __init__(self, db_url):
         # open the database
-        self.engine = create_engine('sqlite:///db/records.sqlite')
+        self.engine = create_engine(db_url)
         self.engine.connect()
 
         # ensure tables are created
         Base.metadata.create_all(self.engine)
 
-        # open session
-        self.session = sessionmaker(bind=self.engine)()
+        self.sessionmaker = sessionmaker(bind=self.engine)
 
         super(LogRecordServer, self).__init__()
 
@@ -90,17 +94,22 @@ class LogRecordServer(TCPServer):
     def handle_stream(self, stream, address):
         logger.info('connection {}:{}'.format(*address))
 
+        # perform a one-time hostname resolution
         try:
             hostname = socket.gethostbyaddr(address[0])[0]
         except socket.herror:
             hostname = None
 
         while True:
+            # each record comes as a single line
             try:
                 line = yield stream.read_until('\n')
             except StreamClosedError:
                 break
 
+            session = self.sessionmaker()
+
+            # decode and valid record
             try:
                 obj = json_decode(line)
                 jsonschema.validate(obj, self.SCHEMA)
@@ -109,6 +118,7 @@ class LogRecordServer(TCPServer):
                                'Line:\n{}'.format(exc, line))
                 break
 
+            # build record
             record = LogRecord()
             (record.ip, record.port) = address
             record.hostname = hostname or record.ip
@@ -118,33 +128,13 @@ class LogRecordServer(TCPServer):
             for attr in STRING_ATTR + TEXT_ATTR:
                 setattr(record, attr, obj.get(attr, ''))
 
-            self.session.add(record)
-            self.session.commit()
+            # apply
+            session.add(record)
+            session.commit()
 
         logger.info('disconnect {}:{}'.format(*address))
         if not stream.closed():
             stream.close()
-
-    def run(self, loop=None):
-        if not loop:
-            loop = IOLoop.current()
-
-        loop.make_current()
-
-        # bind the socket
-        self.listen(self._port, self._address)
-        logger.info('Logger started on {}:{}'.format(
-            self._address or '*', self._port))
-
-        try:
-            loop.start()
-        except KeyboardInterrupt:
-            pass
-
-        loop.stop()
-        loop.close()
-
-        logger.info('Logger stopped')
 
 def _record_to_dict(record):
     obj = {
@@ -160,11 +150,35 @@ def _record_to_dict(record):
     return obj
 
 class RecordsIndexHandler(RequestHandler):
+    '''
+    `RequestHandler` for serving `LogRecord`s over HTTP with JSON.
+
+    Many filtering and indexing options are available.
+     - `level`: the lowest integer `levelno` to return
+     - `filters`: a `!`-delimited list of `:`-tuples of logger `name` and lowest `levelno` to return
+     - `search`: a regular expression (default) SQL `LIKE` string for searching
+     - `order`: record field for sorting
+     - `count`: maximum number of records to return
+     - `skip`: number of records to skip from start (positive) or end (negative)
+
+     If the `search` parameter compiles as a regular expression, a case-insensitive
+     regular expression search on the fields `name`, `pathname`, `hostname`, `message`,
+     and `exception` is performed. Otherwise, an SQL `LIKE` operation is performed
+     on those fields.
+
+     Returns a dictionary with the matching records, the total number of records
+     available, the number of records skipped, and a list of all known logger names.
+    '''
+
     def get(self):
-        records = self.application.session.query(LogRecord)
+        # create a new session for this request
+        session = self.application.sessionmaker()
 
-        names = [ r.name for r in records.group_by(LogRecord.name) ]
+        records = session.query(LogRecord)
 
+        names = [r.name for r in records.group_by(LogRecord.name)]
+
+        # apply global level filter
         level = self.get_query_argument('level', None)
         if level:
             try:
@@ -172,6 +186,7 @@ class RecordsIndexHandler(RequestHandler):
             except ValueError:
                 pass
 
+        # apply filters for specific loggers
         filters = self.get_query_argument('filter', None)
         if filters:
             for f in filters.split('!'):
@@ -181,6 +196,7 @@ class RecordsIndexHandler(RequestHandler):
                 except ValueError:
                     pass
 
+        # apply text matching or regular expressions
         search = self.get_query_argument('search', None)
         if search:
             try:
@@ -211,13 +227,17 @@ class RecordsIndexHandler(RequestHandler):
                     LogRecord.exception.like(search)
                 ))
 
+        # apply field ordering
         order = self.get_query_argument('order', 'created')
         if order in ALL_ATTR:
             field = getattr(LogRecord, order)
             records = records.order_by(field)
 
+        # record the total number of available records before
+        # any LIMIT or OFFSET commands reduce it
         available = records.count()
 
+        # apply return limit
         count = self.get_query_argument('count', None)
         if count:
             try:
@@ -225,6 +245,7 @@ class RecordsIndexHandler(RequestHandler):
             except ValueError:
                 pass
 
+        # apply record offset
         skip = self.get_query_argument('skip', None)
         if skip:
             try:
@@ -233,15 +254,22 @@ class RecordsIndexHandler(RequestHandler):
                 pass
             else:
                 if skip < 0:
+                    # treat negative skips as skipping backwards from the end
                     skip = max([0, available + skip])
 
                 records = records.offset(skip)
 
+        # convert all the resulting records into objects for JSON
         objs = [_record_to_dict(r) for r in records]
 
+        # need to send the skip back in case it was negative
         self.write({'records': objs, 'available': available, 'skip': skip or 0, 'names': names})
 
 class RecordHandler(RequestHandler):
+    '''
+    `RequestHandler` for serving a single `LogRecrod` over HTTP with JSON.
+    '''
+
     def get(self, id):
         record = self.application.session.query(LogRecord).get(id)
 
@@ -251,20 +279,21 @@ class RecordHandler(RequestHandler):
             self.write({'record': _record_to_dict(record)})
 
 class LogWebServer(Application):
-    def __init__(self, port=None, address=None):
+    '''
+    Tornado HTTP application for serving `LogRecords` over HTTP.
+    '''
+
+    def __init__(self, db_url):
         super(LogWebServer, self).__init__()
-        self._port = port or DEFAULT_WEB_PORT
-        self._address = address
 
         # open the database
-        self.engine = create_engine('sqlite:///db/records.sqlite')
+        self.engine = create_engine(db_url)
         self.engine.connect()
 
         # ensure tables are created
         Base.metadata.create_all(self.engine)
 
-        # open session
-        self.session = sessionmaker(bind=self.engine)()
+        self.sessionmaker = sessionmaker(bind=self.engine)
 
         # install handlers for various URLs
         self.add_handlers(r'.*', [
@@ -295,16 +324,34 @@ class LogWebServer(Application):
             handler.get_status(),
             1000 * handler.request.request_time()))
 
+class LogServer(object):
+    def __init__(self, db_url, address=None, web_port=None, record_port=None):
+        self._db_url = db_url
+
+        self._address = address
+        self._web_port = web_port or DEFAULT_WEB_PORT
+        self._record_port = record_port or DEFAULT_RECORD_PORT
+
     def run(self, loop=None):
+        # make the database directory if needed
+        if self._db_url.startswith('sqlite:///'):
+            path = self._db_url[len('sqlite:///'):]
+            path = os.path.dirname(os.path.abspath(path))
+            if not os.path.exists(path):
+                os.makedirs(path)
+                logger.debug('created {}'.format(path))
+
         if not loop:
             loop = IOLoop.current()
 
         loop.make_current()
 
-        # bind the socket
-        self.listen(self._port, self._address)
-        logger.info('Logger started on {}:{}'.format(
-            self._address or '*', self._port))
+        # create the servers
+        LogWebServer(self._db_url).listen(self._web_port, self._address)
+        logger.info('Log Web Server started on {}:{}'.format(self._address or '*', self._web_port))
+
+        LogRecordServer(self._db_url).listen(port=self._record_port, address=self._address)
+        logger.info('Log Record Server started on {}:{}'.format(self._address or '*', self._record_port))
 
         try:
             loop.start()
@@ -314,4 +361,4 @@ class LogWebServer(Application):
         loop.stop()
         loop.close()
 
-        logger.info('Logger stopped')
+        logger.info('Log Web Server and Log Record Server stopped')

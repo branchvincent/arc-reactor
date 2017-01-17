@@ -30,6 +30,7 @@ db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=PENSIVE
 db_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
 
 log_parser = subparsers.add_parser('log', help='log control', description='control the log server', formatter_class=ArgumentDefaultsHelpFormatter)
+log_parser.add_argument('-u', '--db-url', metavar='DB_URL', default='sqlite:///db/log.sqlite', help='server database URL')
 log_parser.add_argument('-rp', '--record-port', metavar='RECORD_PORT', type=int, default=LOG_DEFAULT_RECORD_PORT, help='server record port')
 log_parser.add_argument('-wp', '--web-port', metavar='WEB_PORT', type=int, default=LOG_DEFAULT_WEB_PORT, help='server web port')
 log_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
@@ -100,16 +101,8 @@ if args.command == 'db':
     PensiveServer(args.port).run()
 
 elif args.command == 'log':
-    from log.server import LogWebServer, LogRecordServer
-
-    LogRecordServer().listen(port=args.record_port)
-    LogWebServer().listen(port=args.web_port)
-
-    from tornado.ioloop import IOLoop
-    try:
-        IOLoop.current().start()
-    except KeyboardInterrupt:
-        pass
+    from log.server import LogServer
+    LogServer(args.db_url, record_port=args.record_port, web_port=args.web_port).run()
 
 elif args.command == 'test':
     # suppress warnings by default because they are
