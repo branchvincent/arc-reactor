@@ -147,8 +147,20 @@ class Store_Index(TestCase):
     def test_store_index(self):
         self.assertDictEqual(self.store.index(), {'value': {}, 'nested': {'a': {}, 'b': {}}, 'list': {}})
 
+    def test_store_index_depth2(self):
+        self.assertDictEqual(self.store.index(depth=2), {'value': {}, 'nested': {'a': {}, 'b': {}}, 'list': {}})
+
+    def test_store_index_depth1(self):
+        self.assertDictEqual(self.store.index(depth=1), {'value': {}, 'nested': {}, 'list': {}})
+
+    def test_store_index_depth0(self):
+        self.assertDictEqual(self.store.index(depth=0), {})
+
     def test_store_index_nested(self):
         self.assertDictEqual(self.store.index('nested'), {'a': {}, 'b': {}})
+
+    def test_store_index_nested_depth(self):
+        self.assertDictEqual(self.store.index('nested', depth=0), {})
 
     def test_store_index_nonexisting(self):
         self.assertIsNone(self.store.index('nonexisting'))

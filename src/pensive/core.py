@@ -123,7 +123,7 @@ class Store(object):
 
         self.put(key, None)
 
-    def index(self, key=None):
+    def index(self, key=None, depth=-1):
         '''
         Get an index of the store starting with `key`.
 
@@ -131,17 +131,22 @@ class Store(object):
         If `key` does exist, the index is a dictionary of
         dictionaries of keys terminated by dictionary keys
         with `{}` values.
+
+        If `depth > 0`, return an index at most `depth`
+        levels deep.
         '''
 
         logger.debug('index: "{}"'.format(key))
-        return self._index(key)
+        return self._index(key, depth)
 
-    def _index(self, key):
+    def _index(self, key, depth):
         if not key:
             if self._children:
+                if depth == 0:
+                    return {}
+
                 # recursively serialize
-                result = [(k, c.index()) for (k, c) \
-                    in self._children.iteritems()]
+                result = [(k, c.index(None, depth - 1)) for (k, c) in self._children.iteritems()]
                 # remove null values
                 return {k: v for (k, v) in result if v is not None}
             elif self._value is not None:
@@ -160,7 +165,7 @@ class Store(object):
 
             try:
                 # recurse
-                return self._children[key.pop(0)]._index(key)
+                return self._children[key.pop(0)]._index(key, depth)
             except KeyError:
                 # no such child
                 return None
