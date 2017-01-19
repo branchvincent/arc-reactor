@@ -10,15 +10,15 @@
 # in terminal if you add blender to PATH.
 
 
-import bpy, math, random, mathutils, os
+import bpy, math, random, mathutils, os, sys, time
 from mathutils import Vector
 
 #-------------------CHANGE THE PATH---------------------------#
-dirPath = '/home/hugh/Downloads/apc_main/object_models/tarball'
-outputPath = '/home/hugh/Pictures/arc/'
+dirPath = '/home/bk/Documents/code/reactor/src/cv_modeling/apc_main/object_models/tarball/'
+outputPath = '/home/bk/Documents/code/reactor/src/cv_modeling/output/'
 #-------------------CHANGE THE PATH---------------------------#
 
-numImg = 5 #Number of images for a single item
+numImg = 600 #Number of images for a single item
 Seed = 444 #Random Seed
 
 #Import the items from .obj
@@ -31,12 +31,14 @@ def importItem(object):
 def addSceneSettings(scn):
     #RenderSettings for high quality image
     rd = scn.render
+    rd.resolution_percentage = 100
     rd.resolution_x = 256
     rd.resolution_y = 256
     rd.antialiasing_samples = '16'
     rd.use_full_sample = True
     rd.use_textures = True
     rd.use_shadows = True
+
     #CameraSetting
     cam = scn.objects['Camera']
     cam.location = Vector((0,0,0.5))
@@ -47,8 +49,11 @@ def addSceneSettings(scn):
     sun_data = bpy.data.lamps.new(name='sun', type='SUN')
     sun_obj = bpy.data.objects.new(name='sun', object_data=sun_data)
     scn.objects.link(sun_obj)
-    sun_obj.location = Vector((0,0,0.5))
+    sun_obj.location = Vector((0,0,0.25))
     sun_obj.rotation_euler = Vector((0,0,0))
+    sun_obj.data.use_nodes = True
+    sun_obj.data.node_tree.nodes[1].inputs[1].default_value = 4
+
     return
 
 #Generate a rotation_euler in Vector
@@ -60,42 +65,65 @@ def rotGen():
 
 def run():
     #Change render engine to BLENDER
-    bpy.context.scene.render.engine = 'BLENDER_RENDER'
+    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.context.scene.cycles.device = 'GPU'
+    bpy.data.scenes['Scene'].render.tile_x = 256
+    bpy.data.scenes['Scene'].render.tile_y = 256
+
+    #set up the material for cycles
+    mat_name = 'texture_material'
+    mat = bpy.data.materials.new(mat_name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nodes = nt.nodes
+    links = nt.links
+    diffuse = nodes["Diffuse BSDF"]
+    texture = nodes.new("ShaderNodeTexImage")
+    links.new(diffuse.inputs['Color'],   texture.outputs['Color'])
+    mat.preview_render_type = 'FLAT'
+
     #random.seed(Seed)
-    for obj in objectTypes:
+    for n, obj in enumerate(objectTypes):
         importItem(obj)
-        print(obj)
+        start = time.time()
         object = next(object for object in scn.objects if object.name.startswith(obj))
                 
         for i in range(numImg):
             object.rotation_euler = rotGen()
-            for ob in bpy.data.objects:        
-                for slot in ob.material_slots:
-                    mat = slot.material
-                    mat.diffuse_shader = 'LAMBERT'
-                    mat.specular_shader = 'TOON'
-                    mat.diffuse_color = (1,1,1)
-                    mat.specular_color = (1,1,1)
-                    mat.specular_intensity = 0.05
+            # for ob in bpy.data.objects:        
+            #     for slot in ob.material_slots:
+            #         mat = slot.material
+            #         mat.diffuse_shader = 'LAMBERT'
+            #         mat.specular_shader = 'TOON'
+            #         mat.diffuse_color = (1,1,1)
+            #         mat.specular_color = (1,1,1)
+            #         mat.specular_intensity = 0.05
+            
+            objectpicture = dirPath +  obj + '.png'
+            texture.image = bpy.data.images.load(objectpicture)
+            
+            object.data.materials[0] = mat
                     
-            bpy.data.scenes['Scene'].render.filepath = outputPath + obj + str(i) + '.png'
+            bpy.data.scenes['Scene'].render.filepath = outputPath + str(n) + "_" + str(i) + '.png'
             bpy.ops.render.render(write_still=True)
 
-            for ob in bpy.data.objects:        
-                for slot in ob.material_slots:
-                    mat = slot.material
-                    mat.diffuse_shader = 'TOON'
-                    mat.diffuse_color = (0,0,0)
-                    mat.specular_color = (0,0,0)
-                    mat.specular_intensity = 1.00
-                    mat.diffuse_toon_size = 0.00
+            # for ob in bpy.data.objects:        
+            #     for slot in ob.material_slots:
+            #         mat = slot.material
+            #         mat.diffuse_shader = 'TOON'
+            #         mat.diffuse_color = (0,0,0)
+            #         mat.specular_color = (0,0,0)
+            #         mat.specular_intensity = 1.00
+            #         mat.diffuse_toon_size = 0.00
 
-            bpy.data.scenes['Scene'].render.filepath = outputPath + obj + '_depth_'+ str(i) + '.png'
-            bpy.ops.render.render(write_still=True)
+            # bpy.data.scenes['Scene'].render.filepath = outputPath + obj + '_depth_'+ str(i) + '.png'
+            # bpy.ops.render.render(write_still=True)
             
         object.select=True
         bpy.ops.object.delete()
-        print(obj, ' is done.')
+        end = time.time()
+        outstring = obj + ' is done. Took ' + str(end-start) + "\n"
+        sys.stderr.write(outstring)
     return
 
 if __name__ == '__main__':
@@ -103,4 +131,4 @@ if __name__ == '__main__':
     scn = bpy.data.scenes['Scene']
     addSceneSettings(scn) 
     run()
-    print('Rendering completed')
+    sys.stderr.write('Rendering completed')
