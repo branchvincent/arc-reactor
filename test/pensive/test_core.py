@@ -85,6 +85,16 @@ class Store_Put(TestCase):
         self.store.put('a/b/c', 4)
         self.assertDictEqual(self.store._serialize(), {'a': {'b': {'c': 4}}})
 
+    def test_store_put_overwrite_strict(self):
+        self.store.put('a/b', 3)
+        with self.assertRaises(KeyError):
+            self.store.put('a/b/c', 4, strict=True)
+
+    def test_store_put_overwrite_strict2(self):
+        self.store.put('a/b', 3)
+        with self.assertRaises(KeyError):
+            self.store.put('a', 4, strict=True)
+
     def test_store_put_deserialize(self):
         self.store.put('a', {'b': {'c': 4}})
         self.assertEqual(self.store.get('a/b/c'), 4)

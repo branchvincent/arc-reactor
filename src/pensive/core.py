@@ -40,7 +40,7 @@ class Store(object):
             self._value = None
             self._children = None
 
-    def get(self, key=None, strict=False):
+    def get(self, key=None, default=None, strict=False):
         '''
         Get the value referenced by `key` from the store.
 
@@ -48,7 +48,7 @@ class Store(object):
         '''
 
         logger.debug('get: "{}"'.format(key))
-        return self._get(key, strict)
+        return self._get(key, strict) or default
 
     def _get(self, key, strict):
         if not key:
@@ -74,7 +74,7 @@ class Store(object):
                     raise
                 return None
 
-    def put(self, key=None, value=None):
+    def put(self, key=None, value=None, strict=False):
         '''
         Put `value` into the store.
 
@@ -82,15 +82,22 @@ class Store(object):
         This erases all children. If `key is not None`, a
         substore is created and `put` is called recursively.
 
+        If 'strict`, `KeyError` will be raised when overwriting
+        a value with subkeys or vice versa.
+
         If `value is None`, the store referenced by `key` is
         deleted.
         '''
 
         logger.debug('put: "{}" -> {}'.format(key, value))
-        return self._put(key, value)
+        return self._put(key, value, strict)
 
-    def _put(self, key, value):
+    def _put(self, key, value, strict):
         if not key:
+            if strict and self._children is not None:
+                # overwriting subkeys with value
+                raise KeyError
+
             self._deserialize(value)
         else:
             # split the key into parts if it is a string path
@@ -99,11 +106,15 @@ class Store(object):
 
             # initialize the children map
             if not self._children:
+                if strict and self._value is not None:
+                    # overwriting value with subkeys
+                    raise KeyError
+
                 self._children = {}
                 self._value = None
 
             # create a child if needed and recurse
-            self._children.setdefault(key.pop(0), Store())._put(key, value)
+            self._children.setdefault(key.pop(0), Store())._put(key, value, strict)
 
     def delete(self, key=None):
         '''
