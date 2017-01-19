@@ -10,6 +10,7 @@ from os import environ
 
 from tornado.escape import to_basestring
 from tornado.httpclient import HTTPClient
+from tornado.httputil import url_concat
 
 import json
 import jsonschema
@@ -40,6 +41,12 @@ def _json_decoder(obj):
 
     return obj
 
+def _json_encode(obj):
+    return json.dumps(obj, default=_json_encoder).replace("</", "<\\/")
+
+def _json_decode(data):
+    return json.loads(to_basestring(data), object_hook=_json_decoder)
+
 class JSONClientMixin(object):
     '''
     Internal convenience class for sending/receiving JSON over HTTP.
@@ -52,7 +59,7 @@ class JSONClientMixin(object):
         self._base_url = base_url.rstrip('/') + '/'
         self._client = client or HTTPClient()
 
-    def _fetch(self, path, method, body=None, schema=None):
+    def _fetch(self, path, method, body=None, args=None, schema=None):
         '''
         Helper for HTTP requests.
 
@@ -70,7 +77,13 @@ class JSONClientMixin(object):
         # encode object body using JSON
         if body and not isinstance(body, basestring):
             # see tornado.escape.json_encode()
-            body = json.dumps(body, default=_json_encoder).replace("</", "<\\/")
+            body = _json_encode(body)
+
+        # encode the query parameters
+        if args:
+            if not isinstance(args, basestring):
+                args = dict([(k, _json_encode(v)) for (k, v) in args.iteritems()])
+            path = url_concat(path, args)
 
         # perform the request
         response = self._client.fetch(path,
@@ -97,7 +110,7 @@ class JSONClientMixin(object):
 
             try:
                 # see tornado.escape.json_decode()
-                obj = json.loads(to_basestring(response.body), object_hook=_json_decoder)
+                obj = _json_decode(response.body)
                 jsonschema.validate(obj, schema)
             except (ValueError, jsonschema.ValidationError) as exc:
                 logger.error('malformed response: {}\
@@ -111,13 +124,13 @@ class StoreInterface(object):
     Basic interface for a `Store`.
     '''
 
-    def get(self, key=None):
+    def get(self, key=None, **options):
         raise NotImplementedError
 
-    def put(self, key=None, value=None):
+    def put(self, key=None, value=None, **options):
         raise NotImplementedError
 
-    def delete(self, key=None):
+    def delete(self, key=None, **options):
         raise NotImplementedError
 
 class BatchStoreInterface(StoreInterface):
@@ -161,12 +174,12 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
 
         super(StoreProxy, self).__init__(base_url, **kwargs)
 
-    def get(self, key=None):
+    def get(self, key=None, **options):
         '''
         Call `get()` on the remote `Store`.
         '''
 
-        return self._fetch(key or '', 'GET', schema=StoreProxy.GET_SCHEMA)['value']
+        return self._fetch(key or '', 'GET', args=options, schema=StoreProxy.GET_SCHEMA)['value']
 
     def multi_get(self, keys, root=None):
         '''
@@ -179,12 +192,12 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
                            schema=StoreProxy.MULTI_GET_SCHEMA)
 
 
-    def put(self, key=None, value=None):
+    def put(self, key=None, value=None, **options):
         '''
         Call `put()` on the remote `Store`.
         '''
 
-        return self._fetch(key or '', 'PUT', body={'value': value})
+        return self._fetch(key or '', 'PUT', args=options, body={'value': value})
 
     def multi_put(self, mapping, root=None):
         '''
@@ -194,12 +207,12 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
 
         return self._fetch(root or '', 'PUT', body={'keys': mapping})
 
-    def delete(self, key=None):
+    def delete(self, key=None, **options):
         '''
         Call `delete()` on the remote `Store`.
         '''
 
-        return self._fetch(key or '', 'DELETE')
+        return self._fetch(key or '', 'DELETE', args=options)
 
     def multi_delete(self, keys, root=None):
         '''

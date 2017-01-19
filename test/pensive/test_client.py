@@ -32,6 +32,12 @@ class Skip(object):  # pylint: disable=too-few-public-methods
             self.assertDictEqual(self.proxy.get(), {'a': 4, 'b': {'c': 2}})
             self.assertIsNone(self.proxy.get('nonexistent'))
 
+            with self.assertRaises(KeyError):
+                self.proxy.get('nonexistent', strict=True)
+            self.assertEqual(self.proxy.get('nonexistent', default=1234), 1234)
+            with self.assertRaises(RuntimeError):
+                self.proxy.get('a', badoption=True)
+
         def test_client_mutil_get(self):
             self.assertDictEqual(self.proxy.multi_get(['a', 'b']), {'a': 4, 'b': {'c': 2}})
             self.assertDictEqual(self.proxy.multi_get(['c'], root='b'), {'c': 2})
@@ -44,6 +50,11 @@ class Skip(object):  # pylint: disable=too-few-public-methods
             self.proxy.put('c', {'d': 6})
             self.assertDictEqual(self.server.stores[self.instance].get(), {'a': 4, 'b': 5, 'c': {'d': 6}})
 
+            with self.assertRaises(KeyError):
+                self.proxy.put('c', 5, strict=True)
+            with self.assertRaises(RuntimeError):
+                self.proxy.put('c', 5, badoption=True)
+
         def test_client_multi_put(self):
             self.proxy.multi_put({'b': 5, 'c': {'d': 6}})
             self.assertDictEqual(self.server.stores[self.instance].get(), {'a': 4, 'b': 5, 'c': {'d': 6}})
@@ -55,6 +66,9 @@ class Skip(object):  # pylint: disable=too-few-public-methods
         def test_client_delete(self):
             self.proxy.delete('a')
             self.assertDictContainsSubset(self.server.stores[self.instance].get(), {'b': {'c': 2}})
+
+            with self.assertRaises(RuntimeError):
+                self.proxy.delete('adsfads', badoption=True)
 
         def test_client_delete_nested(self):
             self.proxy.delete('b/c')
