@@ -8,15 +8,37 @@ import httplib
 
 from os import environ
 
-from tornado.escape import json_encode, json_decode
+from tornado.escape import to_basestring
 from tornado.httpclient import HTTPClient
 
+import json
 import jsonschema
 
 from .core import Store
 from . import DEFAULT_PORT
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+JSON_ENCODERS = {}
+JSON_DECODERS = {}
+
+def _json_encoder(obj):
+    try:
+        encode = JSON_ENCODERS[type(obj)]
+    except KeyError:
+        raise TypeError('cannot serialize {}'.format(type(obj)))
+    else:
+        return encode(obj)
+
+def _json_decoder(obj):
+    if not isinstance(obj, dict):
+        return obj
+
+    for k in obj.keys():
+        if k in JSON_DECODERS:
+            return JSON_DECODERS[k](obj[k])
+
+    return obj
 
 class JSONClientMixin(object):
     '''
@@ -47,7 +69,8 @@ class JSONClientMixin(object):
 
         # encode object body using JSON
         if body and not isinstance(body, basestring):
-            body = json_encode(body)
+            # see tornado.escape.json_encode()
+            body = json.dumps(body, default=_json_encoder).replace("</", "<\\/")
 
         # perform the request
         response = self._client.fetch(path,
@@ -73,7 +96,8 @@ class JSONClientMixin(object):
                 raise RuntimeError('server indicated no content when expecting response body')
 
             try:
-                obj = json_decode(response.body)
+                # see tornado.escape.json_decode()
+                obj = json.loads(to_basestring(response.body), object_hook=_json_decoder)
                 jsonschema.validate(obj, schema)
             except (ValueError, jsonschema.ValidationError) as exc:
                 logger.error('malformed response: {}\

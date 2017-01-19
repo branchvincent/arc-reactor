@@ -5,6 +5,8 @@ from tornado.testing import AsyncHTTPTestCase
 from pensive.server import PensiveServer, Store
 from pensive.client import StoreProxy, StoreTransaction, PensiveClient
 
+from pensive.coders import register_numpy
+
 class FakeHTTPClient(object):  # pylint: disable=too-few-public-methods
     def __init__(self, target):
         self._target = target
@@ -146,3 +148,56 @@ class ClientTest_PensiveClient(AsyncHTTPTestCase):
     def test_client_pensive_create_empty(self):
         store = self.client.create('c', PensiveClient.NO_PARENT)
         self.assertIsNone(store.get())
+
+class ClientTest_Coders(AsyncHTTPTestCase):
+    def setUp(self):
+        super(ClientTest_Coders, self).setUp()
+        self.client = PensiveClient(self.get_url(''), client=FakeHTTPClient(self))
+
+        try:
+            import numpy
+        except ImportError as e:
+            self.skipTest(e)
+
+    def get_app(self):
+        self.server = PensiveServer()
+        return self.server
+
+    def test_client_numpy_ndarray(self):
+        self.assertTrue(register_numpy())
+
+        import numpy
+
+        store = self.client.default()
+        orig = numpy.arange(10)
+        store.put('a', orig)
+        result = store.get('a')
+
+        self.assertIs(type(result), numpy.ndarray)
+        self.assertTrue(numpy.array_equal(orig, result))
+
+    def test_client_numpy_ndarray_nested(self):
+        self.assertTrue(register_numpy())
+
+        import numpy
+
+        store = self.client.default()
+        orig = numpy.arange(10)
+        store.put('a/b', orig)
+        result = store.get('a')['b']
+
+        self.assertIs(type(result), numpy.ndarray)
+        self.assertTrue(numpy.array_equal(orig, result))
+
+    def test_client_numpy_matrix(self):
+        self.assertTrue(register_numpy())
+
+        import numpy
+
+        store = self.client.default()
+        orig = numpy.matrix([[1,2],[3,4]])
+        store.put('a', orig)
+        result = store.get('a')
+
+        self.assertIs(type(result), numpy.matrix)
+        self.assertTrue(numpy.array_equal(orig, result))
