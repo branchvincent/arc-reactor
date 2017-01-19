@@ -25,6 +25,25 @@ class ServerTest_Store_GET(AsyncHTTPTestCase):
         self.assertEqual(response.code, httplib.OK)
         self.assertDictEqual(json_decode(response.body), {'value': 2})
 
+    def test_server_store_get_strict(self):
+        response = self.fetch('/d/b/c/d?strict=true')
+        self.assertEqual(response.code, httplib.NOT_FOUND)
+
+    def test_server_store_get_default(self):
+        response = self.fetch('/d/b/c/d?default=1234')
+        self.assertEqual(response.code, httplib.OK)
+        self.assertDictEqual(json_decode(response.body), {'value': 1234})
+
+    def test_server_store_get_badoption(self):
+        response = self.fetch('/d/b/c?badoption=true')
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'unrecognized option')
+
+    def test_server_store_get_badjson(self):
+        response = self.fetch('/d/b/c?badjson="')
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed query string')
+
     def test_server_store_get_invalid(self):
         response = self.fetch('/i/random/')
         self.assertEqual(response.code, httplib.NOT_FOUND)
@@ -87,6 +106,11 @@ class ServerTest_Store_POST(AsyncHTTPTestCase):
         self.assertEqual(response.code, httplib.BAD_REQUEST)
         self.assertEqual(response.reason, 'invalid operation')
 
+    def test_server_store_post_badjson(self):
+        response = self.fetch('/d/key?badjson="', method='POST', body=json_encode({'value': 1234}))
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed query string')
+
     def test_server_store_post_invalid(self):
         response = self.fetch('/i/random/', method='POST', body=json_encode({'operation': 'get', 'keys': ['a', 'b/c']}))
         self.assertEqual(response.code, httplib.NOT_FOUND)
@@ -118,6 +142,21 @@ class ServerTest_Store_PUT(AsyncHTTPTestCase):
         self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertDictEqual(self.server.stores[None].get(), {'rel': {'a': 1234, 'b': {'c': 5678}}})
 
+    def test_server_store_put_strict(self):
+        self.fetch('/d/key', method='PUT', body=json_encode({'value': 1234}))
+        response = self.fetch('/d/key/subkey?strict=true', method='PUT', body=json_encode({'value': 1234}))
+        self.assertEqual(response.code, httplib.NOT_FOUND)
+
+    def test_server_store_put_badoption(self):
+        response = self.fetch('/d/key?badoption=true', method='PUT', body=json_encode({'value': 1234}))
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'unrecognized option')
+
+    def test_server_store_put_badjson(self):
+        response = self.fetch('/d/key?badjson="', method='PUT', body=json_encode({'value': 1234}))
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed query string')
+
     def test_server_store_put_schema(self):
         response = self.fetch('/d/', method='PUT', body=json_encode({'keys': []}))
         self.assertEqual(response.code, httplib.BAD_REQUEST)
@@ -148,7 +187,17 @@ class ServerTest_Store_DELETE(AsyncHTTPTestCase):
         self.assertEqual(response.code, httplib.NO_CONTENT)
         self.assertDictEqual(self.server.stores[None].get(), {'key2': 5678})
 
-    def test_server_store_put_invalid(self):
+    def test_server_store_delete_badoption(self):
+        response = self.fetch('/d/b/c?badoption=true', method='DELETE')
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'unrecognized option')
+
+    def test_server_store_delete_badjson(self):
+        response = self.fetch('/d/b/c?badjson="', method='DELETE')
+        self.assertEqual(response.code, httplib.BAD_REQUEST)
+        self.assertEqual(response.reason, 'malformed query string')
+
+    def test_server_store_delete_invalid(self):
         response = self.fetch('/i/random/', method='DELETE')
         self.assertEqual(response.code, httplib.NOT_FOUND)
         self.assertEqual(response.reason, 'unrecognized instance')

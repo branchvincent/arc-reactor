@@ -163,11 +163,27 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
         },
     }
 
+    def prepare(self):
+        '''
+        Decode JSON query arguments.
+        '''
+
+        self.options = {}
+        for k in self.request.query_arguments:
+            data = self.get_query_argument(k)
+            try:
+                self.options[k] = json_decode(data)
+            except ValueError as exc:
+                logger.warning('bad JSON in query argument "{}": {}\n\nArgument:\n{}'.format(k, exc, data))
+                self.send_error(httplib.BAD_REQUEST, reason='malformed query string')
+
     def get(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
         Handle GET requests.
 
         If `instance is None`, the default store is accessed.
+
+        All query arguments are interpreted as JSON-encoded options.
 
         The response body will be a JSON object with the structure below.
         ```
@@ -184,8 +200,14 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
             logger.warning('unrecognized instance: {}'.format(instance))
             self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
         else:
-            # retrieve value
-            self.write({'value': store.get(path)})
+            try:
+                # retrieve value
+                self.write({'value': store.get(path, **self.options)})
+            except KeyError:
+                self.send_error(httplib.NOT_FOUND)
+            except TypeError as exc:
+                logger.warning('unrecognized option: {}\n\nOptions:\n{}'.format(exc, self.options))
+                self.send_error(httplib.BAD_REQUEST, reason='unrecognized option')
 
     def post(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
@@ -197,8 +219,8 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
         concurrently. The JSON must have the structure below.
         ```
         {
-            'operation': <command>
-            'keys': [ <key1>, <key2>, ... ]
+            'operation': <command>,
+            'keys': [ <key1>, <key2>, ... ],
         }
         ```
         If the operation is `GET`, the response body will be a JSON object
@@ -284,8 +306,15 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
             else:
                 if 'value' in obj:
                     # single put
-                    store.put(path, obj['value'])
-                    self.set_status(httplib.NO_CONTENT)
+                    try:
+                        store.put(path, obj['value'], **self.options)
+                    except KeyError:
+                        self.send_error(httplib.NOT_FOUND)
+                    except TypeError as exc:
+                        logger.warning('unrecognized option: {}\n\nOptions:\n{}'.format(exc, self.options))
+                        self.send_error(httplib.BAD_REQUEST, reason='unrecognized option')
+                    else:
+                        self.set_status(httplib.NO_CONTENT)
                 elif 'keys' in obj:
                     if path and not path.endswith(Store.SEPARATOR):
                         path += Store.SEPARATOR
@@ -310,8 +339,15 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
             self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
         else:
             # single delete
-            store.delete(path)
-            self.set_status(httplib.NO_CONTENT)
+            try:
+                store.delete(path, **self.options)
+            except KeyError:
+                self.send_error(httplib.NOT_FOUND)
+            except TypeError as exc:
+                logger.warning('unrecognized option: {}\n\nOptions:\n{}'.format(exc, self.options))
+                self.send_error(httplib.BAD_REQUEST, reason='unrecognized option')
+            else:
+                self.set_status(httplib.NO_CONTENT)
 
 class PensiveServer(Application):
     '''
