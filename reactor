@@ -118,6 +118,9 @@ elif args.command == 'test':
     if args.verbose:
         subargs.append('-v')
 
+    # show extra details for skipped and failed tests
+    subargs.append('-rsx')
+
     subargs.extend([os.path.join('test', p) for p in args.path] or ['test'])
 
     import pytest
@@ -128,9 +131,14 @@ elif args.command == 'test':
 
 elif args.command == 'shell':
     if args.module:
-        # run the module directly
         import runpy
-        runpy.run_module(args.module, run_name='__main__')
+
+        if os.pathsep in args.module or args.module.endswith('.py'):
+            # run the file directly
+            runpy.run_path(args.module, run_name='__main__')
+        else:
+            # run the module directly
+            runpy.run_module(args.module, run_name='__main__')
 
     else:
         import code
