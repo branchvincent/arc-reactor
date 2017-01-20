@@ -13,7 +13,7 @@ class PowerUSBSocket_Power(TestCase):
         # check that PyUSB works by enumerating all busses
         try:
             list(usb.busses())
-        except usb.USBError:
+        except (usb.USBError, usb.core.NoBackendError):
             self.skipTest('PyUSB does not function on this platform')
 
         self.pwrstrip = PowerUSBStrip()
