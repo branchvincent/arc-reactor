@@ -71,7 +71,7 @@ class MyGLViewer(GLSimulationProgram):
         rvels = [[0]*self.world.robot(r).numLinks() for r in range(self.world.numRobots())]
         
         # print rvels
-        # print self.world.robot(0).link(7).getWorldPosition([0,0,0])
+        print self.world.robot(0).link(7).getWorldPosition([0,0,0])
         #send to the robot(s)
         # self.target=vectorops.add(self.world.rigidObject(self.world.numRigidObjects()-1).getTransform()[1],[-0.05,0,0.1])
         robot=self.world.robot(0)
