@@ -3,7 +3,7 @@
 
 #ifndef LIBREALSENSE_RS_HPP
 #define LIBREALSENSE_RS_HPP
-
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "rsutil.h"
 #include "rscore.hpp"
 #include <cmath>
