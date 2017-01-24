@@ -127,6 +127,28 @@ class DepthCameras:
 
             return image
 
+    def isOnline(camera):
+        if camera not int:
+            logger.warning("User passed a non integer argument to see if a camera was online")
+            return False
+        if self.connect is None:
+            logger.warning("No cameras connected, or connect has not been run")
+            return False
+        elif camera >= self.num_cameras or camera < 0:
+            logger.warning("Camera requested does not exist")
+            return False
+        
+        try:
+            cam = self.context.get_device(camera)
+        except:
+            logger.error("Tried to access camera {}, but an error occured".format(camera))
+            return False
+        
+        if cam not None:
+            return True
+        else:
+            return False
+            
 
 def test():
     import matplotlib.pyplot as plt
