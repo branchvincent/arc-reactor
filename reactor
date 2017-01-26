@@ -88,6 +88,11 @@ console_handler.addFilter(lf)
 # default console output to WARN level
 lf.add('', logging.WARN)
 
+# attempt to register numpy database codecs
+from pensive.coders import register_numpy
+if not register_numpy():
+    logger.warn('failed to load numpy database coders')
+
 # process logging verbosity flags
 for m in args.verbose or []:
     lf.add(m, logging.INFO)
