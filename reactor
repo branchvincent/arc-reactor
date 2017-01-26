@@ -47,8 +47,13 @@ shell_parser.add_argument('-m', '--module', metavar='MODULE', help='run module')
 load_parser = subparsers.add_parser('load', help='load database', description='load database', formatter_class=ArgumentDefaultsHelpFormatter)
 load_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
 load_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
-load_parser.add_argument('-p', '--path', metavar='DB_PATH', help='path for the load', default='')
+load_parser.add_argument('-p', '--path', metavar='DB_PATH', help='path for the load', default='/')
 load_parser.add_argument('json_path', metavar='JSON_PATH', help='JSON file to load')
+
+dump_parser = subparsers.add_parser('dump', help='dump database', description='dump database', formatter_class=ArgumentDefaultsHelpFormatter)
+dump_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+dump_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+dump_parser.add_argument('path', nargs='?', metavar='PATH', help='path for the dump', default='/')
 
 args = parser.parse_args()
 
@@ -171,3 +176,21 @@ elif args.command == 'load':
 
     # load the object
     store.put(args.path, obj)
+
+elif args.command == 'dump':
+    # connect to the database
+    from pensive.client import PensiveClient
+    client = PensiveClient(args.address)
+
+    # create or get the store
+    if args.store and args.store not in client.index():
+        store = client.create(args.store)
+    else:
+        store = client.store(args.store)
+
+    # load the object
+    obj = store.get(args.path)
+
+    # dump as JSON to stdout
+    import json
+    print(json.dumps(obj, indent=4))
