@@ -41,8 +41,14 @@ test_parser.add_argument('-q', '--quiet', action='store_true', help='decrease ve
 test_parser.add_argument('-v', '--verbose', action='store_true', help='increase verbosity')
 test_parser.add_argument('path', nargs=REMAINDER, metavar='PATH', help='search path for tests')
 
-test_parser = subparsers.add_parser('shell', help='Python shell', description='launch Python', formatter_class=ArgumentDefaultsHelpFormatter)
-test_parser.add_argument('-m', '--module', metavar='MODULE', help='run module')
+shell_parser = subparsers.add_parser('shell', help='Python shell', description='launch Python', formatter_class=ArgumentDefaultsHelpFormatter)
+shell_parser.add_argument('-m', '--module', metavar='MODULE', help='run module')
+
+load_parser = subparsers.add_parser('load', help='load database', description='load database', formatter_class=ArgumentDefaultsHelpFormatter)
+load_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+load_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+load_parser.add_argument('-p', '--path', metavar='DB_PATH', help='path for the load', default='')
+load_parser.add_argument('json_path', metavar='JSON_PATH', help='JSON file to load')
 
 args = parser.parse_args()
 
@@ -87,6 +93,11 @@ console_handler.addFilter(lf)
 
 # default console output to WARN level
 lf.add('', logging.WARN)
+
+# attempt to register numpy database codecs
+from pensive.coders import register_numpy
+if not register_numpy():
+    logger.warn('failed to load numpy database coders')
 
 # process logging verbosity flags
 for m in args.verbose or []:
@@ -143,3 +154,20 @@ elif args.command == 'shell':
     else:
         import code
         code.interact()
+elif args.command == 'load':
+    # load the JSON object
+    import json
+    obj = json.load(open(args.json_path))
+
+    # connect to the database
+    from pensive.client import PensiveClient
+    client = PensiveClient(args.address)
+
+    # create or get the store
+    if args.store and args.store not in client.index():
+        store = client.create(args.store)
+    else:
+        store = client.store(args.store)
+
+    # load the object
+    store.put(args.path, obj)

@@ -9,7 +9,21 @@ import re
 import logging
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class Store(object):
+class StoreInterface(object):
+    '''
+    Basic interface for a `Store`.
+    '''
+
+    def get(self, key=None, default=None, strict=False):
+        raise NotImplementedError
+
+    def put(self, key=None, value=None, strict=False):
+        raise NotImplementedError
+
+    def delete(self, key=None, strict=False):
+        raise NotImplementedError
+
+class Store(StoreInterface):
     r'''
     Hierarchical, recursive key-value database for storing arbitrary objects.
 
@@ -48,7 +62,11 @@ class Store(object):
         '''
 
         logger.debug('get: "{}"'.format(key))
-        return self._get(key, strict) or default
+        result = self._get(key, strict)
+        if result is None:
+            return default
+        else:
+            return result
 
     def _get(self, key, strict):
         if not key:
@@ -57,7 +75,7 @@ class Store(object):
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
-                key = self._separator.split(key)
+                key = [k for k in self._separator.split(key) if len(k)]
 
             # get of store without children is null
             if not self._children:
@@ -102,7 +120,7 @@ class Store(object):
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
-                key = self._separator.split(key)
+                key = [k for k in self._separator.split(key) if len(k)]
 
             # initialize the children map
             if not self._children:
@@ -116,12 +134,12 @@ class Store(object):
             # create a child if needed and recurse
             self._children.setdefault(key.pop(0), Store())._put(key, value, strict)
 
-    def delete(self, key=None):
+    def delete(self, key=None, strict=False):
         '''
         Convenience function for deletion.  See `put`.
         '''
 
-        self.put(key, None)
+        self.put(key, None, strict=strict)
 
     def index(self, key=None, depth=-1):
         '''
