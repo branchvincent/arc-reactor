@@ -9,7 +9,21 @@ import re
 import logging
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class Store(object):
+class StoreInterface(object):
+    '''
+    Basic interface for a `Store`.
+    '''
+
+    def get(self, key=None, default=None, strict=False):
+        raise NotImplementedError
+
+    def put(self, key=None, value=None, strict=False):
+        raise NotImplementedError
+
+    def delete(self, key=None, strict=False):
+        raise NotImplementedError
+
+class Store(StoreInterface):
     r'''
     Hierarchical, recursive key-value database for storing arbitrary objects.
 
@@ -120,12 +134,12 @@ class Store(object):
             # create a child if needed and recurse
             self._children.setdefault(key.pop(0), Store())._put(key, value, strict)
 
-    def delete(self, key=None):
+    def delete(self, key=None, strict=False):
         '''
         Convenience function for deletion.  See `put`.
         '''
 
-        self.put(key, None)
+        self.put(key, None, strict=strict)
 
     def index(self, key=None, depth=-1):
         '''

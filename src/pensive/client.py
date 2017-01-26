@@ -15,7 +15,7 @@ from tornado.httputil import url_concat
 import json
 import jsonschema
 
-from .core import Store
+from .core import Store, StoreInterface
 from . import DEFAULT_PORT
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -119,20 +119,6 @@ class JSONClientMixin(object):
             else:
                 return obj
 
-class StoreInterface(object):
-    '''
-    Basic interface for a `Store`.
-    '''
-
-    def get(self, key=None, **options):
-        raise NotImplementedError
-
-    def put(self, key=None, value=None, **options):
-        raise NotImplementedError
-
-    def delete(self, key=None, **options):
-        raise NotImplementedError
-
 class BatchStoreInterface(StoreInterface):
     '''
     Batch operation interface for `PensiveServer`.
@@ -174,12 +160,17 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
 
         super(StoreProxy, self).__init__(base_url, **kwargs)
 
-    def get(self, key=None, **options):
+    def get(self, key=None, default=None, strict=False):
         '''
         Call `get()` on the remote `Store`.
         '''
 
-        return self._fetch(key or '', 'GET', args=options, schema=StoreProxy.GET_SCHEMA)['value']
+        result = self._fetch(key or '', 'GET', args={'strict': strict}, schema=StoreProxy.GET_SCHEMA)['value']
+        # optimize out sending default over the network
+        if result is None:
+            return default
+        else:
+            return result
 
     def multi_get(self, keys, root=None):
         '''
@@ -192,12 +183,12 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
                            schema=StoreProxy.MULTI_GET_SCHEMA)
 
 
-    def put(self, key=None, value=None, **options):
+    def put(self, key=None, value=None, strict=False):
         '''
         Call `put()` on the remote `Store`.
         '''
 
-        return self._fetch(key or '', 'PUT', args=options, body={'value': value})
+        return self._fetch(key or '', 'PUT', args={'strict': strict}, body={'value': value})
 
     def multi_put(self, mapping, root=None):
         '''
@@ -207,12 +198,12 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
 
         return self._fetch(root or '', 'PUT', body={'keys': mapping})
 
-    def delete(self, key=None, **options):
+    def delete(self, key=None, strict=False):
         '''
         Call `delete()` on the remote `Store`.
         '''
 
-        return self._fetch(key or '', 'DELETE', args=options)
+        return self._fetch(key or '', 'DELETE', args={'strict': strict})
 
     def multi_delete(self, keys, root=None):
         '''
