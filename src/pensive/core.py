@@ -48,7 +48,11 @@ class Store(object):
         '''
 
         logger.debug('get: "{}"'.format(key))
-        return self._get(key, strict) or default
+        result = self._get(key, strict)
+        if result is None:
+            return default
+        else:
+            return result
 
     def _get(self, key, strict):
         if not key:
