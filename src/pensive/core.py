@@ -62,6 +62,11 @@ class Store(StoreInterface):
         '''
 
         logger.debug('get: "{}"'.format(key))
+
+        # split the key into parts if it is a string path
+        if isinstance(key, basestring):
+            key = [k for k in self._separator.split(key) if len(k)]
+
         result = self._get(key, strict)
         if result is None:
             return default
@@ -73,10 +78,6 @@ class Store(StoreInterface):
             # null key indicates the value of this Store
             return self._serialize()
         else:
-            # split the key into parts if it is a string path
-            if isinstance(key, basestring):
-                key = [k for k in self._separator.split(key) if len(k)]
-
             # get of store without children is null
             if not self._children:
                 if strict:
@@ -108,6 +109,11 @@ class Store(StoreInterface):
         '''
 
         logger.debug('put: "{}" -> {}'.format(key, value))
+
+        # split the key into parts if it is a string path
+        if isinstance(key, basestring):
+            key = [k for k in self._separator.split(key) if len(k)]
+
         return self._put(key, value, strict)
 
     def _put(self, key, value, strict):
@@ -118,10 +124,6 @@ class Store(StoreInterface):
 
             self._deserialize(value)
         else:
-            # split the key into parts if it is a string path
-            if isinstance(key, basestring):
-                key = [k for k in self._separator.split(key) if len(k)]
-
             # initialize the children map
             if not self._children:
                 if strict and self._value is not None:
