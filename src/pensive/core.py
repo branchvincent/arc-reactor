@@ -75,7 +75,7 @@ class Store(StoreInterface):
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
-                key = self._separator.split(key)
+                key = [k for k in self._separator.split(key) if len(k)]
 
             # get of store without children is null
             if not self._children:
@@ -120,7 +120,7 @@ class Store(StoreInterface):
         else:
             # split the key into parts if it is a string path
             if isinstance(key, basestring):
-                key = self._separator.split(key)
+                key = [k for k in self._separator.split(key) if len(k)]
 
             # initialize the children map
             if not self._children:
