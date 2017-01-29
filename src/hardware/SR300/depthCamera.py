@@ -12,35 +12,31 @@ class DepthCameras:
         self.supported_streams = []
 
     def connect(self):
-        #check if the context exists, if not try to connect
-        if self.context is None:
-            try:
-                self.context = rs.context()
-            except:
-                logger.error("Camera is busy. Some other process has already connected")
-                return False
-            self.num_cameras = self.context.get_device_count()
-            if self.num_cameras == 0:
-                logger.warning("No cameras were detected")
-                return False
-            else:
-                logger.info("Found %i cameras", self.num_cameras)
-                for i in range(self.num_cameras):
-                    self.supported_streams.append([])
-
-                    #cycle through all of the cameras and find out what streams they support
-                    for j in range(rs.capabilities_fish_eye):
-                        cam = self.context.get_device(i)
-                        if cam.supports_capability(j):
-                            self.supported_streams[i].append(j)
-                            logger.info("Camera %i supports %s", i, rs.rs_stream_to_string(j))
-                return True
-        else:
-            #tried to connect already...you idiot
-            logger.warning("Tried to connect to cameras more than once. Ignoring") 
+        #dont care if the context exists, try to connect
+        try:
+            self.context = rs.context()
+        except:
+            logger.error("Camera is busy. Some other process has already connected")
             return False
+        self.num_cameras = self.context.get_device_count()
+        if self.num_cameras == 0:
+            logger.warning("No cameras were detected")
+            return False
+        else:
+            logger.info("Found %i cameras", self.num_cameras)
+            for i in range(self.num_cameras):
+                self.supported_streams.append([])
+
+                #cycle through all of the cameras and find out what streams they support
+                for j in range(rs.capabilities_fish_eye):
+                    cam = self.context.get_device(i)
+                    if cam.supports_capability(j):
+                        self.supported_streams[i].append(j)
+                        logger.info("Camera %i supports %s", i, rs.rs_stream_to_string(j))
+            return True
+        
     
-    def acquireImage(self, camera, stream, ivcam_preset=rs.RS_IVCAM_PRESET_OBJECT_SCANNING):
+    def acquire_image(self, camera, stream, ivcam_preset=rs.RS_IVCAM_PRESET_OBJECT_SCANNING):
         if self.connect is None:
             logger.warning("No cameras connected, or connect has not been run")
             return None
@@ -60,6 +56,9 @@ class DepthCameras:
             if cam is None:
                 logger.error("Tried to get a camera that does not exist")
                 return None
+            
+            #return the serial num of the camera too
+            sn = cam.get_info(rs.camera_info_serial_number)
             
             #enable the stream
             for s in self.supported_streams[camera]:
@@ -122,32 +121,25 @@ class DepthCameras:
                 height = cam.get_stream_height(stream)    
                 image = np.reshape(image, (height, width, 3) )
 
+
+
             #we are done now
             cam.stop()
 
-            return image
+            return (image, sn)
 
-    def isOnline(camera):
-        if camera not int:
-            logger.warning("User passed a non integer argument to see if a camera was online")
-            return False
-        if self.connect is None:
-            logger.warning("No cameras connected, or connect has not been run")
-            return False
-        elif camera >= self.num_cameras or camera < 0:
-            logger.warning("Camera requested does not exist")
-            return False
+    def get_online_cams(self):
+        self.connect()
+        online_cams = []
+        for cam in range(self.num_cameras):
+            try:
+                c = self.context.get_device(cam)
+                online_cams.append(c.get_info(rs.camera_info_serial_number))
+            except:
+                logger.error("Tried to access camera {}, but an error occured".format(cam))
+                continue
         
-        try:
-            cam = self.context.get_device(camera)
-        except:
-            logger.error("Tried to access camera {}, but an error occured".format(camera))
-            return False
-        
-        if cam not None:
-            return True
-        else:
-            return False
+        return online_cams
             
 
 def test():
