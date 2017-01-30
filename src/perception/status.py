@@ -9,6 +9,7 @@ class CameraStatus:
     def __init__(self):
         self.connectedCameras = {}
         self.cameraColorImages = {}
+        self.cameraFullColorImages = {}
         self.cameraDepthImages = {}
         self.cameraPointClouds = {}
         self.depthCamera = depthCamera.DepthCameras()
@@ -25,20 +26,21 @@ class CameraStatus:
             self.connectedCameras[sn] = True
 
             #get the recent pictures for the connected cameraStatus
-            color_picture, serialNum = self.depthCamera.acquire_image(cam_num, rs.stream_color_aligned_to_depth)
-            depth_picture, serialNum = self.depthCamera.acquire_image(cam_num, rs.stream_depth_aligned_to_color)
-            point_cloud, serialNum = self.depthCamera.acquire_image(cam_num, rs.stream_points)
+            picSnTuple = self.depthCamera.acquire_image(cam_num)
+            if not picSnTuple is None:
+                images, serialNum = picSnTuple
+                self.cameraColorImages[serialNum] = images[1]
+                self.cameraDepthImages[serialNum] = images[4]
+                self.cameraFullColorImages[serialNum] = images[0]
+                self.cameraPointClouds[serialNum] = images[5]
 
-            #update the dictionaries
-            self.cameraColorImages[serialNum] = color_picture
-            self.cameraDepthImages[serialNum] = depth_picture
-            self.cameraPointClouds[serialNum] = point_cloud
+            
 
         #loop though the entire dictionary and see what camers are not in
         #the list. mark those false
         for key, value in self.connectedCameras.items():
             if not key in list_of_serial_nums:
-                self.connectedCameras[key] = false
+                self.connectedCameras[key] = False
 
     # create an array that has xyz points with RGB colors of the world based on
     # what each camera currently sees   
@@ -58,8 +60,9 @@ class CameraStatus:
             color = self.cameraColorImages[key]
 
             #remove any points and colors that have a z value of zero
-            pc = pc[pc[:,:,2] != 0]
-            color = color[color[:,:,2] != 0]
+            nonzero = pc[:,:,2] != 0
+            pc = pc[nonzero]
+            color = color[nonzero]
 
             #TODO transform the points to the real world here
 
