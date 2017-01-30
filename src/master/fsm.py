@@ -36,4 +36,10 @@ class StateMachine:
     def runCurrent(self):
         self.events[self.current].run()
 
+    def runAll(self):
+        for i, n in self.events.items():
+            print i, ' corresponds to ', n
+            self.setCurrentState(i)
+            self.runCurrent()
+
     
