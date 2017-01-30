@@ -11,12 +11,11 @@ class State:
         raise NotImplementedError
 
 class StateMachine:
-    def __init__(self, config={}, initial=None, events=None, callbacks=None, final=None):
-        config = dict(config)
-        events = []
+    def __init__(self, initial=None, events=None, callbacks=None, final=None):
+        self.events = {}
         self.callbacks = {}
         self.initState = initial
-        self.finStates = None
+        self.finStates = final
         self.current = None
 
     def setCurrentState(self, name):
@@ -33,12 +32,8 @@ class StateMachine:
 
     def setInit(self, name):
         self.initState = name.upper()  
+  
+    def runCurrent(self):
+        self.events[self.current].run()
 
-##############################################
-def runTest():
-    fsm = StateMachine()
-#    fsm.add('SelectItem', 
-
-if __name__ == '__main__':
-    runTest()
     
