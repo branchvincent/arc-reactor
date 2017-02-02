@@ -70,7 +70,12 @@ class CameraStatus:
             total_color.append(color)
 
         
-        res_pc = np.array(total_pts)
-        res_c = np.array(total_color)
+        res_pc = total_pts[0]
+        for i in range(1,len(total_pts)):
+            res_pc = np.concatenate((res_pc, total_pts[i]))
+
+        res_c = total_color[0]
+        for i in range(1,len(total_color)):
+            res_c = np.concatenate((res_c, total_color[i]))
 
         return (res_pc, res_c)

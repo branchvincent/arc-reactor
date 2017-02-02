@@ -194,10 +194,9 @@ class GLWidget(QtOpenGL.QGLWidget):
         if self.point_cloud.size > 0:
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glEnableClientState(GL.GL_COLOR_ARRAY)
-            #point cloud size and colors size are not the same
             GL.glVertexPointer(3, GL.GL_FLOAT, 0, self.point_cloud.flatten())
             GL.glColorPointer(3, GL.GL_UNSIGNED_BYTE, 0, self.colors.flatten())
-            GL.glDrawArrays(GL.GL_POINTS, 0, self.colors.shape[1])
+            GL.glDrawArrays(GL.GL_POINTS, 0, self.colors.shape[0])
             GL.glPointSize(1.0)
             GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDisableClientState(GL.GL_COLOR_ARRAY)
