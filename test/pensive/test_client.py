@@ -1,29 +1,19 @@
 # pylint: disable=line-too-long,missing-docstring,invalid-name,protected-access
 
-from tornado.testing import AsyncHTTPTestCase
+from .helper import DatabaseDependentTestCase, FakeHTTPClient
 
 from pensive.server import PensiveServer, Store
 from pensive.client import StoreProxy, StoreTransaction, PensiveClient
 
 from pensive.coders import register_numpy
 
-class FakeHTTPClient(object):  # pylint: disable=too-few-public-methods
-    def __init__(self, target):
-        self._target = target
-
-    def fetch(self, path, **kwargs):
-        return self._target.fetch(path[len(self._target.get_url('')):], **kwargs)
-
 class Skip(object):  # pylint: disable=too-few-public-methods
-    class ClientTest(AsyncHTTPTestCase):
+    class ClientTest(DatabaseDependentTestCase):
         def setUp(self):
             super(Skip.ClientTest, self).setUp()
             self.proxy = StoreProxy(self.get_url(''), instance=self.instance, client=FakeHTTPClient(self))
 
-        def get_app(self):
-            self.server = PensiveServer()
             self.server.stores.setdefault(self.instance, Store()).put(value={'a': 4, 'b': {'c': 2}})
-            return self.server
 
         def test_client_get(self):
             self.assertEqual(self.proxy.get('a'), 4)
@@ -87,16 +77,13 @@ class ClientTest_Default(Skip.ClientTest):
 class ClientTest_Instance(Skip.ClientTest):
     instance = 'random'
 
-class ClientTest_Transaction(AsyncHTTPTestCase):
+class ClientTest_Transaction(DatabaseDependentTestCase):
     def setUp(self):
         super(ClientTest_Transaction, self).setUp()
         self.proxy = StoreProxy(self.get_url(''), client=FakeHTTPClient(self))
         self.trans = StoreTransaction(self.proxy)
 
-    def get_app(self):
-        self.server = PensiveServer()
         self.server.stores[None].put(value={'a': 4, 'b': {'c': 2}})
-        return self.server
 
     def test_transaction_get(self):
         self.assertEqual(self.trans.get('a'), 4)
@@ -117,16 +104,12 @@ class ClientTest_Transaction(AsyncHTTPTestCase):
         self.trans.commit(self.proxy)
         self.assertDictEqual(self.proxy.get(), {'b': {'c': 2}})
 
-class ClientTest_PensiveClient(AsyncHTTPTestCase):
+class ClientTest_PensiveClient(DatabaseDependentTestCase):
     def setUp(self):
         super(ClientTest_PensiveClient, self).setUp()
-        self.client = PensiveClient(self.get_url(''), client=FakeHTTPClient(self))
 
-    def get_app(self):
-        self.server = PensiveServer()
         self.server.stores[None].put(value={'a': 4})
         self.server.stores.setdefault('a', Store()).put(value={'b': 5})
-        return self.server
 
     def test_client_pensive_index(self):
         self.assertItemsEqual(self.client.index(), [None, 'a'])
@@ -162,19 +145,14 @@ class ClientTest_PensiveClient(AsyncHTTPTestCase):
         store = self.client.create('c', PensiveClient.NO_PARENT)
         self.assertIsNone(store.get())
 
-class ClientTest_Coders(AsyncHTTPTestCase):
+class ClientTest_Coders(DatabaseDependentTestCase):
     def setUp(self):
         super(ClientTest_Coders, self).setUp()
-        self.client = PensiveClient(self.get_url(''), client=FakeHTTPClient(self))
 
         try:
             import numpy
         except ImportError as e:
             self.skipTest(e)
-
-    def get_app(self):
-        self.server = PensiveServer()
-        return self.server
 
     def test_client_numpy_ndarray(self):
         self.assertTrue(register_numpy())
