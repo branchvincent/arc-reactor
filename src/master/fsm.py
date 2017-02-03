@@ -2,9 +2,9 @@ from pensive.core import Store
 from pensive.client import PensiveClient
 
 class State:
-    def __init__(self, name):
+    def __init__(self, name, store=None):
         self.name = name.upper()
-        self.store = PensiveClient().default()
+        self.store = store or PensiveClient().default()
     def __str__(self):
         return self.name
     def run(self):
@@ -31,8 +31,8 @@ class StateMachine:
             self.finStates.append(name)
 
     def setInit(self, name):
-        self.initState = name.upper()  
-  
+        self.initState = name.upper()
+
     def runCurrent(self):
         self.events[self.current].run()
 
@@ -42,4 +42,4 @@ class StateMachine:
             self.setCurrentState(i)
             self.runCurrent()
 
-    
+
