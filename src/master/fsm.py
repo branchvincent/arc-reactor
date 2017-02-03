@@ -11,35 +11,40 @@ class State:
         raise NotImplementedError
 
 class StateMachine:
-    def __init__(self, initial=None, events=None, callbacks=None, final=None):
+    def __init__(self, events=None, callbacks=None, finStates=None):
         self.events = {}
         self.callbacks = {}
-        self.initState = initial
-        self.finStates = final
+        self.finStates = {}
+        self.pastEvents = {}
         self.current = None
 
     def setCurrentState(self, name):
         self.current = name.upper()
 
     def isCurrentState(self, name):
-        return self.current == name
+        return self.current == name.upper()
+
+    def getCurrentState(self):
+        return self.current
 
     def add(self, name, event, endState=0):
         name = name.upper()
         self.events[name] = event
         if endState:
-            self.finStates.append(name)
+            self.finStates[name] = event
 
-    def setInit(self, name):
-        self.initState = name.upper()  
-  
     def runCurrent(self):
         self.events[self.current].run()
+        self.pastEvents[self.current] = self.events[self.current]
 
     def runAll(self):
         for i, n in self.events.items():
-            print i, ' corresponds to ', n
             self.setCurrentState(i)
             self.runCurrent()
+            if(self.current in self.finStates):
+                return
+                
+    def getAllPastEvents(self):
+        return self.pastEvents.keys()
 
     
