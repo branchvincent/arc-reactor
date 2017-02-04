@@ -160,11 +160,18 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
 
         super(StoreProxy, self).__init__(base_url, **kwargs)
 
+    def _concat_key(self, key):
+        if key and not isinstance(key, basestring):
+            key = Store.SEPARATOR.join(key)
+
+        return key
+
     def get(self, key=None, default=None, strict=False):
         '''
         Call `get()` on the remote `Store`.
         '''
 
+        key = self._concat_key(key)
         result = self._fetch(key or '', 'GET', args={'strict': strict}, schema=StoreProxy.GET_SCHEMA)['value']
         # optimize out sending default over the network
         if result is None:
@@ -178,16 +185,17 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         in a single HTTP request.
         '''
 
+        keys = [self._concat_key(key) for key in keys]
         return self._fetch(root or '', 'POST',
                            body={'operation': 'GET', 'keys': keys},
                            schema=StoreProxy.MULTI_GET_SCHEMA)
-
 
     def put(self, key=None, value=None, strict=False):
         '''
         Call `put()` on the remote `Store`.
         '''
 
+        key = self._concat_key(key)
         return self._fetch(key or '', 'PUT', args={'strict': strict}, body={'value': value})
 
     def multi_put(self, mapping, root=None):
@@ -196,6 +204,7 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         in a single HTTP request.
         '''
 
+        mapping = {self._concat_key(key): value for (key, value) in mapping.iteritems()}
         return self._fetch(root or '', 'PUT', body={'keys': mapping})
 
     def delete(self, key=None, strict=False):
@@ -203,6 +212,7 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         Call `delete()` on the remote `Store`.
         '''
 
+        key = self._concat_key(key)
         return self._fetch(key or '', 'DELETE', args={'strict': strict})
 
     def multi_delete(self, keys, root=None):
@@ -211,6 +221,7 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         in a single HTTP request.
         '''
 
+        keys = [self._concat_key(key) for key in keys]
         return self._fetch(root or '', 'POST',
                            body={'operation': 'DELETE', 'keys': keys})
 
