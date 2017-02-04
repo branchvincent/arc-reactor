@@ -64,7 +64,7 @@ class DepthCameras:
                 #apply the preset
                 rs.apply_ivcam_preset(cam, ivcam_preset)
             except:
-                logger.error("Could not enable the stream or ivcam presets")
+                logger.exception("Could not enable the stream or ivcam presets")
                 return None
 
             #start the camera
@@ -73,7 +73,7 @@ class DepthCameras:
                  #wait for a single frame
                 cam.wait_for_frames()
             except:
-                logger.error("Unable to start the camera")
+                logger.exception("Unable to start the camera")
                 return None
            
 
@@ -139,7 +139,7 @@ class DepthCameras:
                     points = np.reshape(points, (height, width, 3) )
 
             except:
-                logger.error("Unable to capture images, unkown reason")
+                logger.exception("Unable to capture images, unkown reason")
                 cam.stop()
                 return None
 
