@@ -2,35 +2,46 @@ from PyQt4 import QtGui, QtOpenGL, QtCore
 import sys
 from OpenGL import GL, GLU
 from status import CameraStatus
+import time
 from functools import partial
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import math
 import numpy as np
 import logging
+import os
  # start logging
-logger = logging.getLogger('RS_Camera')
-logging.basicConfig(filename="RS_test.log", level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s',
-                    datefmt='%m/%d/%Y %I:%M:%S %p', filemode='w')
-logging.info('Start log')
+import logging
+logger = logging.getLogger(__name__)
 
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-# set a format which is simpler for console use
-formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-# tell the handler to use this format
-console.setFormatter(formatter)
+class CameraSignal(QtCore.QObject):
+    sig = QtCore.pyqtSignal()
+
+class CameraThread(QtCore.QRunnable): 
+    def __init__(self, camStatus, threadpool):
+        super(QtCore.QRunnable, self).__init__()
+        self.cam_status = camStatus 
+        self.signal = CameraSignal()
+        self.pool = threadpool
+
+    def run(self):
+        self.cam_status.poll()
+        self.signal.sig.emit()
+        time.sleep(3)
+        self.pool.tryStart(self)
+
 
 class PerceptionMonitor(QtGui.QWidget):
     
     def __init__(self):
         super(PerceptionMonitor, self).__init__()
-        self.cam_status = CameraStatus()
         self.cam_indicators = {}    #dictionary of sn to Qbuttons
-        self.timer = QtCore.QTimer()
+        self.cam_status = CameraStatus()
+        self.pool = QtCore.QThreadPool.globalInstance()
+        self.camThread = CameraThread(self.cam_status, self.pool)
         self.currentView = None
         self.initUI()
-
+        self.counter = 0
     def initUI(self):
         
         #add a vertical layout
@@ -64,20 +75,21 @@ class PerceptionMonitor(QtGui.QWidget):
         #add spacer to horzTop
         self.horzTop.addStretch(1)
         self.horzTop.addItem(self.horzButton)
+        self.textBox = QtGui.QLineEdit(self)
+        self.horzTop.addWidget(self.textBox)
         self.horzTop.addStretch(1)
 
         self.setGeometry(800, 600, 600, 200)
         self.setWindowTitle('Perception Status')
 
+        #connect signal to self.update views
+        self.camThread.signal.sig.connect(self.update_views)
 
-        #start timer that updates views
-        self.timer.timeout.connect(self.update_views)
-        self.timer.start(3000)
+        self.pool.start(self.camThread)
         self.show()
 
     #updates the pictures for all the cameras 
     def update_views(self):
-        self.cam_status.poll()
         self.update_connected_cams()
         self.update_world_view()
 
@@ -134,6 +146,17 @@ class PerceptionMonitor(QtGui.QWidget):
         #show the image from the serial number btn
         if not serialn is None:
             image = self.cam_status.cameraFullColorImages[serialn]
+            #check if we should save the image
+            if self.textBox.text() != '':
+                #see if a folder with this name exists
+                if not self.textBox.text() in os.listdir():
+                    #make it
+                    os.mkdir(self.textBox.text())
+                    #reset the counter
+                    self.counter = 0
+                
+                plt.imsave(self.textBox.text() + "/" + str(self.counter) + ".png", image)
+                self.counter += 1
             self.figure.clear()
             axes = self.figure.add_subplot(111)
             axes.imshow(image)
