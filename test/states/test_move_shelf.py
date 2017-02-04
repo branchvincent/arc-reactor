@@ -1,9 +1,12 @@
-from unittest import TestCase, SkipTest
+from test.pensive.helper import DatabaseDependentTestCase
+
 from states.move_shelf import MoveShelf
 
-class MoveShelf_Direct(TestCase):
+class MoveShelf_Direct(DatabaseDependentTestCase):
     def setUp(self):
-        self.ms = MoveShelf('ms1')
+        super(MoveShelf_Direct, self).setUp()
+
+        self.ms = MoveShelf('ms1', store=self.client.default())
         self.ms.store.put('/shelf/current_angle', '0')
         self.ms.store.put('/shelf/goal_angle', '90')
         #default store

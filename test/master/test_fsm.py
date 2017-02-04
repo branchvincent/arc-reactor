@@ -7,15 +7,7 @@ from states.select_item import SelectItem
 from states.find_item import FindItem
 
 import json
-
-class SimpleFiniteSM(DatabaseDependentTestCase):
-    def setUp(self):
-        super(SimpleFiniteSM, self).setUp()
-
-        self.fsm = StateMachine()
-        self.store = self.client.default()
-
-        self.store.put('', json.loads('''
+initial_db = json.loads('''
 {
     "robot": {
         "selected_item": null
@@ -43,7 +35,16 @@ class SimpleFiniteSM(DatabaseDependentTestCase):
     }
 
 }
-'''))
+''')
+
+class SimpleFiniteSM(DatabaseDependentTestCase):
+    def setUp(self):
+        super(SimpleFiniteSM, self).setUp()
+
+        self.fsm = StateMachine()
+        self.store = self.client.default()
+
+        self.store.put('', initial_db)
 
     def test_SelectItem(self):
         self.fsm.add('si1', SelectItem('si1', store=self.store))

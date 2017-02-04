@@ -1,9 +1,16 @@
-from unittest import TestCase, SkipTest
-from states.find_item import FindItem
+from test.pensive.helper import DatabaseDependentTestCase
+from test.master.test_fsm import initial_db
 
-class FindItem_NotMoved(TestCase):
+from states.find_item import FindItem
+class FindItem_NotMoved(DatabaseDependentTestCase):
     def setUp(self):
-        self.fi = FindItem('fi1')
+        super(FindItem_NotMoved, self).setUp()
+        store = self.client.default()
+
+        store.put('', initial_db)
+        store.put('/robot/selected_item', 'expo_markers')
+
+        self.fi = FindItem('fi1', store=store)
         #default store
 
     def test_findStillThere(self):

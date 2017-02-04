@@ -1,9 +1,12 @@
-from unittest import TestCase, SkipTest
+from test.pensive.helper import DatabaseDependentTestCase
+
 from states.plan_route import PlanRoute
 
-class PlanRoute_Direct(TestCase):
+class PlanRoute_Direct(DatabaseDependentTestCase):
     def setUp(self):
-        self.pr = PlanRoute('pr1')
+        super(PlanRoute_Direct, self).setUp()
+
+        self.pr = PlanRoute('pr1', store=self.client.default())
         #default store
 
     def test_goDirect(self):
