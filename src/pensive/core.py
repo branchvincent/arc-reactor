@@ -313,10 +313,12 @@ class Store(StoreInterface):
                 store._children = result
                 return store
             else:
-                return None
+                # return empty store
+                return Store()
         elif self._value is not None:
             store = Store()
             store._value = self._value
             return store
         else:
-            return None
+            # return empty store
+            return Store()

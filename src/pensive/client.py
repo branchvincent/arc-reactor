@@ -309,7 +309,7 @@ class PensiveClient(JSONClientMixin):
         'required': ['index'],
     }
 
-    NO_PARENT = object()
+    DEFAULT_STORE = object()
 
     def __init__(self, host=None, **kwargs):
         self._host = host
@@ -356,7 +356,7 @@ class PensiveClient(JSONClientMixin):
         If `instance` already exists and not `force`, `ValueError` is raised.
         Otherwise, the existing instance is first deleted.
 
-        If `parent is None`, an empty instance is created. Otherwise,
+        If `parent is PensiveClient.DEFAULT_STORE`, an empty instance is created. Otherwise,
         the created instance is a fork of `parent`.
         '''
 
@@ -366,7 +366,9 @@ class PensiveClient(JSONClientMixin):
             else:
                 raise ValueError('instance already exists')
 
-        if parent is self.NO_PARENT:
+        if parent is self.DEFAULT_STORE:
+            self._fetch('s/{}'.format(instance), 'PUT', body={'parent': None})
+        elif parent is None:
             self._fetch('s/{}'.format(instance), 'PUT', body='')
         else:
             self._fetch('s/{}'.format(instance), 'PUT', body={'parent': parent})

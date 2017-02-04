@@ -126,7 +126,7 @@ class ClientTest_PensiveClient(DatabaseDependentTestCase):
             self.client.store('a')
 
     def test_client_pensive_create_default(self):
-        store = self.client.create('b')
+        store = self.client.create('b', parent=PensiveClient.DEFAULT_STORE)
         self.assertDictEqual(store.get(), {'a': 4})
 
     def test_client_pensive_create_duplicate(self):
@@ -134,7 +134,7 @@ class ClientTest_PensiveClient(DatabaseDependentTestCase):
             store = self.client.create('a')
 
     def test_client_pensive_create_duplicate_force(self):
-        store = self.client.create('a', force=True)
+        store = self.client.create('a', parent=PensiveClient.DEFAULT_STORE, force=True)
         self.assertDictEqual(store.get(), {'a': 4})
 
     def test_client_pensive_create_fork(self):
@@ -142,7 +142,7 @@ class ClientTest_PensiveClient(DatabaseDependentTestCase):
         self.assertDictEqual(store.get(), {'b': 5})
 
     def test_client_pensive_create_empty(self):
-        store = self.client.create('c', PensiveClient.NO_PARENT)
+        store = self.client.create('c', parent=None)
         self.assertIsNone(store.get())
 
 class ClientTest_Coders(DatabaseDependentTestCase):
