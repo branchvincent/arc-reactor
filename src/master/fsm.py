@@ -14,6 +14,7 @@ class StateMachine:
     def __init__(self, events=None, callbacks=None, finStates=None):
         self.events = {}
         self.callbacks = {}
+        self.transitions = {}
         self.finStates = {}
         self.pastEvents = {}
         self.current = None
@@ -32,6 +33,7 @@ class StateMachine:
         self.events[name] = event
         if endState:
             self.finStates[name] = event
+
     def runCurrent(self):
         self.events[self.current].run()
         self.pastEvents[self.current] = self.events[self.current]
@@ -46,4 +48,20 @@ class StateMachine:
     def getAllPastEvents(self):
         return self.pastEvents.keys()
 
+    def addTransition(self, name, nameNext):
+        self.transitions[name.upper()] = nameNext.upper()
+
+    def runOrdered(self, nameInit):
+        if not self.finStates:
+            raise RuntimeError("Need to define a final state") 
+
+        self.setCurrentState(nameInit)
+        for _ in range(len(self.transitions)+1):
+            self.runCurrent()
+            print "currently running ", self.getCurrentState()
+            if self.current in self.finStates:
+                print "Finished running all states."
+                return
+            else:
+                self.setCurrentState(self.transitions[self.getCurrentState()])
 

@@ -10,6 +10,6 @@ class ExecRoute(State):
         #figure out where we are now
         self.whereamI = self.store.get('/robot/goal_config') #hopefully
 
-        store.put('/robot/current_config', self.whereamI)
+        self.store.put('/robot/current_config', self.whereamI)
 
 
