@@ -25,5 +25,9 @@ def runPickFSM():
     pick.runOrdered('si1')
     pick.runOrdered('pr1')
 
+def runPickFSM_Eval():
+    pick = PickStateMachine()
+    pick.loadStates()
+
 if __name__ == '__main__':
     runPickFSM()
