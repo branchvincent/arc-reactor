@@ -11,8 +11,7 @@ import random
 import importlib
 import os
 import time
-import sys
-import numpy
+
 
 box_vacuum_offset=[0.1,0,0.09]
 ee_local=[-0.015,-0.02,0.3]
@@ -21,8 +20,8 @@ box_release_offset=[0,0,0.06]
 idle_position=[0.6,0,1]
 approach_p1=[0.5,0.2,1]
 approach_p2=[0.5,-0.2,1]
-order_box_min=[0,0.8,0.5]
-order_box_max=[0.1778,1.054,0.5]
+order_box_min=[0.36,0.65,0.5]
+order_box_max=[0.5278,0.904,0.5]
 
 def interpolate(start_T,end_T,u,flag):
     R1,t1=start_T
@@ -33,8 +32,8 @@ def interpolate(start_T,end_T,u,flag):
         ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0]),vectorops.add(ee_local,[0,0,0.01])]
         ik_world=[t,vectorops.add(t,[R[0]/100,R[1]/100,R[2]/100]),vectorops.add(t,[R[6]/100,R[7]/100,R[8]/100])]
     else:
-        ik_local=[ee_local]
-        ik_world=[t]
+        ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0])]
+        ik_world=[t,vectorops.add(t,[R[0]/100,R[1]/100,R[2]/100])]
     return [ik_local,ik_world]
 
 #set up collision checking
@@ -73,8 +72,19 @@ class TestCSpace:
         return True
 
  
-
-
+def feasible(robot,x,q_old):
+        #check joint limit
+        qlimits=zip(*robot.getJointLimits())
+        bound=[qlimits[i] for i in range(len(qlimits))]
+        for (xi,bi) in zip(x,bound):
+            if xi<bi[0] or xi>bi[1]:
+                print "out of joint limit!"
+                return False
+        max_change=0.3
+        for i in range(len(x)):
+            if x[i]<q_old[i]-max_change or x[i]>q_old[i]+max_change:
+                print "change too much"
+                return False
 
 
 
@@ -105,7 +115,6 @@ class MyGLViewer(GLSimulationProgram):
         self.cspace=TestCSpace(self.globals)
         self.idleT=[]
         #Put your initialization code here
-        self.map=numpy.ones((5,5))
     def set_state(self,state):
         print "move from", self.state, 'to ',state
         self.state=state
@@ -129,49 +138,51 @@ class MyGLViewer(GLSimulationProgram):
         local_p=[]
         if self.state=='idle':
             t=0.5
-            if self.sim.getTime()-self.last_state_end<t:
-                u=(self.sim.getTime()-self.last_state_end)/t
-                self.end_T=[[0,0,-1, 0,1,0, 1,0,0],idle_position]
-                # self.idle_T=self.end_T
-                # self.sim.controller(0).setPIDCommand(self.idleq,[0]*7)          
-                [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
-                # constraints=ik.objective(robot.link(ee_link),local=local_p,world=world_p)
-                # traj1 = cartesian_trajectory.cartesian_interpolate_linear(robot,self.start_T,self.end_T,constraints,delta=1e-2,maximize=False)
-                # print 'traj1:',traj1[0]
-            else:
-                # print 'idle', robot.getConfig()
-                self.set_state('find_target')
-        elif self.state=='find_target':
-            if self.score==3:
+            if self.score==2:
                 print 'finished!'
             else:
-                h=0
-                for i in self.waiting_list:
-                    if self.sim.world.rigidObject(i).getTransform()[1][2]>h:
-                        self.target=i
-                        h=self.sim.world.rigidObject(i).getTransform()[1][2]
-                print 'target is ', self.target
-                # self.target=0
-                # self.object_p=self.sim.world.rigidObject(self.target).getTransform()[1]
-                bb1,bb2=self.sim.world.rigidObject(self.target).geometry().getBB()
-                self.object_p=vectorops.div(vectorops.add(bb1,bb2),2)
-                print 'object xform', self.sim.world.rigidObject(self.target).getTransform()[1]
-                print 'object_p',self.object_p
-                h=self.object_p[2]+box_vacuum_offset[2]
-                if self.object_p[1]>0:
-                    end_p=approach_p1
-                    end_p[2]=h
+                if self.sim.getTime()-self.last_state_end<t:
+                    u=(self.sim.getTime()-self.last_state_end)/t
+                    self.end_T=[[0,0,-1, 0,1,0, 1,0,0],idle_position]
+                    # self.idle_T=self.end_T
+                    # self.sim.controller(0).setPIDCommand(self.idleq,[0]*7)          
+                    [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
+                    # constraints=ik.objective(robot.link(ee_link),local=local_p,world=world_p)
+                    # traj1 = cartesian_trajectory.cartesian_interpolate_linear(robot,self.start_T,self.end_T,constraints,delta=1e-2,maximize=False)
+                    # print 'traj1:',traj1[0]
                 else:
-                    end_p=approach_p2
-                    end_p[2]=h
-                d=vectorops.distance(end_p[:1],self.object_p[:1])
-                dx=self.object_p[0]-end_p[0]
-                dy=self.object_p[1]-end_p[1]
-                self.end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],end_p]
-                print 'approach start position',end_p
-                self.retract_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],end_p]
-                print 'retract_T',self.retract_T
-                self.set_state('preposition')
+                    # print 'idle', robot.getConfig()
+                    self.set_state('find_target')
+        elif self.state=='find_target':
+            
+    
+            h=0
+            for i in self.waiting_list:
+                if self.sim.world.rigidObject(i).getTransform()[1][2]>h:
+                    self.target=i
+                    h=self.sim.world.rigidObject(i).getTransform()[1][2]
+            print 'target is ', self.target
+            # self.target=0
+            # self.object_p=self.sim.world.rigidObject(self.target).getTransform()[1]
+            bb1,bb2=self.sim.world.rigidObject(self.target).geometry().getBB()
+            self.object_p=vectorops.div(vectorops.add(bb1,bb2),2)
+            # print 'object xform', self.sim.world.rigidObject(self.target).getTransform()[1]
+            # print 'object_p',self.object_p
+            h=self.object_p[2]+box_vacuum_offset[2]
+            if self.object_p[1]>0:
+                end_p=approach_p1
+                end_p[2]=h
+            else:
+                end_p=approach_p2
+                end_p[2]=h
+            d=vectorops.distance(end_p[:1],self.object_p[:1])
+            dx=self.object_p[0]-end_p[0]
+            dy=self.object_p[1]-end_p[1]
+            self.end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],end_p]
+            print 'approach start position',end_p
+            self.retract_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],end_p]
+            print 'retract_T',self.retract_T
+            self.set_state('preposition')
         elif self.state=='preposition':
             t=0.5
             if self.sim.getTime()-self.last_state_end<t:
@@ -182,7 +193,7 @@ class MyGLViewer(GLSimulationProgram):
                 self.set_state('pregrasp')
         elif self.state=='pregrasp':
             t=0.5
-            print 'pregrasp'
+            # print 'pregrasp'
             if self.sim.getTime()-self.last_state_end<t:
                 u=(self.sim.getTime()-self.last_state_end)/t
                 [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
@@ -191,7 +202,7 @@ class MyGLViewer(GLSimulationProgram):
                 self.set_state('grasp')
         elif self.state=='grasp':
             self.graspedObjects[self.target]=True
-            print 'grasp'
+            # print 'grasp'
             t=0.5
             if self.sim.getTime()-self.last_state_end<t:
                 u=(self.sim.getTime()-self.last_state_end)/t
@@ -201,7 +212,7 @@ class MyGLViewer(GLSimulationProgram):
                 self.end_T[1][2]+=0.01
                 self.set_state('retract')
         elif self.state=='retract':
-            print 'retract'
+            # print 'retract'
             t=0.5
             if self.sim.getTime()-self.last_state_end<t:
                 u=(self.sim.getTime()-self.last_state_end)/t
@@ -229,15 +240,15 @@ class MyGLViewer(GLSimulationProgram):
             t=0.5
             if self.sim.getTime()-self.last_state_end<t:
                 u=(self.sim.getTime()-self.last_state_end)/t
-                [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
+                [local_p,world_p]=interpolate(self.start_T,self.end_T,u,0)
             else:
-                self.end_T[1][2]-=0.1
+                self.end_T[1][2]-=0.01
                 self.set_state('release')
         elif self.state=='release':
             t=0.5
             if self.sim.getTime()-self.last_state_end<t:
                 u=(self.sim.getTime()-self.last_state_end)/t
-                [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
+                [local_p,world_p]=interpolate(self.start_T,self.end_T,u,0)
             else:
                 self.graspedObjects[self.target]=False
                 self.check_target()
@@ -248,6 +259,7 @@ class MyGLViewer(GLSimulationProgram):
         old_T=robot.link(ee_link).getTransform()
         old_R,old_t=old_T
         if local_p:
+            q_old=robot.getConfig()
             goal = ik.objective(robot.link(ee_link),local=local_p,world=world_p)
             # s=ik.solver(goal)
             # s.setMaxIters(100)
@@ -270,8 +282,11 @@ class MyGLViewer(GLSimulationProgram):
             #     else:
             #         print "IK failed"
             s=ik.solve_global(goal)
-            
             q= robot.getConfig()
+            if not feasible(robot,q,q_old):
+                s=ik.solve_global(goal)
+                q=robot.getConfig()
+
             robotController = self.sim.controller(0)
             qdes = q
             (qmin,qmax) = robot.getJointLimits()
@@ -311,14 +326,15 @@ class MyGLViewer(GLSimulationProgram):
 
     def find_placement(self):
         p=[]
-        radius=0.06
+        radius=0.07
         for i in self.target_in_box:
             p.append(self.sim.world.rigidObject(i).getTransform()[1])
         flag=0
-        xmin=order_box_min[0]+radius
+        xmin=order_box_min[0]+radius+0.1
         xmax=order_box_max[0]-radius
-        ymin=order_box_min[1]+radius+0.13
-        ymax=order_box_max[1]-radius+0.13
+        ymin=order_box_min[1]+radius+0.05
+        ymax=order_box_max[1]-radius+0.05
+        count=0
         while not flag:
             x=random.uniform(xmin,xmax)
             y=random.uniform(ymin,ymax)
@@ -329,6 +345,9 @@ class MyGLViewer(GLSimulationProgram):
                         pass
                     else:
                         flag=0
+                        count+=1
+            if count>4:
+                return [(xmin+xmax)/2,(ymin+ymax)/2,0.8]
         t=[x,y,0.8]
         return t
 
