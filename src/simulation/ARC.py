@@ -11,7 +11,7 @@ import random
 import importlib
 import os
 import time
-
+import json
 
 box_vacuum_offset=[0.1,0,0.09]
 ee_local=[-0.015,-0.02,0.3]
@@ -114,6 +114,7 @@ class MyGLViewer(GLSimulationProgram):
         self.globals=Globals(world)
         self.cspace=TestCSpace(self.globals)
         self.idleT=[]
+        self.output=[]
         #Put your initialization code here
     def set_state(self,state):
         print "move from", self.state, 'to ',state
@@ -140,6 +141,10 @@ class MyGLViewer(GLSimulationProgram):
             t=0.5
             if self.score==2:
                 print 'finished!'
+                f=open('test.json','w')
+                json.dump(self.output,f)
+                f.close()
+                exit()
             else:
                 if self.sim.getTime()-self.last_state_end<t:
                     u=(self.sim.getTime()-self.last_state_end)/t
@@ -225,6 +230,7 @@ class MyGLViewer(GLSimulationProgram):
                 q=robot.getConfig()
                 q[1]+=0.02
                 self.sim.controller(0).setPIDCommand(q,[0]*7)
+                self.output.append(q[1:])
             else:
                 bb1,bb2=self.sim.world.rigidObject(self.target).geometry().getBB()
                 bbx=bb2[0]-bb1[0]
@@ -293,6 +299,7 @@ class MyGLViewer(GLSimulationProgram):
             for i in xrange(len(qdes)):
                 qdes[i] = min(qmax[i],max(qdes[i],qmin[i]))
             robotController.setPIDCommand(qdes,rvels[0])
+            self.output.append(qdes[1:])
 
         obj = self.sim.world.rigidObject(self.target)
         #get a SimBody object
