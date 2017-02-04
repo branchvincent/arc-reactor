@@ -1,0 +1,15 @@
+<RCC>
+  <qresource prefix="icon">
+    <file>back.svg</file>
+    <file>checkmark.svg</file>
+    <file>forward.svg</file>
+    <file>play.svg</file>
+    <file>reset.svg</file>
+    <file>xmark.svg</file>
+    <file>xmark_dim.svg</file>
+    <file>warning.svg</file>
+    <file>stop.svg</file>
+    <file>run.svg</file>
+    <file>reverse.svg</file>
+  </qresource>
+</RCC>
