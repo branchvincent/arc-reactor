@@ -13,3 +13,7 @@ pyusb
 
 # unit test coverage
 pytest-cov
+
+# user interface
+pyside
+pyopengl
