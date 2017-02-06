@@ -1,27 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
   <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3" config="7 0.0  0.22688705773255044  0.6762228583897952 2.0223069448008717  -1.0481573202202497  0.4290251616222686  -2.1354668552516776"/>
-  <terrain file="terrains/block.off" />
+<!--   <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/> 
+  <terrain file="terrains/block.off" /> -->
 <!-- The table -->
-  <terrain file="terrains/shelf.stl" scale="0.001 0.001 0.001" translation="1.1 0 0.5" rotateX="1.57" rotateZ="3.8">
+  <terrain file="terrains/shelf.stl" scale="0.001 0.001 0.001" translation="1.1 0 0.235" rotateX="1.57" rotateZ="3.8">
      <display color="0.8 0.7 0.2"/>
   </terrain>
 
   
 <!-- The 10*7*3.25 box --> 
-  <terrain file="terrains/cube.off" scale="0.01 0.254 0.08255" translation="0.35 0.65 0.5"> 
+  <terrain file="terrains/cube.off" scale="0.01 0.254 0.08255" translation="0.35 0.65 0.2"> 
      <display color="0.2 0.3 0.5"/>
   </terrain>
-  <terrain file="terrains/cube.off" scale="0.1778 0.01 0.08255" translation="0.35 0.65 0.5">
+  <terrain file="terrains/cube.off" scale="0.1778 0.01 0.08255" translation="0.35 0.65 0.2">
      <display color="0.2 0.3 0.5"/>
   </terrain>
-  <terrain file="terrains/cube.off" scale="0.01 0.254 0.08255" translation="0.5278 0.65 0.5"> 
+  <terrain file="terrains/cube.off" scale="0.01 0.254 0.08255" translation="0.5278 0.65 0.2"> 
      <display color="0.2 0.3 0.5"/>
   </terrain>
-  <terrain file="terrains/cube.off" scale="0.1778 0.01 0.08255" translation="0.35 0.904 0.5">
+  <terrain file="terrains/cube.off" scale="0.1778 0.01 0.08255" translation="0.35 0.904 0.2">
      <display color="0.2 0.3 0.5"/> 
   </terrain>
-  <terrain file="terrains/cube.off" scale="0.1778 0.254 0.01" translation="0.35 0.667 0.5">
+  <terrain file="terrains/cube.off" scale="0.1778 0.254 0.01" translation="0.35 0.667 0.2">
      <display color="0.2 0.3 0.5"/> 
   </terrain>
 
@@ -88,11 +89,11 @@
 
 
 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.12 0.82" rotateZ="-0.5">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.12 0.57" rotateZ="-0.5">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.1 1.12" rotateZ="-0.5">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.1 0.87" rotateZ="-0.5">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 

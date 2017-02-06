@@ -7,7 +7,7 @@ from time import sleep
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
-
+import json
 robots = {  'left': '10.10.1.202',
             'right': '10.10.1.203',
             'local': 'localhost'    }
@@ -205,16 +205,20 @@ class RobotController:
 #     #     self.start()
 #     #     self.update()
 
+
 if __name__ == "__main__":
-    store = PensiveClient(host='http://10.10.1.102:8888/').default()
-    c = RobotController(store=store)
-    sample_milestones = [
-           (2, {
-              'robot': [0, 0, 0, 0, 0, 0],
-              'gripper': [0,0,0],
-              'vaccum': [0]
-            })
-        ]
+    store = PensiveClient().default()
+    c = RobotController(store=store,robot='left')
+    json_data=open("test.json").read()
+    sample_milestones=json.loads(json_data)
+    # print sample_milestone
+    # sample_milestones = [
+    #        [5, {
+    #           'robot': [12.99972085984418, 38.744864894301685, -115.87009870931074, -60.05522181933945, -24.581425660309506, -122.35370893850012],
+    #           'gripper': [0,0,0],
+    #           'vaccum': [0]
+    #         }]
+    #     ]
     store.put('robot/waypoints', sample_milestones)
-    # c.run()
-    c.testTriangleWave()
+    c.run()
+    # c.testTriangleWave()

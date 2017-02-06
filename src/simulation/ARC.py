@@ -22,6 +22,8 @@ approach_p1=[0.5,0.2,1]
 approach_p2=[0.5,-0.2,1]
 order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
+angle_to_degree=57.296
+
 
 def interpolate(start_T,end_T,u,flag):
     R1,t1=start_T
@@ -131,6 +133,17 @@ class MyGLViewer(GLSimulationProgram):
         robot=self.world.robot(0)
         ee_link=6
         ee_local_p1=[-0.015,-0.02,0.27]
+        q_curr=robot.getConfig()
+        q_curr[3]=-q_curr[3]
+        q_curr[5]=-q_curr[5]
+        q_output=vectorops.mul(q_curr[1:],angle_to_degree)
+
+        milestone=(0.1, {
+              'robot': q_output,
+              'gripper': [0,0,0],
+              'vaccum': [0]
+            })
+        self.output.append(milestone)
         if self.start_flag==0:
             curr_position=robot.link(ee_link).getWorldPosition(ee_local)
             curr_orientation,p=robot.link(ee_link).getTransform()
@@ -194,7 +207,7 @@ class MyGLViewer(GLSimulationProgram):
                 u=(self.sim.getTime()-self.last_state_end)/t
                 [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
             else:
-                self.end_T[1]=vectorops.add(self.object_p,[0.10,0,0.09])
+                self.end_T[1]=vectorops.add(self.object_p,[0.10,0,0.12])
                 self.set_state('pregrasp')
         elif self.state=='pregrasp':
             t=0.5
@@ -203,11 +216,21 @@ class MyGLViewer(GLSimulationProgram):
                 u=(self.sim.getTime()-self.last_state_end)/t
                 [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
             else:
-                self.end_T[1][2]+=0.01
+                self.end_T[1][2]-=0.05
                 self.set_state('grasp')
         elif self.state=='grasp':
-            self.graspedObjects[self.target]=True
+            
             # print 'grasp'
+            t=0.5
+            if self.sim.getTime()-self.last_state_end<t:
+                u=(self.sim.getTime()-self.last_state_end)/t
+                [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
+            else:
+                self.end_T[1][2]+=0.05
+                self.set_state('prograsp')
+        elif self.state=='prograsp':
+            # print 'grasp'
+            self.graspedObjects[self.target]=True
             t=0.5
             if self.sim.getTime()-self.last_state_end<t:
                 u=(self.sim.getTime()-self.last_state_end)/t
@@ -230,7 +253,7 @@ class MyGLViewer(GLSimulationProgram):
                 q=robot.getConfig()
                 q[1]+=0.02
                 self.sim.controller(0).setPIDCommand(q,[0]*7)
-                self.output.append(q[1:])
+                # self.output.append(vectorops.mul(q[1:],angle_to_degree))
             else:
                 bb1,bb2=self.sim.world.rigidObject(self.target).geometry().getBB()
                 bbx=bb2[0]-bb1[0]
@@ -299,7 +322,7 @@ class MyGLViewer(GLSimulationProgram):
             for i in xrange(len(qdes)):
                 qdes[i] = min(qmax[i],max(qdes[i],qmin[i]))
             robotController.setPIDCommand(qdes,rvels[0])
-            self.output.append(qdes[1:])
+            # self.output.append(vectorops.mul(qdes[1:],angle_to_degree))
 
         obj = self.sim.world.rigidObject(self.target)
         #get a SimBody object
@@ -354,8 +377,8 @@ class MyGLViewer(GLSimulationProgram):
                         flag=0
                         count+=1
             if count>4:
-                return [(xmin+xmax)/2,(ymin+ymax)/2,0.8]
-        t=[x,y,0.8]
+                return [(xmin+xmax)/2,(ymin+ymax)/2,0.5]
+        t=[x,y,0.5]
         return t
 
 
