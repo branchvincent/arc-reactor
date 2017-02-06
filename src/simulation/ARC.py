@@ -117,6 +117,7 @@ class MyGLViewer(GLSimulationProgram):
         self.cspace=TestCSpace(self.globals)
         self.idleT=[]
         self.output=[]
+
         #Put your initialization code here
     def set_state(self,state):
         print "move from", self.state, 'to ',state
@@ -216,7 +217,7 @@ class MyGLViewer(GLSimulationProgram):
                 u=(self.sim.getTime()-self.last_state_end)/t
                 [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
             else:
-                self.end_T[1][2]-=0.05
+                self.end_T[1][2]-=0.04
                 self.set_state('grasp')
         elif self.state=='grasp':
             
@@ -226,7 +227,7 @@ class MyGLViewer(GLSimulationProgram):
                 u=(self.sim.getTime()-self.last_state_end)/t
                 [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
             else:
-                self.end_T[1][2]+=0.05
+                self.end_T[1][2]+=0.04
                 self.set_state('prograsp')
         elif self.state=='prograsp':
             # print 'grasp'
@@ -252,7 +253,8 @@ class MyGLViewer(GLSimulationProgram):
             if x>(order_box_min[0]+order_box_max[0])/2:
                 q=robot.getConfig()
                 q[1]+=0.02
-                self.sim.controller(0).setPIDCommand(q,[0]*7)
+                # self.sim.controller(0).setPIDCommand(q,[0]*7)
+                robotController.setLinear(q,0.001)
                 # self.output.append(vectorops.mul(q[1:],angle_to_degree))
             else:
                 bb1,bb2=self.sim.world.rigidObject(self.target).geometry().getBB()
@@ -321,7 +323,8 @@ class MyGLViewer(GLSimulationProgram):
             (qmin,qmax) = robot.getJointLimits()
             for i in xrange(len(qdes)):
                 qdes[i] = min(qmax[i],max(qdes[i],qmin[i]))
-            robotController.setPIDCommand(qdes,rvels[0])
+            # robotController.setPIDCommand(qdes,rvels[0])
+            robotController.setLinear(qdes,0.001)
             # self.output.append(vectorops.mul(qdes[1:],angle_to_degree))
 
         obj = self.sim.world.rigidObject(self.target)

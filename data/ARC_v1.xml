@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
   <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3" config="7 0.0  0.22688705773255044  0.6762228583897952 2.0223069448008717  -1.0481573202202497  0.4290251616222686  -2.1354668552516776"/>
-<!--   <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/> 
-  <terrain file="terrains/block.off" /> -->
+  <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
+  <terrain file="terrains/block.off" />
 <!-- The table -->
   <terrain file="terrains/shelf.stl" scale="0.001 0.001 0.001" translation="1.1 0 0.235" rotateX="1.57" rotateZ="3.8">
      <display color="0.8 0.7 0.2"/>
