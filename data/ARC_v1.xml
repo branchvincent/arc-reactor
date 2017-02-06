@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
   <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3" config="7 0.0  0.22688705773255044  0.6762228583897952 2.0223069448008717  -1.0481573202202497  0.4290251616222686  -2.1354668552516776"/>
+ 
+
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
   <terrain file="terrains/block.off" />
 <!-- The table -->
-  <terrain file="terrains/shelf.stl" scale="0.001 0.001 0.001" translation="1.1 0 0.235" rotateX="1.57" rotateZ="3.8">
+  <terrain file="terrains/shelf.stl" scale="0.001 0.001 0.001" translation="1.1 0.4 0.235" rotateX="1.57" rotateZ="3.8">
      <display color="0.8 0.7 0.2"/>
   </terrain>
 
@@ -89,20 +91,20 @@
 
 
 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.12 0.57" rotateZ="-0.5">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.26 0.57" rotateZ="-0.5">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.1 0.87" rotateZ="-0.5">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.5 0.87" rotateZ="-0.5">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
-  <!--
-  <rigidObject name="srimug2" file="objects/block_small.obj"  position="1.0 -0.02 0.62" rotateZ="0.1">
+  
+  <rigidObject name="srimug2" file="objects/block_small.obj"  position="1.0 0.28 0.37" rotateZ="0.1">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
--->
+
   <target position="-0.4 0 0.3" />
 
   <simulation>
@@ -113,10 +115,10 @@
     <object index="1">
        <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
     </object>
-    <!--
+    
     <object index="2">
        <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
     </object>
-  -->
+  
   </simulation>
 </world>

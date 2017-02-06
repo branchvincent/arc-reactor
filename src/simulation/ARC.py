@@ -17,9 +17,10 @@ box_vacuum_offset=[0.1,0,0.09]
 ee_local=[-0.015,-0.02,0.3]
 # ee_local=[0,0,0]
 box_release_offset=[0,0,0.06]
-idle_position=[0.6,0,1]
-approach_p1=[0.5,0.2,1]
-approach_p2=[0.5,-0.2,1]
+idle_position=[0.6,0.1,1]
+shelf_position=[1.1,0.4,0.235]
+approach_p1=[0.5,0.2+shelf_position[1],1]
+approach_p2=[0.5,-0.1+shelf_position[1],1]
 order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
@@ -153,7 +154,7 @@ class MyGLViewer(GLSimulationProgram):
         local_p=[]
         if self.state=='idle':
             t=0.5
-            if self.score==2:
+            if self.score==self.numberOfObjects:
                 print 'finished!'
                 f=open('test.json','w')
                 json.dump(self.output,f)
@@ -188,7 +189,7 @@ class MyGLViewer(GLSimulationProgram):
             # print 'object xform', self.sim.world.rigidObject(self.target).getTransform()[1]
             # print 'object_p',self.object_p
             h=self.object_p[2]+box_vacuum_offset[2]
-            if self.object_p[1]>0:
+            if self.object_p[1]>shelf_position[1]:
                 end_p=approach_p1
                 end_p[2]=h
             else:
@@ -217,7 +218,7 @@ class MyGLViewer(GLSimulationProgram):
                 u=(self.sim.getTime()-self.last_state_end)/t
                 [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
             else:
-                self.end_T[1][2]-=0.04
+                self.end_T[1][2]-=0.03
                 self.set_state('grasp')
         elif self.state=='grasp':
             
@@ -227,7 +228,7 @@ class MyGLViewer(GLSimulationProgram):
                 u=(self.sim.getTime()-self.last_state_end)/t
                 [local_p,world_p]=interpolate(self.start_T,self.end_T,u,1)
             else:
-                self.end_T[1][2]+=0.04
+                self.end_T[1][2]+=0.03
                 self.set_state('prograsp')
         elif self.state=='prograsp':
             # print 'grasp'
@@ -423,6 +424,8 @@ class MyGLViewer(GLSimulationProgram):
         #     print 'target:',self.target
 
         # else:
+        if c=='p':
+            print self.world.robot(0).getConfig()
         GLSimulationProgram.keyboardfunc(self,c,x,y)
         self.refresh()
 
