@@ -11,3 +11,4 @@ class MoveShelf(State):
         self.readAngle = self.goalAngle
 
         self.store.put('/shelf/current_angle', self.readAngle)
+        self.store.put('/status/move', True)

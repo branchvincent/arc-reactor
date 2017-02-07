@@ -13,4 +13,5 @@ class FindItem(State):
         self.foundLoc = self.lastLoc #maybe
 
         self.store.put('/item/'+self.ItemDict['name']+'/location',  self.foundLoc)
+        self.store.put('/status/selected_item_location', True)
         #etc

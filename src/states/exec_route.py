@@ -11,5 +11,6 @@ class ExecRoute(State):
         self.whereamI = self.store.get('/robot/goal_config') #hopefully
 
         self.store.put('/robot/current_config', self.whereamI)
+        self.store.put('/status/route_exec', True)
 
 

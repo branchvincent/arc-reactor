@@ -9,5 +9,6 @@ class PlanRoute(State):
         
         #hopefully get to the goal
         #this is a placeholder for now
-        self.store.put('/robot/current_config', self.endLoc)  
+        self.store.put('/robot/current_config', self.endLoc)
+        self.store.put('/status/route_plan', True)  
 

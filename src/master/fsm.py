@@ -1,7 +1,7 @@
 from pensive.core import Store
 from pensive.client import PensiveClient
 
-class State:
+class State():
     def __init__(self, name, store=None):
         self.name = name.upper()
         self.store = store or PensiveClient().default()
@@ -10,14 +10,28 @@ class State:
     def run(self):
         raise NotImplementedError
 
-class StateMachine:
-    def __init__(self, events=None, callbacks=None, finStates=None):
+class Transition():
+    def __init__(self, fromState, toState, altState, condition=None):
+        self.fromState = fromState.upper()
+        self.toState = toState.upper()
+        self.altState = altState.upper()
+        self.condition = condition
+
+    def decideTransition(self):
+        if self.condition == None:
+            return self.toState
+        else:
+            return (self.toState if self.condition else self.altState)
+
+class StateMachine():
+    def __init__(self, events=None, callbacks=None, finStates=None, store=None):
         self.events = {}
         self.callbacks = {}
         self.transitions = {}
         self.finStates = {}
-        self.pastEvents = {}
+        self.pastEvents = []
         self.current = None
+        self.store = store or PensiveClient().default()
 
     def setCurrentState(self, name):
         self.current = name.upper()
@@ -36,7 +50,7 @@ class StateMachine:
 
     def runCurrent(self):
         self.events[self.current].run()
-        self.pastEvents[self.current] = self.events[self.current]
+        self.pastEvents.append(self.current)
 
     def runAll(self):
         for i, n in self.events.items():
@@ -46,10 +60,17 @@ class StateMachine:
                 return
                 
     def getAllPastEvents(self):
-        return self.pastEvents.keys()
+        return self.pastEvents
 
-    def addTransition(self, name, nameNext):
-        self.transitions[name.upper()] = nameNext.upper()
+    def setTransition(self, name, nameNext, altNext, condition=None):
+        if condition == None:
+            self.check = condition
+            #need to check if errors occurred in State
+        else: self.check = self.store.get(condition)
+        self.transitions[name.upper()]=Transition(name, nameNext, altNext, self.check)
+
+    def getTransitions(self):
+        return self.transitions
 
     def runOrdered(self, nameInit):
         if not self.finStates:
@@ -63,5 +84,7 @@ class StateMachine:
                 print "Finished running all states."
                 return
             else:
-                self.setCurrentState(self.transitions[self.getCurrentState()])
+                self.decideState = self.transitions[self.getCurrentState()].decideTransition()
+                print "decided to go to: ", self.decideState
+                self.setCurrentState(self.decideState)
 
