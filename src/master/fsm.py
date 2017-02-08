@@ -79,12 +79,12 @@ class StateMachine():
         self.setCurrentState(nameInit)
         for _ in range(len(self.transitions)+1):
             self.runCurrent()
-            print "currently running ", self.getCurrentState()
+            #print "currently running ", self.getCurrentState()
             if self.current in self.finStates:
-                print "Finished running all states."
+                #print "Finished running all states."
                 return
             else:
                 self.decideState = self.transitions[self.getCurrentState()].decideTransition()
-                print "decided to go to: ", self.decideState
+                #print "decided to go to: ", self.decideState
                 self.setCurrentState(self.decideState)
 

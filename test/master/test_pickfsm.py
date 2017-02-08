@@ -7,35 +7,8 @@ from states.find_item import FindItem
 from states.plan_route import PlanRoute
 
 import json
-initial_db = json.loads('''
-{
-    "robot": {
-        "selected_item": null
-    },
-
-    "item": {
-        "dr_dobbs_bottle_brush": {
-            "name": "dr_dobbs_bottle_brush",
-            "display_name": "Dr. Dobbs Bottle Brush",
-            "point_value": 10,
-            "location": "binA"
-        },
-        "kong_duck_dog_toy": {
-            "name": "kong_duck_dog_toy",
-            "display_name": "Kong Duck Dog Toy",
-            "point_value": 20,
-            "location": "binA"
-        },
-        "expo_markers": {
-            "name": "expo_markers",
-            "display_name": "Expo Markers",
-            "point_value": 20,
-            "location": "binB"
-        }
-    }
-
-}
-''')
+with open('test/master/initial_db.json') as data_file:
+    initial_db = json.load(data_file)
 
 class SimplePickFSM(DatabaseDependentTestCase):
     def setUp(self):
@@ -43,12 +16,14 @@ class SimplePickFSM(DatabaseDependentTestCase):
         self.pick = PickStateMachine()
         self.store = self.client.default()
         self.store.put('', initial_db)
+        self.store.put('/status/task', 'pick')
+        self.pick.loadOrderFile('test/master/order_test.json')
 
     def test_runPickOrder(self):
         self.pick.loadStates()
         self.pick.setupTransitions()
         self.pick.runOrdered('si')
-        self.assertEqual(self.pick.getAllPastEvents(), ['SI', 'FI', 'PR', 'ER'])
+        self.assertEqual(self.pick.getAllPastEvents(), ['SI', 'FI', 'PR', 'ER', 'CI'])
 
     def tearDown(self):
         pass
