@@ -108,7 +108,7 @@ class Store(StoreInterface):
         deleted.
         '''
 
-        logger.debug('put: "{}" -> {}'.format(key, value))
+        logger.debug('put: "{}"'.format(key))
 
         # split the key into parts if it is a string path
         if isinstance(key, basestring):
