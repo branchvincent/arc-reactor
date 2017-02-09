@@ -31,7 +31,7 @@ def register_numpy():
             data = numpy.ascontiguousarray(obj).data
 
         return {
-            'data': b64encode(data),
+            'data': b64encode(data).decode('ascii'),
             'dtype': str(obj.dtype),
             'shape': obj.shape,
         }

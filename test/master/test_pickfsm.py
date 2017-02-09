@@ -8,10 +8,11 @@ with open('test/master/initial_db.json') as data_file:
 class SimplePickFSM(DatabaseDependentTestCase):
     def setUp(self):
         super(SimplePickFSM, self).setUp()
-        self.pick = PickStateMachine()
         self.store = self.client.default()
         self.store.put('', initial_db)
         self.store.put('/status/task', 'pick')
+
+        self.pick = PickStateMachine(store=self.store)
         self.pick.loadOrderFile('test/master/order_test.json')
 
     def test_runPickOrder(self):

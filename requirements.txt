@@ -13,3 +13,9 @@ pyusb
 
 # unit test coverage
 pytest-cov
+
+# IPython embedded shell
+# IPython
+# enum
+# ipython_genutils
+# scandir

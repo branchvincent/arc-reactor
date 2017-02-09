@@ -157,8 +157,16 @@ elif args.command == 'shell':
             runpy.run_module(args.module, run_name='__main__')
 
     else:
-        import code
-        code.interact()
+        try:
+            # try using IPython shell if installed
+            import IPython
+        except ImportError:
+            # fall back to regular Python shell
+            import code
+            code.interact()
+        else:
+            IPython.start_ipython(argv=[])
+
 elif args.command == 'load':
     # load the JSON object
     import json

@@ -46,4 +46,4 @@ class LogServerHandler(logging.handlers.SocketHandler):
             obj['exception'] = obj['exception'].strip()
 
         # include the trailing newline to indicate the end of a record
-        return json_encode(obj) + '\n'
+        return (json_encode(obj) + '\n').encode('ascii')
