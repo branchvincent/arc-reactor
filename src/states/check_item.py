@@ -6,6 +6,8 @@ class CheckItem(State):
         #assume it succeeded for now
         self.chosenItem = self.store.get('/robot/selected_item')
         self.store.put('/item/'+self.chosenItem+'/point_value', 0)
+        for i, n in self.store.get('/status/').items():
+            self.store.put('/status/'+i, False)
         self.store.put('/status/item_picked', True)
 
         self.orderUp = self.store.get('/item/'+self.chosenItem+'/order')

@@ -1,10 +1,5 @@
 from test.pensive.helper import DatabaseDependentTestCase
 from master.pickfsm import PickStateMachine
-from pensive.client import PensiveClient
-from pensive.server import PensiveServer
-from states.select_item import SelectItem
-from states.find_item import FindItem
-from states.plan_route import PlanRoute
 
 import json
 with open('test/master/initial_db.json') as data_file:
