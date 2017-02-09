@@ -17,10 +17,11 @@ with open('test/master/initial_db.json') as data_file:
 class SimpleFiniteSM(DatabaseDependentTestCase):
     def setUp(self):
         super(SimpleFiniteSM, self).setUp()
-        self.fsm = StateMachine()
         self.store = self.client.default()
         self.store.put('', initial_db)
         self.store.put('/status/task', None)
+
+        self.fsm = StateMachine(store=self.store)
 
     def test_SelectItem(self):
         self.fsm.add('si1', SelectItem('si1', store=self.store))

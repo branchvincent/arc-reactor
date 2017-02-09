@@ -9,11 +9,11 @@ import json
 class PickStateMachine(StateMachine):
 
     def loadStates(self):
-        self.add('si', SelectItem('si'))
-        self.add('fi', FindItem('fi'))
-        self.add('pr', PlanRoute('pr'))
-        self.add('er', ExecRoute('er'))
-        self.add('ci', CheckItem('ci'), endState=1)
+        self.add('si', SelectItem('si', store=self.store))
+        self.add('fi', FindItem('fi', store=self.store))
+        self.add('pr', PlanRoute('pr', store=self.store))
+        self.add('er', ExecRoute('er', store=self.store))
+        self.add('ci', CheckItem('ci', store=self.store), endState=1)
 
     def setupTransitions(self):
         self.setTransition('si', 'fi', 'si', '/status/selected_item')
