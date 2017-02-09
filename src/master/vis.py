@@ -58,7 +58,7 @@ class WorldViewer(GLRealtimeProgram):
 
         q = self.db.get('/robot/current_config')
         if q is not None:
-            tx90l.setConfig(_deg2rad(q) + [ 0 ])
+            tx90l.setConfig([0] + list(_deg2rad(q)))
         else:
             # force forward kinematics update
             tx90l.setConfig(tx90l.getConfig())
