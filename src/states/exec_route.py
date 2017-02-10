@@ -1,4 +1,5 @@
 from master.fsm import State
+from hardware.control import RobotController
 
 class ExecRoute(State):
     def run(self):
@@ -6,11 +7,14 @@ class ExecRoute(State):
         self.speed = self.store.get('/robot/speed_scale')
 
         #move along waypoints list
-        
+        controller = RobotController() # self.waypoints, self.speed
+        controller.run()
+        completed = controller.trajectory.complete
+
         #figure out where we are now
-        self.whereamI = self.store.get('/robot/goal_config') #hopefully
+        self.store.put('/status/route_exec', completed)
 
-        self.store.put('/robot/current_config', self.whereamI)
-        self.store.put('/status/route_exec', True)
-
-
+        #update history
+        if completed:
+            self.store.put('/robot/waypoints', None)
+            self.store.put('/robot/history', self.waypoints)
