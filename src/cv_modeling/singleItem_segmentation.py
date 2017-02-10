@@ -14,7 +14,7 @@ import bpy, math, random, mathutils, os, sys, time
 from mathutils import Vector
 
 #-------------------CHANGE THE PATH---------------------------#
-itemsDir = '/home/hh162/Documents/bledner/items/apc_main/object_models/tarball/'
+itemsDir = '/home/bk/Documents/code/reactor/src/cv_modeling/apc_main/object_models/tarball/'
 outputPath = '/home/bk/Documents/code/reactor/src/cv_modeling/output/'
 #-------------------CHANGE THE PATH---------------------------#
 
@@ -94,20 +94,15 @@ def run():
             for ob in bpy.data.objects:        
                 for slot in ob.material_slots:
                     mat = slot.material
-                    mat.diffuse_shader = 'LAMBERT'
-                    mat.specular_shader = 'TOON'
-                    mat.diffuse_color = (1,1,1)
-                    mat.specular_color = (1,1,1)
-                    mat.specular_intensity = 0.05
-            
-            objectpicture = itemsDir +  obj + '.png'
-            texture.image = bpy.data.images.load(objectpicture)
-            
-            object.data.materials[0] = mat
-                    
-            bpy.data.scenes['Scene'].render.filepath = outputPath + str(n) + "_" + str(i) + '.png'
-            bpy.ops.render.render(write_still=True)
+                    mat.diffuse_shader = 'TOON'
+                    mat.diffuse_color = (0,0,0)
+                    mat.specular_color = (0,0,0)
+                    mat.specular_intensity = 1.00
+                    mat.diffuse_toon_size = 0.00
 
+            bpy.data.scenes['Scene'].render.filepath = outputPath + obj + '_depth_'+ str(i) + '.png'
+            bpy.ops.render.render(write_still=True)
+            
         object.select=True
         bpy.ops.object.delete()
         end = time.time()
@@ -121,3 +116,5 @@ if __name__ == '__main__':
     addSceneSettings(scn) 
     run()
     sys.stderr.write('Rendering completed')
+
+    

@@ -27,12 +27,12 @@ def addSceneSettings(scn):
     rd.resolution_y = 256
     return
 
-def addItemSettings(obj, loc):#, rot):
+def addItemSettings(obj, loc):#, rot=Vector([0,0,0])):
     #location and rotation
+    print(obj)
     bpy.data.objects[obj].select = True
     bpy.data.objects[obj].location = loc
     #bpy.data.objects[obj].location = rot
-
     #rigid_body properties
     bpy.ops.rigidbody.objects_add(type='ACTIVE')
     bpy.data.objects[obj].rigid_body.collision_shape="CONVEX_HULL"
@@ -66,12 +66,12 @@ def isValidloc(vec, list):
             return True
     return False
     
-def locGen():
+def utils.locGen():
     dx = random.randrange(0, 15, 1) / 100.0
     dy = random.randrange(0, 15, 1) / 100.0
     return Vector((dx,dy,dz))
 
-def rotGen():
+def utils.rotGen():
     x1 = random.randrange(0,360,1)
     x2 = random.randrange(0,360,1)
     x3 = random.randrange(0,360,1)
@@ -111,14 +111,14 @@ def run():
     deg2rad = math.pi / 180
     radius = 0.1
     #random.seed(Seed)
-    locs = vecListGen(itemsNum, locGen, isLoc=1)
-#    rots = vecListGen(itemsNum, rotGen, isLoc=0)
+    locs = vecListGen(itemsNum, utils.locGen, isLoc=1)
+    rots = vecListGen(itemsNum, utils.rotGen, isLoc=0)
     for obj in objectTypes:
         importItem(obj)
         object = bpy.data.objects[obj]
         objects.append(object)
         object.select = False
-        object.rotation_euler = rotGen()
+        object.rotation_euler = utils.rotGen()
     for i,obj in enumerate(objectTypes):
         addItemSettings(obj, locs[i])#, rots[i])
     
