@@ -10,3 +10,40 @@
 2017-02-10 15:17:07,955 INFO Rendering from Cam_green is completed
 2017-02-10 15:17:07,955 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'Cube', 'Cube.001', 'Cube.002', 'expo_dry_erase_board_eraser', 'highland_6539_self_stick_notes', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf', 'stanley_66_052']
 2017-02-10 15:17:07,955 INFO expo_dry_erase_board_eraser to be deleted
+2017-02-10 15:23:18,725 INFO elmers_washable_no_run_school_glue is imported with LOC: <Vector (0.0300, 0.1200, 0.6500)> and ROT: <Vector (0.6458, 0.0349, 5.1836)>
+2017-02-10 15:23:18,725 INFO All items are configured
+2017-02-10 15:23:21,334 INFO oreo_mega_stuf is imported with LOC: <Vector (0.0100, 0.0500, 0.6500)> and ROT: <Vector (2.4958, 6.1610, 2.1991)>
+2017-02-10 15:23:21,335 INFO All items are configured
+2017-02-10 15:23:23,594 INFO Rendering from Cam_red is completed
+2017-02-10 15:23:47,169 INFO munchkin_white_hot_duck_bath_toy is imported with LOC: <Vector (0.0400, 0.0400, 0.6500)> and ROT: <Vector (5.0265, 1.2741, 3.0194)>
+2017-02-10 15:23:47,185 INFO All items are configured
+2017-02-10 15:23:49,775 INFO oreo_mega_stuf is imported with LOC: <Vector (0.0900, 0.1000, 0.6500)> and ROT: <Vector (0.2443, 3.5779, 3.9444)>
+2017-02-10 15:23:49,776 INFO All items are configured
+2017-02-10 15:23:53,108 INFO Rendering from Cam_red is completed
+2017-02-10 15:23:56,306 INFO Rendering from Cam_purple is completed
+2017-02-10 15:24:01,540 INFO Rendering from Cam_cyan is completed
+2017-02-10 15:24:06,536 INFO Rendering from Cam_green is completed
+2017-02-10 15:24:06,536 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'Cube', 'Cube.001', 'Cube.002', 'Lamp', 'munchkin_white_hot_duck_bath_toy', 'oreo_mega_stuf', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf']
+2017-02-10 15:24:06,536 INFO munchkin_white_hot_duck_bath_toy to be deleted
+2017-02-10 15:27:14,379 INFO champion_copper_plus_spark_plug is imported with LOC: <Vector (0.0800, 0.0800, 0.6500)> and ROT: <Vector (1.4312, 3.0194, 0.9076)>
+2017-02-10 15:27:14,379 INFO All items are configured
+2017-02-10 15:27:15,297 INFO laugh_out_loud_joke_book is imported with LOC: <Vector (0.0200, 0.0200, 0.6500)> and ROT: <Vector (2.8623, 5.8119, 5.8992)>
+2017-02-10 15:27:15,298 INFO All items are configured
+2017-02-10 15:27:15,737 INFO Rendering from Cam_red is completed
+2017-02-10 15:27:16,012 INFO Rendering from Cam_purple is completed
+2017-02-10 15:27:16,378 INFO Rendering from Cam_cyan is completed
+2017-02-10 15:27:16,654 INFO Rendering from Cam_green is completed
+2017-02-10 15:27:16,654 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'champion_copper_plus_spark_plug', 'Cube', 'Cube.001', 'Cube.002', 'Lamp', 'laugh_out_loud_joke_book', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf']
+2017-02-10 15:27:16,654 INFO champion_copper_plus_spark_plug to be deleted
+2017-02-10 15:27:16,655 INFO champion_copper_plus_spark_plug deleted
+2017-02-10 15:27:19,293 INFO rolodex_jumbo_pencil_cup is imported with LOC: <Vector (0.0100, 0.0700, 0.6500)> and ROT: <Vector (2.1468, 0.3665, 3.8048)>
+2017-02-10 15:27:19,294 INFO All items are configured
+2017-02-10 15:27:21,666 INFO munchkin_white_hot_duck_bath_toy is imported with LOC: <Vector (0.1400, 0.0200, 0.6500)> and ROT: <Vector (1.0821, 1.8500, 2.8798)>
+2017-02-10 15:27:21,679 INFO All items are configured
+2017-02-10 15:27:22,518 INFO Rendering from Cam_red is completed
+2017-02-10 15:27:23,374 INFO Rendering from Cam_purple is completed
+2017-02-10 15:27:24,412 INFO Rendering from Cam_cyan is completed
+2017-02-10 15:27:25,336 INFO Rendering from Cam_green is completed
+2017-02-10 15:27:25,337 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'Cube', 'Cube.001', 'Cube.002', 'Lamp', 'laugh_out_loud_joke_book', 'munchkin_white_hot_duck_bath_toy', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'rolodex_jumbo_pencil_cup', 'Shelf']
+2017-02-10 15:27:25,337 INFO rolodex_jumbo_pencil_cup to be deleted
+2017-02-10 15:27:25,340 INFO rolodex_jumbo_pencil_cup deleted

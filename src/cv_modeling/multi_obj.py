@@ -87,9 +87,8 @@ def run(i):
             return
         else:
             obj.select = True
-            bpy.ops.objects.delete()
+            bpy.ops.object.delete()
             logger.info(obj.name + " deleted")
-            boj.select = False
             return
         
 if __name__ == '__main__':

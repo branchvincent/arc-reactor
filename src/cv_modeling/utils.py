@@ -9,15 +9,15 @@ def importItem(object, itemsDir):
 
 def addSceneSettings(scn):
     #SceneData
-    scn.frame_start = 5
+    scn.frame_start = 10
     scn.frame_end = 10
     scn.frame_step = 1
     
     #RenderData
     rd = scn.render
     rd.fps = 24
-    rd.resolution_x = 720
-    rd.resolution_y = 1080
+    rd.resolution_x = 10
+    rd.resolution_y = 10
 
 def addItemSettings(obj, loc, rot=Vector([0,0,0])):
 
@@ -36,6 +36,7 @@ def addItemSettings(obj, loc, rot=Vector([0,0,0])):
     #Add damping to stablize the items
     obj.rigid_body.linear_damping = 0.6
     obj.rigid_body.angular_damping = 0.6
+    obj.select = False
     return
 
 def addMaterialSettings(obj):
