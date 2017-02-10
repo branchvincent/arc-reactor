@@ -11,17 +11,18 @@ class State():
         raise NotImplementedError
 
 class Transition():
-    def __init__(self, fromState, toState, altState, condition=None):
+    def __init__(self, fromState, toState, altState, condition=None, store=None):
         self.fromState = fromState.upper()
         self.toState = toState.upper()
         self.altState = altState.upper()
         self.condition = condition
+        self.store = store or PensiveClient.default()
 
     def decideTransition(self):
         if self.condition == None:
             return self.toState
         else:
-            return (self.toState if self.condition else self.altState)
+            return (self.toState if self.store.get(self.condition) else self.altState)
 
 class StateMachine():
     def __init__(self, events=None, callbacks=None, finStates=None, store=None):
@@ -63,11 +64,7 @@ class StateMachine():
         return self.pastEvents
 
     def setTransition(self, name, nameNext, altNext, condition=None):
-        if condition == None:
-            self.check = condition
-            #need to check if errors occurred in State
-        else: self.check = self.store.get(condition)
-        self.transitions[name.upper()]=Transition(name, nameNext, altNext, self.check)
+        self.transitions[name.upper()]=Transition(name, nameNext, altNext, condition, self.store)
 
     def getTransitions(self):
         return self.transitions

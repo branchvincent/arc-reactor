@@ -19,7 +19,7 @@ class SimpleFiniteSM(DatabaseDependentTestCase):
         super(SimpleFiniteSM, self).setUp()
         self.store = self.client.default()
         self.store.put('', initial_db)
-        self.store.put('/status/task', None)
+        self.store.put('/robot/task', None)
 
         self.fsm = StateMachine(store=self.store)
 

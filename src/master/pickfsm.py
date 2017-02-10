@@ -40,8 +40,11 @@ def runPickFSM():
     pick = PickStateMachine()
     pick.loadStates()
     pick.setupTransitions()
+    with open('test/master/initial_db.json') as data_file:
+        initial_db = json.load(data_file)
+    pick.store.put('', initial_db)
     pick.loadOrderFile('test/master/order_test.json')
-    pick.store.put('/status/task', None)
+    pick.store.put('/robot/task', 'pick')
     for _ in range(10): pick.runOrdered('si')
 
 if __name__ == '__main__':

@@ -14,12 +14,15 @@ class SimplePickFSM(DatabaseDependentTestCase):
 
         self.pick = PickStateMachine(store=self.store)
         self.pick.loadOrderFile('test/master/order_test.json')
-
-    def test_runPickOrder(self):
         self.pick.loadStates()
         self.pick.setupTransitions()
+
+    def test_runPickOrder(self):
         self.pick.runOrdered('si')
         self.assertEqual(self.pick.getAllPastEvents(), ['SI', 'FI', 'PR', 'ER', 'CI'])
+
+    def test_runFullOrder(self):
+        for _ in range(10): self.pick.runOrdered('si')
 
     def tearDown(self):
         pass

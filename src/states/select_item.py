@@ -2,7 +2,7 @@ from master.fsm import State
 
 class SelectItem(State):
     def run(self):
-        self.alg = self.store.get('/status/task')
+        self.alg = self.store.get('/robot/task')
         self.itemList = self.store.get('/item/')
         if self.alg == None:
             self.chosenItem = max(self.itemList, key=lambda l: self.itemList[l]['point_value'])
