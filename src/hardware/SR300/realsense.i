@@ -22,9 +22,11 @@ import_array();
 %exception {
   try {
     $action
-  } catch (const std::exception& e) {
+  } catch (const rs::error & e){
     SWIG_exception(SWIG_RuntimeError, e.what());
-  }
+  } catch (const std::runtime_error& e) {
+    SWIG_exception(SWIG_RuntimeError, e.what());
+  } 
 }
 
 %include "rs.h"
