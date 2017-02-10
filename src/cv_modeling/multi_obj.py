@@ -16,6 +16,7 @@ UPDATE
 
 import bpy, math, random, mathutils, os, sys, time
 from mathutils import Vector
+import logging
 
 #add current working directory into $PATH
 cwd = os.getcwd()
@@ -34,21 +35,21 @@ imp.reload(utils)
 from init import initShelf
 
 home = '/home/hh162/'
-pwd = os.path.join(home,'code/reactor/scr/cv_modeling/')
+pwd = os.path.join(home,'code/reactor/src/cv_modeling/')
 itemsDir = os.path.join(home,'Documents/blender/items/apc_main/object_models/tarball')
 outputDir = os.path.join(home,'Documents/blender/output/')
-
+logPath = os.path.join(pwd, 'blender.log')
 camList = ['Cam_red', 'Cam_purple', 'Cam_cyan', 'Cam_green']
 
-imgNum = 1
-itemNum = 1
+imgNum = 3
+itemNum = 3
 dz = 0.65
 radius = 0.2
-
-def renderfrom(Cam, i, j, k):
+    
+def renderfrom(Cam, i, k):
     #change the active camera
     bpy.data.scenes["Scene"].camera = Cam
-    bpy.data.scenes['Scene'].render.filepath = outputDir + str(i) + str(j) + str(k) + '.png'
+    bpy.data.scenes['Scene'].render.filepath = outputDir + '/run' + str(i) + '/' + 'cam' + str(k) + '/'
     bpy.ops.render.render(animation=True)
 
 def getItemsList(itemsDir):
@@ -59,31 +60,48 @@ def randomSelect(list, itemNum):
     return list[:itemNum]
 
 def run(i):
+    itemsObjSel = []
     itemsSel = randomSelect(items, itemNum)  #generate a random selection of items
     locs = utils.vecListGen(itemNum, utils.locGen, radius, isLoc=1, dz=dz)
     rots = utils.vecListGen(itemNum, utils.rotGen, radius, isLoc=0)
     #import .obj model
     for j, item in enumerate(itemsSel):
         utils.importItem(item, itemsDir)
-        print(item + " is imported")
-
-        utils.addItemSettings(item, locs[i], rots[i])
+        itemsObjSel.append(bpy.data.objects[item])
+        logger.info(item + " is imported with LOC: " + str(locs[j]) + " and ROT: " + str(rots[j]))
+        utils.addItemSettings(bpy.data.objects[item], locs[j], rots[j])
         utils.addMaterialSettings(item)
-        print("All items are configured")
+        logger.info("All items are configured")
     #rendering from each camera    
     for k,cam in enumerate(camList):
-        renderfrom(bpy.data.objects[cam], i, j, k)
-        print("Rendering from " + cam + "is completed")
+        renderfrom(bpy.data.objects[cam], i, k)
+        logger.info("Rendering from " + cam + " is completed")
 
-    for item in itemsSel:
-        bpy.data.objects[item].select =True
-        #delete the items after each run.
-        bpy.ops.object.delete()
+        
+    manifest = [x.name for x in list(bpy.data.objects)]
+    logger.info("MANIFEST: " + str(manifest))
+    for obj in itemsObjSel:
+        logger.info(obj.name + " to be deleted")
+        if obj == None:
+            return
+        else:
+            obj.select = True
+            bpy.ops.objects.delete()
+            logger.info(obj.name + " deleted")
+            boj.select = False
         
 if __name__ == '__main__':
+
+    logger = logging.getLogger('blender')
+    hdlr = logging.FileHandler(logPath)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    hdlr.setFormatter(formatter)
+    logger.addHandler(hdlr)
+    logger.setLevel(logging.INFO)
+
     bpy.context.scene.render.engine = 'BLENDER_RENDER'
     scn = bpy.data.scenes["Scene"]
-    utils.addSceneSettings(scn, outputDir)
+    utils.addSceneSettings(scn)
     initShelf()
     items = getItemsList(itemsDir)
     for i in range(imgNum):

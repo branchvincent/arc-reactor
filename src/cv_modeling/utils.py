@@ -7,40 +7,35 @@ def importItem(object, itemsDir):
     bpy.ops.import_scene.obj(filepath = filepath)
     return
 
-def addSceneSettings(scn, outputDir):
+def addSceneSettings(scn):
     #SceneData
-    scn.frame_start = 40
-    scn.frame_end = 50
+    scn.frame_start = 5
+    scn.frame_end = 10
     scn.frame_step = 1
     
     #RenderData
     rd = scn.render
-    rd.fps = 1
+    rd.fps = 24
     rd.resolution_x = 720
     rd.resolution_y = 1080
 
-    #OutputData
-    print('Output dir is ' + outputDir)
-    rd.filepath = outputDir
-    return
-
 def addItemSettings(obj, loc, rot=Vector([0,0,0])):
 
-    #bpy.data.objects[obj].select = True
-    bpy.context.scene.objects.active = bpy.data.objects[obj]
+    obj.select = True
+    bpy.context.scene.objects.active = obj
 
     #location and rotation
-    bpy.data.objects[obj].location = loc
-    bpy.data.objects[obj].rotation_euler = rot
+    obj.location = loc
+    obj.rotation_euler = rot
 
     #rigid_body properties
     bpy.ops.rigidbody.objects_add(type='ACTIVE')
-    bpy.data.objects[obj].rigid_body.collision_shape="CONVEX_HULL"
-    bpy.data.objects[obj].rigid_body.collision_margin = 0.0
+    obj.rigid_body.collision_shape="MESH"
+    obj.rigid_body.collision_margin = 0.0
 
     #Add damping to stablize the items
-    bpy.data.objects[obj].rigid_body.linear_damping = 0.6
-    bpy.data.objects[obj].rigid_body.angular_damping = 0.6
+    obj.rigid_body.linear_damping = 0.6
+    obj.rigid_body.angular_damping = 0.6
     return
 
 def addMaterialSettings(obj):
@@ -74,9 +69,9 @@ def locGen(dz):
     return Vector((dx,dy,dz))
 
 def rotGen():
-    x1 = random.randrange(0,360,1)
-    x2 = random.randrange(0,360,1)
-    x3 = random.randrange(0,360,1)
+    x1 = random.randrange(0,360,1) / 180.0 * math.pi
+    x2 = random.randrange(0,360,1) / 180.0 * math.pi
+    x3 = random.randrange(0,360,1) / 180.0 * math.pi
     return Vector((x1,x2,x3))
 
 #generate a list of vector

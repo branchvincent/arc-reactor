@@ -1,0 +1,12 @@
+2017-02-10 15:16:18,440 INFO expo_dry_erase_board_eraser is imported with LOC: <Vector (0.0500, 0.0900, 0.6500)> and ROT: <Vector (0.0873, 4.8695, 0.6283)>
+2017-02-10 15:16:18,440 INFO All items are configured
+2017-02-10 15:16:20,194 INFO stanley_66_052 is imported with LOC: <Vector (0.0700, 0.0200, 0.6500)> and ROT: <Vector (4.2237, 0.7330, 3.1241)>
+2017-02-10 15:16:20,195 INFO All items are configured
+2017-02-10 15:16:21,427 INFO highland_6539_self_stick_notes is imported with LOC: <Vector (0.1200, 0.0400, 0.6500)> and ROT: <Vector (0.0698, 2.8449, 5.8469)>
+2017-02-10 15:16:21,427 INFO All items are configured
+2017-02-10 15:16:30,183 INFO Rendering from Cam_red is completed
+2017-02-10 15:16:38,966 INFO Rendering from Cam_purple is completed
+2017-02-10 15:16:54,649 INFO Rendering from Cam_cyan is completed
+2017-02-10 15:17:07,955 INFO Rendering from Cam_green is completed
+2017-02-10 15:17:07,955 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'Cube', 'Cube.001', 'Cube.002', 'expo_dry_erase_board_eraser', 'highland_6539_self_stick_notes', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf', 'stanley_66_052']
+2017-02-10 15:17:07,955 INFO expo_dry_erase_board_eraser to be deleted
