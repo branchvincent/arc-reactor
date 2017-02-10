@@ -41,8 +41,8 @@ outputDir = os.path.join(home,'Documents/blender/output/')
 logPath = os.path.join(pwd, 'blender.log')
 camList = ['Cam_red', 'Cam_purple', 'Cam_cyan', 'Cam_green']
 
-imgNum = 3
-itemNum = 3
+imgNum = 2
+itemNum = 2
 dz = 0.65
 radius = 0.2
     
@@ -80,6 +80,7 @@ def run(i):
         
     manifest = [x.name for x in list(bpy.data.objects)]
     logger.info("MANIFEST: " + str(manifest))
+
     for obj in itemsObjSel:
         logger.info(obj.name + " to be deleted")
         if obj == None:
@@ -89,6 +90,7 @@ def run(i):
             bpy.ops.objects.delete()
             logger.info(obj.name + " deleted")
             boj.select = False
+            return
         
 if __name__ == '__main__':
 
