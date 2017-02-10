@@ -9,15 +9,15 @@ def importItem(object, itemsDir):
 
 def addSceneSettings(scn):
     #SceneData
-    scn.frame_start = 10
-    scn.frame_end = 10
+    scn.frame_start = 1
+    scn.frame_end = 3
     scn.frame_step = 1
     
     #RenderData
     rd = scn.render
-    rd.fps = 24
-    rd.resolution_x = 10
-    rd.resolution_y = 10
+    rd.fps = 1
+    rd.resolution_x = 720
+    rd.resolution_y = 1280
 
 def addItemSettings(obj, loc, rot=Vector([0,0,0])):
 
@@ -32,10 +32,11 @@ def addItemSettings(obj, loc, rot=Vector([0,0,0])):
     bpy.ops.rigidbody.objects_add(type='ACTIVE')
     obj.rigid_body.collision_shape="MESH"
     obj.rigid_body.collision_margin = 0.0
-
+    obj.rigid_body.mass = 0.01
+    obj.rigid_body.friction = 1
     #Add damping to stablize the items
-    obj.rigid_body.linear_damping = 0.6
-    obj.rigid_body.angular_damping = 0.6
+    obj.rigid_body.linear_damping = 1
+    obj.rigid_body.angular_damping = 1
     obj.select = False
     return
 

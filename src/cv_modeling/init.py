@@ -10,10 +10,11 @@ def initShelf():
         bpy.ops.rigidbody.objects_add(type='PASSIVE')
         shelf.rigid_body.collision_shape = "MESH"
         shelf.rigid_body.collision_margin = 0.0
-        shelf.rigid_body.linear_damping = 0.6
-        shelf.rigid_body.angular_damping = 0.6
+        shelf.rigid_body.linear_damping = 1
+        shelf.rigid_body.angular_damping = 1
         shelf.select = False
-        
+        shelf.mass = 100
+        shlef.friction = 1
     # for cube in [bpy.data.objects[str] for str in ["Cube","Cube.001", "Cube.002"]]:
     #     if cube.rigid_body == None:
     #         cube = bpy.data.objects["Cube"]

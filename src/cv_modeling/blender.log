@@ -47,3 +47,85 @@
 2017-02-10 15:27:25,337 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'Cube', 'Cube.001', 'Cube.002', 'Lamp', 'laugh_out_loud_joke_book', 'munchkin_white_hot_duck_bath_toy', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'rolodex_jumbo_pencil_cup', 'Shelf']
 2017-02-10 15:27:25,337 INFO rolodex_jumbo_pencil_cup to be deleted
 2017-02-10 15:27:25,340 INFO rolodex_jumbo_pencil_cup deleted
+2017-02-10 15:38:34,274 INFO munchkin_white_hot_duck_bath_toy is imported with LOC: <Vector (0.1300, 0.0700, 0.6500)> and ROT: <Vector (1.0996, 0.2793, 1.4312)>
+2017-02-10 15:38:34,288 INFO All items are configured
+2017-02-10 15:38:36,963 INFO rolodex_jumbo_pencil_cup is imported with LOC: <Vector (0.0400, 0.0300, 0.6500)> and ROT: <Vector (5.5152, 0.3840, 1.9199)>
+2017-02-10 15:38:36,964 INFO All items are configured
+2017-02-10 15:38:37,182 INFO kyjen_squeakin_eggs_plush_puppies is imported with LOC: <Vector (0.1000, 0.0300, 0.6500)> and ROT: <Vector (0.4712, 1.8151, 5.4803)>
+2017-02-10 15:38:37,183 INFO All items are configured
+2017-02-10 15:38:37,221 INFO first_years_take_and_toss_straw_cup is imported with LOC: <Vector (0.0500, 0.0500, 0.6500)> and ROT: <Vector (6.0563, 5.6200, 0.6981)>
+2017-02-10 15:38:37,222 INFO All items are configured
+2017-02-10 15:45:48,111 INFO crayola_64_ct is imported with LOC: <Vector (0.0100, 0.1400, 0.6500)> and ROT: <Vector (0.5411, 4.2586, 4.1713)>
+2017-02-10 15:45:48,112 INFO All items are configured
+2017-02-10 15:45:49,495 INFO Rendering from Cam_red is completed
+2017-02-10 15:45:50,703 INFO Rendering from Cam_purple is completed
+2017-02-10 15:45:52,501 INFO Rendering from Cam_cyan is completed
+2017-02-10 15:45:54,169 INFO Rendering from Cam_green is completed
+2017-02-10 15:45:54,169 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'crayola_64_ct', 'Cube', 'Cube.001', 'Cube.002', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf']
+2017-02-10 15:45:54,170 INFO crayola_64_ct to be deleted
+2017-02-10 15:45:54,170 INFO crayola_64_ct deleted
+2017-02-10 15:45:55,201 INFO champion_copper_plus_spark_plug is imported with LOC: <Vector (0.0400, 0.0300, 0.6500)> and ROT: <Vector (5.5851, 3.9968, 0.7854)>
+2017-02-10 15:45:55,202 INFO All items are configured
+2017-02-10 15:45:56,313 INFO Rendering from Cam_red is completed
+2017-02-10 15:45:57,510 INFO Rendering from Cam_purple is completed
+2017-02-10 15:45:58,966 INFO Rendering from Cam_cyan is completed
+2017-02-10 15:46:00,403 INFO Rendering from Cam_green is completed
+2017-02-10 15:46:00,404 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'champion_copper_plus_spark_plug', 'Cube', 'Cube.001', 'Cube.002', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf']
+2017-02-10 15:46:00,404 INFO champion_copper_plus_spark_plug to be deleted
+2017-02-10 15:46:00,405 INFO champion_copper_plus_spark_plug deleted
+2017-02-10 15:56:43,826 INFO champion_copper_plus_spark_plug is imported with LOC: <Vector (0.0500, 0.0400, 0.6500)> and ROT: <Vector (5.8469, 1.5184, 0.1745)>
+2017-02-10 15:56:43,826 INFO All items are configured
+2017-02-10 15:56:50,756 INFO Rendering from Cam_red is completed
+2017-02-10 15:56:57,895 INFO Rendering from Cam_purple is completed
+2017-02-10 15:57:06,605 INFO Rendering from Cam_cyan is completed
+2017-02-10 15:57:15,344 INFO Rendering from Cam_green is completed
+2017-02-10 15:57:15,345 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'champion_copper_plus_spark_plug', 'Cube', 'Cube.001', 'Cube.002', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf']
+2017-02-10 15:57:15,345 INFO champion_copper_plus_spark_plug to be deleted
+2017-02-10 15:57:15,345 INFO champion_copper_plus_spark_plug deleted
+2017-02-10 16:00:42,080 INFO sharpie_accent_tank_style_highlighters is imported with LOC: <Vector (0.0000, 0.0800, 0.6500)> and ROT: <Vector (1.6755, 1.5882, 1.5882)>
+2017-02-10 16:00:42,080 INFO All items are configured
+2017-02-10 16:00:49,720 INFO Rendering from Cam_red is completed
+2017-02-10 16:00:57,453 INFO Rendering from Cam_purple is completed
+2017-02-10 16:01:09,699 INFO Rendering from Cam_cyan is completed
+2017-02-10 16:01:19,547 INFO Rendering from Cam_green is completed
+2017-02-10 16:01:19,547 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'sharpie_accent_tank_style_highlighters', 'Shelf']
+2017-02-10 16:01:19,547 INFO sharpie_accent_tank_style_highlighters to be deleted
+2017-02-10 16:01:19,548 INFO sharpie_accent_tank_style_highlighters deleted
+2017-02-10 16:04:29,304 INFO champion_copper_plus_spark_plug is imported with LOC: <Vector (0.1100, 0.0600, 0.6500)> and ROT: <Vector (0.5760, 0.8552, 0.9948)>
+2017-02-10 16:04:29,305 INFO All items are configured
+2017-02-10 16:15:49,790 INFO kong_duck_dog_toy is imported with LOC: <Vector (0.0200, 0.0900, 0.6500)> and ROT: <Vector (5.1313, 5.9167, 4.1888)>
+2017-02-10 16:15:49,790 INFO All items are configured
+2017-02-10 16:16:25,759 INFO Rendering from Cam_red is completed
+2017-02-10 16:16:56,074 INFO Rendering from Cam_purple is completed
+2017-02-10 16:17:42,212 INFO Rendering from Cam_cyan is completed
+2017-02-10 16:18:23,229 INFO Rendering from Cam_green is completed
+2017-02-10 16:18:23,230 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'kong_duck_dog_toy', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf']
+2017-02-10 16:18:23,230 INFO kong_duck_dog_toy to be deleted
+2017-02-10 16:18:23,231 INFO kong_duck_dog_toy deleted
+2017-02-10 16:27:02,690 INFO crayola_64_ct is imported with LOC: <Vector (0.0600, 0.1100, 0.6500)> and ROT: <Vector (0.0524, 4.6775, 0.1396)>
+2017-02-10 16:27:02,690 INFO All items are configured
+2017-02-10 16:27:28,180 INFO Rendering from Cam_red is completed
+2017-02-10 16:27:53,926 INFO Rendering from Cam_purple is completed
+2017-02-10 16:28:34,339 INFO Rendering from Cam_cyan is completed
+2017-02-10 16:29:10,414 INFO Rendering from Cam_green is completed
+2017-02-10 16:29:10,414 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'crayola_64_ct', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf']
+2017-02-10 16:29:10,414 INFO crayola_64_ct to be deleted
+2017-02-10 16:29:10,414 INFO crayola_64_ct deleted
+2017-02-10 16:30:33,063 INFO laugh_out_loud_joke_book is imported with LOC: <Vector (0.0700, 0.0100, 0.6500)> and ROT: <Vector (4.0317, 4.5379, 4.2411)>
+2017-02-10 16:30:33,064 INFO All items are configured
+2017-02-10 16:30:34,445 INFO Rendering from Cam_red is completed
+2017-02-10 16:30:35,621 INFO Rendering from Cam_purple is completed
+2017-02-10 16:30:37,493 INFO Rendering from Cam_cyan is completed
+2017-02-10 16:30:39,158 INFO Rendering from Cam_green is completed
+2017-02-10 16:30:39,159 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'Lamp', 'laugh_out_loud_joke_book', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf']
+2017-02-10 16:30:39,159 INFO laugh_out_loud_joke_book to be deleted
+2017-02-10 16:30:39,159 INFO laugh_out_loud_joke_book deleted
+2017-02-10 16:31:44,921 INFO stanley_66_052 is imported with LOC: <Vector (0.0600, 0.0800, 0.6500)> and ROT: <Vector (0.1920, 4.4855, 0.9250)>
+2017-02-10 16:31:44,921 INFO All items are configured
+2017-02-10 16:31:56,430 INFO Rendering from Cam_red is completed
+2017-02-10 16:32:00,341 INFO Rendering from Cam_purple is completed
+2017-02-10 16:32:06,261 INFO Rendering from Cam_cyan is completed
+2017-02-10 16:32:11,642 INFO Rendering from Cam_green is completed
+2017-02-10 16:32:11,642 INFO MANIFEST: ['cam_cyan', 'Cam_cyan', 'Cam_green', 'cam_green', 'Cam_purple', 'cam_purple', 'Cam_red', 'cam_red', 'Camera', 'Lamp', 'overhead', 'Plane', 'Point', 'Point.002', 'Point.003', 'Point.004', 'Shelf', 'stanley_66_052']
+2017-02-10 16:32:11,642 INFO stanley_66_052 to be deleted
+2017-02-10 16:32:11,643 INFO stanley_66_052 deleted

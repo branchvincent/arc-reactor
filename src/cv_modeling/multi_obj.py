@@ -41,8 +41,8 @@ outputDir = os.path.join(home,'Documents/blender/output/')
 logPath = os.path.join(pwd, 'blender.log')
 camList = ['Cam_red', 'Cam_purple', 'Cam_cyan', 'Cam_green']
 
-imgNum = 2
-itemNum = 2
+imgNum = 1
+itemNum = 1
 dz = 0.65
 radius = 0.2
     
