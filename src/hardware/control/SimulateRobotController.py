@@ -3,7 +3,7 @@
 import sys; sys.path.append('../..')
 
 import logging; logger = logging.getLogger(__name__)
-from time import sleep
+from time import sleep, time
 from copy import deepcopy
 from math import pi, degrees, radians
 from pensive.client import PensiveClient
@@ -14,10 +14,6 @@ from hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
 robots = {  'left': '10.10.1.202',
             'right': '10.10.1.203',
             'local': 'localhost'    }
-
-# if len(q) != self.robot.dof:
-#     logger.error('Incorrect robot configuration length.')
-#     raise Exception('Incorrect robot configuration length.')
 
 def convertConfigToRobot(q_old, speed):
     assert(len(q_old[1]['robot']) == 7)
@@ -39,30 +35,30 @@ def convertConfigToDatabase(q_old):
     q[1]['robot'][5] *= -1
     return tuple(q)
 
-class Robot:
-    """A robot defined by its trajectory client"""
-    def __init__(self, robot='left', port=1000):
-        assert(robot in robots)
-        self.client = TrajClient(host=robots[robot], port=port)
-        self.name = self.client.name
-        self.dof = 6
-        # USB
-        self.strip = PowerUSBStrip().strips()[0]
-        self.strip.open()
-        self.socket = PowerUSBSocket(self.strip,1)
-        self.socket.power = 'off'
+# class SimulateRobot:
+#     """A robot defined by its trajectory client"""
+#     def __init__(self, robot='left', port=1000):
+#         assert(robot in robots)
+#         # self.client = TrajClient(host=robots[robot], port=port)
+#         # self.name = self.client.name
+#         self.dof = 6
+#         # USB
+#         self.strip = PowerUSBStrip().strips()[0]
+#         self.strip.open()
+#         self.socket = PowerUSBSocket(self.strip,1)
+#         self.socket.power = 'off'
+#
+#     def toggleVaccum(self, turnOn):
+#         """Toggles the vaccum power"""
+#         if turnOn:
+#             self.socket.power = 'on'
+#         else:
+#             self.socket.power = 'off'
 
-    def toggleVaccum(self, turnOn):
-        """Toggles the vaccum power"""
-        if turnOn:
-            self.socket.power = 'on'
-        else:
-            self.socket.power = 'off'
-
-class Trajectory:
+class SimulateTrajectory:
     """A robot trajectory defined by the robot and list of milestones"""
     def __init__(self, robot, milestones, speed=1):
-        self.robot = robot
+        # self.robot = robot
         self.milestones = None
         self.curr_index = None
         self.curr_milestone = None
@@ -77,15 +73,16 @@ class Trajectory:
         """Sets the current milestone to the first in the list"""
         self.curr_index = 0
         self.curr_milestone = self.milestones['robot'][0]
-        for m in self.milestones['robot']:
-            dt = m[0]
-            q = m[1]['robot']
-            self.robot.client.addMilestone(dt,q)
+        self.startTime = time()
+        # for m in self.milestones['robot']:
+        #     dt = m[0]
+        #     q = m[1]['robot']
+        #     self.robot.client.addMilestone(dt,q)
 
     def update(self):
         """Checks the current milestone in progress and updates, if necessary"""
-        actual_index = len(self.milestones['robot']) - self.robot.client.getCurSegments()
-        if (actual_index != self.curr_index):
+        elapsedTime = time() - self.startTime
+        if elapsedTime >= self.curr_milestone[0]:
             self.advanceMilestone()
 
     def advanceMilestone(self):
@@ -93,21 +90,21 @@ class Trajectory:
         self.curr_index += 1
         if (self.curr_index < len(self.milestones['robot'])):
             self.curr_milestone = self.milestones['robot'][self.curr_index]
-            turnVaccumOn = (self.curr_milestone[1]['vaccum'] == 'on')
-            self.robot.toggleVaccum(turnVaccumOn)
+            # turnVaccumOn = (self.curr_milestone[1]['vaccum'] == 'on')
+            # self.robot.toggleVaccum(turnVaccumOn)
         else:
             self.complete = True
             self.curr_index = None
             self.curr_milestone = None
 
 
-class RobotController:
+class SimulateRobotController:
     """Trajectory execution for TX90."""
     def __init__(self, robot='left', milestones=None, speed=1., store=PensiveClient().default()):
         # Robot
-        self.robot = Robot(robot)
+        # self.robot = SimulateRobot(robot)
         if milestones:
-            self.trajectory = Trajectory(self.robot, milestones, speed)
+            self.trajectory = Trajectory(milestones, speed)
         else:
             self.trajectory = None
         self.freq = 10.
@@ -133,7 +130,7 @@ class RobotController:
 
     def updateCurrentConfig(self, path='robot/current_config'):
         """Updates the database with the robot's current configuration."""
-        q = self.robot.client.getConfig()
+        q = self.trajectory.curr_milestone
         q = convertConfigToDatabase(q) #TODO
         self.store.put(path, q)
 
@@ -141,42 +138,9 @@ class RobotController:
     #     """Updates the robot's planned trajectory from the database"""
     #     self.trajectory = Trajectory(self.robot, self.store.get(path))
 
-    def testTriangleWave(self,joint=2,deg=10,period=4):
-        q1 = self.robot.client.getEndConfig()
-        q2, q3 = q[:], q2[:]
-        q2[joint] += deg
-        q3[joint] -= 2*deg
-
-        # Triangle wave
-        milestones = [
-               (period*0.5, {
-                  'robot': q2,
-                  'gripper': [0,0,0],
-                  'vaccum': [0]
-                })
-            ]
-
-        milestones.append((period, {
-                   'robot': q3,
-                   'gripper': [0,0,0],
-                   'vaccum': [0]
-                 })
-            )
-
-        milestones.append((period*0.5, {
-                   'robot': q1,
-                   'gripper': [0,0,0],
-                   'vaccum': [0]
-                 })
-            )
-
-        self.store.put('robot/waypoints', milestones)
-        self.run()
-
-
 if __name__ == "__main__":
     store = PensiveClient(host='http://10.10.1.102:8888/').default()
-    c = RobotController(store=store)
+    c = SimulateRobotController(store=store)
     sample_milestones = [
            (2, {
               'robot': [0, 0, 0, 0, 0, 0, 0],
@@ -185,5 +149,4 @@ if __name__ == "__main__":
             })
         ]
     store.put('robot/waypoints', sample_milestones)
-    # c.run()
-    c.testTriangleWave()
+    c.run()
