@@ -24,7 +24,7 @@ order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
 ee_link=6
-Flag=0 # 1 for real robot, 0 for simulation
+Flag=1 # 1 for real robot, 0 for simulation
 
 
 
@@ -127,8 +127,9 @@ def pick_up(world,item,target_box):
 	start_T=copy.deepcopy(end_T)
 	end_T=temp
 	end_T[1][2]=box_bottom_high+item['drop offset']
+	print end_T[1][2]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0)
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0)
 	return motion_milestones
 
 

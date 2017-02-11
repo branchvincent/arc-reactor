@@ -62,8 +62,8 @@ class MyGLViewer(GLSimulationProgram):
             target_box={}
             target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
             target_item["vacuum_offset"]=[0,0,0.09]
-            target_item['drop offset']=0.2
-            target_box["drop position"]=[0.4,0.8,0.7]
+            target_item['drop offset']=0.1
+            target_box["drop position"]=[0.4,0.8,0.6]
             target_box['position']=[0.4,0.8,0.5]
             self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
         robot=self.sim.world.robot(0)
