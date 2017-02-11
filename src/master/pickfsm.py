@@ -45,6 +45,7 @@ def runPickFSM():
     pick.store.put('', initial_db)
     pick.loadOrderFile('test/master/order_test.json')
     pick.store.put('/robot/task', 'pick')
+    pick.store.put('/simulate/robot_motion', True) #sim for now
     for _ in range(10): pick.runOrdered('si')
 
 if __name__ == '__main__':

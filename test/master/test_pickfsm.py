@@ -11,6 +11,8 @@ class SimplePickFSM(DatabaseDependentTestCase):
         self.store = self.client.default()
         self.store.put('', initial_db)
         self.store.put('/status/task', 'pick')
+        #simulate for now for robot controller
+        self.store.put('/simulate/robot_motion', True)
 
         self.pick = PickStateMachine(store=self.store)
         self.pick.loadOrderFile('test/master/order_test.json')

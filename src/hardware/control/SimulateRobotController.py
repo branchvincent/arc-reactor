@@ -107,6 +107,7 @@ class SimulateRobotController:
             self.trajectory = Trajectory(milestones, speed)
         else:
             self.trajectory = None
+            raise RuntimeError('No trajectory to run found.')
         self.freq = 10.
         # Database
         self.store = store

@@ -75,8 +75,8 @@ class StateMachine():
 
         self.setCurrentState(nameInit)
         for _ in range(len(self.transitions)+1):
+            print "currently running ", self.getCurrentState()
             self.runCurrent()
-            #print "currently running ", self.getCurrentState()
             if self.current in self.finStates:
                 #print "Finished running all states."
                 return
