@@ -119,7 +119,7 @@ class MyGLViewer(GLSimulationProgram):
         self.output=[]
         json_data=open("test.json").read()
         self.trajectory=json.loads(json_data)
-        print len(self.trajectory)
+        # print len(self.trajectory)
         self.t=0
         #Put your initialization code here
     def set_state(self,state):
@@ -137,54 +137,20 @@ class MyGLViewer(GLSimulationProgram):
         robot=self.world.robot(0)
         robotController = self.sim.controller(0)
         # q=[0,74.39887743716503, -18.14936288798376, 89.93990754620327, -105.37584356193894, 50.93074983982921, -66.42841556288458]
-        q=[0,0,0,0,0,0,90]
-        qdes=vectorops.div(q,angle_to_degree)
-        robotController.setPIDCommand(qdes,rvels[0])
-        # while self.t<len(self.trajectory):
-        #     qdes=[0]
-        #     q_temp=vectorops.div(self.trajectory[self.t/10],angle_to_degree)
-        #     for i in range(6):
-        #         qdes.append(q_temp[i])  
-        #     print qdes
-        #     robot.setConfig(qdes)
-        #     robotController.setPIDCommand(qdes,rvels[0])
-        #     # time.sleep(0.01)
-        #     self.t+=1
+        # q=[0,0,0,0,0,0,90]
+        # qdes=vectorops.div(q,angle_to_degree)
+        # robotController.setPIDCommand(qdes,rvels[0])
+        while self.t<len(self.trajectory):
+            qdes=[0]
+            q_temp=vectorops.div(self.trajectory[self.t/10],angle_to_degree)
+            for i in range(6):
+                qdes.append(q_temp[i])  
+            print qdes
+            robot.setConfig(qdes)
+            robotController.setPIDCommand(qdes,rvels[0])
+            # time.sleep(0.01)
+            self.t+=1
      
-
-    def check_target(self):
-        p=self.sim.world.rigidObject(self.target).getTransform()[1]
-        if p[2]>0:
-            self.target_in_box.append(self.target)
-            self.waiting_list.remove(self.target)
-            self.score+=1
-
-    def find_placement(self):
-        p=[]
-        radius=0.07
-        for i in self.target_in_box:
-            p.append(self.sim.world.rigidObject(i).getTransform()[1])
-        flag=0
-        xmin=order_box_min[0]+radius+0.1
-        xmax=order_box_max[0]-radius
-        ymin=order_box_min[1]+radius+0.05
-        ymax=order_box_max[1]-radius+0.05
-        count=0
-        while not flag:
-            x=random.uniform(xmin,xmax)
-            y=random.uniform(ymin,ymax)
-            flag=1
-            if p:
-                for i in range(len(p)):
-                    if vectorops.distance([x,y],[p[i][0],p[i][1]])>2*radius:
-                        pass
-                    else:
-                        flag=0
-                        count+=1
-            if count>4:
-                return [(xmin+xmax)/2,(ymin+ymax)/2,0.8]
-        t=[x,y,0.8]
-        return t
 
 
 

@@ -6,7 +6,7 @@
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
   <terrain file="terrains/block.off" />
 <!-- The table -->
-  <terrain file="terrains/shelf.stl" scale="0.001 0.001 0.001" translation="1.1 0.4 0.235" rotateX="1.57" rotateZ="3.8">
+  <terrain file="terrains/shelf.stl" scale="0.001 0.001 0.001" translation="1.0 0.35 0.235" rotateX="1.57" rotateZ="3.8">
      <display color="0.8 0.7 0.2"/>
   </terrain>
 
@@ -91,16 +91,16 @@
 
 
 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.26 0.57" rotateZ="-0.5">
-     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
-     <display color="1 1 0"/>
-  </rigidObject> 
   <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.5 0.87" rotateZ="-0.5">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.5 0.57" rotateZ="-0.5">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
   
-  <rigidObject name="srimug2" file="objects/block_small.obj"  position="1.0 0.28 0.37" rotateZ="0.1">
+  <rigidObject name="srimug2" file="objects/block_small.obj"  position="1.0 0.25 0.37" rotateZ="0.1">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
