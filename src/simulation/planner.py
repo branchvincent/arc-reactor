@@ -34,9 +34,14 @@ def pick_up(world,item,target_box):
 	Inputs:
 		- world model: including klampt models for the robot, the shelf and the target container
 		- item: position/orientation of the target item, ideal surfaces and approach directions for vacuum or preferred grasp configurations for known item
+			-- position: item position
+			-- vacuum_offset: hacked parameter for each item, added to the high of the item to find the grasp position for the vacuum
+			-- drop offset: hacked parameter for each item, added to the high of the order box bottom high to find the drop position for the vacuum
 		- target_box: the ID of the target order box, a default droping position for that order box. 
+			-- drop position: right now is above the center of the box
+			-- position: box position
 	outputs:
-		a list of milestone=(t, {
+		a list of milestones=(t, {
               'robot': q,
               'gripper': [0,0,0],
               'vaccum': [0]
