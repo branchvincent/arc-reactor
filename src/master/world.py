@@ -34,10 +34,13 @@ robots = {
 }
 
 terrains = {
-    'ground': 'data/terrains/block.off'
+    'ground': 'data/terrains/block.off',
 }
 
-rigid_objects = {}
+rigid_objects = {
+    'amnesty_tote': 'data/objects/box-K3.off',
+    'store_tote': 'data/objects/box-K3.off',
+}
 
 def _get_or_load(world, name, path, total, getter, loader):
     for i in range(total):
@@ -84,6 +87,17 @@ def update_world(db=None, world=None):
     shelf = _get_robot(world, 'shelf')
     _sync(db, '/shelf/pose', lambda bp: shelf.link(0).setParentTransform(*_numpy2klampt(bp)))
     _sync(db, '/shelf/current_angle', lambda q: shelf.setConfig([0, q]))
+
+    # update tote
+    amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
+    _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*_numpy2klampt(p)))
+
+    store_tote = _get_rigid_object(world, 'store_tote')
+    _sync(db, '/tote/store/pose', lambda p: store_tote.setTransform(*_numpy2klampt(p)))
+
+    # update boxes
+
+
 
     # update cameras
 
