@@ -100,7 +100,7 @@ class SimulateTrajectory:
 
 class SimulateRobotController:
     """Trajectory execution for TX90."""
-    def __init__(self, robot='left', milestones=None, speed=1., store=PensiveClient().default()):
+    def __init__(self, robot='left', milestones=None, speed=1., store=None):
         # Robot
         # self.robot = SimulateRobot(robot)
         if milestones:
@@ -110,7 +110,7 @@ class SimulateRobotController:
             raise RuntimeError('No trajectory to run found.')
         self.freq = 10.
         # Database
-        self.store = store
+        self.store = store or PensiveClient().default()
 
     def run(self):
         """Runs the current trajectory in the database"""

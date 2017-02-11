@@ -13,14 +13,14 @@ class ExecRoute(State):
         #check if in simulation mode
         if self.store.get('/simulate/robot_motion'):
             try:
-                controllerSim = SimulateRobotController()
+                controllerSim = SimulateRobotController(store=self.store)
                 controllerSim.run()
             except RuntimeError as e:
                 print "Runtime error: ", e
             completed = True  #always pass in sim mode for now
         else:
             try:
-                controller = RobotController() # self.waypoints, self.speed
+                controller = RobotController(store=self.store) # self.waypoints, self.speed
                 controller.run()
                 completed = controller.trajectory.complete
             except RuntimeError:

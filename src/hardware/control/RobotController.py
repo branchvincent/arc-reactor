@@ -89,7 +89,7 @@ class Trajectory:
             self.curr_milestone = None
 class RobotController:
     """Trajectory execution for TX90."""
-    def __init__(self, robot='left', milestones=None, speed=1., store=PensiveClient().default()):
+    def __init__(self, robot='left', milestones=None, speed=1., store=None):
         # Robot
         self.robot = Robot(robot)
         if milestones:
@@ -98,7 +98,7 @@ class RobotController:
             self.trajectory = None
         self.freq = 10.
         # Database
-        self.store = store
+        self.store = store or PensiveClient().default()
     def run(self):
         """Runs the current trajectory in the database"""
         # self.updatePlannedTrajectory()
