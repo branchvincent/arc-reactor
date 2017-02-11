@@ -41,11 +41,13 @@ def _json_decoder(obj):
 
     return obj
 
-def json_encode(obj):
-    return json.dumps(obj, default=_json_encoder).replace("</", "<\\/")
+def json_encode(obj, **kwargs):
+    kwargs['default'] = _json_encoder
+    return json.dumps(obj, **kwargs).replace("</", "<\\/")
 
-def json_decode(data):
-    return json.loads(to_basestring(data), object_hook=_json_decoder)
+def json_decode(data, **kwargs):
+    kwargs['object_hook'] = _json_decoder
+    return json.loads(to_basestring(data), **kwargs)
 
 class JSONClientMixin(object):
     '''

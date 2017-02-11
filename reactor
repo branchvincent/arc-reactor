@@ -149,7 +149,7 @@ elif args.command == 'shell':
     if args.module:
         import runpy
 
-        if os.pathsep in args.module or args.module.endswith('.py'):
+        if os.sep in args.module or args.module.endswith('.py'):
             # run the file directly
             runpy.run_path(args.module, run_name='__main__')
         else:
@@ -199,6 +199,6 @@ elif args.command == 'dump':
     # load the object
     obj = store.get(args.path)
 
-    # dump as JSON to stdout
-    import json
-    print(json.dumps(obj, indent=4))
+    # dump as JSON to stdout using json_encode for custom data types
+    from pensive.client import json_encode
+    print(json_encode(obj, indent=4))
