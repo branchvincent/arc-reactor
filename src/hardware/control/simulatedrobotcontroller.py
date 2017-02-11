@@ -1,6 +1,6 @@
 # For executing trajectories
 
-import sys; sys.path.append('../..')
+# import sys; sys.path.append('../..')
 
 import logging; logger = logging.getLogger(__name__)
 from time import sleep, time
@@ -18,21 +18,23 @@ robots = {  'left': '10.10.1.202',
 def convertConfigToRobot(q_old, speed):
     assert(len(q_old[1]['robot']) == 7)
     assert(0 < speed <= 1)
+    print "From ", q_old
     q = list(deepcopy(q_old))
     q[0] /= float(speed)
     q[1]['robot'] = [degrees(qi) for qi in q[1]['robot']]
     q[1]['robot'][3] *= -1
     q[1]['robot'][5] *= -1
     del q[1]['robot'][0]
+    print "To ", q
     return tuple(q)
 
 def convertConfigToDatabase(q_old):
-    assert(len(q_old[1]['robot']) == 6)
+    assert(len(q_old) == 6)
     q = list(deepcopy(q_old))
-    q[1]['robot'].insert(0,0)
-    q[1]['robot'] = [radians(qi) for qi in q[1]['robot']]
-    q[1]['robot'][3] *= -1
-    q[1]['robot'][5] *= -1
+    q = [radians(qi) for qi in q]
+    q.insert(0,0)
+    q[3] *= -1
+    q[5] *= -1
     return tuple(q)
 
 # class SimulatedRobot:
@@ -48,8 +50,8 @@ def convertConfigToDatabase(q_old):
 #         self.socket = PowerUSBSocket(self.strip,1)
 #         self.socket.power = 'off'
 #
-#     def toggleVaccum(self, turnOn):
-#         """Toggles the vaccum power"""
+#     def toggleVacuum(self, turnOn):
+#         """Toggles the vacuum power"""
 #         if turnOn:
 #             self.socket.power = 'on'
 #         else:
@@ -57,9 +59,9 @@ def convertConfigToDatabase(q_old):
 
 class SimulatedTrajectory:
     """A robot trajectory defined by the robot and list of milestones"""
-    def __init__(self, robot, milestones, speed=1):
+    def __init__(self, milestones, speed=1, store=None):
         # self.robot = robot
-        self.milestones = None
+        self.milestones = {}
         self.curr_index = None
         self.curr_milestone = None
         self.speed = speed
@@ -67,35 +69,37 @@ class SimulatedTrajectory:
         # Process milestones
         assert(0 < self.speed <= 1)
         self.milestones['database'] = milestones
-        self.milestones['robot'] = [convertConfigToRobot(mi) for mi in milestones]
+        self.milestones['robot'] = [convertConfigToRobot(mi,speed) for mi in milestones]
+        # store
+        if store:
+            self.store = store
+        else:
+            self.store = PensiveClient().default()
 
     def start(self):
         """Sets the current milestone to the first in the list"""
         self.curr_index = 0
-        self.curr_milestone = self.milestones['robot'][0]
+        self.curr_milestone = self.milestones['robot'][self.curr_index]
         self.startTime = time()
-        # for m in self.milestones['robot']:
-        #     dt = m[0]
-        #     q = m[1]['robot']
-        #     self.robot.client.addMilestone(dt,q)
+        print "Starting traj at ", self.startTime
 
     def update(self):
         """Checks the current milestone in progress and updates, if necessary"""
-        elapsedTime = time() - self.startTime
-        if elapsedTime >= self.curr_milestone[0]:
-            self.advanceMilestone()
+        self.advanceMilestone()
 
     def advanceMilestone(self):
         """Advances to the next milestone, if applicable"""
         self.curr_index += 1
         if (self.curr_index < len(self.milestones['robot'])):
             self.curr_milestone = self.milestones['robot'][self.curr_index]
-            # turnVaccumOn = (self.curr_milestone[1]['vaccum'] == 'on')
-            # self.robot.toggleVaccum(turnVaccumOn)
+            turnVacuumOn = (self.curr_milestone[1]['vacuum'] == 'on')
+            self.store.put('/vacuum/power', turnVacuumOn)
         else:
             self.complete = True
             self.curr_index = None
             self.curr_milestone = None
+        print "Advancing to milestone ", self.curr_index, " after ", time() - self.startTime, " s"
+        self.startTime = time()
 
 
 class SimulatedRobotController:
@@ -104,7 +108,7 @@ class SimulatedRobotController:
         # Robot
         # self.robot = SimulatedRobot(robot)
         if milestones:
-            self.trajectory = Trajectory(milestones, speed)
+            self.trajectory = SimulatedTrajectory(milestones=milestones, speed=speed, store=store)
         else:
             self.trajectory = None
             raise RuntimeError('No trajectory to run found.')
@@ -117,37 +121,27 @@ class SimulatedRobotController:
         # self.updatePlannedTrajectory()
         self.trajectory.start()
         self.loop()
-        # print "current milestone", self.robot.getCurSegments()
-        # print "milestones ",  self.robot.getRemainingSegments()
-        # print "max segments ", self.robot.getMaxSegments()
 
     def loop(self):
         """Executed at the given frequency"""
         while not self.trajectory.complete:
+            # print "Starting loop..."
             self.updateCurrentConfig()
+            napTime = self.trajectory.curr_milestone[0] - (time() - self.trajectory.startTime)
+            if napTime > 0:
+                sleep(napTime)
             self.trajectory.update()
-            sleep(1/float(self.freq))
+
         print "Trajectory completed"
 
     def updateCurrentConfig(self, path='robot/current_config'):
         """Updates the database with the robot's current configuration."""
         q = self.trajectory.curr_milestone
-        q = convertConfigToDatabase(q) #TODO
+        q = convertConfigToDatabase(q[1]['robot'])
         self.store.put(path, q)
 
-    # def updatePlannedTrajectory(self, path='robot/waypoints'):
-    #     """Updates the robot's planned trajectory from the database"""
-    #     self.trajectory = Trajectory(self.robot, self.store.get(path))
-
 if __name__ == "__main__":
-    store = PensiveClient(host='http://10.10.1.102:8888/').default()
+    store = PensiveClient().default()
     c = SimulatedRobotController(store=store)
-    sample_milestones = [
-           (2, {
-              'robot': [0, 0, 0, 0, 0, 0, 0],
-              'gripper': [0,0,0],
-              'vaccum': [0]
-            })
-        ]
-    store.put('robot/waypoints', sample_milestones)
-    c.run()
+    # store.put('robot/waypoints', sample_milestones)
+    # c.run()
