@@ -19,6 +19,7 @@ class WorldViewer(GLRealtimeProgram):
         GLRealtimeProgram.__init__(self, 'World Viewer')
 
         self.world = WorldModel()
+        self.timestamps = {}
 
         self.fps = 10.0
         self.dt = 1 / self.fps
@@ -26,12 +27,19 @@ class WorldViewer(GLRealtimeProgram):
         self.store = PensiveClient().default()
         self.db = None
 
+        self.n = 0
+
     def display(self):
+        # hack to help Klampt not crash
+        self.n = self.n + 1
+        if self.n < 10:
+            return
+
         self.world.drawGL()
 
     def idle(self):
         self.sync()
-        update_world(self.store, self.world)
+        update_world(self.store, self.world, self.timestamps)
 
     def sync(self):
         self.db = Store()
