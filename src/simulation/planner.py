@@ -67,7 +67,7 @@ def pick_up(world,item,target_box):
 	box_bottom_high=target_box['position'][2]
 	vaccum_approach_distance=[0,0,0.03]
 	#setting some constant parameters and limits
-	control_rate=60 #controlling the robot with 60 Hz
+	control_rate=40 #controlling the robot with 60 Hz
 	max_end_effector_v=0.8 # 0.8m/s
 
 
@@ -132,6 +132,10 @@ def pick_up(world,item,target_box):
 	end_T[1][2]=box_bottom_high+item['drop offset']
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
+
+	f=open('test.json','w')
+	json.dump(motion_milestones,f)
+	f.close()
 	return motion_milestones
 
 
@@ -174,6 +178,7 @@ def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,s
 		t=0.1
 	steps=t*control_rate
 	t_step=1.0/control_rate
+	print t_step
 	# print "start config",robot.getConfig()
 	i=0
 	while i<=steps:
