@@ -24,7 +24,7 @@ order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
 ee_link=6
-Flag=1 # 1 for real robot, 0 for simulation
+
 
 
 
@@ -84,13 +84,13 @@ def pick_up(world,item,target_box):
 	dy=item_position[1]-start_position[1]
 	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,1)
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 
 	#from start position to the pregrasp position
 	start_T=copy.deepcopy(end_T)
 	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,1)
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,1)
 
 	# lower the vacuum
 	temp=start_T
@@ -98,10 +98,8 @@ def pick_up(world,item,target_box):
 	temp[1]=vectorops.add(item_position,item_vacuum_offset)
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
-	if Flag:
-		motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1)
-	else:
-		motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,1)
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,1)
+
 
 	#pick the item
 	temp=start_T
@@ -109,7 +107,7 @@ def pick_up(world,item,target_box):
 	temp[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1)
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 
 	#retract
 	temp=start_T
@@ -117,7 +115,7 @@ def pick_up(world,item,target_box):
 	temp[1]=start_position
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1)
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 
 	#go to tote
 	temp=start_T
@@ -125,16 +123,15 @@ def pick_up(world,item,target_box):
 	temp[1]=drop_position
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0)
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	
 	#drop item
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
 	end_T=temp
 	end_T[1][2]=box_bottom_high+item['drop offset']
-	print end_T[1][2]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0)
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 	return motion_milestones
 
 
@@ -157,11 +154,12 @@ def interpolate(start_T,end_T,u,flag):
         ik_world=[t,vectorops.add(t,[R[0]/100,R[1]/100,R[2]/100])]
     return [ik_local,ik_world]
 
-def make_milestone(t,q,vacuum_status):
+def make_milestone(t,q,vacuum_status,simulation_status):
 	milestone=(t, {
               'robot': q,
               'gripper': [0,0,0],
-              'vacuum': [vacuum_status]
+              'vacuum': [vacuum_status], 
+              'simulation': simulation_status
             })
 	return milestone
 
@@ -169,7 +167,7 @@ def make_milestone(t,q,vacuum_status):
 
 
 
-def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,ik_indicator):
+def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,simulation_status,ik_indicator):
 	# q=robot.getConfig()
 	# milestones.append(make_milestone(0.5,q,vacuum_status))
 	if t<0.1:
@@ -189,7 +187,7 @@ def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,i
 		if not feasible(robot,q,q_old):
 			s=ik.solve_global(goal)
         	q=robot.getConfig()
-		milestones.append(make_milestone(t_step,q,vacuum_status))
+		milestones.append(make_milestone(t_step,q,vacuum_status,simulation_status))
 		i+=1
 	return milestones
 

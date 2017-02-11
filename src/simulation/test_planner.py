@@ -45,8 +45,30 @@ class MyGLViewer(GLSimulationProgram):
         if self.trajectory:
             if self.t<len(self.trajectory):  
                 self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0])
-                # print self.trajectory[self.t][1]['robot']
-                time.sleep(0.01)
+                robot=self.sim.world.robot(0)
+                old_T=robot.link(ee_link).getTransform()
+                old_R,old_t=old_T
+                obj=self.sim.world.rigidObject(self.target)
+                #get a SimBody object
+                body = self.sim.body(obj)
+                # print self.trajectory[self.t][1]['vacuum']
+                if self.trajectory[self.t][1]['simulation']==1:
+                        T=body.getTransform()
+                        R,t=T           
+                        body.enableDynamics(False)
+                        if self.flag==0:
+                            self.flag=1
+                            self.T=robot.link(ee_link).getLocalPosition(t)
+                        # print 'here'
+                        new_T=robot.link(ee_link).getTransform()
+                        new_R,new_t=new_T
+                        change_R=so3.mul(new_R,so3.inv(old_R))
+                        
+                        R=so3.mul(change_R,R)
+                        body.setTransform(R,robot.link(ee_link).getWorldPosition(self.T))
+                else:
+                    body.enableDynamics(True)
+                    self.flag=0
                 self.t+=1
             else:
                 self.score+=1
@@ -54,9 +76,9 @@ class MyGLViewer(GLSimulationProgram):
                 print "one pick task is done!"
                 self.t=0
                 self.trajectory=[]
-                if self.score==self.total_object:
-                    print "all items are picked up!"
-                    exit()
+            if self.score==self.total_object:
+                print "all items are picked up!"
+                exit()
         else:
             target_item={}
             target_box={}
@@ -66,30 +88,7 @@ class MyGLViewer(GLSimulationProgram):
             target_box["drop position"]=[0.4,0.8,0.6]
             target_box['position']=[0.4,0.8,0.5]
             self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
-        robot=self.sim.world.robot(0)
-        old_T=robot.link(ee_link).getTransform()
-        old_R,old_t=old_T
-        obj=self.sim.world.rigidObject(self.target)
-        #get a SimBody object
-        body = self.sim.body(obj)
-        # print self.trajectory[self.t][1]['vacuum']
-        if self.trajectory[self.t][1]['vacuum'][0]==1:
-                T=body.getTransform()
-                R,t=T           
-                body.enableDynamics(False)
-                if self.flag==0:
-                    self.flag=1
-                    self.T=robot.link(ee_link).getLocalPosition(t)
-                # print 'here'
-                new_T=robot.link(ee_link).getTransform()
-                new_R,new_t=new_T
-                change_R=so3.mul(new_R,so3.inv(old_R))
-                
-                R=so3.mul(change_R,R)
-                body.setTransform(R,robot.link(ee_link).getWorldPosition(self.T))
-        else:
-            body.enableDynamics(True)
-            self.flag=0
+        
 
     
 
