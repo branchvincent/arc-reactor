@@ -35,7 +35,7 @@ def convertConfigToDatabase(q_old):
     q[1]['robot'][5] *= -1
     return tuple(q)
 
-# class SimulateRobot:
+# class SimulatedRobot:
 #     """A robot defined by its trajectory client"""
 #     def __init__(self, robot='left', port=1000):
 #         assert(robot in robots)
@@ -55,7 +55,7 @@ def convertConfigToDatabase(q_old):
 #         else:
 #             self.socket.power = 'off'
 
-class SimulateTrajectory:
+class SimulatedTrajectory:
     """A robot trajectory defined by the robot and list of milestones"""
     def __init__(self, robot, milestones, speed=1):
         # self.robot = robot
@@ -98,11 +98,11 @@ class SimulateTrajectory:
             self.curr_milestone = None
 
 
-class SimulateRobotController:
+class SimulatedRobotController:
     """Trajectory execution for TX90."""
     def __init__(self, robot='left', milestones=None, speed=1., store=None):
         # Robot
-        # self.robot = SimulateRobot(robot)
+        # self.robot = SimulatedRobot(robot)
         if milestones:
             self.trajectory = Trajectory(milestones, speed)
         else:
@@ -141,7 +141,7 @@ class SimulateRobotController:
 
 if __name__ == "__main__":
     store = PensiveClient(host='http://10.10.1.102:8888/').default()
-    c = SimulateRobotController(store=store)
+    c = SimulatedRobotController(store=store)
     sample_milestones = [
            (2, {
               'robot': [0, 0, 0, 0, 0, 0, 0],

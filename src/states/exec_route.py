@@ -1,6 +1,6 @@
 from master.fsm import State
-from hardware.control.RobotController import RobotController
-from hardware.control.SimulateRobotController import SimulateRobotController
+from hardware.control.robotcontroller import RobotController
+from hardware.control.simulatedrobotcontroller import SimulateRobotController
 
 import logging
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ class ExecRoute(State):
         #check if in simulation mode
         if self.store.get('/simulate/robot_motion'):
             try:
-                controllerSim = SimulateRobotController(store=self.store)
+                controllerSim = SimulatedRobotController(store=self.store)
                 controllerSim.run()
             except RuntimeError as e:
                 print "Runtime error: ", e
