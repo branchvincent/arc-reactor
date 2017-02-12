@@ -1,5 +1,6 @@
 from master.fsm import State
 from simulation.grabcut import GrabObject
+import cv2
 
 class FindItem(State):
     def run(self):
@@ -8,9 +9,13 @@ class FindItem(State):
 
         if self.store.get('/simulate/object_detection'):
             self.grab = GrabObject()
-            self.grab.run()
-            #now need to get mask for point cloud
+            self.grab.run() #output to db as mask
             self.mask = self.store.get('/camera/camera1/mask')
+            self.pc = self.store.get('/camera/camera1/point_cloud')
+            self.binaryMask = (self.mask.sum(axis=2)>0)
+            #cv2.imwrite('test/checkMask.png', self.binaryMask)
+            self.obj_pc = self.pc[self.binaryMask]
+            self.store.put('/item/'+self.ItemDict['name']+'/point_cloud', self.obj_pc)
         else:
             # for all cameras available, do:
             pass
