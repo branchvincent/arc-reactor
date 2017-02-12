@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+import json
+
+plan = []
+
+home = [0] * 7
+for i in range(20):
+    plan.append((1, {'robot': home}))
+
+open('long_home.json', 'w').write(json.dumps(plan, indent=4) + '\n')
