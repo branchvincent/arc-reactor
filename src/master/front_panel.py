@@ -20,6 +20,7 @@ from .ui.front_panel import Ui_FrontPanel
 logger = logging.getLogger(__name__)
 
 RUN_MODES = ['step_once', 'run_once', 'run_all', 'full_auto']
+JOB_TYPES = ['pick', 'stow', 'final']
 
 def _call(target, *args, **kwargs):
     def _cb():
@@ -40,13 +41,24 @@ class FrontPanel(QMainWindow):
         self.view = Store()
 
         # install run mode click handlers
-        for mode in RUN_MODES:
+        for mode in ['step_once', 'run_once', 'run_all']:
             self._ui('run_' + mode).clicked.connect(_call(self._put, '/master/run_mode', mode))
+        self.ui.run_full_auto.clicked.connect(_call(self._multi_put, {
+            '/master/run_mode': 'full_auto',
+            '/checkpoint': None,
+            '/fault': None,
+            '/simulate': None
+        }))
+
+        for mode in JOB_TYPES:
+            self._ui('job_' + mode).clicked.connect(_call(self._put, '/robot/task', mode))
 
         self.requests = [
             '/master/run_mode',
             '/checkpoint',
-            '/fault'
+            '/fault',
+            '/simulate',
+            '/robot/task',
         ]
 
         self.hardware_map = {
@@ -66,46 +78,35 @@ class FrontPanel(QMainWindow):
         for (name, url) in self.hardware_map.iteritems():
             self.requests.append(url + '/timestamp')
 
-        self.checkpoints = {
-            'select_item': None,
-            'motion_plan': None,
-            'plan_execution': None
-        }
+        self.checkpoints = self._make_path_map([
+            'select_item',
+            'motion_plan',
+            'plan_execution',
 
-        for name in reversed(sorted(self.checkpoints.keys())):
-            checkbox = QCheckBox()
-            checkbox.setText(name.replace('_', ' ').title())
-            checkbox.setObjectName(name)
+        ])
+        self._load_toggle_list('/checkpoint/', self.checkpoints, self.ui.checkpointsLayout)
 
-            self.checkpoints[name] = checkbox
-            self.ui.checkpointsLayout.insertWidget(0, checkbox)
+        self.faults = self._make_path_map([
+            'cam_top_right_lost',
+            'cam_top_left_lost',
+            'cam_bottom_right_lost',
+            'cam_bottom_left_lost',
+            'cam_box_lost',
+            'cam_tote_lost',
+            'cam_box_lost',
+            'robot_fail',
+            'gripper_fail',
+            'plan_route_fail',
+            'scale_tote_wrong',
+            'scale_shelf_wrong',
+        ])
+        self._load_toggle_list('/fault/', self.faults, self.ui.faultsLayout)
 
-            checkbox.stateChanged.connect(_call(self._put_checkbox, '/checkpoint/' + name, checkbox))
-
-        self.faults = {
-            'cam_top_right_lost': None,
-            'cam_top_left_lost': None,
-            'cam_bottom_right_lost': None,
-            'cam_bottom_left_lost': None,
-            'cam_box_lost': None,
-            'cam_tote_lost': None,
-            'cam_box_lost': None,
-            'robot_fail': None,
-            'gripper_fail': None,
-            'plan_route_fail': None,
-            'scale_tote_wrong': None,
-            'scale_shelf_wrong': None,
-        }
-
-        for name in reversed(sorted(self.faults.keys())):
-            checkbox = QCheckBox()
-            checkbox.setText(name.replace('_', ' ').title())
-            checkbox.setObjectName(name)
-
-            self.faults[name] = checkbox
-            self.ui.faultsLayout.insertWidget(0, checkbox)
-
-            checkbox.stateChanged.connect(_call(self._put_checkbox, '/fault/' + name, checkbox))
+        self.simulations = self._make_path_map([
+            'robot_motion',
+            'vacuum'
+        ])
+        self._load_toggle_list('/simulate/', self.simulations, self.ui.simulationLayout)
 
         self.update()
 
@@ -113,6 +114,27 @@ class FrontPanel(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.update())
         self.timer.start(1000 / 30.0)
+
+    def _make_path_map(self, paths):
+        return dict(zip(paths, [None] * len(paths)))
+
+    def _load_toggle_list(self, prefix, paths, layout):
+        for name in reversed(sorted(paths)):
+            checkbox = QCheckBox()
+            checkbox.setText(name.replace('_', ' ').title())
+            checkbox.setObjectName(name)
+
+            paths[name] = checkbox
+            layout.insertWidget(0, checkbox)
+
+            checkbox.stateChanged.connect(_call(self._put_checkbox, prefix + name, checkbox))
+
+    def _update_toggle_list(self, view, paths, prefix):
+        for (name, checkbox) in paths.iteritems():
+            checkbox.blockSignals(True)
+            checkbox.setChecked(view.get(prefix + name, default=False))
+            checkbox.blockSignals(False)
+            checkbox.setEnabled(view.get('/master/run_mode') != 'full_auto')
 
     def update(self, view=None):
         '''
@@ -126,9 +148,13 @@ class FrontPanel(QMainWindow):
 
         # style sheet for blinking foreground at 1 Hz
         if now % 1 >= 0.5:
-            alarm_style = 'color: #ff0000;'
+            alarm_label_style = 'color: #ffffff; background-color: #ff0000;'
+            alarm_button_style = 'color: #ff0000;'
+            alert_style = 'background-color: #ffff00;'
         else:
-            alarm_style = 'color: #800000;'
+            alarm_label_style = 'color: #ffffff; background-color: #800000;'
+            alarm_button_style = 'color: #800000;'
+            alert_style = ''
 
         # update run mode UI
         run_mode = view.get('/master/run_mode')
@@ -141,26 +167,41 @@ class FrontPanel(QMainWindow):
             for mode in RUN_MODES:
                 self._ui('run_' + mode).setStyleSheet('')
                 self._ui('run_' + mode).setChecked(False)
-            self.ui.run_label.setStyleSheet(alarm_style)
+            self.ui.run_label.setStyleSheet(alarm_label_style)
+
+        # update job type UI
+        job_type = view.get('/robot/task')
+        if job_type in JOB_TYPES:
+            self.ui.job_label.setStyleSheet('')
+            for mode in JOB_TYPES:
+                self._ui('job_' + mode).setStyleSheet('color: #000080;' if job_type == mode else '')
+                self._ui('job_' + mode).setChecked(job_type == mode)
+        else:
+            for mode in JOB_TYPES:
+                self._ui('job_' + mode).setStyleSheet('')
+                self._ui('job_' + mode).setChecked(False)
+            self.ui.job_label.setStyleSheet(alarm_label_style)
 
         # update hardware status UI
         for (name, url) in self.hardware_map.iteritems():
             if view.get(url + '/timestamp', default=0) < now - 2:
-                self._ui(name).setStyleSheet(alarm_style)
+                self._ui(name).setStyleSheet(alarm_button_style)
             else:
                 self._ui(name).setStyleSheet('color: #008000; font-weight: bold;')
 
-        # update checkpoint UI
-        for (name, checkbox) in self.checkpoints.iteritems():
-            checkbox.blockSignals(True)
-            checkbox.setChecked(view.get('/checkpoint/' + name, default=False))
-            checkbox.blockSignals(False)
+        # update toggle UIs
+        self._update_toggle_list(view, self.checkpoints, '/checkpoint/')
+        self._update_toggle_list(view, self.faults, '/fault/')
+        self._update_toggle_list(view, self.simulations, '/simulate/')
 
-        # update faults UI
-        for (name, checkbox) in self.faults.iteritems():
-            checkbox.blockSignals(True)
-            checkbox.setChecked(view.get('/fault/' + name, default=False))
-            checkbox.blockSignals(False)
+        alert = any([view.get('/checkpoint/{}'.format(k), 0) for k in self.checkpoints])
+        self.ui.checkpoints_label.setStyleSheet(alert_style if alert else '')
+
+        alert = any([view.get('/fault/{}'.format(k), 0) for k in self.faults])
+        self.ui.faults_label.setStyleSheet(alert_style if alert else '')
+
+        alert = any([view.get('/simulate/{}'.format(k), 0) for k in self.simulations])
+        self.ui.simulation_label.setStyleSheet(alert_style if alert else '')
 
     def _put_checkbox(self, key, checkbox):
         self._put(key, checkbox.isChecked())
@@ -169,7 +210,12 @@ class FrontPanel(QMainWindow):
         checkbox.blockSignals(False)
 
     def _put(self, key, value=None):
+        logger.info('set {} -> {}'.format(key, value))
         IOLoop.current().add_callback(lambda: self._put_handler(key, value))
+
+    def _multi_put(self, keys):
+        logger.info('set {}'.format(keys))
+        IOLoop.current().add_callback(lambda: self._multi_put_handler(keys))
 
     @coroutine
     def _put_handler(self, key, value):
@@ -177,18 +223,25 @@ class FrontPanel(QMainWindow):
             store = yield PensiveClientAsync().default()
             yield store.put(key, value)
         except:
-            logger.exception('UI put failed: {} -> {}', key, value)
+            logger.exception('UI put failed: {} -> {}'.format(key, value))
+            # TODO: notify the user that the operation failed
+
+    @coroutine
+    def _multi_put_handler(self, keys):
+        try:
+            store = yield PensiveClientAsync().default()
+            yield store.multi_put(keys)
+        except:
+            logger.exception('UI multi put failed: {}'.format(keys))
             # TODO: notify the user that the operation failed
 
     def _ui(self, name):
         return getattr(self.ui, name)
 
 if __name__ == '__main__':
-    import sys
-
     from PySide.QtGui import QApplication, QStyleFactory
 
-    app = QApplication(sys.argv)
+    app = QApplication([])
     app.setApplicationName('ARC Reactor')
     app.setStyle(QStyleFactory.create('fusion'))
 
