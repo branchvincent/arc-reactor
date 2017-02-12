@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<world>
+  <robot name="tx90l" file="robots/tx90l.rob" translation="0 0 0" config="7 0.0  0.22688705773255044  0.6762228583897952 2.0223069448008717  -1.0481573202202497  0.4290251616222686  -2.1354668552516776"/>
+
+  <robot name="shelf" file="robots/shelf.rob" translation="0 0 0" config="2 0.0 0.0"/>
+
+  <terrain file="terrains/block.off" />
+</world>

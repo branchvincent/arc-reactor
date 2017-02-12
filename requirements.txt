@@ -19,3 +19,7 @@ pytest-cov
 # enum
 # ipython_genutils
 # scandir
+
+# user interface
+pyside
+pyopengl
