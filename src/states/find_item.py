@@ -14,6 +14,11 @@ class FindItem(State):
         else:
             # for all cameras available, do:
             pass
+        #etc
+        #take camera pic
+        #ID shelf, location, etc
+        #get point cloud
+
 
         self.foundLoc = self.lastLoc #maybe
         

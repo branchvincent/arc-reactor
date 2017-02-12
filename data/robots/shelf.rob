@@ -1,0 +1,22 @@
+TParent 1 0 0   0 1 0   0 0 1   0 0 0 \
+0 1 0   -1 0 0   0 0 1   0 0 0   \
+parents -1 0
+axis 0 0 1    0 0 1
+translation  0 0 0
+qMinDeg    0    -179
+qMaxDeg    0    179
+velMaxDeg  0    400
+accMaxDeg  0    400
+geometry   "shelf/backing.stl" "shelf/platters.stl"
+mass       20 10
+automass
+torqueMax  0 800
+
+# simulation parameters
+servoP  40000
+servoI  100
+servoD  1000
+dryFriction 5
+viscousFriction 100
+
+noselfcollision 0 1

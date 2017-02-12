@@ -1,0 +1,25 @@
+# general logging
+rainbow-logging-handler
+
+# database server
+tornado
+jsonschema
+
+# log server
+sqlalchemy
+
+# vacuum interface
+pyusb
+
+# unit test coverage
+pytest-cov
+
+# IPython embedded shell
+# IPython
+# enum
+# ipython_genutils
+# scandir
+
+# user interface
+pyside
+pyopengl

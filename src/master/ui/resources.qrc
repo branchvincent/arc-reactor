@@ -1,0 +1,24 @@
+<RCC>
+  <qresource prefix="icon">
+    <file>robot2.svg</file>
+    <file>run_once.svg</file>
+    <file>run_all.svg</file>
+    <file>step_once.svg</file>
+    <file>camera.svg</file>
+    <file>pick.svg</file>
+    <file>stow_pick.svg</file>
+    <file>stow.svg</file>
+    <file>pause.svg</file>
+    <file>back.svg</file>
+    <file>checkmark.svg</file>
+    <file>forward.svg</file>
+    <file>play.svg</file>
+    <file>reset.svg</file>
+    <file>xmark.svg</file>
+    <file>xmark_dim.svg</file>
+    <file>warning.svg</file>
+    <file>stop.svg</file>
+    <file>run.svg</file>
+    <file>reverse.svg</file>
+  </qresource>
+</RCC>

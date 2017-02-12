@@ -1,0 +1,204 @@
+#!/usr/bin/env python
+
+# pylint: disable=line-too-long,missing-docstring,invalid-name,wrong-import-position,multiple-imports
+
+'''
+Launcher for the reactor system.
+'''
+
+# allow importing directly from src/
+import sys
+sys.path.append('src')
+
+from pensive import DEFAULT_PORT as PENSIVE_DEFAULT_PORT
+from log import DEFAULT_RECORD_PORT as LOG_DEFAULT_RECORD_PORT, DEFAULT_WEB_PORT as LOG_DEFAULT_WEB_PORT
+
+# parse command-line arguments
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, REMAINDER
+
+parser = ArgumentParser(description='Reactor system launcher', formatter_class=ArgumentDefaultsHelpFormatter)
+parser.add_argument('-v', '--verbose', metavar='MODULE', action='append', help='verbose logging for specified modules')
+parser.add_argument('-d', '--debug', metavar='MODULE', action='append', help='debug logging for specified modules')
+parser.add_argument('-lf', '--log-file', metavar='LOG_FILE', help='override log file')
+parser.add_argument('-lh', '--log-host', metavar='LOG_HOST', help='log server hostname', default='localhost')
+parser.add_argument('-lp', '--log-port', metavar='LOG_PORT', type=int, help='log server port', default=LOG_DEFAULT_RECORD_PORT)
+
+subparsers = parser.add_subparsers(title='subcommands', dest='command')
+
+db_parser = subparsers.add_parser('db', help='database control', description='control the system database', formatter_class=ArgumentDefaultsHelpFormatter)
+db_parser.add_argument('-p', '--port', metavar='PORT', type=int, default=PENSIVE_DEFAULT_PORT, help='server port')
+db_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
+
+log_parser = subparsers.add_parser('log', help='log control', description='control the log server', formatter_class=ArgumentDefaultsHelpFormatter)
+log_parser.add_argument('-u', '--db-url', metavar='DB_URL', default='sqlite:///db/log.sqlite', help='server database URL')
+log_parser.add_argument('-rp', '--record-port', metavar='RECORD_PORT', type=int, default=LOG_DEFAULT_RECORD_PORT, help='server record port')
+log_parser.add_argument('-wp', '--web-port', metavar='WEB_PORT', type=int, default=LOG_DEFAULT_WEB_PORT, help='server web port')
+log_parser.add_argument('-d', '--detach', action='store_true', help='detach as daemon')
+
+test_parser = subparsers.add_parser('test', help='unit test launcher', description='discover and launch unit tests with logging', formatter_class=ArgumentDefaultsHelpFormatter)
+test_parser.add_argument('-c', '--continue', dest='cont', action='store_true', help='continue despite failures')
+test_parser.add_argument('-q', '--quiet', action='store_true', help='decrease verbosity')
+test_parser.add_argument('-v', '--verbose', action='store_true', help='increase verbosity')
+test_parser.add_argument('path', nargs=REMAINDER, metavar='PATH', help='search path for tests')
+
+shell_parser = subparsers.add_parser('shell', help='Python shell', description='launch Python', formatter_class=ArgumentDefaultsHelpFormatter)
+shell_parser.add_argument('-m', '--module', metavar='MODULE', help='run module')
+
+load_parser = subparsers.add_parser('load', help='load database', description='load database', formatter_class=ArgumentDefaultsHelpFormatter)
+load_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+load_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+load_parser.add_argument('-p', '--path', metavar='DB_PATH', help='path for the load', default='/')
+load_parser.add_argument('json_path', metavar='JSON_PATH', help='JSON file to load')
+
+dump_parser = subparsers.add_parser('dump', help='dump database', description='dump database', formatter_class=ArgumentDefaultsHelpFormatter)
+dump_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+dump_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+dump_parser.add_argument('path', nargs='?', metavar='PATH', help='path for the dump', default='/')
+
+args = parser.parse_args()
+
+# configure the root logger to accept all records
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.NOTSET)
+
+formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
+
+# set up colored logging to console
+from rainbow_logging_handler import RainbowLoggingHandler
+console_handler = RainbowLoggingHandler(sys.stderr)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+# set up logging to file for all records
+log_path = args.log_file
+if not log_path:
+    import os, datetime
+    name = '{}-{:%Y%m%d-%H%M%S}.log'.format(
+        os.path.basename(__file__), datetime.datetime.now())
+    log_path = os.path.join('log', name)
+
+    # create the log directory if needed
+    if not os.path.exists('log'):
+        os.mkdir('log')
+
+handler = logging.FileHandler(log_path)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# set up logging to server for all records
+from log.handler import LogServerHandler
+handler = LogServerHandler(args.log_host, args.log_port)
+logger.addHandler(handler)
+
+# install level filter for console output only
+from util.log import LevelFilter
+lf = LevelFilter()
+console_handler.addFilter(lf)
+
+# default console output to WARN level
+lf.add('', logging.WARN)
+
+# attempt to register numpy database codecs
+from pensive.coders import register_numpy
+if not register_numpy():
+    logger.warn('failed to load numpy database coders')
+
+# process logging verbosity flags
+for m in args.verbose or []:
+    lf.add(m, logging.INFO)
+
+for m in args.debug or []:
+    lf.add(m, logging.DEBUG)
+
+# launch the target command
+if args.command == 'db':
+    from pensive.server import PensiveServer
+    PensiveServer(args.port).run()
+
+elif args.command == 'log':
+    from log.server import LogServer
+    LogServer(args.db_url, record_port=args.record_port, web_port=args.web_port).run()
+
+elif args.command == 'test':
+    # suppress warnings by default because they are
+    # very likely intentionally generated during tests
+    lf.add('', logging.ERROR)
+
+    subargs = ['--cov=src', '--cov-report=html', '--cov-report=term']
+
+    if not args.cont:
+        subargs.append('--maxfail=1')
+    if args.quiet:
+        subargs.append('-q')
+    if args.verbose:
+        subargs.append('-v')
+
+    # show extra details for skipped and failed tests
+    subargs.append('-rsx')
+
+    subargs.extend([os.path.join('test', p) for p in args.path] or ['test'])
+
+    import pytest
+    result = pytest.main(subargs)
+
+    # return the pytest error code for CI build status use
+    raise SystemExit(result)
+
+elif args.command == 'shell':
+    if args.module:
+        import runpy
+
+        if os.sep in args.module or args.module.endswith('.py'):
+            # run the file directly
+            runpy.run_path(args.module, run_name='__main__')
+        else:
+            # run the module directly
+            runpy.run_module(args.module, run_name='__main__')
+
+    else:
+        try:
+            # try using IPython shell if installed
+            import IPython
+        except ImportError:
+            # fall back to regular Python shell
+            import code
+            code.interact()
+        else:
+            IPython.start_ipython(argv=[])
+
+elif args.command == 'load':
+    # load the JSON object
+    import json
+    obj = json.load(open(args.json_path))
+
+    # connect to the database
+    from pensive.client import PensiveClient
+    client = PensiveClient(args.address)
+
+    # create or get the store
+    if args.store and args.store not in client.index():
+        store = client.create(args.store)
+    else:
+        store = client.store(args.store)
+
+    # load the object
+    store.put(args.path, obj)
+
+elif args.command == 'dump':
+    # connect to the database
+    from pensive.client import PensiveClient
+    client = PensiveClient(args.address)
+
+    # create or get the store
+    if args.store and args.store not in client.index():
+        store = client.create(args.store)
+    else:
+        store = client.store(args.store)
+
+    # load the object
+    obj = store.get(args.path)
+
+    # dump as JSON to stdout using json_encode for custom data types
+    from pensive.client import json_encode
+    print(json_encode(obj, indent=4))

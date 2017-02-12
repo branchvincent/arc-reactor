@@ -1,0 +1,79 @@
+{
+    "robot": {
+        "selected_item": null
+    },
+
+    "item": {
+        "dr_dobbs_bottle_brush": {
+            "name": "dr_dobbs_bottle_brush",
+            "display_name": "Dr. Dobbs Bottle Brush",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binA"
+        },
+        "kong_duck_dog_toy": {
+            "name": "kong_duck_dog_toy",
+            "display_name": "Kong Duck Dog Toy",
+            "new_item": true,
+            "point_value": 20,
+            "location": "binA"
+        },
+        "expo_markers": {
+            "name": "expo_markers",
+            "display_name": "Expo Markers",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binB"
+        },
+        "item_1": {
+            "name": "item_1",
+            "display_name": "Random Item 1",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binB"
+        },
+        "item_2": {
+            "name": "item_2",
+            "display_name": "Random Item 2",
+            "new_item": true,
+            "point_value": 20,
+            "location": "binC"
+        },
+        "item_3": {
+            "name": "item_3",
+            "display_name": "Random Item 3",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binC"
+        },
+        "item_4": {
+            "name": "item_4",
+            "display_name": "Random Item 4",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binB"
+        },
+        "item_5": {
+            "name": "item_5",
+            "display_name": "Random Item 5",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binE"
+        },
+        "item_6": {
+            "name": "item_6",
+            "display_name": "Random Item 6",
+            "new_item": true,
+            "point_value": 20,
+            "location": "binD"
+        },
+        "item_7": {
+            "name": "item_7",
+            "display_name": "Random Item 7",
+            "new_item": true,
+            "point_value": 20,
+            "location": "binA"
+        }
+    }
+}
+
