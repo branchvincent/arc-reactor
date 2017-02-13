@@ -1,0 +1,66 @@
+{
+    "dr_dobbs_bottle_brush": {
+        "name": "dr_dobbs_bottle_brush",
+        "display_name": "Dr. Dobbs Bottle Brush",
+        "mass": 0.072,
+        "bounds": [ [ 0.1, 0.1, 0.2 ], [ -0.1, -0.1, -0.2 ]],
+        "point_value": 10,
+        "properties": ["rigid", "long", "thin", "shiny"]
+    },
+    "kong_duck_dog_toy": {
+        "name": "kong_duck_dog_toy",
+        "display_name": "Kong Duck Dog Toy",
+        "mass": 0.016,
+        "bounds": [ [ 0.1, 0.1, 0.2 ], [ -0.1, -0.1, -0.2 ]],
+        "point_value": 20,
+        "properties": ["soft", "deformable"]
+    },
+    "elmers_washable_no_run_school_glue": {
+        "name": "elmers_washable_no_run_school_glue",
+        "display_name": "Elmer's Washable No Run School Glue",
+        "mass": 0.144,
+        "bounds": [ [ 0.1, 0.1, 0.2 ], [ -0.1, -0.1, -0.2 ]],
+        "point_value": 10,
+        "properties": ["rigid", "thin"]
+    },
+    "laugh_out_loud_joke_book": {
+        "name": "laugh_out_loud_joke_book",
+        "display_name": "Laugh Out Loud Joke Book",
+        "mass": 0.078,
+        "bounds": [ [ 0.1, 0.1, 0.2 ], [ -0.1, -0.1, -0.2 ]],
+        "point_value": 20,
+        "properties": ["thin", "shiny"]
+    },
+    "expo_dry_erase_board_eraser": {
+        "name": "expo_dry_erase_board_eraser",
+        "display_name": "EXPO Dry Erase Board Eraser",
+        "mass": 0.020,
+        "bounds": [ [ 0.1, 0.1, 0.2 ], [ -0.1, -0.1, -0.2 ]],
+        "point_value": 10,
+        "properties": []
+    },
+    "stanley_66_052": {
+        "name": "stanley_66_052",
+        "display_name": "Stanley 66 052",
+        "mass": 0.068,
+        "bounds": [ [ 0.1, 0.1, 0.2 ], [ -0.1, -0.1, -0.2 ]],
+        "point_value": 20,
+        "properties": []
+    },
+    "rolodex_jumbo_pencil_cup": {
+        "name": "rolodex_jumbo_pencil_cup",
+        "display_name": "Rolodex Jumbo Pencil Cup",
+        "mass": 0.096,
+        "bounds": [ [ 0.1, 0.1, 0.2 ], [ -0.1, -0.1, -0.2 ]],
+        "point_value": 10,
+        "properties": ["hollow", "transparent"]
+    },
+    "kong_air_dog_squeakair_tennis_ball": {
+        "name": "kong_air_dog_squeakair_tennis_ball",
+        "display_name": "Kong Air Dog SqueakAir Tennis Ball",
+        "mass": 0.096,
+        "bounds": [ [ 0.1, 0.1, 0.2 ], [ -0.1, -0.1, -0.2 ]],
+        "point_value": 20,
+        "properties": ["deformable", "thin"]
+    }
+}
