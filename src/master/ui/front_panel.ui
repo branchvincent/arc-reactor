@@ -983,6 +983,9 @@ All</string>
             <property name="shortcut">
              <string>Shift+F8</string>
             </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item row="2" column="1">
@@ -1011,6 +1014,9 @@ All</string>
             </property>
             <property name="shortcut">
              <string>F5</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -1041,6 +1047,9 @@ Pick</string>
             </property>
             <property name="shortcut">
              <string>Shift+F5</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
             </property>
            </widget>
           </item>

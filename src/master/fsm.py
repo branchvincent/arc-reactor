@@ -16,7 +16,7 @@ class Transition():
         self.toState = toState.upper()
         self.altState = altState.upper()
         self.condition = condition
-        self.store = store or PensiveClient.default()
+        self.store = store or PensiveClient().default()
 
     def decideTransition(self):
         if self.condition == None:
@@ -60,7 +60,7 @@ class StateMachine():
             self.runCurrent()
             if(self.current in self.finStates):
                 return
-                
+
     def getAllPastEvents(self):
         return self.pastEvents
 
@@ -72,7 +72,7 @@ class StateMachine():
 
     def runOrdered(self, nameInit):
         if not self.finStates:
-            raise RuntimeError("Need to define a final state") 
+            raise RuntimeError("Need to define a final state")
 
         self.setCurrentState(nameInit)
         #for _ in range(len(self.transitions)+1):
@@ -80,14 +80,14 @@ class StateMachine():
             self.runCurrent()
             self.decideState = self.transitions[self.getCurrentState()].decideTransition()
             self.setCurrentState(self.decideState)
-            
+
         self.runCurrent()
         self.decideState = self.transitions[self.getCurrentState()].decideTransition()
         self.setCurrentState(self.decideState)
-            
+
             #if self.current in self.finStates:
                 #print "Finished running all states."
-            #    return    
+            #    return
 
     def runStep(self):
         if not self.getCurrentState():

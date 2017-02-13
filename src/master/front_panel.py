@@ -39,17 +39,8 @@ class FrontPanel(QMainWindow):
 
         self.ui = Ui_FrontPanel()
         self.ui.setupUi(self)
-    
-        self.pick = PickStateMachine()
-        self.pick.loadStates()
-        self.pick.setupTransitions()
-        self.pick.setCurrentState('si') #always start with SelectItem
 
-        #HERE 
-        #for single step: self.pick.runStep()
-        #for single pass until CheckItem: self.pick.runOrdered(self.pick.getCurrentState())
-        #for continuous run until the order is filled: 
-        #    while(not pick.doneOrderFile()): pick.runOrdered(pick.getCurrentState())
+        self.pick = None
 
         self.view = Store()
 
@@ -65,15 +56,16 @@ class FrontPanel(QMainWindow):
 
         for mode in JOB_TYPES:
             self._ui('job_' + mode).clicked.connect(_call(self._put, '/robot/task', mode))
-            if mode == 'pick':
-                self.pick.loadOrderFile('test/master/order_test.json') #HERE
+
+        self.ui.mc_run.clicked.connect(_call(self._run_handler))
+        self.ui.mc_reset.clicked.connect(_call(self._reset_handler))
 
         self.requests = [
             '/robot/run_mode',
+            '/robot/task',
             '/checkpoint',
             '/fault',
             '/simulate',
-            '/robot/task',
         ]
 
         self.hardware_map = {
@@ -119,7 +111,8 @@ class FrontPanel(QMainWindow):
 
         self.simulations = self._make_path_map([
             'robot_motion',
-            'vacuum'
+            'vacuum',
+            'object_detection',
         ])
         self._load_toggle_list('/simulate/', self.simulations, self.ui.simulationLayout)
 
@@ -151,6 +144,39 @@ class FrontPanel(QMainWindow):
             checkbox.blockSignals(False)
             checkbox.setEnabled(view.get('/robot/run_mode') != 'full_auto')
 
+    def _run_handler(self):
+        if not self.pick:
+            self._reset_handler()
+
+        run_mode = self.view.get('/robot/run_mode')
+        logger.info('running in mode {}'.format(run_mode))
+
+        if run_mode == 'step_once':
+            self.pick.runStep()
+        elif run_mode == 'run_once':
+            self.pick.runOrdered(self.pick.getCurrentState())
+        elif run_mode in ['run_all', 'full_auto']:
+            while not self.pick.doneOrderFile():
+                self.pick.runOrdered(self.pick.getCurrentState())
+        else:
+            logger.error('unimplemented run mode: "{}"'.format(run_mode))
+
+    def _reset_handler(self):
+        logger.info('reset state machine')
+
+        self.pick = PickStateMachine()
+        self.pick.loadStates()
+        self.pick.setupTransitions()
+        self.pick.setCurrentState('si') #always start with SelectItem
+
+        job_type = self.view.get('/robot/task')
+        if job_type == 'pick':
+            logger.info('load order file for pick task')
+            self.pick.loadOrderFile('test/master/order_test.json')
+        else:
+            logger.error('unimplemented job type: "{}"'.format(job_type))
+
+
     def update(self, view=None):
         '''
         Main update handler for the UI.
@@ -160,6 +186,7 @@ class FrontPanel(QMainWindow):
 
         if not view:
             view = Store()
+        self.view = view
 
         # style sheet for blinking foreground at 1 Hz
         if now % 1 >= 0.5:
