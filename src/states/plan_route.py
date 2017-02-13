@@ -17,8 +17,8 @@ class PlanRoute(State):
 
         target_item = {
             'position': shelf_pose.dot(item_pose)[:3, 3].tolist(),
-            'vacuum_offset': [0, 0, 0.09],
-            'drop offset': 0.1
+            'vacuum_offset': [0, 0, 0.02],
+            'drop offset': 0.3
         }
 
         box = self.store.get('/robot/selected_box')
@@ -26,7 +26,7 @@ class PlanRoute(State):
 
         target_box = {
             'position': box_pose[:3, 3].tolist(),
-            'drop position': (box_pose[:3, 3] + [0, 0, 0.1]).tolist()
+            'drop position': (box_pose[:3, 3] + [0, 0, 0.3]).tolist()
         }
 
         logger.info('planning route for "{}" to "{}"'.format(item, box))
@@ -39,7 +39,7 @@ class PlanRoute(State):
                 raise RuntimeError('motion plan is empty')
         except Exception:
             self.store.put('/status/route_plan', False)
-            logger.exception('failed to generation pick motion plan')
+            logger.exception('failed to generate pick motion plan')
         else:
             self.store.put('/robot/waypoints', motion_plan)
             self.store.put('/status/route_plan', True)
