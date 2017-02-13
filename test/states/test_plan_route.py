@@ -1,3 +1,5 @@
+from unittest import SkipTest
+
 from test.pensive.helper import DatabaseDependentTestCase
 
 from states.plan_route import PlanRoute
@@ -9,6 +11,12 @@ with open('test/master/initial_db.json') as data_file:
 class PlanRoute_Direct(DatabaseDependentTestCase):
     def setUp(self):
         super(PlanRoute_Direct, self).setUp()
+
+        try:
+            import klampt
+        except ImportError:
+            raise SkipTest('Klampt is not installed')
+
         self.store = self.client.default()
         self.store.put('', initial_db)
 

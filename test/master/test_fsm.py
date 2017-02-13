@@ -1,3 +1,4 @@
+from unittest import SkipTest
 
 from test.pensive.helper import DatabaseDependentTestCase
 
@@ -17,6 +18,12 @@ with open('test/master/initial_db.json') as data_file:
 class SimpleFiniteSM(DatabaseDependentTestCase):
     def setUp(self):
         super(SimpleFiniteSM, self).setUp()
+
+        try:
+            import klampt
+        except ImportError:
+            raise SkipTest('Klampt is not installed')
+
         self.store = self.client.default()
         self.store.put('', initial_db)
         self.store.put('/robot/task', None)
