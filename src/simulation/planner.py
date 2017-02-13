@@ -298,11 +298,17 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		# s=ik.solve_global(goal)
 		s=ik.solve_nearby(goal,maxDeviation=10,feasibilityCheck=test_function)
 		q=robot.getConfig()
-		if not test_cspace.feasible(q):
-			# print 'not feasible'
+		n=0
+		if  not s or not test_cspace.feasible(q):
+			print 'not feasible'
 			# print world_p
 			s=ik.solve_nearby(goal,maxDeviation=10,feasibilityCheck=test_function)
         	q=robot.getConfig()
+        	#check ik
+        	n++
+        	if n>10:
+        		print 'no feasible configuration'
+        		return False
 		milestones.append(make_milestone(t_step,q,vacuum_status,simulation_status))
 		i+=1
 	return milestones
