@@ -1,15 +1,15 @@
 {
     "order": {
         "order1": {
-            "items": ["dr_dobbs_bottle_brush", "kong_duck_dog_toy", "item_3", "item_4", "item_5"],
+            "items": ["kong_air_dog_squeakair_tennis_ball", "kong_duck_dog_toy", "rolodex_jumbo_pencil_cup", "stanley_66_052", "item_10"],
             "number": 5
         },
         "order2": {
-            "items": ["expo_markers", "item_6", "item_7"],
+            "items": ["laugh_out_loud_joke_book", "item_9", "expo_dry_erase_board_eraser"],
             "number": 3
         },
         "order3": {
-            "items": ["item_1", "item_2"],
+            "items": ["elmers_washable_no_run_school_glue", "dr_dobbs_bottle_brush"],
             "number": 2
         }
     }

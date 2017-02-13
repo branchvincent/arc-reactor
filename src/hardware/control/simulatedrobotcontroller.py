@@ -18,14 +18,14 @@ robots = {  'left': '10.10.1.202',
 def convertConfigToRobot(q_old, speed):
     assert(len(q_old[1]['robot']) == 7)
     assert(0 < speed <= 1)
-    print "From ", q_old
+    #print "From ", q_old
     q = list(deepcopy(q_old))
     q[0] /= float(speed)
     q[1]['robot'] = [degrees(qi) for qi in q[1]['robot']]
     q[1]['robot'][3] *= -1
     q[1]['robot'][5] *= -1
     del q[1]['robot'][0]
-    print "To ", q
+    #print "To ", q
     return tuple(q)
 
 def convertConfigToDatabase(q_old):
@@ -98,7 +98,7 @@ class SimulatedTrajectory:
             self.complete = True
             self.curr_index = None
             self.curr_milestone = None
-        print "Advancing to milestone ", self.curr_index, " after ", time() - self.startTime, " s"
+        #print "Advancing to milestone ", self.curr_index, " after ", time() - self.startTime, " s"
         self.startTime = time()
 
 
@@ -125,7 +125,7 @@ class SimulatedRobotController:
     def loop(self):
         """Executed at the given frequency"""
         while not self.trajectory.complete:
-            # print "Starting loop..."
+            #print "Starting loop..."
             self.updateCurrentConfig()
             napTime = self.trajectory.curr_milestone[0] - (time() - self.trajectory.startTime)
             if napTime > 0:

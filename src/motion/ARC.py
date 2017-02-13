@@ -81,12 +81,12 @@ def feasible(robot,x,q_old):
         bound=[qlimits[i] for i in range(len(qlimits))]
         for (xi,bi) in zip(x,bound):
             if xi<bi[0] or xi>bi[1]:
-                print "out of joint limit!"
+                #print "out of joint limit!"
                 return False
         max_change=0.3
         for i in range(len(x)):
             if x[i]<q_old[i]-max_change or x[i]>q_old[i]+max_change:
-                print "change too much"
+                #print "change too much"
                 return False
 
 
@@ -121,7 +121,7 @@ class MyGLViewer(GLSimulationProgram):
 
         #Put your initialization code here
     def set_state(self,state):
-        print "move from", self.state, 'to ',state
+        #print "move from", self.state, 'to ',state
         self.state=state
         self.last_state_end=self.sim.getTime()
         self.start_flag=0

@@ -36,9 +36,6 @@ class GrabObject():
 
     def __init__(self, pic=None, store=None):
         
-        self.filename = (pic if (pic is not None) else './test/google_logo.png')
-        print 'loading file: ', self.filename
-
         self.store = store or PensiveClient().default()
 
         self.DRAW_BG = {'color' : BLACK, 'val' : 0}
@@ -60,7 +57,6 @@ class GrabObject():
     def run(self):
         #self.img = cv2.imread(self.filename)
         self.img = self.store.get('/camera/camera1/color_image')
-        print "type of img is ", type(self.img)
         self.img2 = self.img.copy()                               # a copy of original image
         self.mask = np.zeros(self.img.shape[:2],dtype = np.uint8) # mask initialized to PR_BG
         self.output = np.zeros(self.img.shape,np.uint8)           # output image to be shown
@@ -213,6 +209,7 @@ if __name__ == '__main__':
 
         # key bindings
         if k == 27:         # esc to exit
+            cv2.destroyAllWindows()
             break
         elif k == ord('0'): # BG drawing
             print(" mark background regions with left mouse button \n")

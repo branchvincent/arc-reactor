@@ -36,13 +36,14 @@ class PickStateMachine(StateMachine):
                 self.points += 10/n['number']
                 self.store.put('/item/'+k+'/point_value', self.points)
                 self.store.put('/item/'+k+'/order', i)
+                print "item ", k, " is valued at ", self.points, " for ", i
 
 #################################################################################
 def runPickFSM():
     pick = PickStateMachine()
     pick.loadStates()
     pick.setupTransitions()
-    with open('test/master/initial_db.json') as data_file:
+    with open('test/master/test_021317_2.json') as data_file:
         initial_db = json.load(data_file)
     pick.store.put('', initial_db)
     pick.loadOrderFile('test/master/order_test.json')
@@ -54,7 +55,7 @@ def runPickFSM():
     pick.store.put('/camera/camera1/color_image', image)
     pc = numpy.load('test/camera1_pc.npy')
     pick.store.put('/camera/camera1/point_cloud', pc)
-    number = 1
+    number = 10
     for _ in range(number): pick.runOrdered('si')
 
 if __name__ == '__main__':

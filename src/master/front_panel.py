@@ -17,6 +17,8 @@ from pensive.client_async import PensiveClientAsync
 
 from .ui.front_panel import Ui_FrontPanel
 
+from master.pickfsm import PickStateMachine
+
 logger = logging.getLogger(__name__)
 
 RUN_MODES = ['step_once', 'run_once', 'run_all', 'full_auto']
@@ -37,14 +39,18 @@ class FrontPanel(QMainWindow):
 
         self.ui = Ui_FrontPanel()
         self.ui.setupUi(self)
+    
+        self.pick = PickStateMachine()
+        self.pick.loadStates()
+        self.pick.setupTransitions()
 
         self.view = Store()
 
         # install run mode click handlers
         for mode in ['step_once', 'run_once', 'run_all']:
-            self._ui('run_' + mode).clicked.connect(_call(self._put, '/master/run_mode', mode))
+            self._ui('run_' + mode).clicked.connect(_call(self._put, '/robot/run_mode', mode))
         self.ui.run_full_auto.clicked.connect(_call(self._multi_put, {
-            '/master/run_mode': 'full_auto',
+            '/robot/run_mode': 'full_auto',
             '/checkpoint': None,
             '/fault': None,
             '/simulate': None
@@ -52,9 +58,11 @@ class FrontPanel(QMainWindow):
 
         for mode in JOB_TYPES:
             self._ui('job_' + mode).clicked.connect(_call(self._put, '/robot/task', mode))
+            if mode == 'pick':
+                self.pick.loadOrderFile('test/master/order_test.json') #HERE
 
         self.requests = [
-            '/master/run_mode',
+            '/robot/run_mode',
             '/checkpoint',
             '/fault',
             '/simulate',
@@ -134,7 +142,7 @@ class FrontPanel(QMainWindow):
             checkbox.blockSignals(True)
             checkbox.setChecked(view.get(prefix + name, default=False))
             checkbox.blockSignals(False)
-            checkbox.setEnabled(view.get('/master/run_mode') != 'full_auto')
+            checkbox.setEnabled(view.get('/robot/run_mode') != 'full_auto')
 
     def update(self, view=None):
         '''
@@ -157,7 +165,7 @@ class FrontPanel(QMainWindow):
             alert_style = ''
 
         # update run mode UI
-        run_mode = view.get('/master/run_mode')
+        run_mode = view.get('/robot/run_mode')
         if run_mode in RUN_MODES:
             self.ui.run_label.setStyleSheet('')
             for mode in RUN_MODES:

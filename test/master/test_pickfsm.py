@@ -32,8 +32,8 @@ class SimplePickFSM(DatabaseDependentTestCase):
         self.pick.runOrdered('si')
         self.assertEqual(self.pick.getAllPastEvents(), ['SI', 'FI', 'PR', 'ER', 'CI'])
 
-    def test_runFullOrder(self):
-        for _ in range(10): self.pick.runOrdered('si')
+    #def test_runFullOrder(self):
+    #    for _ in range(10): self.pick.runOrdered('si')
 
     def tearDown(self):
         pass

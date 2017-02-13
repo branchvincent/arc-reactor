@@ -181,7 +181,7 @@ def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,i
 		t=0.1
 	steps=t*control_rate
 	t_step=1.0/control_rate
-	# print "start config",robot.getConfig()
+	print "start config",robot.getConfig()
 	i=0
 	while i<=steps:
 		q_old=robot.getConfig()
