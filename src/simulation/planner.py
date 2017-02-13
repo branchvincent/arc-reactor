@@ -5,7 +5,7 @@ from klampt import *
 from klampt.vis.glrobotprogram import *
 from klampt.model import ik,coordinates,config,cartesian_trajectory,trajectory
 from klampt.model.collide import WorldCollider
-from klampt.plan import cspace
+from klampt.plan.cspace import CSpace,MotionPlan
 from klampt.math import so3,se3
 import random
 import importlib
@@ -69,6 +69,7 @@ def pick_up(world,item,target_box):
 	#setting some constant parameters and limits
 	control_rate=40 #controlling the robot with 60 Hz
 	max_end_effector_v=0.8 # 0.8m/s
+	test_cspace=TestCSpace(Globals(world))
 
 
 	#list of T and time
@@ -84,13 +85,13 @@ def pick_up(world,item,target_box):
 	dy=item_position[1]-start_position[1]
 	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 
 	#from start position to the pregrasp position
 	start_T=copy.deepcopy(end_T)
 	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,1)
 
 	# lower the vacuum
 	temp=start_T
@@ -98,7 +99,7 @@ def pick_up(world,item,target_box):
 	temp[1]=vectorops.add(item_position,item_vacuum_offset)
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,1)
 
 
 	#pick the item
@@ -107,7 +108,7 @@ def pick_up(world,item,target_box):
 	temp[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 
 	#retract
 	temp=start_T
@@ -115,7 +116,7 @@ def pick_up(world,item,target_box):
 	temp[1]=start_position
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 
 	#go to tote
 	temp=start_T
@@ -123,7 +124,7 @@ def pick_up(world,item,target_box):
 	temp[1]=drop_position
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	
 	#drop item
 	temp=start_T
@@ -131,7 +132,7 @@ def pick_up(world,item,target_box):
 	end_T=temp
 	end_T[1][2]=box_bottom_high+item['drop offset']
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 
 	f=open('test.json','w')
 	json.dump(motion_milestones,f)
@@ -168,10 +169,7 @@ def make_milestone(t,q,vacuum_status,simulation_status):
 	return milestone
 
 
-
-
-
-def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,simulation_status,ik_indicator):
+def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vacuum_status,simulation_status,ik_indicator):
 	# q=robot.getConfig()
 	# milestones.append(make_milestone(0.5,q,vacuum_status))
 	if t<0.1:
@@ -182,14 +180,14 @@ def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,s
 	# print "start config",robot.getConfig()
 	i=0
 	while i<=steps:
-		q_old=robot.getConfig()
+		# q_old=robot.getConfig()
 		u=i*1.0/steps
 		# print u
 		[local_p,world_p]=interpolate(start_T,end_T,u,ik_indicator)
 		goal = ik.objective(robot.link(ee_link),local=local_p,world=world_p)
 		s=ik.solve_global(goal)
 		q=robot.getConfig()
-		if not feasible(robot,q,q_old):
+		if not test_cspace.feasible(q):
 			s=ik.solve_global(goal)
         	q=robot.getConfig()
 		milestones.append(make_milestone(t_step,q,vacuum_status,simulation_status))
@@ -197,17 +195,49 @@ def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,s
 	return milestones
 
 
-def feasible(robot,x,q_old):
-        #check joint limit
-        qlimits=zip(*robot.getJointLimits())
-        bound=[qlimits[i] for i in range(len(qlimits))]
-        for (xi,bi) in zip(x,bound):
-            if xi<bi[0] or xi>bi[1]:
-                print "out of joint limit!"
+class Globals:
+    def __init__(self,world):
+        self.world = world
+        self.robot = world.robot(0)
+        self.collider = WorldCollider(world)
+
+
+class TestCSpace(CSpace):
+    """A CSpace defining the feasibility constraints of the robot"""
+    def __init__(self,globals):
+        CSpace.__init__(self)
+        self.globals = globals
+        self.robot = globals.robot
+        #initial whole-body configuratoin
+        self.q0 = self.robot.getConfig()
+        #setup CSpace sampling range
+        qlimits = zip(*self.robot.getJointLimits())
+        self.bound = [qlimits[i] for i in range(len(self.q0))]
+        #setup CSpace edge checking epsilon
+        self.eps = 1e-2
+
+    def feasible(self,x):
+        #check arm joint limits
+        for (xi,bi) in zip(x,self.bound):
+            if xi < bi[0] or xi > bi[1]:
                 return False
-        max_change=0.1
-        for i in range(len(x)):
-            if x[i]<q_old[i]-max_change or x[i]>q_old[i]+max_change:
-                print "change too much"
-                return False
+        #set up whole body configuration to test environment and self collisions
+        q =x[:]
+        self.robot.setConfig(q)
+        world = self.globals.world
+        collider = self.globals.collider
+        #TODO: this could be much more efficient if you only tested the robot's moving joints
+        #test robot-object collisions
+        for o in xrange(world.numRigidObjects()):
+            if any(collider.robotObjectCollisions(self.robot.index,o)):
+                return False;
+        #test robot-terrain collisions
+        for o in xrange(world.numTerrains()):
+            if any(collider.robotTerrainCollisions(self.robot.index,o)):
+                return False;
+        #test robot self-collisions
+        if any(collider.robotSelfCollisions(self.robot.index)):
+            return False
+        return True
+
 
