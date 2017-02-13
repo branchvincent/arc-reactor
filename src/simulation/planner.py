@@ -18,8 +18,8 @@ ee_local=[-0.015,-0.02,0.28]
 box_release_offset=[0,0,0.06]
 idle_position=[0.6,0,1]
 shelf_position=[1.0,0.35,0.235]
-approach_p1=[0.6,0.2+shelf_position[1],1]
-approach_p2=[0.6,-0.1+shelf_position[1],1]
+# approach_p1=[0.6,0.2+shelf_position[1],1]
+# approach_p2=[0.6,-0.1+shelf_position[1],1]
 order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
@@ -70,6 +70,9 @@ def pick_up(world,item,target_box):
 	control_rate=40 #controlling the robot with 60 Hz
 	max_end_effector_v=0.8 # 0.8m/s
 	test_cspace=TestCSpace(Globals(world))
+	approach_p1=[0.6,0.2+shelf_position[1],1]
+	approach_p2=[0.6,-0.1+shelf_position[1],1]
+
 
 
 	#list of T and time
@@ -142,8 +145,100 @@ def pick_up(world,item,target_box):
 
 
 
-def stow():
-	return
+def stow(world,item,target_box):
+	robot=world.robot(0)
+	motion_milestones=[]
+	current_config=robot.getConfig()
+	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
+	curr_orientation,p=robot.link(ee_link).getTransform()
+	current_T=[curr_orientation,curr_position]
+	item_position=item['position']
+	item_vacuum_offset=item['vacuum_offset']
+	drop_offset=item['drop offset']
+	drop_position=target_box['drop position']
+	box_bottom_high=target_box['position'][2]
+	vaccum_approach_distance=[0,0,0.03]
+	#setting some constant parameters and limits
+	control_rate=40 #controlling the robot with 60 Hz
+	max_end_effector_v=0.8 # 0.8m/s
+	approach_p1=[0.6,0.2+shelf_position[1],1]
+	approach_p2=[0.6,-0.1+shelf_position[1],1]
+
+
+	#list of T and time
+
+	#from current position to the start position, in 2 seconds
+	# if item_position[1]*shelf_position[0]>item_position[0]*shelf_position[1]:
+	# 	start_position=approach_p1
+	# else:
+	# 	start_position=approach_p2
+	# start_position[2]=item_position[2]+item_vacuum_offset[2]
+	# d=vectorops.distance(start_position[:1],item_position[:1])
+	# dx=item_position[0]-start_position[0]
+	# dy=item_position[1]-start_position[1]
+	# end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
+	# l=vectorops.distance(current_T[1],end_T[1])
+	# motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
+
+	#from start position to the pregrasp position
+	start_T=copy.deepcopy(current_T)
+	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
+
+	# lower the vacuum
+	temp=start_T
+	start_T=copy.deepcopy(end_T)
+	temp[1]=vectorops.add(item_position,item_vacuum_offset)
+	end_T=temp
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,0)
+
+
+	#pick the item
+	temp=start_T
+	start_T=copy.deepcopy(end_T)
+	temp[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
+	end_T=temp
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+
+	#retract
+	temp=start_T
+	start_T=copy.deepcopy(end_T)
+	if drop_position[1]*shelf_position[0]>drop_position[0]*shelf_position[1]:
+		start_position=approach_p1
+	else:
+		start_position=approach_p2
+	start_position[2]=drop_position[2]+item_vacuum_offset[2]
+	d=vectorops.distance(start_position[:1],drop_position[:1])
+	dx=drop_position[0]-start_position[0]
+	dy=drop_position[1]-start_position[1]
+	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
+
+	#go to tote
+	temp=start_T
+	start_T=copy.deepcopy(end_T)
+	temp[1]=drop_position
+	end_T=temp
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
+	
+	#drop item
+	temp=start_T
+	start_T=copy.deepcopy(end_T)
+	end_T=temp
+	end_T[1][2]=box_bottom_high+item['drop offset']
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
+
+	f=open('test.json','w')
+	json.dump(motion_milestones,f)
+	f.close()
+	return motion_milestones
+
 
 
 def interpolate(start_T,end_T,u,flag):

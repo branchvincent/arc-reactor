@@ -40,6 +40,8 @@ class MyGLViewer(GLSimulationProgram):
         self.t=0
         self.T=[]
         self.flag=0
+        self.place_position=[]
+        self.task='pick'
 
     def control_loop(self):
         if self.trajectory:
@@ -72,22 +74,38 @@ class MyGLViewer(GLSimulationProgram):
                 self.t+=1
             else:
                 self.score+=1
-                self.target+=1
+                if self.task=='pick':
+                    self.target+=1
+                if self.target>2:
+                    self.task='stow'
+                if self.task=='stow':
+                    self.target-=1
                 print "one pick task is done!"
                 self.t=0
                 self.trajectory=[]
-            if self.score==self.total_object:
+            if self.score==2*self.total_object:
                 print "all items are picked up!"
                 exit()
         else:
-            target_item={}
-            target_box={}
-            target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
-            target_item["vacuum_offset"]=[0,0,0.09]
-            target_item['drop offset']=0.1
-            target_box["drop position"]=[0.4,0.8,0.6]
-            target_box['position']=[0.4,0.8,0.5]
-            self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
+            if self.score<3:
+                target_item={}
+                target_box={}
+                target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
+                self.place_position.append(self.sim.world.rigidObject(self.target).getTransform()[1])
+                target_item["vacuum_offset"]=[0,0,0.09]
+                target_item['drop offset']=0.1
+                target_box["drop position"]=[0.4,0.8,0.6]
+                target_box['position']=[0.4,0.8,0.5]
+                self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
+            else:
+                target_item={}
+                target_box={}
+                target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
+                target_item["vacuum_offset"]=[0,0,0.08]
+                target_item['drop offset']=0.15
+                target_box["drop position"]=self.place_position[self.target]
+                target_box['position']=self.place_position[self.target]
+                self.trajectory=planner.stow(self.sim.world,target_item,target_box)
         
 
     

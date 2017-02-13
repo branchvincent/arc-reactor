@@ -5,6 +5,8 @@ from klampt import *
 from klampt.vis.glrobotprogram import *
 from klampt.model import ik,coordinates
 from klampt.math import so3
+from klampt.plan.cspace import CSpace,MotionPlan
+from klampt.model.collide import WorldCollider
 import random
 import importlib
 import os
@@ -45,7 +47,51 @@ def build_default_keymap(world):
 
 # only work for cubes
 # TODO: add checking for general objects
+class Globals:
+    def __init__(self,world):
+        self.world = world
+        self.robot = world.robot(0)
+        self.collider = WorldCollider(world)
 
+############################# Problem 1 ##############################
+
+class TestCSpace(CSpace):
+    """A CSpace defining the feasibility constraints of the robot"""
+    def __init__(self,globals):
+        CSpace.__init__(self)
+        self.globals = globals
+        self.robot = globals.robot
+        #initial whole-body configuratoin
+        self.q0 = self.robot.getConfig()
+        #setup CSpace sampling range
+        qlimits = zip(*self.robot.getJointLimits())
+        self.bound = [qlimits[i] for i in range(len(self.q0))]
+        #setup CSpace edge checking epsilon
+        self.eps = 1e-2
+
+    def feasible(self,x):
+        #check arm joint limits
+        for (xi,bi) in zip(x,self.bound):
+            if xi < bi[0] or xi > bi[1]:
+                return False
+        #set up whole body configuration to test environment and self collisions
+        q =x[:]
+        self.robot.setConfig(q)
+        world = self.globals.world
+        collider = self.globals.collider
+        #TODO: this could be much more efficient if you only tested the robot's moving joints
+        #test robot-object collisions
+        for o in xrange(world.numRigidObjects()):
+            if any(collider.robotObjectCollisions(self.robot.index,o)):
+                return False;
+        #test robot-terrain collisions
+        for o in xrange(world.numTerrains()):
+            if any(collider.robotTerrainCollisions(self.robot.index,o)):
+                return False;
+        #test robot self-collisions
+        if any(collider.robotSelfCollisions(self.robot.index)):
+            return False
+        return True
 
 
 class MyGLViewer(GLSimulationProgram):
@@ -63,6 +109,8 @@ class MyGLViewer(GLSimulationProgram):
         self.activeObjects=False
         self.flag=0
         self.t=[]
+        self.globals=Globals(world)
+        self.cspace=TestCSpace(self.globals)
         #Put your initialization code here
 
     def control_loop(self):
@@ -92,6 +140,7 @@ class MyGLViewer(GLSimulationProgram):
         # s.solve()
         s=ik.solve_global(goal)
         q= robot.getConfig()
+        print self.cspace.feasible(q)
         robotController = self.sim.controller(0)
         qdes = q
         (qmin,qmax) = robot.getJointLimits()
