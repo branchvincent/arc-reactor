@@ -90,6 +90,8 @@ def feasible(robot,x,q_old):
                 return False
 
 
+def test_function():
+    return True
 
 
 class MyGLViewer(GLSimulationProgram):
@@ -313,7 +315,8 @@ class MyGLViewer(GLSimulationProgram):
             #         print "IK solved"
             #     else:
             #         print "IK failed"
-            s=ik.solve_global(goal)
+            # s=ik.solve_global(goal)
+            s=ik.solve_nearby(goal,maxDeviation=10,feasibilityCheck=test_function)
             q= robot.getConfig()
             if not feasible(robot,q,q_old):
                 s=ik.solve_global(goal)
