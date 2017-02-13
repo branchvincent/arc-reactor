@@ -57,13 +57,16 @@ class Robot:
         self.receivedMilestones = {}
         # USB
         if not self.store.get('/simulate/vacuum'):
-            self.strip = PowerUSBStrip().strips()[0]
-            self.strip.open()
+            print "accessing vacuum"
+            self.strips = PowerUSBStrip().strips()
+            self.strip = self.strips[0]
             self.socket = PowerUSBSocket(self.strip,1)
-            self.socket.power = 'off'
+            self.strip.open()
+            self.socket.power = "off"
         else:
             self.strip = None
             self.socket = None
+
         # Queue
         self.startIndex = None
 
@@ -74,11 +77,11 @@ class Robot:
         self.receivedMilestones[absIndex] = milestone
         if not self.startIndex:
             self.startIndex = absIndex
-            print "Updating start index to ", self.startIndex
+            #print "Updating start index to ", self.startIndex
         elif absIndex < self.startIndex:
             self.startIndex = absIndex
-            print "Err: Updating start index to ", self.startIndex
-        print 'Adding milestone', q, 'at dt', dt, ' index ', absIndex
+            #print "Err: Updating start index to ", self.startIndex
+        #print 'Adding milestone', q, 'at dt', dt, ' index ', absIndex
 
     def getCurrentMilestone(self):
         index = self.getCurrentIndexAbs()
@@ -93,10 +96,14 @@ class Robot:
     def toggleVacuum(self, turnOn):
         """Toggles the vacuum power"""
         if self.socket:
+            print "have a socket"
+            self.strip.open()
             if turnOn:
-                self.socket.power = 'on'
+                print "turning on"
+                self.socket.power = "on"
             else:
-                self.socket.power = 'off'
+                print "turning off"
+                self.socket.power = "off"
 
 
 class Trajectory:
@@ -133,6 +140,8 @@ class Trajectory:
         if self.curr_index < len(self.milestones['robot']):
             self.curr_milestone = self.milestones['robot'][self.curr_index]
             turnVacuumOn = (self.curr_milestone[1].get('vacuum', 'off') == 'on')
+            print "turnvacuum on ", turnVacuumOn
+            print "get ", self.curr_milestone[1].get('vacuum', 'off')
             self.robot.toggleVacuum(turnVacuumOn)
             if bufferSize + self.curr_index - 1 < len(self.milestones['robot']):
                 self.robot.sendMilestone(self.milestones['robot'][bufferSize + self.curr_index - 1])
@@ -140,7 +149,7 @@ class Trajectory:
             self.complete = True
             self.curr_index = None
             self.curr_milestone = None
-        # print "Moving to milestone ", self.robot.getCurrentIndexAbs()
+        print "Moving to milestone ", self.robot.getCurrentIndexAbs()
 
 
 class RobotController:
