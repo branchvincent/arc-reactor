@@ -96,10 +96,7 @@ class StateMachine():
             raise RuntimeError("Need to define a final state")
 
         self.runCurrent()
-        if self.current in self.finStates:
-            return
-        else:
-            self.decideState = self.transitions[self.getCurrentState()].decideTransition()
-            self.setCurrentState(self.decideState)
+        self.decideState = self.transitions[self.getCurrentState()].decideTransition()
+        self.setCurrentState(self.decideState)    
 
 
