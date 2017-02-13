@@ -43,6 +43,13 @@ class FrontPanel(QMainWindow):
         self.pick = PickStateMachine()
         self.pick.loadStates()
         self.pick.setupTransitions()
+        self.pick.setCurrentState('si') #always start with SelectItem
+
+        #HERE 
+        #for single step: self.pick.runStep()
+        #for single pass until CheckItem: self.pick.runOrdered(self.pick.getCurrentState())
+        #for continuous run until the order is filled: 
+        #    while(not pick.doneOrderFile()): pick.runOrdered(pick.getCurrentState())
 
         self.view = Store()
 

@@ -50,6 +50,7 @@ class StateMachine():
             self.finStates[name] = event
 
     def runCurrent(self):
+        print "currently running ", self.getCurrentState()
         self.events[self.current].run()
         self.pastEvents.append(self.current)
 
@@ -74,14 +75,31 @@ class StateMachine():
             raise RuntimeError("Need to define a final state") 
 
         self.setCurrentState(nameInit)
-        for _ in range(len(self.transitions)+1):
-            print "currently running ", self.getCurrentState()
+        #for _ in range(len(self.transitions)+1):
+        while self.current not in self.finStates:
             self.runCurrent()
-            if self.current in self.finStates:
+            self.decideState = self.transitions[self.getCurrentState()].decideTransition()
+            self.setCurrentState(self.decideState)
+            
+        self.runCurrent()
+        self.decideState = self.transitions[self.getCurrentState()].decideTransition()
+        self.setCurrentState(self.decideState)
+            
+            #if self.current in self.finStates:
                 #print "Finished running all states."
-                return
-            else:
-                self.decideState = self.transitions[self.getCurrentState()].decideTransition()
-                #print "decided to go to: ", self.decideState
-                self.setCurrentState(self.decideState)
+            #    return    
+
+    def runStep(self):
+        if not self.getCurrentState():
+            raise RuntimeError("Need to define initial state")
+        if not self.finStates:
+            raise RuntimeError("Need to define a final state")
+
+        self.runCurrent()
+        if self.current in self.finStates:
+            return
+        else:
+            self.decideState = self.transitions[self.getCurrentState()].decideTransition()
+            self.setCurrentState(self.decideState)
+
 

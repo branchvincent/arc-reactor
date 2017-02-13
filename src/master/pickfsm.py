@@ -38,6 +38,15 @@ class PickStateMachine(StateMachine):
                 self.store.put('/item/'+k+'/order', i)
                 print "item ", k, " is valued at ", self.points, " for ", i
 
+    def doneOrderFile(self):
+        #if all items picked, all their point values are 0. Need to re-write
+        self.value = 0
+        for i, n in self.store.get('/order/').items():
+            for k in n['items']:
+                self.points = self.store.get('/item/'+k+'/point_value')
+                self.value+=self.points
+        return (self.value==0)
+
 #################################################################################
 def runPickFSM():
     pick = PickStateMachine()
@@ -51,12 +60,16 @@ def runPickFSM():
     #simulate for now
     pick.store.put('/simulate/robot_motion', True)
     pick.store.put('/simulate/object_detection', True)
-    image = cv2.imread('test/camera1.png')
-    pick.store.put('/camera/camera1/color_image', image)
-    pc = numpy.load('test/camera1_pc.npy')
-    pick.store.put('/camera/camera1/point_cloud', pc)
-    number = 10
-    for _ in range(number): pick.runOrdered('si')
+    #image = cv2.imread('test/camera1.png')
+    #pick.store.put('/camera/camera1/color_image', image)
+    #pc = numpy.load('test/camera1_pc.npy')
+    #pick.store.put('/camera/camera1/point_cloud', pc)
+    #number = 10
+    #for _ in range(number): pick.runOrdered('si')  
+    pick.setCurrentState('si')  
+    pick.runStep()
+    pick.runStep()
+    while(not pick.doneOrderFile()): pick.runOrdered(pick.getCurrentState())
 
 if __name__ == '__main__':
     runPickFSM()
