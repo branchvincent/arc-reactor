@@ -60,6 +60,7 @@ class MyGLViewer(GLSimulationProgram):
                             T=body.getTransform()
                             R,t=T           
                             body.enableDynamics(False)
+                            body.setVelocity((0,0,0),(0,0,0))
                             if self.flag==0:
                                 self.flag=1
                                 self.T=robot.link(ee_link).getLocalPosition(t)
@@ -73,6 +74,10 @@ class MyGLViewer(GLSimulationProgram):
                     else:
                         body.enableDynamics(True)
                         self.flag=0
+                    # print 'current config', robot.getConfig()
+                    # print 'goal config',self.trajectory[self.t][1]['robot']
+                    # if  vectorops.distance(robot.getConfig(),self.trajectory[self.t][1]['robot'])<0.01:
+                    #     print 'get there'
                     self.t+=1
                     if self.t==len(self.trajectory):
                         self.last_end_time=self.sim.getTime()
@@ -80,7 +85,7 @@ class MyGLViewer(GLSimulationProgram):
                     self.score+=1
                     if self.task=='pick':
                         self.target+=1
-                    if self.target>2:
+                    if self.target>=self.total_object:
                         self.task='stow'
                     if self.task=='stow':
                         self.target-=1
@@ -91,21 +96,29 @@ class MyGLViewer(GLSimulationProgram):
                     print "all items are picked up!"
                     exit()
             else:
-                if self.score<3:
+                if self.score<self.total_object:
                     target_item={}
                     target_box={}
+                    
+                    if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.05:
+                        print 'turning!'
+                        return
                     target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
                     self.place_position.append(self.sim.world.rigidObject(self.target).getTransform()[1])
-                    target_item["vacuum_offset"]=[0,0,0.09]
-                    target_item['drop offset']=0.08
-                    target_box["drop position"]=[0.4,1-0.1*self.target,0.6]
-                    target_box['position']=[0.4,0.8,0.5]
+                    target_item["vacuum_offset"]=[0,0,0.1]
+                    target_item['drop offset']=0.15
+                    target_box["drop position"]=[0.2,0.95-0.06*self.target,0.6]
+                    target_box['position']=[0.2,0.8,0.15]
                     self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
                 else:
                     target_item={}
                     target_box={}
+                    print self.sim.world.rigidObject(self.target).getVelocity()[0]
+                    if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.05:
+                        print 'turning!'
+                        return
                     target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
-                    target_item["vacuum_offset"]=[0,0,0.08]
+                    target_item["vacuum_offset"]=[0,0,0.1]
                     target_item['drop offset']=0.15
                     target_box["drop position"]=self.place_position[self.target]
                     target_box['position']=self.place_position[self.target]

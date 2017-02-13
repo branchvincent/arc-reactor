@@ -17,7 +17,7 @@ ee_local=[-0.015,-0.02,0.28]
 # ee_local=[0,0,0]
 box_release_offset=[0,0,0.06]
 idle_position=[0.6,0,1]
-shelf_position=[1.0,0.35,0.235]
+shelf_position=[1.0,0.4,0.235]
 # approach_p1=[0.6,0.2+shelf_position[1],1]
 # approach_p2=[0.6,-0.1+shelf_position[1],1]
 order_box_min=[0.36,0.65,0.5]
@@ -71,7 +71,7 @@ def pick_up(world,item,target_box):
 	max_end_effector_v=0.8 # 0.8m/s
 	test_cspace=TestCSpace(Globals(world))
 	approach_p1=[0.6,0.2+shelf_position[1],1]
-	approach_p2=[0.6,-0.1+shelf_position[1],1]
+	approach_p2=[0.6,-0.2+shelf_position[1],1]
 
 
 
@@ -129,14 +129,22 @@ def pick_up(world,item,target_box):
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
-	
+	# print 'go to tote'
+
+
 	#drop item
-	temp=start_T
 	start_T=copy.deepcopy(end_T)
+	temp=end_T
+
+	temp[1][2]=box_bottom_high+item['drop offset']
 	end_T=temp
-	end_T[1][2]=box_bottom_high+item['drop offset']
+	end_T[1]=[0.25,0.9,0.4]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
+	# print start_T[1]
+	# print end_T[1]
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones.append(make_milestone(0.1,robot.getConfig(),0,0))
+	# print 'drop item'
 
 	f=open('test.json','w')
 	json.dump(motion_milestones,f)
@@ -151,21 +159,21 @@ def stow(world,item,target_box):
 	motion_milestones=[]
 	current_config=robot.getConfig()
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
-	curr_orientation,p=robot.link(ee_link).getTransform()
+	curr_orientation=robot.link(ee_link).getTransform()[0]
 	current_T=[curr_orientation,curr_position]
 	item_position=item['position']
 	item_vacuum_offset=item['vacuum_offset']
 	drop_offset=item['drop offset']
 	drop_position=target_box['drop position']
 	box_bottom_high=target_box['position'][2]
-	vaccum_approach_distance=[0,0,0.03]
+	vaccum_approach_distance=[0,0,0.15]
 	#setting some constant parameters and limits
-	control_rate=40 #controlling the robot with 60 Hz
-	max_end_effector_v=0.8 # 0.8m/s
+	control_rate=50 #controlling the robot with 60 Hz
+	max_end_effector_v=0.7 # 0.8m/s
 	approach_p1=[0.6,0.2+shelf_position[1],1]
-	approach_p2=[0.6,-0.1+shelf_position[1],1]
+	approach_p2=[0.6,-0.2+shelf_position[1],1]
 	test_cspace=TestCSpace(Globals(world))
-
+	vectorops
 	#list of T and time
 
 	#from current position to the start position, in 2 seconds
@@ -206,10 +214,13 @@ def stow(world,item,target_box):
 
 	#retract
 	temp=start_T
-	start_T=copy.deepcopy(end_T)
+	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
+	curr_orientation=robot.link(ee_link).getTransform()[0]
+	start_T=[curr_orientation,curr_position]
 	if drop_position[1]*shelf_position[0]>drop_position[0]*shelf_position[1]:
 		start_position=approach_p1
 	else:
+		# print 'p2!!'
 		start_position=approach_p2
 	start_position[2]=drop_position[2]+item_vacuum_offset[2]
 	d=vectorops.distance(start_position[:1],drop_position[:1])
@@ -218,16 +229,19 @@ def stow(world,item,target_box):
 	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
+	# print 'retract'
+
 
 	#go to shelf
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	temp[1]=drop_position
+	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
+	curr_orientation=robot.link(ee_link).getTransform()[0]
+	start_T=[curr_orientation,curr_position]
+	temp=[curr_orientation,drop_position]
 	temp[1][2]+=drop_offset
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
-	
+	# print 'go to shelf'
 	#drop item
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
@@ -250,10 +264,10 @@ def interpolate(start_T,end_T,u,flag):
     R,t=T
     if flag:
         ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0]),vectorops.add(ee_local,[0,0,0.01])]
-        ik_world=[t,vectorops.add(t,[R[0]/100,R[1]/100,R[2]/100]),vectorops.add(t,[R[6]/100,R[7]/100,R[8]/100])]
+        ik_world=[t,vectorops.add(t,[R[0]/100.0,R[1]/100.0,R[2]/100.0]),vectorops.add(t,[R[6]/100.0,R[7]/100.0,R[8]/100.0])]
     else:
         ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0])]
-        ik_world=[t,vectorops.add(t,[R[0]/100,R[1]/100,R[2]/100])]
+        ik_world=[t,vectorops.add(t,[R[0]/100.0,R[1]/100.0,R[2]/100.0])]
     return [ik_local,ik_world]
 
 def make_milestone(t,q,vacuum_status,simulation_status):
@@ -269,8 +283,8 @@ def make_milestone(t,q,vacuum_status,simulation_status):
 def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vacuum_status,simulation_status,ik_indicator):
 	# q=robot.getConfig()
 	# milestones.append(make_milestone(0.5,q,vacuum_status))
-	if t<0.1:
-		t=0.1
+	if t<0.3:
+		t=0.3
 	steps=t*control_rate
 	t_step=1.0/control_rate
 	# print "start config",robot.getConfig()
@@ -281,10 +295,13 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		# print u
 		[local_p,world_p]=interpolate(start_T,end_T,u,ik_indicator)
 		goal = ik.objective(robot.link(ee_link),local=local_p,world=world_p)
-		s=ik.solve_global(goal)
+		# s=ik.solve_global(goal)
+		s=ik.solve_nearby(goal,maxDeviation=10,feasibilityCheck=test_function)
 		q=robot.getConfig()
 		if not test_cspace.feasible(q):
-			s=ik.solve_global(goal)
+			# print 'not feasible'
+			# print world_p
+			s=ik.solve_nearby(goal,maxDeviation=10,feasibilityCheck=test_function)
         	q=robot.getConfig()
 		milestones.append(make_milestone(t_step,q,vacuum_status,simulation_status))
 		i+=1
@@ -335,5 +352,8 @@ class TestCSpace(CSpace):
         if any(collider.robotSelfCollisions(self.robot.index)):
             return False
         return True
+
+def test_function():
+    return True
 
 
