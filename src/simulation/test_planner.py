@@ -42,71 +42,75 @@ class MyGLViewer(GLSimulationProgram):
         self.flag=0
         self.place_position=[]
         self.task='pick'
+        self.last_end_time=0
 
     def control_loop(self):
-        if self.trajectory:
-            if self.t<len(self.trajectory):  
-                self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0])
-                robot=self.sim.world.robot(0)
-                old_T=robot.link(ee_link).getTransform()
-                old_R,old_t=old_T
-                obj=self.sim.world.rigidObject(self.target)
-                #get a SimBody object
-                body = self.sim.body(obj)
-                # print self.trajectory[self.t][1]['vacuum']
-                if self.trajectory[self.t][1]['simulation']==1:
-                        T=body.getTransform()
-                        R,t=T           
-                        body.enableDynamics(False)
-                        if self.flag==0:
-                            self.flag=1
-                            self.T=robot.link(ee_link).getLocalPosition(t)
-                        # print 'here'
-                        new_T=robot.link(ee_link).getTransform()
-                        new_R,new_t=new_T
-                        change_R=so3.mul(new_R,so3.inv(old_R))
-                        
-                        R=so3.mul(change_R,R)
-                        body.setTransform(R,robot.link(ee_link).getWorldPosition(self.T))
+        if self.sim.getTime()-self.last_end_time>0.5:
+            if self.trajectory:
+                if self.t<len(self.trajectory):  
+                    self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0])
+                    robot=self.sim.world.robot(0)
+                    old_T=robot.link(ee_link).getTransform()
+                    old_R,old_t=old_T
+                    obj=self.sim.world.rigidObject(self.target)
+                    #get a SimBody object
+                    body = self.sim.body(obj)
+                    # print self.trajectory[self.t][1]['vacuum']
+                    if self.trajectory[self.t][1]['simulation']==1:
+                            T=body.getTransform()
+                            R,t=T           
+                            body.enableDynamics(False)
+                            if self.flag==0:
+                                self.flag=1
+                                self.T=robot.link(ee_link).getLocalPosition(t)
+                            # print 'here'
+                            new_T=robot.link(ee_link).getTransform()
+                            new_R,new_t=new_T
+                            change_R=so3.mul(new_R,so3.inv(old_R))
+                            
+                            R=so3.mul(change_R,R)
+                            body.setTransform(R,robot.link(ee_link).getWorldPosition(self.T))
+                    else:
+                        body.enableDynamics(True)
+                        self.flag=0
+                    self.t+=1
+                    if self.t==len(self.trajectory):
+                        self.last_end_time=self.sim.getTime()
                 else:
-                    body.enableDynamics(True)
-                    self.flag=0
-                self.t+=1
+                    self.score+=1
+                    if self.task=='pick':
+                        self.target+=1
+                    if self.target>2:
+                        self.task='stow'
+                    if self.task=='stow':
+                        self.target-=1
+                    print "one pick task is done!"
+                    self.t=0
+                    self.trajectory=[]
+                if self.score==2*self.total_object:
+                    print "all items are picked up!"
+                    exit()
             else:
-                self.score+=1
-                if self.task=='pick':
-                    self.target+=1
-                if self.target>2:
-                    self.task='stow'
-                if self.task=='stow':
-                    self.target-=1
-                print "one pick task is done!"
-                self.t=0
-                self.trajectory=[]
-            if self.score==2*self.total_object:
-                print "all items are picked up!"
-                exit()
-        else:
-            if self.score<3:
-                target_item={}
-                target_box={}
-                target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
-                self.place_position.append(self.sim.world.rigidObject(self.target).getTransform()[1])
-                target_item["vacuum_offset"]=[0,0,0.09]
-                target_item['drop offset']=0.1
-                target_box["drop position"]=[0.4,0.8,0.6]
-                target_box['position']=[0.4,0.8,0.5]
-                self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
-            else:
-                target_item={}
-                target_box={}
-                target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
-                target_item["vacuum_offset"]=[0,0,0.08]
-                target_item['drop offset']=0.15
-                target_box["drop position"]=self.place_position[self.target]
-                target_box['position']=self.place_position[self.target]
-                self.trajectory=planner.stow(self.sim.world,target_item,target_box)
-        
+                if self.score<3:
+                    target_item={}
+                    target_box={}
+                    target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
+                    self.place_position.append(self.sim.world.rigidObject(self.target).getTransform()[1])
+                    target_item["vacuum_offset"]=[0,0,0.09]
+                    target_item['drop offset']=0.08
+                    target_box["drop position"]=[0.4,1-0.1*self.target,0.6]
+                    target_box['position']=[0.4,0.8,0.5]
+                    self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
+                else:
+                    target_item={}
+                    target_box={}
+                    target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
+                    target_item["vacuum_offset"]=[0,0,0.08]
+                    target_item['drop offset']=0.15
+                    target_box["drop position"]=self.place_position[self.target]
+                    target_box['position']=self.place_position[self.target]
+                    self.trajectory=planner.stow(self.sim.world,target_item,target_box)
+            
 
     
 
