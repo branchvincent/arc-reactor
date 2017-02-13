@@ -37,10 +37,5 @@ class ExecRoute(State):
         #     self.store.put('/robot/waypoints', None)
         #     self.store.put('/robot/history', self.waypoints)
 
-##########
-def testme():
-    state = ExecRoute('er')
-    state.run()
-
 if __name__ == '__main__':
-    testme()
+    ExecRoute('er').run()

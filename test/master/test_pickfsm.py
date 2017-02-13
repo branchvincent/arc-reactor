@@ -1,4 +1,7 @@
+from unittest import SkipTest
+
 from test.pensive.helper import DatabaseDependentTestCase
+
 from master.pickfsm import PickStateMachine
 
 import json
@@ -8,6 +11,12 @@ with open('test/master/initial_db.json') as data_file:
 class SimplePickFSM(DatabaseDependentTestCase):
     def setUp(self):
         super(SimplePickFSM, self).setUp()
+
+        try:
+            import klampt
+        except ImportError:
+            raise SkipTest('Klampt is not installed')
+
         self.store = self.client.default()
         self.store.put('', initial_db)
         self.store.put('/status/task', 'pick')

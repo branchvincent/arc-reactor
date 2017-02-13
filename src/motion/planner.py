@@ -17,9 +17,9 @@ ee_local=[-0.015,-0.02,0.28]
 # ee_local=[0,0,0]
 box_release_offset=[0,0,0.06]
 idle_position=[0.6,0,1]
-shelf_position=[1.0,0.35,0.235]
-approach_p1=[0.6,0.2+shelf_position[1],1]
-approach_p2=[0.6,-0.1+shelf_position[1],1]
+#shelf_position=[1.0,0.35,0.235]
+#approach_p1=[0.6,0.2+shelf_position[1],1]
+#approach_p2=[0.6,-0.1+shelf_position[1],1]
 order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
@@ -37,7 +37,7 @@ def pick_up(world,item,target_box):
 			-- position: item position
 			-- vacuum_offset: hacked parameter for each item, added to the high of the item to find the grasp position for the vacuum
 			-- drop offset: hacked parameter for each item, added to the high of the order box bottom high to find the drop position for the vacuum
-		- target_box: the ID of the target order box, a default droping position for that order box. 
+		- target_box: the ID of the target order box, a default droping position for that order box.
 			-- drop position: right now is above the center of the box
 			-- position: box position
 	outputs:
@@ -47,14 +47,19 @@ def pick_up(world,item,target_box):
               'vaccum': [0]
             })
         - t: planned time to reach this configuration
-        - robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot. 
+        - robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot.
         Also all the values are in radius, while the real robot joint values are in degree
         - gripper control
         - vaccum: 0-off 1-on
 	"""
-	
+
+	shelf_position = world.robot('shelf').link(0).getTransform()[1]
+	approach_p1=[0.6,0.2+shelf_position[1],1]
+	approach_p2=[0.6,-0.1+shelf_position[1],1]
+
+
 	#init
-	robot=world.robot(0)
+	robot=world.robot('tx90l')
 	motion_milestones=[]
 	current_config=robot.getConfig()
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
@@ -126,7 +131,7 @@ def pick_up(world,item,target_box):
 	end_T=temp
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0)
-	
+
 	#drop item
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
@@ -161,7 +166,7 @@ def make_milestone(t,q,vacuum_status):
 	milestone=(t, {
               'robot': q,
               'gripper': [0,0,0],
-              'vacuum': [vacuum_status]
+              'vacuum': 'on' if vacuum_status else 'off'
             })
 	return milestone
 
@@ -189,7 +194,8 @@ def add_milestones(robot,milestones,t,control_rate,start_T,end_T,vacuum_status,i
 		if not feasible(robot,q,q_old):
 			s=ik.solve_global(goal)
         	q=robot.getConfig()
-		milestones.append(make_milestone(t_step,q,vacuum_status))
+		if s:
+			milestones.append(make_milestone(t_step,q,vacuum_status))
 		i+=1
 	return milestones
 

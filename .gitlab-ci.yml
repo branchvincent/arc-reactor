@@ -29,6 +29,7 @@ python-unittest:
     stage: Test
     script:
     - pip install -q -r requirements.txt
+    - apt-get update -qq && xargs apt-get install -y -qq < dependencies.txt
     - python reactor test -c
 
 doxygen:

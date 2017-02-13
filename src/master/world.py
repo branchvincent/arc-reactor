@@ -8,9 +8,9 @@ from klampt import WorldModel, RigidObjectModel, PointCloud
 
 from pensive.client import Store
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-def _numpy2klampt(T):
+def numpy2klampt(T):
     # remove singleton dimensions
     T = T.squeeze()
     # check output based on shape
@@ -22,14 +22,14 @@ def _numpy2klampt(T):
     else:
         raise RuntimeError('unknown array shape for conversion: {}'.format(T.shape))
 
-def _klampt2numpy(k):
+def klampt2numpy(k):
     if len(k) == 9:
         # rotation matrix only
         T = numpy.eye(4,4)
         T[:3,:3] = numpy.array(k).reshape((3,3))
     elif len(k) == 2:
         # tuple of rotation matrix and translation vector
-        T = _klampt2numpy(k[0])
+        T = klampt2numpy(k[0])
         T[:3,3] = k[1]
     else:
         raise RuntimeError('unknown array for conversion: {}'.format(k))
@@ -89,19 +89,27 @@ def _get_rigid_object(world, name, path=None):
 def _remove_rigid_object(world, name):
     return _remove(world, name, world.numRigidObjects(), world.rigidObject)
 
-def _sync(db, path, setter):
-    value = db.get(path)
-    if value is not None:
-        setter(value)
+def _sync(db, paths, setter):
+    if isinstance(paths, basestring):
+        paths = [ paths ]
 
-def build_world(db):
-    return update_world(db)
+    if hasattr(db, 'multi_get'):
+        values = db.multi_get(paths).values()
+    else:
+        values = [db.get(p) for p in paths]
 
-def update_world(db=None, world=None, timestamps=None):
+    if all([v is not None for v in values]):
+        setter(*values)
+
+def build_world(db, ignore=None):
+    return update_world(db, ignore=ignore)
+
+def update_world(db=None, world=None, timestamps=None, ignore=None):
     db = db or Store()
     world = world or WorldModel()
     if timestamps is None:
         timestamps = {}
+    ignore = ignore or []
 
     task = db.get('/robot/task')
 
@@ -110,22 +118,22 @@ def update_world(db=None, world=None, timestamps=None):
 
     # update robots
     tx90l = _get_robot(world, 'tx90l')
-    _sync(db, '/robot/base_pose', lambda bp: tx90l.link(0).setParentTransform(*_numpy2klampt(bp)))
+    _sync(db, '/robot/base_pose', lambda bp: tx90l.link(0).setParentTransform(*numpy2klampt(bp)))
     _sync(db, '/robot/current_config', lambda q: tx90l.setConfig(q))
     tx90l.setConfig(tx90l.getConfig())
 
     shelf = _get_robot(world, 'shelf')
-    _sync(db, '/shelf/pose', lambda bp: shelf.link(0).setParentTransform(*_numpy2klampt(bp)))
+    _sync(db, '/shelf/pose', lambda bp: shelf.link(0).setParentTransform(*numpy2klampt(bp)))
     _sync(db, '/shelf/current_angle', lambda q: shelf.setConfig([0, q]))
     shelf.setConfig(shelf.getConfig())
 
     # update tote
     amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
-    _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*_numpy2klampt(p)))
+    _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
 
     if task in ['stow', 'final']:
         stow_tote = _get_rigid_object(world, 'stow_tote')
-        _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*_numpy2klampt(p)))
+        _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
     else:
         _remove_rigid_object(world, 'stow_tote')
 
@@ -135,32 +143,37 @@ def update_world(db=None, world=None, timestamps=None):
             size = db.get('/box/order{}/size'.format(quantity))
             if size:
                 box = _get_rigid_object(world, 'order_box{}'.format(quantity), 'data/objects/box-{}.off'.format(size))
-                _sync(db, '/box/order{}/pose'.format(quantity), lambda p: box.setTransform(*_numpy2klampt(p)))
+                _sync(db, '/box/order{}/pose'.format(quantity), lambda p: box.setTransform(*numpy2klampt(p)))
         else:
             _remove_rigid_object(world, 'order_box{}'.format(quantity))
 
-    # update cameras
-    for name in ['camera1']:
-        cam = _get_rigid_object(world, '{}_pc'.format(name), 'data/objects/box-A1.off')
-        _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*_numpy2klampt(p)))
+    if 'camera' not in ignore:
+        # update cameras
+        for name in ['camera1']:
+            if name in ignore:
+                continue
 
-        # check timestamp for the point cloud
-        ts = db.get('/camera/{}/timestamp'.format(name))
-        if ts > timestamps.get('{}_pc'.format(name), 0):
-            print timestamps
-            timestamps['{}_pc'.format(name)] = ts
+            cam = _get_rigid_object(world, '{}_pc'.format(name), 'data/objects/empty.off')
+            _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
 
-            logger.info('updating {} point cloud'.format(name))
-            points = db.get('/camera/{}/point_cloud'.format(name))
-            if points is not None:
-                points = list(points.flat)
+            # # check timestamp for the point cloud
+            # ts = db.get('/camera/{}/timestamp'.format(name))
+            # if ts > timestamps.get('{}_pc'.format(name), 0):
+            #     timestamps['{}_pc'.format(name)] = ts
 
-                pc = PointCloud()
-                pc.setPoints(len(points) / 3, points)
-                cam.geometry().setPointCloud(pc)
+            #     logger.info('updating {} point cloud'.format(name))
+            #     points = db.get('/camera/{}/point_cloud'.format(name))
+            #     if points is not None:
+            #         points = list(points.flat)
 
-    # update items
-    #for (name, item) in db.get('/item').items():
-    #    obj = _get_rigid_object(world, name, 'data/objects/cube.off')
+            #         pc = PointCloud()
+            #         pc.setPoints(len(points) / 3, points)
+            #         cam.geometry().setPointCloud(pc)
+
+    if 'items' not in ignore:
+        # update items
+        for name in db.get('/item'):
+            item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
+            _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
 
     return world

@@ -39,7 +39,7 @@ class WorldViewer(GLRealtimeProgram):
 
     def idle(self):
         self.sync()
-        update_world(self.store, self.world, self.timestamps)
+        update_world(self.db, self.world, self.timestamps)
 
     def sync(self):
         self.db = Store()
@@ -48,7 +48,9 @@ class WorldViewer(GLRealtimeProgram):
             # query the database
             result = self.store.multi_get([
                 '/robot',
-                '/shelf'
+                '/shelf',
+                '/item',
+                '/box'
             ])
         except:
             logger.exception('UI update query failed')
