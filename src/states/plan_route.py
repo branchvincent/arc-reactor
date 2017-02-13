@@ -9,9 +9,13 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanRoute(State):
     def run(self):
+        item = self.store.get('/robot/selected_item')
+        box = self.store.get('/robot/selected_box')
+
+        logger.info('planning route for "{}" to "{}"'.format(item, box))
+
         world = build_world(self.store, ignore=['camera'])
 
-        item = self.store.get('/robot/selected_item')
         item_pose = self.store.get('/item/{}/pose'.format(item))
         shelf_pose = self.store.get('/shelf/pose')
 
@@ -21,15 +25,12 @@ class PlanRoute(State):
             'drop offset': 0.3
         }
 
-        box = self.store.get('/robot/selected_box')
         box_pose = self.store.get('/box/{}/pose'.format(box))
 
         target_box = {
             'position': box_pose[:3, 3].tolist(),
             'drop position': (box_pose[:3, 3] + [0, 0, 0.3]).tolist()
         }
-
-        logger.info('planning route for "{}" to "{}"'.format(item, box))
 
         # compute route
         try:

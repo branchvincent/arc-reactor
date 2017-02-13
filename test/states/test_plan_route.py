@@ -2,16 +2,22 @@ from test.pensive.helper import DatabaseDependentTestCase
 
 from states.plan_route import PlanRoute
 
+import json
+with open('test/master/initial_db.json') as data_file:
+    initial_db = json.load(data_file)
+
 class PlanRoute_Direct(DatabaseDependentTestCase):
     def setUp(self):
         super(PlanRoute_Direct, self).setUp()
+        self.store = self.client.default()
+        self.store.put('', initial_db)
 
-        self.pr = PlanRoute('pr1', store=self.client.default())
+        self.pr = PlanRoute('pr1', store=self.store)
         #default store
 
     def test_goDirect(self):
         self.pr.run()
-        self.assertEqual(self.pr.store.get('/robot/current_config'), self.pr.store.get('/robot/goal_config'))
+        self.assertTrue(self.store.get('/status/route_plan', True))
 
     def tearDown(self):
         pass
