@@ -1,44 +1,42 @@
 from PyQt4 import QtGui, QtOpenGL, QtCore
 import sys
+import time
 from OpenGL import GL, GLU
 from status import CameraStatus
-import time
 from functools import partial
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import math
 import numpy as np
-import logging
 import os
  # start logging
 import logging
 logger = logging.getLogger(__name__)
+# set up logging to server for all records
+from log.handler import LogServerHandler
+# handler = LogServerHandler('10.10.1.102', 7777)
+# logging.getLogger().addHandler(handler)
 
-class CameraSignal(QtCore.QObject):
-    sig = QtCore.pyqtSignal()
+# configure the root logger to accept all records
+logger = logging.getLogger()
+logger.setLevel(logging.NOTSET)
 
-class CameraThread(QtCore.QRunnable): 
-    def __init__(self, camStatus, threadpool):
-        super(QtCore.QRunnable, self).__init__()
-        self.cam_status = camStatus 
-        self.signal = CameraSignal()
-        self.pool = threadpool
+formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
 
-    def run(self):
-        self.cam_status.poll()
-        self.signal.sig.emit()
-        time.sleep(3)
-        self.pool.tryStart(self)
+# set up colored logging to console
+from rainbow_logging_handler import RainbowLoggingHandler
+console_handler = RainbowLoggingHandler(sys.stderr)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 
 class PerceptionMonitor(QtGui.QWidget):
     
     def __init__(self):
         super(PerceptionMonitor, self).__init__()
-        self.cam_indicators = {}    #dictionary of sn to Qbuttons
         self.cam_status = CameraStatus()
-        self.pool = QtCore.QThreadPool.globalInstance()
-        self.camThread = CameraThread(self.cam_status, self.pool)
+        self.cam_indicators = {}    #dictionary of sn to Qbuttons
+        self.timer = QtCore.QTimer()
         self.currentView = None
         self.initUI()
         self.counter = 0
@@ -51,6 +49,7 @@ class PerceptionMonitor(QtGui.QWidget):
         #add horizontal layouts
         self.horzTop = QtGui.QHBoxLayout()
         self.horzBot = QtGui.QHBoxLayout()
+        self.horzBot.setSpacing(10)
         self.horzButton = QtGui.QHBoxLayout()
 
         #one for the top and one for the bottom
@@ -67,32 +66,43 @@ class PerceptionMonitor(QtGui.QWidget):
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setMinimumSize(300,300)
         self.canvas.setParent(self)
-        axes = self.figure.add_subplot(111)
+        axes = self.figure.add_axes([0,0,1,1])
+        axes.set_axis_off()
+        axes.set_xmargin(0)
+        axes.set_frame_on(False)
         axes.imshow(np.zeros((480,640,3),dtype='uint8'))
+
         self.canvas.draw()
         self.horzBot.addWidget(self.canvas)
+        self.horzBot.setStretch(0,1)
+        self.horzBot.setStretch(1,1)
 
         #add spacer to horzTop
         self.horzTop.addStretch(1)
         self.horzTop.addItem(self.horzButton)
         self.textBox = QtGui.QLineEdit(self)
+        self.pausebutton = QtGui.QPushButton("Pause", self)
+        self.pausebutton.clicked.connect(self.pauseTimer)
+        self.pausebutton.show()
         self.horzTop.addWidget(self.textBox)
+        self.horzTop.addWidget(self.pausebutton)
         self.horzTop.addStretch(1)
 
-        self.setGeometry(800, 600, 600, 200)
+        self.setGeometry(480, 135, 960, 675)
         self.setWindowTitle('Perception Status')
 
-        #connect signal to self.update views
-        self.camThread.signal.sig.connect(self.update_views)
 
-        self.pool.start(self.camThread)
+        #start timer that updates views
+        self.timer.timeout.connect(self.update_views)
+        self.timer.start(3000)
         self.show()
 
     #updates the pictures for all the cameras 
     def update_views(self):
+        self.cam_status.poll()
         self.update_connected_cams()
         self.update_world_view()
-
+        self.saveImages()
 
 
     #updated the list of connected cams and their buttons
@@ -146,26 +156,46 @@ class PerceptionMonitor(QtGui.QWidget):
         #show the image from the serial number btn
         if not serialn is None:
             image = self.cam_status.cameraFullColorImages[serialn]
-            #check if we should save the image
-            if self.textBox.text() != '':
-                #see if a folder with this name exists
-                if not self.textBox.text() in os.listdir():
-                    #make it
-                    os.mkdir(self.textBox.text())
-                    #reset the counter
-                    self.counter = 0
-                
-                plt.imsave(self.textBox.text() + "/" + str(self.counter) + ".png", image)
-                self.counter += 1
             self.figure.clear()
-            axes = self.figure.add_subplot(111)
-            axes.imshow(image)
+            axes = self.figure.add_axes([0,0,1,1])
+            axes.imshow(image)            
+            axes.set_axis_off()
             self.canvas.draw()
 
     #change the view of the picture to the button that was clicked
     def change_view(self, btn):
         self.currentView = btn
 
+    def saveImages(self):
+        for key in self.cam_indicators:
+            #check if we should save the image
+            if self.textBox.text() != '':
+                #get the image
+                image = self.cam_status.cameraFullColorImages[key]
+                #see if a folder with this name exists
+                if not self.textBox.text() in os.listdir():
+                    #make it
+                    os.mkdir(self.textBox.text())
+                    #reset the counter
+                    self.counter = 0
+                np.save(self.textBox.text() + "/" + str(self.counter),image)
+                image = self.cam_status.cameraDepthImages[key]
+                np.save(self.textBox.text() + "/" + str(self.counter) + "_depth",image)
+                image = self.cam_status.cameraColorImages[key]
+                np.save(self.textBox.text() + "/" + str(self.counter) + "_colordepth",image)
+                # plt.imsave(self.textBox.text() + "/" + str(self.counter) + ".png", image)
+                # image = self.cam_status.cameraDepthImages[key]
+                # plt.imsave(self.textBox.text() + "/" + str(self.counter) + "_depth.tiff", image)
+
+                self.counter += 1
+    def pauseTimer(self):
+        if self.timer.isActive():
+            self.timer.stop()
+        else:
+            for i in range(len(self.cam_status.depthCamera.time_of_last_image)):
+                self.cam_status.depthCamera.time_of_last_image[i] = time.time()
+
+            self.timer.start(3000)
 
 class GLWidget(QtOpenGL.QGLWidget):
     def __init__(self, parent=None, pc=np.array([]), c=np.array([])):
@@ -174,12 +204,10 @@ class GLWidget(QtOpenGL.QGLWidget):
         self.colors = c
         self.lastX = 0
         self.lastY = 0
-        self.pitch = 0
-        self.yaw = 0
         self.button = None
-        self.phi = math.pi/2
-        self.theta = -math.pi/2
-        self.radius = .1
+        self.phi = -0.25*math.pi
+        self.theta = math.pi/2
+        self.radius = .5
         self.translateX = 0
         self.translateY = 0
         self.translateZ = -0.05
@@ -206,12 +234,12 @@ class GLWidget(QtOpenGL.QGLWidget):
         GLU.gluPerspective(60, self.width()/self.height(), 0.1, 20)
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()
-        
+        #rotates around the y axis
         GLU.gluLookAt(self.radius * math.cos(self.theta) * math.sin(self.phi) + self.translateX,
-			  self.radius * math.cos(self.phi) + self.translateY,
-			  self.radius * math.sin(self.theta) * math.sin(self.phi) + self.translateZ,
+			  self.radius * math.sin(self.theta) * math.sin(self.phi)    + self.translateY,
+			  self.radius * math.cos(self.phi) + self.translateZ,
 			  self.translateX, self.translateY, self.translateZ,
-			  0, -1, 0)
+			  0, 0, 1)
 
 
         if self.point_cloud.size > 0:
@@ -230,6 +258,14 @@ class GLWidget(QtOpenGL.QGLWidget):
         self.lastY = event.pos().y()
         self.button = event.buttons()
 
+    def mouseDoubleClickEvent(self, event):
+        self.phi = -0.25*math.pi
+        self.theta = math.pi/2
+        self.radius = .5
+        self.translateX = 0
+        self.translateY = 0
+        self.translateZ = -0.05
+
     def mouseMoveEvent(self,event):
 
         dx = event.pos().x() - self.lastX
@@ -237,11 +273,15 @@ class GLWidget(QtOpenGL.QGLWidget):
 
         if self.button == QtCore.Qt.LeftButton:
             self.theta += -dx/200
-            self.phi += dy/200    
+            self.phi += dy/200  
+            if self.phi < -math.pi:
+                self.phi = -math.pi-0.01
+            if self.phi >= 0:
+                self.phi = -0.001
             self.update()
         elif self.button == QtCore.Qt.RightButton:
-            self.translateX -= dx*0.01
-            self.translateY -= dy*0.01
+            self.translateX -= dx*0.001
+            self.translateY -= dy*0.001
             self.update()
 
         self.lastX = event.pos().x()
