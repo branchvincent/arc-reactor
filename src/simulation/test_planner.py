@@ -47,11 +47,12 @@ class MyGLViewer(GLSimulationProgram):
     def control_loop(self):
         if self.sim.getTime()-self.last_end_time>0.5:
             if self.trajectory:
-                if self.t<len(self.trajectory):  
-                    self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0])
+                if self.t<len(self.trajectory): 
                     robot=self.sim.world.robot(0)
                     old_T=robot.link(ee_link).getTransform()
-                    old_R,old_t=old_T
+                    old_R,old_t=old_T 
+                    self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0])
+                    robot.setConfig(self.trajectory[self.t][1]['robot'])
                     obj=self.sim.world.rigidObject(self.target)
                     #get a SimBody object
                     body = self.sim.body(obj)
@@ -114,7 +115,7 @@ class MyGLViewer(GLSimulationProgram):
                     target_item={}
                     target_box={}
                     print self.sim.world.rigidObject(self.target).getVelocity()[0]
-                    if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.05:
+                    if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.01:
                         print 'turning!'
                         return
                     target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
