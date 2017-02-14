@@ -1,6 +1,6 @@
 import realsense as rs
 import numpy as np
-
+import time
 import logging
 logger = logging.getLogger(__name__)
 
@@ -9,145 +9,203 @@ class DepthCameras:
     def __init__(self):
         self.context = None
         self.num_cameras = 0
-        self.supported_streams = []
+        self.time_of_last_image = []
 
     def connect(self):
-        #check if the context exists, if not try to connect
         if self.context is None:
             try:
                 self.context = rs.context()
             except:
                 logger.error("Camera is busy. Some other process has already connected")
                 return False
-            self.num_cameras = self.context.get_device_count()
-            if self.num_cameras == 0:
-                logger.warning("No cameras were detected")
-                return False
-            else:
-                logger.info("Found %i cameras", self.num_cameras)
-                for i in range(self.num_cameras):
-                    self.supported_streams.append([])
-
-                    #cycle through all of the cameras and find out what streams they support
-                    for j in range(rs.capabilities_fish_eye):
-                        cam = self.context.get_device(i)
-                        if cam.supports_capability(j):
-                            self.supported_streams[i].append(j)
-                            logger.info("Camera %i supports %s", i, rs.rs_stream_to_string(j))
-                return True
         else:
-            #tried to connect already...you idiot
-            logger.warning("Tried to connect to cameras more than once. Ignoring") 
             return False
+
+        self.num_cameras = self.context.get_device_count()
+        if self.num_cameras == 0:
+            logger.warning("No cameras were detected")
+            return False
+        else:
+            logger.info("Found %i cameras", self.num_cameras)
+            for i in range(self.num_cameras):
+                self.time_of_last_image.append(0)
+                #cycle through all of the cameras and find out what streams they support
+                for j in range(rs.capabilities_fish_eye):
+                    cam = self.context.get_device(i)
+                    if cam.supports_capability(j):
+                        logger.info("Camera %i supports %s", i, rs.rs_stream_to_string(j))
+            return True
+        
     
-    def acquireImage(self, camera, stream, ivcam_preset=rs.RS_IVCAM_PRESET_OBJECT_SCANNING):
+    def acquire_image(self, camera, ivcam_preset=rs.RS_IVCAM_PRESET_OBJECT_SCANNING):
         if self.connect is None:
             logger.warning("No cameras connected, or connect has not been run")
-            return None
+            return (None, None)
         elif camera >= self.num_cameras or camera < 0:
             logger.warning("Camera requested does not exist")
-            return None
-        # elif stream not in self.supported_streams[camera]:
-            # logger.warning("Requested stream that is not supported")
-            # return None
+            return (None, None)
         elif ivcam_preset < 0 or ivcam_preset >= rs.RS_IVCAM_PRESET_COUNT:
             logger.warning("Requested ivcam preset does not exist")
-            return None
+            return (None, None)
         else:
             #get the camera
             cam = self.context.get_device(camera)
 
             if cam is None:
                 logger.error("Tried to get a camera that does not exist")
-                return None
+                return (None, None)
             
-            #enable the stream
-            for s in self.supported_streams[camera]:
-                cam.enable_stream(s, rs.preset_best_quality)
-           
-            #apply the preset
-            rs.apply_ivcam_preset(cam, ivcam_preset)
+            #return the serial num of the camera too
+            sn = cam.get_info(rs.camera_info_serial_number)
+        
+            try:
+                #enable the stream
+                for s in [rs.stream_color, rs.stream_depth, rs.stream_infrared]:
+                    cam.enable_stream(s, rs.preset_best_quality)
+            
+                #apply the preset
+                rs.apply_ivcam_preset(cam, ivcam_preset)
+            except:
+                logger.exception("Could not enable the stream or ivcam presets")
+                return (None, None)
 
             #start the camera
-            cam.start()
+            try:
+                cam.start()
+                 #wait for a single frame
+                cam.wait_for_frames()
+            except:
+                logger.exception("Unable to start the camera")
+                return (None, None)
+           
 
-            #wait for a single frame
-            cam.wait_for_frames()
+            #get all the images at once
+            try:
+                imageFullColor = cam.get_frame_data_u8(rs.stream_color)
+                if imageFullColor.size == 1:
+                    #something went wrong
+                    logger.error("Could not capture the full color image. Size of requested stream did not match")
+                    imageFullColor = None
+                else:
+                    width = cam.get_stream_width(rs.stream_color)
+                    height = cam.get_stream_height(rs.stream_color)    
+                    imageFullColor = np.reshape(imageFullColor, (height, width, 3) )
 
+                imageRectColor = cam.get_frame_data_u8(rs.stream_rectified_color)
+                if imageRectColor.size == 1:
+                    #something went wrong
+                    logger.error("Could not capture the rectifiec image. Size of requested stream did not match")
+                    imageRectColor = None
+                else:
+                    width = cam.get_stream_width(rs.stream_rectified_color)
+                    height = cam.get_stream_height(rs.stream_rectified_color)    
+                    imageRectColor = np.reshape(imageRectColor, (height, width, 3) )
 
-            #switch on the stream the user requested to select the correct method
-            if stream in [rs.RS_STREAM_COLOR, rs.RS_STREAM_RECTIFIED_COLOR, rs.RS_STREAM_COLOR_ALIGNED_TO_DEPTH]:
-                try:
-                    image = cam.get_frame_data_u8(stream)
-                except:
-                    logger.error("Unable to capture the image, unkown reason")
-                    return None
+                imageAllignedColor = cam.get_frame_data_u8(rs.stream_color_aligned_to_depth)
+                if imageAllignedColor.size == 1:
+                    #something went wrong
+                    logger.error("Could not capture the depth alinged image. Size of requested stream did not match")
+                    imageAllignedColor = None
+                else:
+                    width = cam.get_stream_width(rs.stream_color_aligned_to_depth)
+                    height = cam.get_stream_height(rs.stream_color_aligned_to_depth)    
+                    imageAllignedColor = np.reshape(imageAllignedColor, (height, width, 3) )
+
+                imageDepth = cam.get_frame_data_u16(rs.stream_depth)
+                if imageDepth.size == 1:
+                    logger.error("Could not capture the depth image. Size of requested stream did not match")
+                    imageDepth = None
+                else:
+                    width = cam.get_stream_width(rs.stream_depth)
+                    height = cam.get_stream_height(rs.stream_depth)    
+                    imageDepth = np.reshape(imageDepth, (height, width) )
+
                 
-                if(image.size == 1):
+                imageAlignedDepth = cam.get_frame_data_u16(rs.stream_depth_aligned_to_color)
+                if imageAlignedDepth.size == 1:
+                    logger.error("Could not capture the depth alinged to color image. Size of requested stream did not match")
+                    imageAlignedDepth = None
+                else:
+                    width = cam.get_stream_width(rs.stream_depth)
+                    height = cam.get_stream_height(rs.stream_depth)    
+                    imageAlignedDepth = np.reshape(imageAlignedDepth, (height, width) )
+
+                points = cam.get_frame_data_f32(rs.stream_points)
+                if points.size == 1:
                     #something went wrong
-                    logger.error("Could not capture the image. Size of requested stream did not match")
-                    return None
-                width = cam.get_stream_width(stream)
-                height = cam.get_stream_height(stream)    
-                image = np.reshape(image, (height, width, 3) )
+                    logger.error("Could not capture the point cloud. Size of requested stream did not match")
+                    points = None
+                else:
+                    width = cam.get_stream_width(rs.stream_points)
+                    height = cam.get_stream_height(rs.stream_points)    
+                    points = np.reshape(points, (height, width, 3) )
 
-            elif stream in [rs.RS_STREAM_DEPTH, rs.RS_STREAM_INFRARED, rs.RS_STREAM_DEPTH_ALIGNED_TO_COLOR, rs.RS_STREAM_DEPTH_ALIGNED_TO_RECTIFIED_COLOR]:
-                try:
-                    image = cam.get_frame_data_u16(stream)
-                except:
-                    logger.error("Unable to capture the image, unkown reason")
-                    return None
-                if(image.size == 1):
-                    #something went wrong
-                    logger.error("Could not capture the image. Size of requested stream did not match")
-                    return None
-
-                width = cam.get_stream_width(stream)
-                height = cam.get_stream_height(stream)    
-                image = np.reshape(image, (height, width) )
-            
-            elif stream == rs.stream_points:
-                try:
-                    image = cam.get_frame_data_f32(stream)
-                except:
-                    logger.error("Unable to capture the image, unkown reason")
-                    return None
-
-                if(image.size == 1):
-                    #something went wrong
-                    logger.error("Could not capture the image. Size of requested stream did not match")
-                    return None
-
-                width = cam.get_stream_width(stream)
-                height = cam.get_stream_height(stream)    
-                image = np.reshape(image, (height, width, 3) )
+            except:
+                logger.exception("Unable to capture images, unkown reason")
+                cam.stop()
+                return (None, None)
 
             #we are done now
-            cam.stop()
+            try:
+                cam.stop()
+            except:
+                logger.error("Could not stop the camera {}".format(sn))
 
-            return image
+            logger.info("Obtained images")
+            images = [imageFullColor, imageAllignedColor, imageRectColor,
+            imageDepth, imageAlignedDepth, points]
 
-    def isOnline(camera):
-        if camera not int:
-            logger.warning("User passed a non integer argument to see if a camera was online")
-            return False
-        if self.connect is None:
-            logger.warning("No cameras connected, or connect has not been run")
-            return False
-        elif camera >= self.num_cameras or camera < 0:
-            logger.warning("Camera requested does not exist")
-            return False
+            #check if the color image is all black. If so the camera is not connected
+            if np.array_equal(imageFullColor, np.ones((480,640))*255):
+                return (None, None)
+
+            #got an image record the time stamp 
+            self.time_of_last_image[camera] = time.time()
+            return (images, sn)
+
+    def get_online_cams(self):
+        if self.context is None:
+            logger.warning("Tried to access online cams without connecting")
+            return []
+        online_cams = []
+        for cam in range(self.num_cameras):
+            try:
+                c = self.context.get_device(cam)
+                t = time.time() - self.time_of_last_image[cam]
+                if t < 50 or self.time_of_last_image[cam] == 0: #if last image was less than 5 seconds ago camera is probably online
+                    online_cams.append(c.get_info(rs.camera_info_serial_number))
+            except:
+                logger.exception("Tried to access camera {}, but an error occured".format(cam))
+                continue
         
+        return online_cams
+
+    def get_camera_intrinsics(self, camera, stream):
+        if self.context is None:
+            logger.warning("Tried to access camera matrix without connecting")
+            return (None, None)
+        cam = self.context.get_device(camera)
         try:
-            cam = self.context.get_device(camera)
+            cam.enable_stream(stream, rs.preset_best_quality)
+            intrinsics = cam.get_stream_intrinsics(stream)
         except:
-            logger.error("Tried to access camera {}, but an error occured".format(camera))
-            return False
-        
-        if cam not None:
-            return True
-        else:
-            return False
+            logger.exception("Unable to enable stream and get intrinsics")
+            return (None, None)
+        mat = np.zeros((3,3))
+        mat[0, 0] = intrinsics.fx
+        mat[0, 2] = intrinsics.ppx
+        mat[1, 1] = intrinsics.fy
+        mat[1, 2] = intrinsics.ppy
+        mat[2, 2] = 1
+
+        coeffs = np.zeros((5))
+        coeffs[0] = rs.floatp_getitem(intrinsics.coeffs, 0)
+        coeffs[1] = rs.floatp_getitem(intrinsics.coeffs, 1)
+        coeffs[2] = rs.floatp_getitem(intrinsics.coeffs, 2)
+        coeffs[3] = rs.floatp_getitem(intrinsics.coeffs, 3)
+        coeffs[4] = rs.floatp_getitem(intrinsics.coeffs, 4)
+
+        return (mat, coeffs)
             
 
 def test():
@@ -155,9 +213,10 @@ def test():
     x = DepthCameras()
     if not x.connect():
         print("could not connect to the cameras")
-    y = x.acquireImage(0, rs.stream_color_aligned_to_depth)
-    plt.imshow(y)
-    plt.show()
+    y = x.acquire_image(0)
+    if not y is None:
+        plt.imshow(y[0][0])
+        plt.show()
 
 if __name__ == "__main__":
     test()
