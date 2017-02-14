@@ -6,6 +6,7 @@
 
 %include "exception.i"
 %include "typemaps.i"
+%include "carrays.i"
 %include <std_vector.i>
 
 %apply int & OUTPUT {int & width}
@@ -22,10 +23,14 @@ import_array();
 %exception {
   try {
     $action
-  } catch (const std::exception& e) {
+  } catch (const rs::error & e){
     SWIG_exception(SWIG_RuntimeError, e.what());
-  }
+  } catch (const std::runtime_error& e) {
+    SWIG_exception(SWIG_RuntimeError, e.what());
+  } 
 }
+
+%array_functions(float, floatp)
 
 %include "rs.h"
 %include "rs.hpp"
