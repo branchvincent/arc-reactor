@@ -28,6 +28,9 @@ order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
 
+rigidObject_positions=[]
+object_BB=[]
+
 #shelf parameters for object rigid transformation
 shelf_offset = 0.3
 shelf_height = 0.23
@@ -510,7 +513,11 @@ if __name__ == "__main__":
             print objectname
             object=make_object(objectset,objectname,world)
             object.setTransform(*se3.mul((so3.identity(),[1-increment%2*0.04,shelf_offset+0.01*increment+increment%2*0.09,shelf_height+increment/2*0.25]),object.getTransform()))
+            rigidObject_positions.append([1-increment%2*0.04,shelf_offset+0.01*increment+increment%2*0.09,shelf_height+increment/2*0.25])
+            object_BB.append(object.geometry().getBB())
             increment+=1
+            print rigidObject_positions
+            print object_BB
             
     
 
