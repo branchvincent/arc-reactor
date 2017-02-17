@@ -32,8 +32,9 @@ rigidObject_positions=[]
 object_BB=[]
 
 #shelf parameters for object rigid transformation
-shelf_offset = 0.3
-shelf_height = 0.23
+shelf_dims = (0.4,0.4,0.3)
+shelf_offset = 0.45
+shelf_height = 0.25
 #load related files for objects 
 object_template_fn = 'data/objects/object_template.obj'
 objects = {}
@@ -80,6 +81,80 @@ def make_object(object_set,objectname,world):
 		obj.setName(objectname)
 		return obj
 	raise RuntimeError("Unable to load object name %s from set %s"%(objectname,object_set))
+
+def xy_randomize(obj,bmin,bmax):
+	R,t = obj.getTransform()
+	obmin,obmax = obj.geometry().getBB()
+	w = 0.5*(obmax[0]-obmin[0])
+	h = 0.5*(obmax[1]-obmin[1])
+	correction = max(w,h)
+	R = so3.mul(so3.rotation([0,0,1],random.uniform(0,math.pi*2)),R)
+	t[0] = random.uniform(bmin[0]+correction,bmax[0]-correction)
+	t[1] = random.uniform(bmin[1]+correction,bmax[1]-correction)
+	obj.setTransform(R,t)
+
+def xy_jiggle(world,objects,fixed_objects,bmin,bmax,iters,randomize = True):
+	"""Jiggles the objects' x-y positions within the range bmin - bmax, and randomizes orientation about the z
+	axis until the objects are collision free.  A list of fixed objects (fixed_objects) may be given as well.
+
+	Objects for which collision-free resolutions are not found after iters steps will be
+	deleted from the world.
+	"""
+	if randomize:
+		for obj in objects:
+			xy_randomize(obj,bmin,bmax)
+	inner_iters = 10
+	while iters > 0:
+		numConflicts = [0]*len(objects)
+		for (i,j) in collide.self_collision_iter([o.geometry() for o in objects]):
+			numConflicts[i] += 1
+			numConflicts[j] += 1
+		for (i,j) in collide.group_collision_iter([o.geometry() for o in objects],[o.geometry() for o in fixed_objects]):
+			numConflicts[i] += 1
+		
+		amax = max((c,i) for (i,c) in enumerate(numConflicts))[1]
+		cmax = numConflicts[amax]
+		if cmax == 0:
+			#conflict free
+			return
+		print cmax,"conflicts with object",objects[amax].getName()
+		other_geoms = [o.geometry() for o in objects[:amax]+objects[amax+1:]+fixed_objects]
+		for it in xrange(inner_iters):
+			xy_randomize(objects[amax],bmin,bmax)
+			nc = sum([1 for p in collide.group_collision_iter([objects[amax].geometry()],other_geoms)])
+			if nc < cmax:
+				break
+			iters-=1
+		print "Now",nc,"conflicts with object",objects[amax].getName()
+
+	numConflicts = [0]*len(objects)
+	for (i,j) in collide.self_collision_iter([o.geometry() for o in objects]):
+		numConflicts[i] += 1
+		numConflicts[j] += 1
+	for (i,j) in collide.group_collision_iter([o.geometry() for o in objects],[o.geometry() for o in fixed_objects]):
+		numConflicts[i] += 1
+	removed = []
+	while max(numConflicts) > 0:
+		amax = max((c,i) for (i,c) in enumerate(numConflicts))[1]
+		cmax = numConflicts[amax]
+		print "Unable to find conflict-free configuration, removing object",objects[amax].getName(),"with",cmax,"conflicts"
+		removed.append(amax)
+
+		#revise # of conflicts -- this could be faster, but whatever...
+		numConflicts = [0]*len(objects)
+		for (i,j) in collide.self_collision_iter([o.geometry() for o in objects]):
+			if i in removed or j in removed:
+				continue
+			numConflicts[i] += 1
+			numConflicts[j] += 1
+		for (i,j) in collide.group_collision_iter([o.geometry() for o in objects],[o.geometry() for o in fixed_objects]):
+			if i in removed:
+				continue
+			numConflicts[i] += 1
+	removeIDs = [objects[i].index for i in removed]
+	for i in sorted(removeIDs)[::-1]:
+		world.remove(world.rigidObject(i))
+	raw_input("Press enter to continue")
 
 
 
@@ -503,23 +578,26 @@ if __name__ == "__main__":
 
     shelved=[]
     increment=0
+    shelf=world.terrain("shelf")
+    rigid_objects=[]
     for i in range(3):
         dataset=random.choice(objects.keys())
         index = random.randint(0,len(objects[dataset])-1)
 	objname = objects[dataset][index]
 	shelved.append((dataset,objname))
         for objectset,objectname in shelved:
-            print objectset
-            print objectname
             object=make_object(objectset,objectname,world)
-            object.setTransform(*se3.mul((so3.identity(),[1-increment%2*0.04,shelf_offset+0.01*increment+increment%2*0.09,shelf_height+increment/2*0.25]),object.getTransform()))
-            rigidObject_positions.append([1-increment%2*0.04,shelf_offset+0.01*increment+increment%2*0.09,shelf_height+increment/2*0.25])
-            object_BB.append(object.geometry().getBB())
+            object.setTransform(*se3.mul((so3.identity(),[1,shelf_offset,shelf_height+increment/2*0.25]),object.getTransform()))
+            rigid_objects.append(object)
+          
             increment+=1
-            print rigidObject_positions
-            print object_BB
+        xy_jiggle(world,rigid_objects,[shelf],[1-0.5*shelf_dims[0],-0.5*shelf_dims[1]+shelf_offset],[1+0.5*shelf_dims[0],0.5*shelf_dims[1]+shelf_offset],100)
+        """    
+        rigidObject_positions.append([1-increment%2*0.04,shelf_offset+0.01*increment+increment%2*0.09,shelf_height+increment/2*0.25])
+        object_BB.append(object.geometry().getBB())
+        """
             
-    
+            
 
     viewer = MyGLViewer(world)
     viewer.run()
