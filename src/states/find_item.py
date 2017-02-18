@@ -20,7 +20,7 @@ class FindItem(State):
             self.store.put('/item/'+self.ItemDict['name']+'/point_cloud', self.obj_pc)
 
             #fix camera tmp
-            #self.cam_pose = self.store.get('/camera/camera1/pose')
+            self.cam_pose = self.store.get('/camera/camera1/pose')
             #self.cam_pose = self.cam_pose.copy()
             #self.cam_pose[0,3]=self.cam_pose[0,3]+2
             #self.store.put('/camera/camera1/pose', self.cam_pose)
