@@ -14,6 +14,9 @@ pyusb
 # unit test coverage
 pytest-cov
 
+# general
+numpy
+
 # IPython embedded shell
 # IPython
 # enum

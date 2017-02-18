@@ -95,32 +95,13 @@ class MyGLViewer(GLSimulationProgram):
     def __init__(self,world):
         GLSimulationProgram.__init__(self,world,"My GL program")
         self.world = world
-        self.current_velocities = {}
-        self.target=0
-        # self.target=vectorops.add(self.world.rigidObject(self.world.numRigidObjects()-1).getTransform()[1],[-0.05,0,0.1])
-        self.numberOfObjects=world.numRigidObjects()
-        self.graspedObjects=[False]*self.numberOfObjects
-        self.start_flag=0
-        self.flag=0
-        self.t=[]
-        self.state='idle'
-        self.last_state_end=self.sim.getTime()
-        self.start_T=[]
-        self.end_T=[]
-        self.object_p=[]
-        self.retract_T=[]
-        self.idle_T=[]
-        self.score=0
-        self.waiting_list=range(self.numberOfObjects)
-        self.target_in_box=[]
-        self.globals=Globals(world)
-        self.cspace=TestCSpace(self.globals)
-        self.idleT=[]
-        self.output=[]
+   
+
         json_data=open("test.json").read()
         self.trajectory=json.loads(json_data)
-        # print len(self.trajectory)
+        print len(self.trajectory)
         self.t=0
+        self.time=self.trajectory[0][0]
         #Put your initialization code here
     def set_state(self,state):
         print "move from", self.state, 'to ',state
@@ -140,16 +121,23 @@ class MyGLViewer(GLSimulationProgram):
         # q=[0,0,0,0,0,0,90]
         # qdes=vectorops.div(q,angle_to_degree)
         # robotController.setPIDCommand(qdes,rvels[0])
-        while self.t<len(self.trajectory):
-            qdes=[0]
-            q_temp=vectorops.div(self.trajectory[self.t/10],angle_to_degree)
-            for i in range(6):
-                qdes.append(q_temp[i])  
-            print qdes
-            robot.setConfig(qdes)
-            robotController.setPIDCommand(qdes,rvels[0])
-            # time.sleep(0.01)
-            self.t+=1
+        if self.t<len(self.trajectory):
+            print 'sim time:',self.sim.getTime()
+            print 'self.time',self.time
+            if self.sim.getTime()<self.time:
+
+                # robotController.setPIDCommand(self.trajectory[self.t][1]['robot'],rvels[0])
+                robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0])
+                # time.sleep(0.01)
+            else:
+                self.t+=1
+                if self.t<len(self.trajectory):
+                    self.time+=self.trajectory[self.t][0]
+                
+        else:
+            print "done!"
+            exit()
+
      
 
 
