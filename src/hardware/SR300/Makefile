@@ -1,5 +1,5 @@
-ANACONDA3  = /home/bk/anaconda3
-REALSENSE  = /home/bk/Documents/code/reactor/src/hardware/SR300
+ANACONDA3  = /home/bk/anaconda3 #change this to your anaconda3 directory
+REALSENSE  = reactor/src/hardware/SR300 #change this to where you have the realsense headers
 CPP        = g++
 CFLAGS     = -c
 SRCS       =
@@ -8,7 +8,7 @@ CXXSRCS    = realsense_wrap.cxx
 PYTHON_INCLUDE    = -I$(ANACONDA3)/include/python3.5m
 PYTHON_LIB = -L$(ANACONDA3)/lib -lpython3.5m
 REALSENSE_INC = -I$(REALSENSE)
-NUMPY_INC = -I/home/bk/anaconda3/lib/python3.5/site-packages/numpy/core/include
+NUMPY_INC = -I$(ANACONDA3)/lib/python3.5/site-packages/numpy/core/include
 REALSENSELIB = -lrealsense #requires that the user has librealsense.so in the LD_LIBRARY_PATH
 INTERFACE  = realsense.i
 SWIG       = swig
@@ -25,4 +25,5 @@ all: $(SRCS)
 
 clean:
 	rm -f *_wrap* *.o *~ *$(SO) mypython *.pyc .~* core
+
 
