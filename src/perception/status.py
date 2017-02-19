@@ -12,13 +12,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 class CameraStatus:
-
+'''
+Class that contains the status for all cameras in the system
+'''
     def __init__(self):
-        self.connectedCameras = {}
-        self.cameraColorImages = {}
-        self.cameraFullColorImages = {}
-        self.cameraDepthImages = {}
-        self.cameraPointClouds = {}
+        self.connectedCameras = {}              #dictionary says whether or not camera is connected
+        self.cameraColorImages = {}             #depth aligned color images
+        self.cameraFullColorImages = {}         #full color images
+        self.cameraDepthImages = {}             
+        self.cameraPointClouds = {}             #point clouds in xyz
         self.depthCamera = depthCamera.DepthCameras()
         self.depthCamera.connect()
         # self.db_client = PensiveClient(host='http://10.10.1.102:8888')
@@ -29,12 +31,18 @@ class CameraStatus:
         #transforms from aruco to camera
         self.cameraXforms = {}
         self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
+        
+        #need to measure out a target
         self.board = cv2.aruco.CharucoBoard_create(8,11,.0172, 0.0125, self.dictionary)
 
         #get the camera intrinsics for all cameras
         self.get_camera_intrinsics()
 
     def poll(self):
+        '''
+        Checks what cameras are connected and gets new images from the cameras
+        Pushes results to the database
+        '''
         #see what cameras are connected
         list_of_serial_nums = self.depthCamera.get_online_cams()
         for cam_num, sn in enumerate(list_of_serial_nums):
@@ -89,11 +97,14 @@ class CameraStatus:
             if not key in list_of_serial_nums:
                 self.connectedCameras[key] = False
 
-    # create an array that has xyz points with RGB colors of the world based on
-    # what each camera currently sees   
-    # returns a tuple of numpy arrays. one for the vertices and one for the color 
-    def create_current_world_view(self):
 
+    def create_current_world_view(self):
+        '''
+        create an array that has xyz points with RGB colors of the world based on
+        what each camera currently sees   
+        returns a tuple of numpy arrays. one for the vertices and one for the color 
+        Returns a tuple of points and colors if cameras are connected
+        '''
         total_pts = []
         total_color = []
 
@@ -138,6 +149,9 @@ class CameraStatus:
 
 
     def get_camera_intrinsics(self):
+        '''
+        Gets and sets the camera intrinsics for online cameras
+        '''
         list_of_serial_nums = self.depthCamera.get_online_cams()
         for cam_num, sn in enumerate(list_of_serial_nums):
             cameramat, cameracoeff = self.depthCamera.get_camera_intrinsics(cam_num, rs.stream_color)
