@@ -1,4 +1,5 @@
 from master.fsm import State
+import logging; logger = logging.getLogger(__name__)
 
 class CheckItem(State):
     #Confirm item was picked correctly (temp state).
@@ -9,6 +10,8 @@ class CheckItem(State):
         for i, n in self.store.get('/status/').items():
             self.store.put('/status/'+i, False)
         self.store.put('/status/item_picked', True)
+
+        logger.info("{} item was picked successfully".format(self.chosenItem))
 
         self.orderUp = self.store.get('/item/'+self.chosenItem+'/order')
         self.filled = self.store.get('/order/'+self.orderUp+'/filled_items')

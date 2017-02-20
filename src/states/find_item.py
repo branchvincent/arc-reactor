@@ -2,6 +2,7 @@ from master.fsm import State
 from simulation.grabcut import GrabObject
 import cv2
 import numpy
+import logging; logger = logging.getLogger(__name__)
 
 class FindItem(State):
     def run(self):
@@ -41,7 +42,9 @@ class FindItem(State):
         #take camera pic
         #ID shelf, location, etc
         #get point cloud
-
+ 
+        if self.foundLoc is not None:
+            logger.info("Item found at {}".format(self.foundLoc))
 
         #self.foundLoc = self.lastLoc #maybe
         
