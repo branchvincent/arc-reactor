@@ -188,14 +188,14 @@ def stow(world,item,target_box):
 	# l=vectorops.distance(current_T[1],end_T[1])
 	# motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 
-	#from start position to the pregrasp position
+	print 'from start position to the pregrasp position'
 	start_T=copy.deepcopy(current_T)
 	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
 		return False
-	# lower the vacuum
+	print 'lower the vacuum'
 	start_T=copy.deepcopy(end_T)
 	end_T[1]=vectorops.add(item_position,item_vacuum_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
@@ -203,14 +203,15 @@ def stow(world,item,target_box):
 	if not motion_milestones:
 		return False
 
-	#pick the item
+	print 'pick the item'
 	start_T=copy.deepcopy(end_T)
 	end_T[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
 		return False
-	#retract
+
+	print 'retract'
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation=robot.link(ee_link).getTransform()[0]
 	start_T=[curr_orientation,curr_position]
@@ -226,11 +227,10 @@ def stow(world,item,target_box):
 	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
-	# print 'retract'
 	if not motion_milestones:
 		return False
 
-	#go to shelf
+	print 'go to shelf'
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation=robot.link(ee_link).getTransform()[0]
 	start_T=[curr_orientation,curr_position]
@@ -241,7 +241,7 @@ def stow(world,item,target_box):
 	if not motion_milestones:
 		return False
 	# print 'go to shelf'
-	#drop item
+	print 'drop item'
 	start_T=copy.deepcopy(end_T)
 	end_T[1][2]=box_bottom_high+item['drop offset']
 	l=vectorops.distance(start_T[1],end_T[1])
