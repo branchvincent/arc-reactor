@@ -7,7 +7,7 @@ import logging; logger = logging.getLogger(__name__)
 class FindItem(State):
     def run(self):
         self.ItemDict = self.store.get('/item/'+self.store.get('/robot/selected_item'))
-        #self.lastLoc = self.ItemDict['location']
+        self.lastLoc = self.ItemDict['location']
 
         if self.store.get('/simulate/object_detection'):
             self.grab = GrabObject()
@@ -42,11 +42,12 @@ class FindItem(State):
         #take camera pic
         #ID shelf, location, etc
         #get point cloud
+
+        self.foundLoc = self.lastLoc #maybe
  
         if self.foundLoc is not None:
             logger.info("Item found at {}".format(self.foundLoc))
 
-        #self.foundLoc = self.lastLoc #maybe
         
         #self.store.put('/item/'+self.ItemDict['name']+'/location',  self.foundLoc)
         self.store.put('/status/selected_item_location', True)
