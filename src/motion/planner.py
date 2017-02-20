@@ -301,11 +301,11 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		# print i
 		# print s
 		# print test_cspace.feasible(q)
-		while n<5:
+		while n<10:
 			if s and test_cspace.feasible(q):
 				break
 			else:
-				print "no feasible ik solution found"
+				# print "no feasible ik solution found"
 				# print world_p
 				robot.setConfig(q_old)
 				# s=ik.solve_nearby(goal,maxDeviation=5,feasibilityCheck=test_function)

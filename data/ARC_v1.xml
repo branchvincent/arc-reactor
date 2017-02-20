@@ -94,7 +94,7 @@
 
 
 
-  <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position="0.9 0.45 0.87" rotateZ="0.0">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.9 0.45 0.87" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
@@ -106,13 +106,13 @@
   <rigidObject name="srimug2" file="objects/block_small.obj"  position="1.0 0.25 0.37" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
-  </rigidObject>  -->
+  </rigidObject> 
 
   <target position="-0.4 0 0.3" />
 
   <simulation>
     <globals /> 
-    <!-- <object index="0">
+    <object index="0">
        <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
     </object>
     <object index="1">
@@ -122,6 +122,6 @@
     <object index="2">
        <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
     </object>
-   -->
+  
   </simulation>
 </world>

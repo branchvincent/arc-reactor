@@ -168,7 +168,7 @@ class MyGLViewer(GLSimulationProgram):
         self.t=0
         self.T=[]
         self.flag=0
-        self.place_position=[[] for i in range(world.numRigidObjects())]
+        self.place_position=[]
         self.task='pick'
         self.last_end_time=0
         self.target_list=[]
@@ -242,21 +242,31 @@ class MyGLViewer(GLSimulationProgram):
                     target_box['position']=[0.2,0.8,0.05]
                     self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
                     if self.trajectory==False:
-                        print "not able to pick it!",self.target
-                        self.score+=1
-                        if self.task=='pick':
-                            self.target+=1
-                        if self.target>=self.total_object:
-                            self.task='stow'
+					    self.place_position.append([0,0,0])
+					    print "not able to pick it!",self.target
+					    self.score+=1
+					    if self.task=='pick':
+					    	self.target+=1
+					    if self.target>=self.total_object:
+					    	self.task='stow'
+					    if self.task=='stow':
+					    	self.target-=1
+						# if self.task=='pick':
+						#     self.target+=1
+						# if self.target>=self.total_object:
+						#     self.task='stow'
+						# if self.task=='stow':
+						#     self.target-=1
+						# print "one pick task is done!"
                     else:
-                        self.place_position[self.target]=self.sim.world.rigidObject(self.target).getTransform()[1]
+                        self.place_position.append(self.sim.world.rigidObject(self.target).getTransform()[1])
                     print self.target
                     # time.sleep(1)
                 else:
                     target_item={}
                     target_box={}
                     # print self.sim.world.rigidObject(self.target).getVelocity()[0]
-                    print self.target
+                    
                     if self.target<0 or not self.place_position[self.target]:
                         self.target-=1
                         if self.target>=0:
@@ -267,7 +277,7 @@ class MyGLViewer(GLSimulationProgram):
                     if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.001:
                         # print 'turning!'
                         return
-                    
+                    print 'stowing:',self.target
                     target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
                     target_item["vacuum_offset"]=[0,0,0.1]
@@ -339,26 +349,26 @@ if __name__ == "__main__":
         res = world.readFile(fn)
         if not res:
             raise RuntimeError("Unable to load model "+fn)
-    shelved=[]
-    increment=0
-    shelf=world.terrain("shelf")
-    rigid_objects=[]
-    for i in range(2):
-        dataset=random.choice(objects.keys())
-        index = random.randint(0,len(objects[dataset])-1)
-        objname = objects[dataset][index]
-        shelved.append((dataset,objname))
-        for objectset,objectname in shelved:
-            object=make_object(objectset,objectname,world)
-            object.setTransform(*se3.mul((so3.identity(),[1,shelf_offset,shelf_height+increment/2*0.25]),object.getTransform()))
-            rigid_objects.append(object)
+    # shelved=[]
+    # increment=0
+    # shelf=world.terrain("shelf")
+    # rigid_objects=[]
+    # for i in range(2):
+    #     dataset=random.choice(objects.keys())
+    #     index = random.randint(0,len(objects[dataset])-1)
+    #     objname = objects[dataset][index]
+    #     shelved.append((dataset,objname))
+    #     for objectset,objectname in shelved:
+    #         object=make_object(objectset,objectname,world)
+    #         object.setTransform(*se3.mul((so3.identity(),[1,shelf_offset,shelf_height+increment/2*0.25]),object.getTransform()))
+    #         rigid_objects.append(object)
           
-            increment+=1
-        xy_jiggle(world,rigid_objects,[shelf],[1-0.5*shelf_dims[0],-0.5*shelf_dims[1]+shelf_offset],[1+0.5*shelf_dims[0],0.5*shelf_dims[1]+shelf_offset],100)
-        """    
-        rigidObject_positions.append([1-increment%2*0.04,shelf_offset+0.01*increment+increment%2*0.09,shelf_height+increment/2*0.25])
-        object_BB.append(object.geometry().getBB())
-        """
+    #         increment+=1
+    #     xy_jiggle(world,rigid_objects,[shelf],[1-0.5*shelf_dims[0],-0.5*shelf_dims[1]+shelf_offset],[1+0.5*shelf_dims[0],0.5*shelf_dims[1]+shelf_offset],100)
+    #     """    
+    #     rigidObject_positions.append([1-increment%2*0.04,shelf_offset+0.01*increment+increment%2*0.09,shelf_height+increment/2*0.25])
+    #     object_BB.append(object.geometry().getBB())
+    #     """
 
     viewer = MyGLViewer(world)
     viewer.run()
