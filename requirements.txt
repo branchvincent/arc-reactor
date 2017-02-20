@@ -10,6 +10,10 @@ sqlalchemy
 
 # vacuum interface
 pyusb
+pigpio
+appdirs
+six
+packaging
 
 # unit test coverage
 pytest-cov
