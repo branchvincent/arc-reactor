@@ -28,9 +28,10 @@ if cwd not in sys.path:
 import imp
 import init
 import utils
-
+import intersect
 imp.reload(init)
 imp.reload(utils)
+imp.reload(intersect)
 
 from init import initShelf
 
@@ -46,6 +47,18 @@ itemNum = 1
 dz = 0.65
 radius = 0.2
     
+scn = bpy.data.scenes["Scene"]
+scn.frame_start = 1
+scn.frame_end = 3
+scn.frame_step = 1
+    
+#RenderData
+rd = scn.render
+rd.fps = 1
+rd.resolution_x = 720
+rd.resolution_y = 1280
+
+
 def renderfrom(Cam, i, k):
     #change the active camera
     bpy.data.scenes["Scene"].camera = Cam
@@ -62,17 +75,20 @@ def randomSelect(list, itemNum):
 def run(i):
     itemsObjSel = []
     itemsSel = randomSelect(items, itemNum)  #generate a random selection of items
-    locs = utils.vecListGen(itemNum, utils.locGen, radius, isLoc=1, dz=dz)
-    rots = utils.vecListGen(itemNum, utils.rotGen, radius, isLoc=0)
     #import .obj model
+    
+    locs = utils.vecListGen_dist(itemNum, utils.locGen, radius=radius, isLoc=1, layer=3)
+    rots = utils.vecListGen_dist(itemNum, utils.rotGen, radius=radius, isLoc=0, layer=3)
+
     for j, item in enumerate(itemsSel):
         utils.importItem(item, itemsDir)
-        itemsObjSel.append(bpy.data.objects[item])
-        logger.info(item + " is imported with LOC: " + str(locs[j]) + " and ROT: " + str(rots[j]))
-        utils.addItemSettings(bpy.data.objects[item], locs[j], rots[j])
+        obj = bpy.data.objects[item]
+        itemsObjSel.append(obj)
+        utils.addItemSettings(obj, locs[j], rots[j])
         utils.addMaterialSettings(item)
-        logger.info("All items are configured")
+    logger.info("All items are configured")
     #rendering from each camera    
+
     for k,cam in enumerate(camList):
         renderfrom(bpy.data.objects[cam], i, k)
         logger.info("Rendering from " + cam + " is completed")
@@ -101,8 +117,6 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
 
     bpy.context.scene.render.engine = 'BLENDER_RENDER'
-    scn = bpy.data.scenes["Scene"]
-    utils.addSceneSettings(scn)
     initShelf()
     items = getItemsList(itemsDir)
     for i in range(imgNum):

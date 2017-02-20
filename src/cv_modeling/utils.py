@@ -51,23 +51,27 @@ def addMaterialSettings(obj):
         mat.specular_intensity = 0.00
         
 def isValidloc(vec, list, radius):
-    if (vec[0] > 0) | (vec[1] > 0):
-        # The item is not overlapped with the cube
-        if vec[0]**2 + vec[1]** 2 < (radius - 0.05) **2:
+    if vec[0]**2 + vec[1]** 2 < (radius - 0.05) **2:
             # The item is on the shelf
+        if vec[0]**2 + vec[1]** 2 > 0.05:
             for loc in list:
                 dist = math.sqrt((vec[0] - loc[0])**2 +
                         (vec[1] - loc[1])**2 +
                         (vec[2] - loc[2])**2) 
-                if dist < 0.05:
+                if dist > 0.05:
                     #distance btw each item is greater than 0.1
-                    return False
-            return True
+                    return True
     return False
 
-def locGen(dz):
+def locGen(layer):
     dx = random.randrange(0, 15, 1) / 100.0
     dy = random.randrange(0, 15, 1) / 100.0
+    if layer == 3:
+        dz = random.randrange(65, 100, 1) / 100.0
+    elif layer == 2:
+        dz = randoom.randrange(30, 40, 1) / 100.0
+    elif layer == 1:
+        dz = random.randrange(5, 20, 1) / 100.0
     return Vector((dx,dy,dz))
 
 def rotGen():
@@ -76,19 +80,29 @@ def rotGen():
     x3 = random.randrange(0,360,1) / 180.0 * math.pi
     return Vector((x1,x2,x3))
 
-#generate a list of vector
-def vecListGen(itemsNum, vecGen, radius = 0.2, isLoc=1, dz=0):
+#generate a list of vector with uniform distance between each item
+def vecListGen_dist(itemsNum, vecGen, radius = 0.2, isLoc=1, layer=3):
     list = []
     for i in range(itemsNum):
         if isLoc:
-            if dz==0:
-                print('please input dz')
-                exit()
-            loc = vecGen(dz)    
+            loc = vecGen(layer)    
             while(not isValidloc(loc, list, radius)):
-                loc = vecGen(dz)
+                loc = vecGen(layer)
         else:
             loc = vecGen()
         list.append(loc)
     return list
+
+#So the system should detect collision btw each single object in the scene
+def vecListGen_bmesh(items, shelf, radius = 0.2, isLoc=1, dz=0):
+    items_existed = [shelf]
+    for i, item in enumerate(items):
+        obj = bpy.data.objects[item]
+        obj.rotation_euler = rotGen()
+        obj.location = locGen(dz)
+        for item_existed in items_existed:
+            while(intersect(item, item_existed)):
+                obj.location = locGen()
+        items_existed.append(obj)
+    return
 
