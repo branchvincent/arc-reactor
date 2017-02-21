@@ -14,11 +14,18 @@ VACUUM_GPIO_DEFAULT_PORT = 8888
 logger = logging.getLogger(__name__)
 
 class Vacuum(object):
+    '''
+    Vacuum controller for a Raspberry Pi.
+
+    Reads host and pin from database or environment variables if not provided.
+    Also ensures that the vacuum is turned off when the object is destroyed.
+    '''
+
     def __init__(self, host=None, port=None, pin=None, store=None):
         self._pin = pin
         if not self._pin and store:
             # read pin from database
-            self._pin = store.get('/config/rio/pin')
+            self._pin = store.get('/config/rio/vacuum')
         if not self._pin:
             # fall pack to default
             self._pin = VACUUM_GPIO_BCM_PIN
@@ -44,6 +51,7 @@ class Vacuum(object):
         logger.info('vacuum connected')
 
     def __del__(self):
+        # turn the vacuum off
         self.off()
 
     def on(self):
@@ -59,6 +67,9 @@ class Vacuum(object):
         return not self.query()
 
     def change(self, on):
+        '''
+        Change the vacuum state.
+        '''
         value = False
 
         if isinstance(on, bool):
@@ -70,4 +81,7 @@ class Vacuum(object):
         self._rio.write(self._pin, on)
 
     def query(self):
+        '''
+        Check the vacuum state.
+        '''
         return bool(self._rio.read(self._pin))
