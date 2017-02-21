@@ -8,6 +8,8 @@ import pigpio
 
 from os import environ
 
+from pensive.client import PensiveClient
+
 VACUUM_GPIO_BCM_PIN = 3
 VACUUM_GPIO_DEFAULT_PORT = 8888
 
@@ -22,17 +24,19 @@ class Vacuum(object):
     '''
 
     def __init__(self, host=None, port=None, pin=None, store=None):
+        self._store = store or PensiveClient().default()
+
         self._pin = pin
-        if not self._pin and store:
+        if not self._pin:
             # read pin from database
-            self._pin = store.get('/config/rio/vacuum')
+            self._pin = self._store.get('/config/rio/vacuum')
         if not self._pin:
             # fall pack to default
             self._pin = VACUUM_GPIO_BCM_PIN
 
-        if not host and store:
+        if not host:
             # read host from the database
-            host = store.get('/config/rio/host')
+            host = self._store.get('/config/rio/host')
         if not host:
             # fall back to environment variable
             host = environ.get('RIO_SERVER', None)
@@ -43,16 +47,30 @@ class Vacuum(object):
         if not port:
             port = VACUUM_GPIO_DEFAULT_PORT
 
-        logger.debug('vacuum using {}:{} pin {}'.format(host, port, self._pin))
+        if self._store.get('/simulate/vacuum'):
+            logger.debug('vacuum simulated')
+            self._rio = None
+        else:
+            logger.debug('vacuum using {}:{} pin {}'.format(host, port, self._pin))
 
-        self._rio = pigpio.pi(host, port)
-        self._rio.set_mode(self._pin, pigpio.OUTPUT)
+            self._rio = pigpio.pi(host, port)
+            # actually check the connection
+            if not self._rio.connected:
+                raise RuntimeError('failed to connect vacuum')
 
-        logger.info('vacuum connected')
+            # configure vacuum pin
+            self._rio.set_mode(self._pin, pigpio.OUTPUT)
+
+            logger.info('vacuum connected')
 
     def __del__(self):
         # turn the vacuum off
         self.off()
+
+        # release resources
+        if self._rio:
+            logger.info('vacuum disconnected')
+            self._rio.stop()
 
     def on(self):
         self.change(True)
@@ -68,7 +86,7 @@ class Vacuum(object):
 
     def change(self, on):
         '''
-        Change the vacuum state.
+        Change the vacuum state and update the database.
         '''
         value = False
 
@@ -77,11 +95,21 @@ class Vacuum(object):
         elif on.lower() == 'on':
             value = True
 
-        logger.info('vacuum turned {}'.format('on' if value else 'off'))
-        self._rio.write(self._pin, on)
+        # check if real or simulated vacuum
+        if self._rio:
+            logger.info('vacuum turned {}'.format('on' if value else 'off'))
+            self._rio.write(self._pin, on)
+        else:
+            logger.info('vacuum turned {} (simulated)'.format('on' if value else 'off'))
+
+        self._store.put('/vacuum/status', on)
 
     def query(self):
         '''
         Check the vacuum state.
         '''
-        return bool(self._rio.read(self._pin))
+        # check if real or simulated vacuum
+        if self._rio:
+            return bool(self._rio.read(self._pin))
+        else:
+            return self._store.get('/vacuum/status')
