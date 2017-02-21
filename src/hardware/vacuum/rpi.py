@@ -15,6 +15,12 @@ VACUUM_GPIO_DEFAULT_PORT = 8888
 
 logger = logging.getLogger(__name__)
 
+class ConnectionError(RuntimeError):
+    '''
+    Exception represented a failed vacuum connection.
+    '''
+    pass
+
 class Vacuum(object):
     '''
     Vacuum controller for a Raspberry Pi.
@@ -26,6 +32,14 @@ class Vacuum(object):
     def __init__(self, host=None, port=None, pin=None, store=None):
         self._store = store or PensiveClient().default()
 
+        if self._store.get('/simulate/vacuum', True):
+            self._rio = None
+            logger.debug('vacuum simulated')
+        else:
+            self._connect(host, port, pin)
+            logger.info('vacuum connected')
+
+    def _connect(self, host, port, pin):
         self._pin = pin
         if not self._pin:
             # read pin from database
@@ -47,30 +61,24 @@ class Vacuum(object):
         if not port:
             port = VACUUM_GPIO_DEFAULT_PORT
 
-        if self._store.get('/simulate/vacuum'):
-            logger.debug('vacuum simulated')
-            self._rio = None
-        else:
-            logger.debug('vacuum using {}:{} pin {}'.format(host, port, self._pin))
+        logger.debug('vacuum using {}:{} pin {}'.format(host, port, self._pin))
 
-            self._rio = pigpio.pi(host, port)
-            # actually check the connection
-            if not self._rio.connected:
-                raise RuntimeError('failed to connect vacuum')
+        self._rio = pigpio.pi(host, port)
+        # actually check the connection
+        if not self._rio.connected:
+            raise ConnectionError('failed to connect vacuum')
 
-            # configure vacuum pin
-            self._rio.set_mode(self._pin, pigpio.OUTPUT)
+        # configure vacuum pin
+        self._rio.set_mode(self._pin, pigpio.OUTPUT)
 
-            logger.info('vacuum connected')
+    # def __del__(self):
+    #     # turn the vacuum off
+    #     self.off()
 
-    def __del__(self):
-        # turn the vacuum off
-        self.off()
-
-        # release resources
-        if self._rio:
-            logger.info('vacuum disconnected')
-            self._rio.stop()
+    #     # release resources
+    #     if self._rio:
+    #         logger.info('vacuum disconnected')
+    #         self._rio.stop()
 
     def on(self):
         self.change(True)
