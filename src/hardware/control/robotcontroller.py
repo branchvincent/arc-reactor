@@ -7,7 +7,7 @@ from copy import deepcopy
 from math import degrees, radians, isnan, isinf
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
-from hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
+from hardware.vacuum.powerusb.vpower import PowerUSBStrip, PowerUSBSocket
 
 # List of robot IP addresses
 robots = {  'left': '10.10.1.202',
@@ -64,16 +64,9 @@ class Robot:
         self.name = self.client.name
         self.store = store or PensiveClient().default()
         self.receivedMilestones = []
-        # USB
-        if not self.store.get('/simulate/vacuum'):
-            self.strips = PowerUSBStrip().strips()
-            self.strip = self.strips[0]
-            self.socket = PowerUSBSocket(self.strip,1)
-            self.strip.open()
-            self.socket.power = "off"
-        else:
-            self.strip = None
-            self.socket = None
+        # Vacuum
+        self.vacuum = Vacuum()
+        self.vacuum.on()
         # Queue
         self.startIndex = None
 
@@ -114,14 +107,7 @@ class Robot:
 
     def toggleVacuum(self, turnOn):
         """Toggles the vacuum power"""
-        if self.socket:
-            self.strip.open()
-            if turnOn:
-                logger.info('Turning vacuum on')
-                self.socket.power = "on"
-            else:
-                logger.info('Turning vacuum off')
-                self.socket.power = "off"
+        self.vacuum.change(turnOn)
 
 
 class Trajectory:
@@ -143,8 +129,13 @@ class Trajectory:
         logger.info('Starting trajectory')
         self.curr_index = 0
         self.curr_milestone = self.milestones['robot'][self.curr_index]
-        # if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):    //TODO
+        if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):    #TODO
             # Send additional config to robot
+            m0 = deepcopy(self.curr_milestone[1])
+            m0[0] = 2*self.speed
+            m0[1]['robot'] = self.robot.getCurrentConfig()
+            self.robot.sendMilestone(m0)
+            logger.warning('Initial configuration is not current configuration.')
         for m in self.milestones['robot'][:bufferSize]:
             self.robot.sendMilestone(m)
 

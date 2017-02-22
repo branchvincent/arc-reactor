@@ -8,7 +8,7 @@ from copy import deepcopy
 from math import pi, degrees, radians
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
-from hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
+from hardware.vacuum.powerusb.vpower import PowerUSBStrip, PowerUSBSocket
 
 # List of robot IP addresses
 robots = {  'left': '10.10.1.202',
