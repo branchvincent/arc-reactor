@@ -12,9 +12,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 class CameraStatus:
-'''
-Class that contains the status for all cameras in the system
-'''
+    '''
+    Class that contains the status for all cameras in the system
+    '''
     def __init__(self):
         self.connectedCameras = {}              #dictionary says whether or not camera is connected
         self.cameraColorImages = {}             #depth aligned color images
