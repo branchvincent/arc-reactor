@@ -2,14 +2,11 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-
 import matplotlib.pyplot as plt
-
 import skimage.transform
 import sklearn.cross_validation
 import pickle
 import os
-
 import scipy.ndimage.interpolation as sn
 from scipy.misc import imresize
 from lasagne.layers import InputLayer, DenseLayer, NonlinearityLayer
@@ -19,26 +16,25 @@ from lasagne.nonlinearities import softmax
 from lasagne.utils import floatX
 
 
-
 class ObjectRecognizer:
     '''
     Class for performing object recognition. Uses theano and pretrained net to guess object
     '''
+
     def __init__(self):
         '''
         Loads in the network when class is created
         '''
         self.network = self.build_model()
         self.weights = self.loadWeights()
-        lasagne.layers.set_all_param_values(self.network['prob'], self.weights['param values'])
-        self.output_layer = DenseLayer(self.network['fc7'], num_units=len(chosen_classes), nonlinearity=softmax)
-        self.prediction = None
-        self.pred_fn = None
         self.X_sym = T.tensor4()
-        self.setUpPrediction()
-
+        lasagne.layers.set_all_param_values(self.network['prob'], self.weights['param values'])
+        self.output_layer = self.network['prob']
+        self.prediction = lasagne.layers.get_output(self.output_layer, self.X_sym)
+        self.pred_fn = theano.function([self.X_sym], self.prediction)
 
     def build_model(self):
+        #NOTE: perhaps we should save the network architecture along with the weights, since they could be different
         net = {}
         net['input'] = InputLayer((None, 3, 224, 224))
         net['conv1_1'] = ConvLayer(net['input'], 64, 3, pad=1)
@@ -63,16 +59,13 @@ class ObjectRecognizer:
         net['fc7'] = DenseLayer(net['fc6'], num_units=4096)
         net['fc8'] = DenseLayer(net['fc7'], num_units=1000, nonlinearity=None)
         net['prob'] = NonlinearityLayer(net['fc8'], softmax)
-        
-    return net
 
+        return net
 
-    def loadWeights(self):
+    def loadWeights(self,filename='vgg16.pkl'):
         # Load model weights and metadata
-        d = pickle.load(open('vgg16.pkl'))
+        d = pickle.load(open(filename))
         return d
-
-    
 
     def prep_image(self, im):
         '''
@@ -82,37 +75,30 @@ class ObjectRecognizer:
         # Resize so smallest dim = 256, preserving aspect ratio
         h, w, _ = im.shape
         if h < w:
-            im = skimage.transform.resize(im, (256, w*256/h), preserve_range=True)
+            im = skimage.transform.resize(im, (256, w * 256 / h), preserve_range=True)
         else:
-            im = skimage.transform.resize(im, (h*256/w, 256), preserve_range=True)
-
+            im = skimage.transform.resize(im, (h * 256 / w, 256), preserve_range=True)
         # Central crop to 224x224
         h, w, _ = im.shape
-        im = im[h//2-112:h//2+112, w//2-112:w//2+112]
-        
+        im = im[h // 2 - 112:h // 2 + 112, w // 2 - 112:w // 2 + 112]
+
         rawim = np.copy(im).astype('uint8')
-        
+
         # Shuffle axes to c01
         im = np.swapaxes(np.swapaxes(im, 1, 2), 0, 1)
-        
+
         # discard alpha channel if present
         im = im[:3]
-
         # Convert to BGR
         im = im[::-1, :, :]
-
         im = im - IMAGE_MEAN
         return rawim, floatX(im[np.newaxis])
 
-    def setUpPrediction(self):
-        self.prediction = lasagne.layers.get_output(self.output_layer, self.X_sym)
-        self.pred_fn = theano.function([self.X_sym], self.prediction)
-
     def guessObject(self, image):
         '''
-        Given an image as np array returns a list of classes and a confidence value
+        Given an image as np array returns a list of classes and a confidence value, and the best prediction
         '''
-        #prep images
-        prepped_image = self.prep_image(image)
+        # prep images
+        _,prepped_image = self.prep_image(image)
         guess = self.pred_fn(prepped_image)
-        return guess
+        return guess,guess.argmax(-1)
