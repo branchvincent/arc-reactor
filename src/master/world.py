@@ -5,10 +5,29 @@ import numpy
 from math import pi
 
 from klampt import WorldModel, RigidObjectModel, PointCloud
+from klampt.math import so3
 
 from pensive.client import Store
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+def xyz_rpy(xyz=None, rpy=None):
+    xyz = xyz or [0, 0, 0]
+    rpy = rpy or [0, 0, 0]
+
+    Rall = None
+
+    for (i, angle) in enumerate(rpy):
+        axis = [0, 0, 0]
+        axis[i] = 1
+
+        R = so3.rotation(axis, angle)
+        if Rall:
+            Rall = so3.mul(Rall, R)
+        else:
+            Rall = R
+
+    return klampt2numpy((Rall, xyz))
 
 def numpy2klampt(T):
     # remove singleton dimensions
@@ -25,12 +44,12 @@ def numpy2klampt(T):
 def klampt2numpy(k):
     if len(k) == 9:
         # rotation matrix only
-        T = numpy.eye(4,4)
+        T = numpy.asmatrix(numpy.eye(4,4))
         T[:3,:3] = numpy.array(k).reshape((3,3))
     elif len(k) == 2:
         # tuple of rotation matrix and translation vector
         T = klampt2numpy(k[0])
-        T[:3,3] = k[1]
+        T[:3,3] = numpy.array([k[1]]).T
     else:
         raise RuntimeError('unknown array for conversion: {}'.format(k))
 
