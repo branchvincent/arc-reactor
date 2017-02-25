@@ -1,7 +1,8 @@
+VERSION			= 2.7
 CPP        		= g++
 CFLAGS     		= -g -std=c++11 -fPIC -O3
-PYTHON_INC 		= /usr/include/python3.5m
-PYTHON_LIB 		= python3.5m
+PYTHON_INC 		= /usr/include/python$(VERSION)
+PYTHON_LIB 		= python$(VERSION)
 NUMPY_INC  		= $(PYTHON_INC)/site-packages/numpy/core/include
 RS_INC 	   		= .
 RS_LIB     		= realsense
@@ -12,7 +13,7 @@ TARGET			= realsense
 %_wrap.cxx: %.i
 	$(SWIG) $(SWIGOPT) $<
 
-%.py: %.i
+%.py: %.i ;
 
 %_wrap.o: %_wrap.cxx
 	$(CPP) $(CFLAGS) -c $< -I$(PYTHON_INC) -I$(RS_INC) -I$(NUMPY_INC)
