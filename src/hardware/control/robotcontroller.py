@@ -7,15 +7,14 @@ from copy import deepcopy
 from math import degrees, radians, isnan, isinf
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
-from hardware.vacuum.powerusb.vpower import PowerUSBStrip, PowerUSBSocket
+from hardware.vacuum import Vacuum
 
 # List of robot IP addresses
-robots = {  'left': '10.10.1.202',
-            'right': '10.10.1.203',
-            'local': 'localhost'    }
-
 dof = 6
 bufferSize = 100
+robots = {  'left':  '10.10.1.202',
+            'right': '10.10.1.203',
+            'local': 'localhost'    }
 
 # Helper functions
 
@@ -28,10 +27,9 @@ def Assert(condition, message):
 def convertConfigToRobot(q_old, speed):
     """Converts database-style configuration to robot-stye configuration"""
     # Check for errors
-    # Assert(q_old[1]['robot'])
     Assert(len(q_old[1]['robot']) == dof + 1, 'Configuration {} is of improper size'.format(q_old[1]['robot']))
     Assert(0 < speed <= 1, 'Speed {} is not in (0,1]'.format(speed))
-    for qi in q[1]['robot']:
+    for qi in q_old[1]['robot']:
         Assert(not isinf(qi) and not isnan(qi), 'Invalid configuration {}'.format(qi))
     # Convert to robot
     q = list(deepcopy(q_old))
@@ -40,7 +38,7 @@ def convertConfigToRobot(q_old, speed):
     q[1]['robot'][3] *= -1
     q[1]['robot'][5] *= -1
     del q[1]['robot'][0]
-    return tuple(q)
+    return q
 
 def convertConfigToDatabase(q_old):
     """Converts robot-style configuration to database-stye configuration"""
@@ -54,7 +52,8 @@ def convertConfigToDatabase(q_old):
     q.insert(0,0)
     q[3] *= -1
     q[5] *= -1
-    return tuple(q)
+    return q
+
 
 class Robot:
     """A robot defined by its trajectory client"""
@@ -65,8 +64,7 @@ class Robot:
         self.store = store or PensiveClient().default()
         self.receivedMilestones = []
         # Vacuum
-        self.vacuum = Vacuum()
-        self.vacuum.on()
+        self.vacuum = Vacuum(store=self.store)
         # Queue
         self.startIndex = None
 
@@ -75,18 +73,18 @@ class Robot:
         dt = milestone[0]
         q = milestone[1]['robot']
         # Add milestone and update start index, if first milestone
-        if not self.startIndex:
+        if self.startIndex == None:
             self.startIndex = self.client.addMilestone(dt,q)
-            Assert(self.startIndex, 'Could not add milestone {}'.format((dt,q)))
+            Assert(self.startIndex != None, 'Could not add milestone {}'.format((dt,q)))
             logger.debug('Motion plan starting at index {}'.format(self.startIndex))
         # Add milestone without reply
         else:
-            success = self.client.addMilestoneQuiet(dt,q)
-            Assert(success, 'Could not add milestone {}'.format((dt,q)))
+            self.client.addMilestoneQuiet(dt,q)
         self.receivedMilestones.append(milestone)
         indexRel = len(self.receivedMilestones) - 1
         indexAbs = self.startIndex + indexRel
-        logger.info('Adding milestone {} or {}: {}'.format(indexRel,indexAbs,(dt,q)))
+        qf = [round(qi,1) for qi in q]
+        logger.info('Adding milestone {}, {}: {}'.format(indexRel,indexAbs,(round(dt,3),qf)))
 
     def getCurrentMilestone(self):
         """Returns the milestone currently being executed"""
@@ -104,10 +102,6 @@ class Robot:
     def getCurrentConfig(self):
         """Returns the robot's current configuration"""
         return self.client.getConfig()
-
-    def toggleVacuum(self, turnOn):
-        """Toggles the vacuum power"""
-        self.vacuum.change(turnOn)
 
 
 class Trajectory:
@@ -129,36 +123,41 @@ class Trajectory:
         logger.info('Starting trajectory')
         self.curr_index = 0
         self.curr_milestone = self.milestones['robot'][self.curr_index]
-        if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):    #TODO
-            # Send additional config to robot
-            m0 = deepcopy(self.curr_milestone[1])
-            m0[0] = 2*self.speed
-            m0[1]['robot'] = self.robot.getCurrentConfig()
-            self.robot.sendMilestone(m0)
+        # Check initial config is current config
+        if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):
+            self.curr_milestone[0] = 3
             logger.warning('Initial configuration is not current configuration.')
+        # Send first milestones
         for m in self.milestones['robot'][:bufferSize]:
             self.robot.sendMilestone(m)
 
     def update(self):
         """Checks the current milestone in progress and updates, if necessary"""
         actual_index = self.robot.getCurrentIndexRel()
+        # Update milestone, if current belief is wrong
         if self.curr_index != actual_index:
             self.advanceMilestone(actual_index)
 
     def advanceMilestone(self, milestone_index):
         """Advances to the next milestone, if applicable"""
+        missed_milestones = milestone_index - self.curr_index
         self.curr_index = milestone_index
+        # Update milestone
         if self.curr_index < len(self.milestones['robot']):
             self.curr_milestone = self.milestones['robot'][self.curr_index]
-            turnVacuumOn = (self.curr_milestone[1].get('vacuum', 'off') == 'on')
-            self.robot.toggleVacuum(turnVacuumOn)
-            if bufferSize + self.curr_index - 1 < len(self.milestones['robot']):
-                self.robot.sendMilestone(self.milestones['robot'][bufferSize + self.curr_index - 1])
+            self.robot.vacuum.change(self.curr_milestone[1].get('vacuum', 'off') == 'on')
+            logger.info('Moving to milestone {}'.format(self.robot.getCurrentIndexAbs()))
+            # Add new milestone
+            if len(self.robot.receivedMilestones) < len(self.milestones['robot']):
+                start = len(self.robot.receivedMilestones)
+                stop = start + missed_milestones
+                for m in self.milestones['robot'][start:stop]:
+                    self.robot.sendMilestone(m)
+        # Trajectory finished
         else:
             self.complete = True
             self.curr_index = None
             self.curr_milestone = None
-        logger.info('Moving to milestone {}'.format(self.robot.getCurrentIndexAbs()))
 
 
 class RobotController:
@@ -176,7 +175,6 @@ class RobotController:
 
     def run(self):
         """Runs the current trajectory in the database"""
-        # self.updatePlannedTrajectory()
         if self.trajectory:
             self.trajectory.start()
             self.loop()
@@ -194,15 +192,15 @@ class RobotController:
     def updateCurrentConfig(self, path='robot/current_config'):
         """Updates the database with the robot's current configuration."""
         q = self.robot.getCurrentConfig()
-        q = convertConfigToDatabase(q) #TODO
+        q = convertConfigToDatabase(q)
         self.store.put(path, q)
 
     # def updatePlannedTrajectory(self, path='robot/waypoints'):
     #     """Updates the robot's planned trajectory from the database"""
     #     self.trajectory = Trajectory(self.robot, self.store.get(path))
 
-if __name__ == "__main__":
-    store = PensiveClient(host='http://10.10.1.102:8888/').default()
+# if __name__ == "__main__":
+    # store = PensiveClient(host='http://10.10.1.102:8888/').default()
     # c = RobotController(store=store)
     # sample_milestones = [
     #        (2, {
