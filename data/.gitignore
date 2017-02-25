@@ -1,2 +1,16 @@
 /bootstrap-*
 /jquery-*
+
+# geometry files
+*.obj
+*.off
+*.tri
+*.ply
+*.stl
+*.pcd
+
+# compressed files
+*.gz
+*.bz2
+*.zip
+*.7z
