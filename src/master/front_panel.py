@@ -87,9 +87,7 @@ class FrontPanel(QMainWindow):
 
         self.checkpoints = self._make_path_map([
             'select_item',
-            'motion_plan',
-            'plan_execution',
-
+            'plan_route',
         ])
         self._load_toggle_list('/checkpoint/', self.checkpoints, self.ui.checkpointsLayout)
 
