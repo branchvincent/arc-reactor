@@ -41,9 +41,9 @@ def numpy2klampt(T):
     # check output based on shape
     if T.shape in [(4, 4), (3, 4)]:
         # convert to SE3
-        return (list(T[:3, :3].flat), list(T[:3, 3].flat))
+        return (list(T[:3, :3].T.flat), list(T[:3, 3].flat))
     elif T.shape == (3, 3):
-        return list(T.flat)
+        return list(T.T.flat)
     else:
         raise RuntimeError('unknown array shape for conversion: {}'.format(T.shape))
 
