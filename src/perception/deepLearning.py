@@ -21,19 +21,19 @@ class ObjectRecognizer:
     Class for performing object recognition. Uses theano and pretrained net to guess object
     '''
 
-    def __init__(self):
+    def __init__(self,filename='vgg16.pkl',numclasses=1000):
         '''
         Loads in the network when class is created
         '''
-        self.network = self.build_model()
-        self.weights = self.loadWeights()
+        self.network = self.build_model(numclasses)
+        self.weights = self.loadWeights(filename)
         self.X_sym = T.tensor4()
         lasagne.layers.set_all_param_values(self.network['prob'], self.weights['param values'])
         self.output_layer = self.network['prob']
         self.prediction = lasagne.layers.get_output(self.output_layer, self.X_sym)
         self.pred_fn = theano.function([self.X_sym], self.prediction)
 
-    def build_model(self):
+    def build_model(self,numclasses):
         #NOTE: perhaps we should save the network architecture along with the weights, since they could be different
         net = {}
         net['input'] = InputLayer((None, 3, 224, 224))
@@ -57,12 +57,12 @@ class ObjectRecognizer:
         net['pool5'] = PoolLayer(net['conv5_3'], 2)
         net['fc6'] = DenseLayer(net['pool5'], num_units=4096)
         net['fc7'] = DenseLayer(net['fc6'], num_units=4096)
-        net['fc8'] = DenseLayer(net['fc7'], num_units=1000, nonlinearity=None)
+        net['fc8'] = DenseLayer(net['fc7'], num_units=numclasses, nonlinearity=None)
         net['prob'] = NonlinearityLayer(net['fc8'], softmax)
 
         return net
 
-    def loadWeights(self,filename='vgg16.pkl'):
+    def loadWeights(self,filename):
         # Load model weights and metadata
         d = pickle.load(open(filename))
         return d
