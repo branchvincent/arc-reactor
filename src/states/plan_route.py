@@ -16,20 +16,20 @@ class PlanRoute(State):
 
         world = build_world(self.store, ignore=['camera'])
 
-        item_pose = self.store.get('/item/{}/pose'.format(item))
+        item_pose = self.store.get(['item', item, 'pose'])
         shelf_pose = self.store.get('/shelf/pose')
 
         target_item = {
-            'position': shelf_pose.dot(item_pose)[:3, 3].tolist(),
+            'position': list(shelf_pose.dot(item_pose)[:3, 3].flat),
             'vacuum_offset': [0, 0, 0.02],
             'drop offset': 0.3
         }
 
-        box_pose = self.store.get('/box/{}/pose'.format(box))
+        box_pose = self.store.get(['box', box, 'pose'])
 
         target_box = {
             'position': box_pose[:3, 3].tolist(),
-            'drop position': (box_pose[:3, 3] + [0, 0, 0.3]).tolist()
+            'drop position': list((box_pose[:3, 3] + [0, 0, 0.3]).flat)
         }
 
         # compute route
