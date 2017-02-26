@@ -24,7 +24,7 @@ order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
 ee_link=6
-
+control_rate=20 #controlling the robot with 20 Hz
 
 
 
@@ -60,14 +60,15 @@ def pick_up(world,item,target_box):
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation,p=robot.link(ee_link).getTransform()
 	current_T=[curr_orientation,curr_position]
-	item_position=item['position']
+	# item_position=item['position']
+	item_position=vectorops.div(vectorops.add(item['bbox'][0],item['bbox'][1]),2.0)
 	item_vacuum_offset=item['vacuum_offset']
 	drop_offset=item['drop offset']
 	drop_position=target_box['drop position']
 	box_bottom_high=target_box['position'][2]
 	vaccum_approach_distance=[0,0,0.03]
 	#setting some constant parameters and limits
-	control_rate=40 #controlling the robot with 60 Hz
+	
 	max_end_effector_v=0.8 # 0.8m/s
 	test_cspace=TestCSpace(Globals(world))
 	approach_p1=[0.6,0.2+shelf_position[1],1]
@@ -89,63 +90,60 @@ def pick_up(world,item,target_box):
 	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
-
+	if not motion_milestones:
+		return False
 	#from start position to the pregrasp position
 	start_T=copy.deepcopy(end_T)
 	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,1)
-
+	if not motion_milestones:
+		return False
 
 	# lower the vacuum
-	temp=start_T
 	start_T=copy.deepcopy(end_T)
-	temp[1]=vectorops.add(item_position,item_vacuum_offset)
-	end_T=temp
+	end_T[1]=vectorops.add(item_position,item_vacuum_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,1)
-
+	if not motion_milestones:
+		return False
 
 	#pick the item
-	temp=start_T
 	start_T=copy.deepcopy(end_T)
-	temp[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
-	end_T=temp
+	end_T[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
-
+	if not motion_milestones:
+		return False
 	#retract
-	temp=start_T
 	start_T=copy.deepcopy(end_T)
-	temp[1]=start_position
-	end_T=temp
+	end_T[1]=start_position
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
-
+	if not motion_milestones:
+		return False
 	#go to tote
-	temp=start_T
 	start_T=copy.deepcopy(end_T)
-	temp[1]=drop_position
-	end_T=temp
+	end_T[1]=drop_position
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	# print 'go to tote'
-
+	if not motion_milestones:
+		return False
 
 	#drop item
 	start_T=copy.deepcopy(end_T)
-	temp=end_T
-
-	temp[1][2]=box_bottom_high+item['drop offset']
-	end_T=temp
 	end_T[1]=[0.25,0.9,0.4]
+	end_T[1][2]=box_bottom_high+item['drop offset']
 	l=vectorops.distance(start_T[1],end_T[1])
 	# print start_T[1]
 	# print end_T[1]
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	if not motion_milestones:
+		return False
 	motion_milestones.append(make_milestone(0.1,robot.getConfig(),0,0))
 	# print 'drop item'
-
+	
 	f=open('test.json','w')
 	json.dump(motion_milestones,f)
 	f.close()
@@ -161,14 +159,15 @@ def stow(world,item,target_box):
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation=robot.link(ee_link).getTransform()[0]
 	current_T=[curr_orientation,curr_position]
-	item_position=item['position']
+	# item_position=item['position']
+	item_position=vectorops.div(vectorops.add(item['bbox'][0],item['bbox'][1]),2.0)
 	item_vacuum_offset=item['vacuum_offset']
 	drop_offset=item['drop offset']
 	drop_position=target_box['drop position']
 	box_bottom_high=target_box['position'][2]
 	vaccum_approach_distance=[0,0,0.15]
 	#setting some constant parameters and limits
-	control_rate=50 #controlling the robot with 60 Hz
+	
 	max_end_effector_v=0.7 # 0.8m/s
 	approach_p1=[0.6,0.2+shelf_position[1],1]
 	approach_p2=[0.6,-0.2+shelf_position[1],1]
@@ -189,31 +188,30 @@ def stow(world,item,target_box):
 	# l=vectorops.distance(current_T[1],end_T[1])
 	# motion_milestones=add_milestones(robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 
-	#from start position to the pregrasp position
+	print 'from start position to the pregrasp position'
 	start_T=copy.deepcopy(current_T)
 	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
-
-	# lower the vacuum
-	temp=start_T
+	if not motion_milestones:
+		return False
+	print 'lower the vacuum'
 	start_T=copy.deepcopy(end_T)
-	temp[1]=vectorops.add(item_position,item_vacuum_offset)
-	end_T=temp
+	end_T[1]=vectorops.add(item_position,item_vacuum_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,0)
+	if not motion_milestones:
+		return False
 
-
-	#pick the item
-	temp=start_T
+	print 'pick the item'
 	start_T=copy.deepcopy(end_T)
-	temp[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
-	end_T=temp
+	end_T[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	if not motion_milestones:
+		return False
 
-	#retract
-	temp=start_T
+	print 'retract'
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation=robot.link(ee_link).getTransform()[0]
 	start_T=[curr_orientation,curr_position]
@@ -229,27 +227,28 @@ def stow(world,item,target_box):
 	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
-	# print 'retract'
+	if not motion_milestones:
+		return False
 
-
-	#go to shelf
+	print 'go to shelf'
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation=robot.link(ee_link).getTransform()[0]
 	start_T=[curr_orientation,curr_position]
-	temp=[curr_orientation,drop_position]
-	temp[1][2]+=drop_offset
-	end_T=temp
+	end_T=[curr_orientation,drop_position]
+	end_T[1][2]+=drop_offset
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
+	if not motion_milestones:
+		return False
 	# print 'go to shelf'
-	#drop item
-	temp=start_T
+	print 'drop item'
 	start_T=copy.deepcopy(end_T)
-	end_T=temp
 	end_T[1][2]=box_bottom_high+item['drop offset']
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
-
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	if not motion_milestones:
+		return False
+	motion_milestones.append(make_milestone(0.1,robot.getConfig(),0,0))
 	f=open('test.json','w')
 	json.dump(motion_milestones,f)
 	f.close()
@@ -290,27 +289,37 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 	# print "start config",robot.getConfig()
 	i=0
 	while i<=steps:
-		# q_old=robot.getConfig()
+		q_old=robot.getConfig()
 		u=i*1.0/steps
 		# print u
 		[local_p,world_p]=interpolate(start_T,end_T,u,ik_indicator)
 		goal = ik.objective(robot.link(ee_link),local=local_p,world=world_p)
-		# s=ik.solve_global(goal)
-		s=ik.solve_nearby(goal,maxDeviation=10,feasibilityCheck=test_function)
+		s=ik.solve_global(goal)
+		# s=ik.solve_nearby(goal,maxDeviation=5,feasibilityCheck=test_function)
 		q=robot.getConfig()
 		n=0
-		if  not s or not test_cspace.feasible(q):
-			print 'not feasible'
-			# print world_p
-			s=ik.solve_nearby(goal,maxDeviation=10,feasibilityCheck=test_function)
-        	q=robot.getConfig()
-        	#check ik
-        	n+=1
-        	if n>10:
-        		print 'no feasible configuration'
-        		return False
-		milestones.append(make_milestone(t_step,q,vacuum_status,simulation_status))
-		i+=1
+		# print i
+		# print s
+		# print test_cspace.feasible(q)
+		while n<10:
+			if s and test_cspace.feasible(q):
+				break
+			else:
+				# print "no feasible ik solution found"
+				# print world_p
+				robot.setConfig(q_old)
+				# s=ik.solve_nearby(goal,maxDeviation=5,feasibilityCheck=test_function)
+				s=ik.solve_global(goal)
+	        	q=robot.getConfig()
+	        	# print 's',s
+	        	# print 'feasible test:',test_cspace.feasible(q)
+	        	n+=1
+		if s and test_cspace.feasible(q):
+			milestones.append(make_milestone(t_step,q,vacuum_status,simulation_status))
+			i+=1
+		else:
+			print 'no feasible solution can be found!!!!!'
+			return False
 	return milestones
 
 
