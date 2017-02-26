@@ -41,11 +41,12 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
     
         self.setup_async()
         self.requests = [
-            '/robot',
-            '/shelf',
-            '/item',
-            '/box',
-            '/camera/camera1/pose'
+            (3, '/robot'),
+            (1, '/robot/current_config'),
+            (3, '/shelf'),
+            (3, '/item'),
+            (3, '/box'),
+            (3, '/camera/camera1/pose'),
         ]
 
         self.timestamps = {}
@@ -62,4 +63,4 @@ if __name__ == '__main__':
     window.show()
 
     from .sync import exec_async
-    exec_async(app, [window])
+    exec_async(app, [window], db_period=33)

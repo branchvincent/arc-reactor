@@ -30,6 +30,8 @@ class AsyncUpdateMixin(object):
         self.db = Store()
         self._store = None
 
+        self._update_count = 0
+
     @coroutine
     def _access_store(self):
         if not self._store:
@@ -38,9 +40,20 @@ class AsyncUpdateMixin(object):
 
     @coroutine
     def _update_handler(self):
+        gets = []
+        for request in self.requests:
+            # check if skip period is specified
+            if isinstance(request, (list, tuple)):
+                (skips, path) = request
+
+                if self._update_count % skips == 0:
+                    gets.append(path)
+            else:
+                gets.append(request)
+
         try:
             yield self._access_store()
-            result = yield self._store.multi_get(self.requests)
+            result = yield self._store.multi_get(gets)
         except:
             logger.exception('UI get failed')
         else:
@@ -51,6 +64,7 @@ class AsyncUpdateMixin(object):
                     self.db.put(key, value)
 
             self.update()
+            self._update_count += 1
 
     @coroutine
     def _multi_put_handler(self, keys):
