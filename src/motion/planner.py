@@ -131,6 +131,8 @@ def pick_up(world,item,target_box):
 	if not motion_milestones:
 		return False
 
+	motion_milestones.append(make_milestone(2,robot.getConfig(),0,0))
+
 	#drop item
 	start_T=copy.deepcopy(end_T)
 	end_T[1]=[0.25,0.9,0.4]
