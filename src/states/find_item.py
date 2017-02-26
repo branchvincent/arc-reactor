@@ -6,14 +6,15 @@ import logging; logger = logging.getLogger(__name__)
 
 class FindItem(State):
     def run(self):
-        self.ItemDict = self.store.get('/item/'+self.store.get('/robot/selected_item'))
+        selected_item = self.store.get('/robot/selected_item')
+        self.ItemDict = self.store.get(['item', selected_item])
         self.lastLoc = self.ItemDict['location']
 
         if self.store.get('/simulate/object_detection'):
-            logger.info('simulating object detection')
+            logger.warn('simulating object detection of "{}"'.format(selected_item))
 
             if self.store.get('/simulate/cameras'):
-                logger.info('simulating cameras')
+                logger.warn('simulating cameras')
 
                 # load previously acquired images in BGR format
                 color = cv2.imread('data/simulation/color-shelf-0.png')[:, :, ::-1]

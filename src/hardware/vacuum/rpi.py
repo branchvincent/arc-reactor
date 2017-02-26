@@ -34,7 +34,7 @@ class Vacuum(object):
 
         if self._store.get('/simulate/vacuum', True):
             self._rio = None
-            logger.debug('vacuum simulated')
+            logger.warn('vacuum simulated')
         else:
             self._connect(host, port, pin)
             logger.info('vacuum connected')
