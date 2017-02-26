@@ -63,7 +63,7 @@ class FindItem(State):
             self.pose[:3, 3] = self.obj_pc.mean(axis=0)
             logger.debug('object pose relative to camera\n{}'.format(self.pose))
 
-            obj_pose = numpy.linalg.inv(self.shelf).dot(self.pose)
+            obj_pose = numpy.linalg.inv(self.shelf).dot(self.cam_pose.dot(self.pose))
             logger.debug('object pose relative to shelf\n{}'.format(obj_pose))
 
             self.store.put(['item', self.ItemDict['name'], 'pose'], obj_pose)
