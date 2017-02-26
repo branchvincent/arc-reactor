@@ -11,6 +11,12 @@ from pensive.client import Store
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+def xyz(x, y, z):
+    return xyz_rpy(xyz=[x, y, z])
+
+def rpy(r, p, y):
+    return xyz_rpy(rpy=[r, p, y])
+
 def xyz_rpy(xyz=None, rpy=None):
     xyz = xyz or [0, 0, 0]
     rpy = rpy or [0, 0, 0]
