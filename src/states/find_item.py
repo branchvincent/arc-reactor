@@ -1,7 +1,4 @@
 from master.fsm import State
-from simulation.grabcut import GrabObject
-
-from hardware.SR300 import DepthCameras
 
 import cv2
 import numpy
@@ -15,38 +12,48 @@ class FindItem(State):
         if self.store.get('/simulate/object_detection'):
             logger.info('simulating object detection')
 
-            # acquire a camera image
-            cam = DepthCameras()
-            if not cam.connect():
-                raise RuntimeError('failed accessing camera')
+            if self.store.get('/simulate/cameras'):
+                logger.info('simulating cameras')
 
-            (images, serial) = cam.acquire_image(0)
-            if not serial:
-                raise RuntimeError('camera acquisition failed')
-            
-            (color, aligned_color, _, _, _, self.pc) = images
+                # load previously acquired images in BGR format
+                color = cv2.imread('data/simulation/color-shelf-0.png')[:, :, ::-1]
+                aligned_color = cv2.imread('data/simulation/aligned-shelf-0.png')[:, :, ::-1]
+                point_cloud = numpy.load('data/simulation/pc-shelf-0.npy')
+            else:
+                from hardware.SR300 import DepthCameras
 
-            logger.debug('acquired image from camera {}'.format(serial))
+                # acquire a camera image
+                cam = DepthCameras()
+                if not cam.connect():
+                    raise RuntimeError('failed accessing camera')
+
+                (images, serial) = cam.acquire_image(0)
+                if not serial:
+                    raise RuntimeError('camera acquisition failed')
+
+                (color, aligned_color, _, _, _, point_cloud) = images
+
+                logger.debug('acquired image from camera {}'.format(serial))
+
             self.store.put('/camera/camera1/color_image', color)
-            self.store.put('/camera/camera1/aligned_color_image', self.pc)
+            self.store.put('/camera/camera1/aligned_image', aligned_color)
+            self.store.put('/camera/camera1/point_cloud', point_cloud)
 
             # perform grab cut selection on color-aligned-to-depth image
-            self.grab = GrabObject(images[1])
-            self.mask = self.grab.run() 
+            from simulation.grabcut import GrabObject
+            self.grab = GrabObject(aligned_color)
+            self.mask = self.grab.run()
 
             cv2.destroyAllWindows()
 
             self.binaryMask = (self.mask.sum(axis=2) > 0)
             #cv2.imwrite('test/checkMask.png', self.binaryMask)
-            self.obj_pc = self.pc[numpy.bitwise_and(self.binaryMask, self.pc[:, :, 2] > 0)]
+            self.obj_pc = point_cloud[numpy.bitwise_and(self.binaryMask, point_cloud[:, :, 2] > 0)]
             self.store.put('/item/'+self.ItemDict['name']+'/point_cloud', self.obj_pc)
             logger.debug('found {} object points'.format(self.obj_pc.shape[0]))
 
             #fix camera tmp
             self.cam_pose = self.store.get('/camera/camera1/pose')
-            #self.cam_pose = self.cam_pose.copy()
-            #self.cam_pose[0,3]=self.cam_pose[0,3]+2
-            #self.store.put('/camera/camera1/pose', self.cam_pose)
 
             #and need shelf pose
             self.shelf = self.store.get('/shelf/pose')
@@ -70,11 +77,11 @@ class FindItem(State):
         #get point cloud
 
         self.foundLoc = self.lastLoc #maybe
- 
+
         if self.foundLoc is not None:
             logger.info("Item found at {}".format(self.foundLoc))
 
-        
+
         #self.store.put('/item/'+self.ItemDict['name']+'/location',  self.foundLoc)
         self.store.put('/status/selected_item_location', True)
         #etc
