@@ -50,7 +50,8 @@ class FindItem(State):
             self.binaryMask = (self.mask.sum(axis=2) > 0)
             #cv2.imwrite('test/checkMask.png', self.binaryMask)
             self.obj_pc = point_cloud[numpy.bitwise_and(self.binaryMask, point_cloud[:, :, 2] > 0)]
-            self.store.put('/item/'+self.ItemDict['name']+'/point_cloud', self.obj_pc)
+            mean = self.obj_pc.mean(axis=0)
+            self.store.put('/item/'+self.ItemDict['name']+'/point_cloud', self.obj_pc - mean)
             logger.debug('found {} object points'.format(self.obj_pc.shape[0]))
 
             #fix camera tmp
@@ -61,7 +62,7 @@ class FindItem(State):
 
             #update pose as mean of obj pc
             self.pose = numpy.eye(4, 4)
-            self.pose[:3, 3] = self.obj_pc.mean(axis=0)
+            self.pose[:3, 3] = mean
             logger.debug('object pose relative to camera\n{}'.format(self.pose))
 
             obj_pose = numpy.linalg.inv(self.shelf).dot(self.cam_pose.dot(self.pose))
