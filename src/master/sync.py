@@ -18,16 +18,16 @@ class AsyncUpdateMixin(object):
 
     The list of synchronized database URLs is given in the list
     `self.requests`.  When the multi get of that list completes,
-    `self.view` is updated and `self.update()` is called.
+    `self.db` is updated and `self.update()` is called.
 
     Call `self.setup_async()` to initialize.
     '''
 
     def setup_async(self):
         '''
-        Initialize `self.view`.
+        Initialize `self.db`.
         '''
-        self.view = Store()
+        self.db = Store()
         self._store = None
 
     @coroutine
@@ -48,7 +48,7 @@ class AsyncUpdateMixin(object):
             # the UI code can use the nice `Store` interfaces
             for (key, value) in result.iteritems():
                 if value is not None:
-                    self.view.put(key, value)
+                    self.db.put(key, value)
 
             self.update()
 

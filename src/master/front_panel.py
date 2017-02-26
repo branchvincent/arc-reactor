@@ -141,7 +141,7 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
         if not self.pick:
             self._reset_handler()
 
-        run_mode = self.view.get('/robot/run_mode')
+        run_mode = self.db.get('/robot/run_mode')
         logger.info('running in mode {}'.format(run_mode))
 
         if run_mode == 'step_once':
@@ -162,7 +162,7 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
         self.pick.setupTransitions()
         self.pick.setCurrentState('si') #always start with SelectItem
 
-        job_type = self.view.get('/robot/task')
+        job_type = self.db.get('/robot/task')
         if job_type == 'pick':
             logger.info('load order file for pick task')
             self.pick.loadOrderFile('test/master/order_test.json')
@@ -188,7 +188,7 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
             alert_style = ''
 
         # update run mode UI
-        run_mode = self.view.get('/robot/run_mode')
+        run_mode = self.db.get('/robot/run_mode')
         if run_mode in RUN_MODES:
             self.ui.run_label.setStyleSheet('')
             for mode in RUN_MODES:
@@ -201,7 +201,7 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
             self.ui.run_label.setStyleSheet(alarm_label_style)
 
         # update job type UI
-        job_type = self.view.get('/robot/task')
+        job_type = self.db.get('/robot/task')
         if job_type in JOB_TYPES:
             self.ui.job_label.setStyleSheet('')
             for mode in JOB_TYPES:
@@ -215,23 +215,23 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
 
         # update hardware status UI
         for (name, url) in self.hardware_map.iteritems():
-            if self.view.get(url + '/timestamp', default=0) < now - 2:
+            if self.db.get(url + '/timestamp', default=0) < now - 2:
                 self._ui(name).setStyleSheet(alarm_button_style)
             else:
                 self._ui(name).setStyleSheet('color: #008000; font-weight: bold;')
 
         # update toggle UIs
-        self._update_toggle_list(self.view, self.checkpoints, '/checkpoint/')
-        self._update_toggle_list(self.view, self.faults, '/fault/')
-        self._update_toggle_list(self.view, self.simulations, '/simulate/')
+        self._update_toggle_list(self.db, self.checkpoints, '/checkpoint/')
+        self._update_toggle_list(self.db, self.faults, '/fault/')
+        self._update_toggle_list(self.db, self.simulations, '/simulate/')
 
-        alert = any([self.view.get('/checkpoint/{}'.format(k), 0) for k in self.checkpoints])
+        alert = any([self.db.get('/checkpoint/{}'.format(k), 0) for k in self.checkpoints])
         self.ui.checkpoints_label.setStyleSheet(alert_style if alert else '')
 
-        alert = any([self.view.get('/fault/{}'.format(k), 0) for k in self.faults])
+        alert = any([self.db.get('/fault/{}'.format(k), 0) for k in self.faults])
         self.ui.faults_label.setStyleSheet(alert_style if alert else '')
 
-        alert = any([self.view.get('/simulate/{}'.format(k), 0) for k in self.simulations])
+        alert = any([self.db.get('/simulate/{}'.format(k), 0) for k in self.simulations])
         self.ui.simulation_label.setStyleSheet(alert_style if alert else '')
 
     def _put_checkbox(self, key, checkbox):
