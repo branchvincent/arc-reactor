@@ -138,7 +138,7 @@ def pick_up(world,item,target_box):
 	l=vectorops.distance(start_T[1],end_T[1])
 	# print start_T[1]
 	# print end_T[1]
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,1,0)
 	if not motion_milestones:
 		return False
 	motion_milestones.append(make_milestone(0.1,robot.getConfig(),0,0))
