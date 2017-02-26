@@ -11,37 +11,28 @@ class Skip(object):
             self.store = self.client.default()
 
         def test_on(self):
-            vacuum = Vacuum(store=self.store)
-            vacuum.on()
+            self.vacuum.on()
 
             self.assertTrue(self.store.get('/vacuum/status'))
-            self.assertTrue(vacuum.is_on())
-            self.assertFalse(vacuum.is_off())
+            self.assertTrue(self.vacuum.is_on())
+            self.assertFalse(self.vacuum.is_off())
 
         def test_off(self):
-            vacuum = Vacuum(store=self.store)
-            vacuum.off()
+            self.vacuum.off()
 
             self.assertFalse(self.store.get('/vacuum/status'))
-            self.assertFalse(vacuum.is_on())
-            self.assertTrue(vacuum.is_off())
-
-        # def test_auto_off(self):
-        #     Vacuum(store=self.store).on()
-        #     vacuum.on()
-        #     del vacuum
-
-        #     self.assertFalse(self.store.get('/vacuum/status'))
-        #     self.assertFalse(vacuum.is_on())
-        #     self.assertTrue(vacuum.is_off())
+            self.assertFalse(self.vacuum.is_on())
+            self.assertTrue(self.vacuum.is_off())
 
         def tearDown(self):
-            pass
+            self.vacuum.off()
 
 class RaspberryPiVacuumTest_Simulate(Skip.RaspberryPiVacuumTest):
     def setUp(self):
         super(RaspberryPiVacuumTest_Simulate, self).setUp()
         self.store.put('/simulate/vacuum', True)
+
+        self.vacuum = Vacuum(store=self.store)
 
 class RaspberryPiVacuumTest_Real(Skip.RaspberryPiVacuumTest):
     def setUp(self):
@@ -49,6 +40,6 @@ class RaspberryPiVacuumTest_Real(Skip.RaspberryPiVacuumTest):
         self.store.put('/simulate/vacuum', False)
 
         try:
-            Vacuum(store=self.store)
+            self.vacuum = Vacuum(store=self.store)
         except ConnectionError:
             self.skipTest('no vacuum connected')
