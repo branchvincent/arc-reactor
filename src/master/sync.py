@@ -80,10 +80,10 @@ class AsyncUpdateMixin(object):
         logger.info('set {}'.format(keys))
         IOLoop.current().add_callback(lambda: self._multi_put_handler(keys))
 
-def _make_qt_handler(app, windows, loop, qt_period):
+def _make_qt_handler(app, windows, loop):
     # IOLoop handler for processing Qt events
     def _handle_events():
-        app.processEvents(qt_period)
+        app.processEvents()
         if not any([window.isVisible() for window in windows]):
             loop.stop()
 
@@ -97,7 +97,7 @@ def exec_async(app, windows=None, loop=None, qt_period=10, db_period=100):
     loop = loop or IOLoop.current()
 
     # process Qt events at 100 Hz
-    PeriodicCallback(_make_qt_handler(app, windows, loop, qt_period), qt_period).start()
+    PeriodicCallback(_make_qt_handler(app, windows, loop), qt_period).start()
 
     for window in windows:
         if isinstance(window, AsyncUpdateMixin):

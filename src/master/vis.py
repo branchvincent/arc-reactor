@@ -67,7 +67,15 @@ class WorldViewer(GLRealtimeProgram):
         return GLRealtimeProgram.motionfunc(self,x,y,dx,dy)
 
 if __name__ == '__main__':
-    import sys
-    import os
+    from PyQt4.QtGui import QApplication
+    app = QApplication([])
+    app.setApplicationName('ARC Reactor')
 
-    WorldViewer().run()
+    from klampt.vis.qtbackend import QtGLWindow
+    window = QtGLWindow()
+    window.setProgram(WorldViewer())
+    window.setWindowTitle('ARC Reactor Viewer')
+    window.show()
+
+    from .sync import exec_async
+    exec_async(app, [window])
