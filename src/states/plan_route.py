@@ -19,8 +19,10 @@ class PlanRoute(State):
         item_pose = self.store.get(['item', item, 'pose'])
         shelf_pose = self.store.get('/shelf/pose')
 
+        item_position = list(shelf_pose.dot(item_pose)[:3, 3].flat)
+
         target_item = {
-            'position': list(shelf_pose.dot(item_pose)[:3, 3].flat),
+            'bbox': [item_position, item_position],
             'vacuum_offset': [0, 0, 0.02],
             'drop offset': 0.3
         }
