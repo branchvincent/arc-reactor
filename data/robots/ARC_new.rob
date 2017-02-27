@@ -18,8 +18,7 @@ velMaxDeg  0    400    400      430    540    475    760
 #velMaxDeg  0    200    200      215    270    235    380
 accMaxDeg  0    400    400      400    400     400    400
 geometry   "tx90l/part6.off" "tx90l/part5.off" "tx90l/part4.off" "tx90l/part3.off" "tx90l/part2.off" "tx90l/part1.off" ""
-mass       20 10 10 5 5 1 0.2
-mount 6 "../objects/cube.off"  0.03 0 0    0 0.04  0     0 0 0.27    -0.015 -0.02 0.01 
+mass       20 10 10 5 5 1 0.2 
 automass
 torqueMax  0 800 600 400 200 200 100
 
@@ -30,7 +29,7 @@ servoD  1000 2000 700 400 50 2
 dryFriction 5 5 3 1 0.1 0.02
 viscousFriction 100 100 70 40 5 1
 
-
+mount 6 "gripper7.rob"   0 1  0   0 0 -1  1 0 0    0.01 -0.01 0.175 as "gripper"
 
 noselfcollision 0 2
 noselfcollision 0 3
@@ -40,6 +39,8 @@ noselfcollision 1 5
 noselfcollision 2 4
 noselfcollision 2 5
 noselfcollision 3 5
+
+
 
 
 
