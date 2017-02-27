@@ -24,7 +24,7 @@ order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
 ee_link=6
-control_rate=20 #controlling the robot with 20 Hz
+control_rate=30 #controlling the robot with 20 Hz
 
 
 
@@ -103,7 +103,8 @@ def pick_up(world,item,target_box):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,1)
 	if not motion_milestones:
 		return False
-
+	#start the vacuum
+	motion_milestones.append(make_milestone(2,robot.getConfig(),1,0))
 	# lower the vacuum
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
@@ -113,6 +114,8 @@ def pick_up(world,item,target_box):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,1)
 	if not motion_milestones:
 		return False
+
+
 
 	#pick the item
 	temp=start_T
@@ -156,18 +159,19 @@ def pick_up(world,item,target_box):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
 		return False
-	motion_milestones.append(make_milestone(0.1,robot.getConfig(),0,0))
+	#turn off vacuum
+	motion_milestones.append(make_milestone(2,robot.getConfig(),0,0))
 	# print 'drop item'
 
-	f=open('test.json','w')
-	json.dump(motion_milestones,f)
-	f.close()
+	# f=open('test.json','w')
+	# json.dump(motion_milestones,f)
+	# f.close()
 	return motion_milestones
 
 
 
 def stow(world,item,target_box):
-"""
+	"""
 	This function will return a motion plan that will pick up the target item from the tote and place it to the shelf.
 	Inputs:
 		- world model: including klampt models for the robot, the shelf and the target container
@@ -229,6 +233,9 @@ def stow(world,item,target_box):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,2,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
 		return False
+
+	#start the vacuum
+	motion_milestones.append(make_milestone(2,robot.getConfig(),1,0))
 	# lower the vacuum
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
@@ -290,7 +297,9 @@ def stow(world,item,target_box):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
 		return False
-
+	#turn off vacuum
+	motion_milestones.append(make_milestone(2,robot.getConfig(),0,0))
+	
 	#come back
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
@@ -300,10 +309,10 @@ def stow(world,item,target_box):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
 		return False
-
-	f=open('test.json','w')
-	json.dump(motion_milestones,f)
-	f.close()
+	
+	# f=open('test.json','w')
+	# json.dump(motion_milestones,f)
+	# f.close()
 	return motion_milestones
 
 

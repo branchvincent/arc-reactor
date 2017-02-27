@@ -44,6 +44,8 @@ class MyGLViewer(GLSimulationProgram):
         self.task='pick'
         self.last_end_time=0
         self.in_box=[]
+        self.time_count=0
+        self.old_time=0
     def control_loop(self):
         if self.sim.getTime()-self.last_end_time>0.5:
             if self.trajectory:
