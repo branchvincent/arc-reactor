@@ -1,4 +1,3 @@
-from status import CameraStatus
 import matplotlib.pyplot as plt
 import scipy.signal
 import numpy as np
@@ -6,9 +5,9 @@ import cv2
 from skimage import measure
 from skimage import morphology
 
-def depthSegmentation(depthImage):
+def depthSegmentation(depthImage, fullcolor):
     '''
-    Takes in a depth image and returns a list of images
+    Takes in a depth image plus full color image and returns a list of images
     that can be fed into deep learning to figure out what they are
     '''
     #parameters
