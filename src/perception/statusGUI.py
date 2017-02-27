@@ -198,7 +198,7 @@ class PerceptionMonitor(QtWidgets.QWidget):
                 self.cam_status.depthCamera.time_of_last_image[i] = time.time()
 
             self.timer_on = True
-            QtCore.QTimer.singleShot(0, self, update_views)
+            QtCore.QTimer.singleShot(0, self.update_views)
 
 class GLWidget(QtOpenGL.QGLWidget):
     def __init__(self, parent=None, pc=np.array([]), c=np.array([])):
