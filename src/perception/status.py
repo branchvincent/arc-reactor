@@ -5,9 +5,11 @@ sys.path.append('../hardware/SR300/')
 sys.path.append('..')
 import depthCamera
 import realsense as rs
+import segmentation
+import deepLearning as dl
 import cv2
-from pensive.client import PensiveClient
-from pensive.coders import register_numpy
+# from pensive.client import PensiveClient
+# from pensive.coders import register_numpy
 import logging
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ class CameraStatus:
     '''
     Class that contains the status for all cameras in the system
     '''
-    def __init__(self):
+    def __init__(self, xformsFile = ''):
         self.connectedCameras = {}              #dictionary says whether or not camera is connected
         self.cameraColorImages = {}             #depth aligned color images
         self.cameraFullColorImages = {}         #full color images
@@ -23,18 +25,16 @@ class CameraStatus:
         self.cameraPointClouds = {}             #point clouds in xyz
         self.depthCamera = depthCamera.DepthCameras()
         self.depthCamera.connect()
+        self.objectRecognizer = dl.ObjectRecognizer()
         # self.db_client = PensiveClient(host='http://10.10.1.102:8888')
         # self.store = self.db_client.default()
         # register_numpy()
 
         self.cameraIntrinsics = {}
-        #transforms from aruco to camera
+        #transforms from robot base to camera
         self.cameraXforms = {}
-        self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
+        self.load_camera_xforms(xformsFile)
         
-        #need to measure out a target
-        self.board = cv2.aruco.CharucoBoard_create(8,11,.0172, 0.0125, self.dictionary)
-
         #get the camera intrinsics for all cameras
         self.get_camera_intrinsics()
 
@@ -70,27 +70,6 @@ class CameraStatus:
                 # key = 'camera/' + serialNum + "/point_cloud"
                 # self.store.put(key=key,value=images[5])
             
-                #get the camera transform
-                gray = cv2.cvtColor(images[0], cv2.COLOR_BGR2GRAY)
-                res = cv2.aruco.detectMarkers(gray,self.dictionary)
-                if len(res[0])>0:
-                    cameramat, cameracoeff = self.cameraIntrinsics[sn]
-                    pose = cv2.aruco.estimatePoseBoard(res[0], res[1], self.board, cameramat, cameracoeff)
-                    rotMat = cv2.Rodrigues(pose[1]) #returns rotation vector and translation vector
-                    rotMat = rotMat[0]              #returns rotation matrix and jacobian
-                    xform = np.zeros((4,4))
-                    xform[0:3, 0:3] = rotMat
-                    xform[0:3, 3] = pose[2].flatten()
-                    xform[3, 3] = 1
-                    self.cameraXforms[sn] = xform
-                else:
-                    logger.warning("Unable to get the camera transform for {}. Camera cannot see Charuco.".format(sn))
-                    xform = np.zeros((4,4))
-                    xform[0,0] = 1
-                    xform[1,1] = 1
-                    xform[2,2] = 1
-                    xform[3,3] = 1
-                    self.cameraXforms[sn] = xform
         #loop though the entire dictionary and see what camers are not in
         #the list. mark those false
         for key, value in self.connectedCameras.items():
@@ -162,3 +141,39 @@ class CameraStatus:
                 self.cameraIntrinsics[sn] = (cameramat, cameracoeff)
 
             self.cameraIntrinsics[sn] = (cameramat, cameracoeff)
+
+
+    def load_camera_xforms(self, filename=''):
+        '''
+        Loads in a dictionary of camera transforms. The key is the serial number and the value
+        is the transform from the robot base to the camera. If no file name is given sets all transforms
+        to be the identity matrix
+        '''
+        if filename == "":
+            list_of_serial_nums = self.depthCamera.get_online_cams()
+            for sn in list_of_serial_nums:
+                logger.warning("No camera transform provided. Setting to identity matrix")
+                xform = np.zeros((4,4))
+                xform[0,0] = 1
+                xform[1,1] = 1
+                xform[2,2] = 1
+                xform[3,3] = 1
+                self.cameraXforms[sn] = xform
+
+
+    def find_objects(self):
+        '''
+        Tries to locate objects in images
+        '''
+        list_of_serial_nums = self.depthCamera.get_online_cams()
+        for cam_num, serialNum in enumerate(list_of_serial_nums):
+            #get the depth image
+            depthImage = self.cameraDepthImages[serialNum]
+            colorImage = self.cameraFullColorImages[serialNum]
+            #segment the image
+            list_of_images = segmentation.depthSegmentation(depthImage, colorImage)
+            
+            #for all sub images in the depth image guess what it is
+            for im in list_of_images:
+                _, best_guess = self.objectRecognizer.guessObject(im)
+                logger.info("Found object {}".format(best_guess))

@@ -6,6 +6,7 @@
 
 %include "exception.i"
 %include "typemaps.i"
+%include "carrays.i"
 %include <std_vector.i>
 
 %apply int & OUTPUT {int & width}
@@ -28,6 +29,8 @@ import_array();
     SWIG_exception(SWIG_RuntimeError, e.what());
   } 
 }
+
+%array_functions(float, floatp)
 
 %include "rs.h"
 %include "rs.hpp"
