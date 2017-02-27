@@ -11,17 +11,26 @@ class State():
         raise NotImplementedError
 
 class Transition():
-    def __init__(self, fromState, toState, altState, condition=None, store=None):
+    def __init__(self, fromState, toState, altState, condition=None, checkpoint=None, store=None, checkState=None):
         self.fromState = fromState.upper()
         self.toState = toState.upper()
         self.altState = altState.upper()
+        self.checkState = checkState
         self.condition = condition
+        self.checkpoint = checkpoint
         self.store = store or PensiveClient().default()
 
     def decideTransition(self):
-        if self.condition == None:
+        if self.checkpoint is not None:
+            print "got checkpoint ", self.checkpoint
+            if self.store.get(self.checkpoint):
+                print "got checkpoint"
+                return self.checkState.upper()
+        elif self.condition == None:
+            print "no condition"
             return self.toState
         else:
+            print "no checkpoint"
             return (self.toState if self.store.get(self.condition) else self.altState)
 
 class StateMachine():
@@ -64,8 +73,8 @@ class StateMachine():
     def getAllPastEvents(self):
         return self.pastEvents
 
-    def setTransition(self, name, nameNext, altNext, condition=None):
-        self.transitions[name.upper()]=Transition(name, nameNext, altNext, condition, self.store)
+    def setTransition(self, name, nameNext, altNext, condition=None, checkpoint=None, checkState=None):
+        self.transitions[name.upper()]=Transition(name, nameNext, altNext, condition, checkpoint, self.store, checkState)
 
     def getTransitions(self):
         return self.transitions
@@ -96,7 +105,9 @@ class StateMachine():
             raise RuntimeError("Need to define a final state")
 
         self.runCurrent()
+        print "decide {}", self.transitions[self.getCurrentState()]
         self.decideState = self.transitions[self.getCurrentState()].decideTransition()
+        print "whaaaat {}", self.decideState
         self.setCurrentState(self.decideState)    
 
 

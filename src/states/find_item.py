@@ -7,7 +7,7 @@ import logging; logger = logging.getLogger(__name__)
 class FindItem(State):
     def run(self):
         self.ItemDict = self.store.get('/item/'+self.store.get('/robot/selected_item'))
-        self.lastLoc = self.ItemDict['location']
+        #self.lastLoc = self.ItemDict['location']
 
         if self.store.get('/simulate/object_detection'):
             logger.info('simulating object detection')

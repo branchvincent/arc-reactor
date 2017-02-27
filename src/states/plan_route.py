@@ -11,6 +11,9 @@ class PlanRoute(State):
     def run(self):
         item = self.store.get('/robot/selected_item')
         box = self.store.get('/robot/selected_box')
+        alg = self.store.get('/robot/task')
+        
+        if not alg: raise RuntimeError("Task undefined")           
 
         logger.info('planning route for "{}" to "{}"'.format(item, box))
 
@@ -34,7 +37,10 @@ class PlanRoute(State):
 
         # compute route
         try:
-            motion_plan = planner.pick_up(world, target_item, target_box)
+            if alg=='pick':
+                motion_plan = planner.pick_up(world, target_item, target_box)
+            elif alg=='stow':
+                motion_plan = None
 
             if not motion_plan:
                 raise RuntimeError('motion plan is empty')
