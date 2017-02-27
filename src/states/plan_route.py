@@ -24,7 +24,7 @@ class PlanRoute(State):
 
         item_pc_local = self.store.get(['item', item, 'point_cloud'])
         item_pose_world = shelf_pose.dot(item_pose_local)
-        item_pc_world = item_pc_local * item_pose_world[:3, :3] + item_pose_world[:3, 3].T
+        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3]) + item_pose_world[:3, 3].T
 
         item_position = [item_pc_world[:, 0].mean(), item_pc_world[:, 1].mean(), item_pc_world[:, 2].max()]
         logger.info('item center top: {}'.format(item_position))
