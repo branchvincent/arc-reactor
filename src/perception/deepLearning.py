@@ -4,7 +4,6 @@ import theano.tensor as T
 import lasagne
 import matplotlib.pyplot as plt
 import skimage.transform
-import sklearn.cross_validation
 import pickle
 import os
 import scipy.ndimage.interpolation as sn
