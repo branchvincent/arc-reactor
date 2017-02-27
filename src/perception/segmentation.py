@@ -86,8 +86,8 @@ def depthSegmentation(depthImage, fullcolor):
         else:
             #small image put it in 256, 256
             bg = np.zeros((256,256, 3))
-            startY = bg.shape[0]/2 - tinyImgs[i].shape[0]/2
-            startX = bg.shape[1]/2 - tinyImgs[i].shape[1]/2
+            startY = int(bg.shape[0]/2 - tinyImgs[i].shape[0]/2)
+            startX = int(bg.shape[1]/2 - tinyImgs[i].shape[1]/2)
             if startX < 0:
                 startX = 0
             if startY < 0:
