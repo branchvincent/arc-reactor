@@ -1,6 +1,6 @@
 import realsense as rs
 import numpy as np
-
+import time
 import logging
 logger = logging.getLogger(__name__)
 
@@ -9,16 +9,18 @@ class DepthCameras:
     def __init__(self):
         self.context = None
         self.num_cameras = 0
+        self.time_of_last_image = []
 
     def connect(self):
-        #delete the context
-        del self.context
-        self.context = None
-        try:
-            self.context = rs.context()
-        except:
-            logger.error("Camera is busy. Some other process has already connected")
+        if self.context is None:
+            try:
+                self.context = rs.context()
+            except:
+                logger.error("Camera is busy. Some other process has already connected")
+                return False
+        else:
             return False
+
         self.num_cameras = self.context.get_device_count()
         if self.num_cameras == 0:
             logger.warning("No cameras were detected")
@@ -26,7 +28,7 @@ class DepthCameras:
         else:
             logger.info("Found %i cameras", self.num_cameras)
             for i in range(self.num_cameras):
-
+                self.time_of_last_image.append(0)
                 #cycle through all of the cameras and find out what streams they support
                 for j in range(rs.capabilities_fish_eye):
                     cam = self.context.get_device(i)
@@ -38,20 +40,20 @@ class DepthCameras:
     def acquire_image(self, camera, ivcam_preset=rs.RS_IVCAM_PRESET_OBJECT_SCANNING):
         if self.connect is None:
             logger.warning("No cameras connected, or connect has not been run")
-            return None
+            return (None, None)
         elif camera >= self.num_cameras or camera < 0:
             logger.warning("Camera requested does not exist")
-            return None
+            return (None, None)
         elif ivcam_preset < 0 or ivcam_preset >= rs.RS_IVCAM_PRESET_COUNT:
             logger.warning("Requested ivcam preset does not exist")
-            return None
+            return (None, None)
         else:
             #get the camera
             cam = self.context.get_device(camera)
 
             if cam is None:
                 logger.error("Tried to get a camera that does not exist")
-                return None
+                return (None, None)
             
             #return the serial num of the camera too
             sn = cam.get_info(rs.camera_info_serial_number)
@@ -65,7 +67,7 @@ class DepthCameras:
                 rs.apply_ivcam_preset(cam, ivcam_preset)
             except:
                 logger.exception("Could not enable the stream or ivcam presets")
-                return None
+                return (None, None)
 
             #start the camera
             try:
@@ -74,7 +76,7 @@ class DepthCameras:
                 cam.wait_for_frames()
             except:
                 logger.exception("Unable to start the camera")
-                return None
+                return (None, None)
            
 
             #get all the images at once
@@ -141,7 +143,7 @@ class DepthCameras:
             except:
                 logger.exception("Unable to capture images, unkown reason")
                 cam.stop()
-                return None
+                return (None, None)
 
             #we are done now
             try:
@@ -152,20 +154,58 @@ class DepthCameras:
             logger.info("Obtained images")
             images = [imageFullColor, imageAllignedColor, imageRectColor,
             imageDepth, imageAlignedDepth, points]
+
+            #check if the color image is all black. If so the camera is not connected
+            if np.array_equal(imageFullColor, np.ones((480,640))*255):
+                return (None, None)
+
+            #got an image record the time stamp 
+            self.time_of_last_image[camera] = time.time()
             return (images, sn)
 
     def get_online_cams(self):
-        self.connect()
+        if self.context is None:
+            logger.warning("Tried to access online cams without connecting")
+            return []
         online_cams = []
         for cam in range(self.num_cameras):
             try:
                 c = self.context.get_device(cam)
-                online_cams.append(c.get_info(rs.camera_info_serial_number))
+                t = time.time() - self.time_of_last_image[cam]
+                if t < 50 or self.time_of_last_image[cam] == 0: #if last image was less than 5 seconds ago camera is probably online
+                    online_cams.append(c.get_info(rs.camera_info_serial_number))
             except:
-                logger.error("Tried to access camera {}, but an error occured".format(cam))
+                logger.exception("Tried to access camera {}, but an error occured".format(cam))
                 continue
         
         return online_cams
+
+    def get_camera_intrinsics(self, camera, stream):
+        if self.context is None:
+            logger.warning("Tried to access camera matrix without connecting")
+            return (None, None)
+        cam = self.context.get_device(camera)
+        try:
+            cam.enable_stream(stream, rs.preset_best_quality)
+            intrinsics = cam.get_stream_intrinsics(stream)
+        except:
+            logger.exception("Unable to enable stream and get intrinsics")
+            return (None, None)
+        mat = np.zeros((3,3))
+        mat[0, 0] = intrinsics.fx
+        mat[0, 2] = intrinsics.ppx
+        mat[1, 1] = intrinsics.fy
+        mat[1, 2] = intrinsics.ppy
+        mat[2, 2] = 1
+
+        coeffs = np.zeros((5))
+        coeffs[0] = rs.floatp_getitem(intrinsics.coeffs, 0)
+        coeffs[1] = rs.floatp_getitem(intrinsics.coeffs, 1)
+        coeffs[2] = rs.floatp_getitem(intrinsics.coeffs, 2)
+        coeffs[3] = rs.floatp_getitem(intrinsics.coeffs, 3)
+        coeffs[4] = rs.floatp_getitem(intrinsics.coeffs, 4)
+
+        return (mat, coeffs)
             
 
 def test():
