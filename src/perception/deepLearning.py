@@ -10,11 +10,13 @@ import os
 import scipy.ndimage.interpolation as sn
 from scipy.misc import imresize
 from lasagne.layers import InputLayer, DenseLayer, NonlinearityLayer
-from lasagne.layers.dnn import Conv2DDNNLayer as ConvLayer
+#from lasagne.layers.dnn import Conv2DDNNLayer as ConvLayer #requires GPU
+from lasagne.layers import Conv2DLayer as ConvLayer
 from lasagne.layers import Pool2DLayer as PoolLayer
 from lasagne.nonlinearities import softmax
 from lasagne.utils import floatX
-
+import logging
+logger = logging.getLogger(__name__)
 
 class ObjectRecognizer:
     '''
@@ -35,6 +37,7 @@ class ObjectRecognizer:
 
     def build_model(self,numclasses):
         #NOTE: perhaps we should save the network architecture along with the weights, since they could be different
+        logger.info("Building network")
         net = {}
         net['input'] = InputLayer((None, 3, 224, 224))
         net['conv1_1'] = ConvLayer(net['input'], 64, 3, pad=1)
@@ -59,12 +62,14 @@ class ObjectRecognizer:
         net['fc7'] = DenseLayer(net['fc6'], num_units=4096)
         net['fc8'] = DenseLayer(net['fc7'], num_units=numclasses, nonlinearity=None)
         net['prob'] = NonlinearityLayer(net['fc8'], softmax)
-
+        logger.info("Network built")
         return net
 
     def loadWeights(self,filename):
+        logger.info("Loading weigts")
         # Load model weights and metadata
-        d = pickle.load(open(filename))
+        d = pickle.load(open(filename, 'rb'),encoding='latin-1')
+        logger.info("Weights loaded from file {}".format(filename))
         return d
 
     def prep_image(self, im):
