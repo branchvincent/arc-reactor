@@ -14,6 +14,7 @@ import time
 import json
 import copy
 ee_local=[-0.015,-0.02,0.28]
+box_release_offset=[0,0,0.06]
 shelf_position=[1.0,0.4,0.235]
 # approach_p1=[0.6,0.2+shelf_position[1],1]
 # approach_p2=[0.6,-0.1+shelf_position[1],1]
