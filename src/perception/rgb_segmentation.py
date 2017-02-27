@@ -20,7 +20,7 @@ class rgbSegmentor():
     Takes in a rgb image and return a list of images that can be fed into deep learning for prediction
     '''
     #PARAMETERS
-    def __init__(self):
+    def __init__(self, return_dict=True):
         '''
         initialize parameters
         '''
@@ -31,6 +31,7 @@ class rgbSegmentor():
         self.area_threshold = 0.05
         self.obj_num = 0
         self.seg_size = 256
+        self.return_dict = return_dict
         return
     
     def segment(self, img):
@@ -82,13 +83,13 @@ class rgbSegmentor():
         startY =  int((self.seg_size - rect.shape[1]) / 2)
         bg[startX:startX + rect.shape[0], startY: startY + rect.shape[1], :] = rect[:,:,:]
         return bg
-    
+
 if __name__ == "__main__":
     fname = '/home/hh162/Documents/code/skimage_segmentation/items1.JPG'
     img = imread(fname)
     plt.figure()
     plt.imshow(img)
-    segmentor = rgbSegmentor()
+    segmentor = rgbSegmentor(return_dict=True)
     rect_list = segmentor.segment(img)
     for i, rect in enumerate(rect_list):
         plt.figure()
