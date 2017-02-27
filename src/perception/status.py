@@ -12,7 +12,6 @@ import cv2
 # from pensive.coders import register_numpy
 import logging
 logger = logging.getLogger(__name__)
-
 class CameraStatus:
     '''
     Class that contains the status for all cameras in the system
@@ -44,6 +43,8 @@ class CameraStatus:
 
         #get the camera extrinsics from depth to color for segmentation
         self.get_camera_extrinsics()
+
+        self.object_names = ['ashland_decorative_fillers', 'band_aid_paper_tape', 'bathery_sponge', 'black_gloves', 'burts_baby_bees', 'clorox_toilet_brush', 'cloth_duct_tape', 'colgate_toothbrush', 'crayola_crayons', 'dr_teals_epsom_salt', 'elmers_glue_sticks', 'expo_eraser', 'greener_clean_sponges', 'hanes_cushion_crew_socks', 'ice_cube_tray', 'irish_spring_soap', 'kleenex', 'lol_joke_book', 'measuring_spoons', 'pink_scissors', 'pink_tablecloth', 'poland_springs_water', 'reynolds_pie_pans', 'reynolds_wrap', 'robots_dvd', 'robots_everywhere_book', 'rolodex_pencil_cup', 'ruled_index_cards', 'speed_stick', 'spritz_balloons', 'tennis_balls', 'ticonderoga_pencil', 'tomcat_mouse_trap', 'two_lb_hand_weight', 'wash_cloth', 'white_three_ring_binder', 'wide_ruled_notebook', 'windex', 'wine_glass']
 
     def poll(self):
         '''
@@ -201,7 +202,7 @@ class CameraStatus:
             for num, im in enumerate(color_images):
                 _, best_guess = self.objectRecognizer.guessObject(im)
                 best_guess = best_guess[0]
-                logger.info("Found object {}".format(best_guess))
+                logger.info("Found object {}".format(self.object_names[best_guess]))
                 #where is this object?
                 #get list of indices of points that are non zero in the depth image
                 indices = np.array(depth_images[num].nonzero()).astype('float32')
@@ -219,7 +220,7 @@ class CameraStatus:
                     pts_in_space.append([point3d.x, point3d.y, point3d.z])
                 #guess object centroid by using mean
                 centroid = np.array(pts_in_space).mean(0)
-                logger.info("Object's {} point cloud centroid is {}, {}, {}".format(best_guess, centroid[0], centroid[1], centroid[2]))
+                logger.info("Object's {} point cloud centroid is {}, {}, {}".format(self.object_names[best_guess], centroid[0], centroid[1], centroid[2]))
                 #TODO send this info to the database server
                 # key = best_guess + "/centroid/"
                 # self.store.put(key=key,value=centroid)
