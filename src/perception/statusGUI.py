@@ -1,10 +1,10 @@
-from PyQt4 import QtGui, QtOpenGL, QtCore
+from PyQt5 import QtGui, QtOpenGL, QtCore, QtWidgets
 import sys
 import time
 from OpenGL import GL, GLU
 from status import CameraStatus
 from functools import partial
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -13,7 +13,7 @@ import os
 import logging
 logger = logging.getLogger(__name__)
 # set up logging to server for all records
-from log.handler import LogServerHandler
+# from log.handler import LogServerHandler
 # handler = LogServerHandler('10.10.1.102', 7777)
 # logging.getLogger().addHandler(handler)
 
@@ -30,27 +30,26 @@ console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
 
-class PerceptionMonitor(QtGui.QWidget):
+class PerceptionMonitor(QtWidgets.QWidget):
     
     def __init__(self):
         super(PerceptionMonitor, self).__init__()
         self.cam_status = CameraStatus()
         self.cam_indicators = {}    #dictionary of sn to Qbuttons
-        self.timer = QtCore.QTimer()
         self.currentView = None
         self.initUI()
         self.counter = 0
     def initUI(self):
         
         #add a vertical layout
-        self.vertLayout = QtGui.QVBoxLayout()
+        self.vertLayout = QtWidgets.QVBoxLayout()
         self.setLayout(self.vertLayout)
 
         #add horizontal layouts
-        self.horzTop = QtGui.QHBoxLayout()
-        self.horzBot = QtGui.QHBoxLayout()
+        self.horzTop = QtWidgets.QHBoxLayout()
+        self.horzBot = QtWidgets.QHBoxLayout()
         self.horzBot.setSpacing(10)
-        self.horzButton = QtGui.QHBoxLayout()
+        self.horzButton = QtWidgets.QHBoxLayout()
 
         #one for the top and one for the bottom
         self.vertLayout.addItem(self.horzTop)
@@ -80,8 +79,8 @@ class PerceptionMonitor(QtGui.QWidget):
         #add spacer to horzTop
         self.horzTop.addStretch(1)
         self.horzTop.addItem(self.horzButton)
-        self.textBox = QtGui.QLineEdit(self)
-        self.pausebutton = QtGui.QPushButton("Pause", self)
+        self.textBox = QtWidgets.QLineEdit(self)
+        self.pausebutton = QtWidgets.QPushButton("Pause", self)
         self.pausebutton.clicked.connect(self.pauseTimer)
         self.pausebutton.show()
         self.horzTop.addWidget(self.textBox)
@@ -93,16 +92,19 @@ class PerceptionMonitor(QtGui.QWidget):
 
 
         #start timer that updates views
-        self.timer.timeout.connect(self.update_views)
-        self.timer.start(3000)
-        self.show()
+        self.timer_on = True
+        QtCore.QTimer.singleShot(2000, self.update_views)
+
 
     #updates the pictures for all the cameras 
     def update_views(self):
         self.cam_status.poll()
         self.update_connected_cams()
+        self.cam_status.find_objects()
         self.update_world_view()
         self.saveImages()
+        if self.timer_on:
+            QtCore.QTimer.singleShot(0, self.update_views)
 
 
     #updated the list of connected cams and their buttons
@@ -116,7 +118,7 @@ class PerceptionMonitor(QtGui.QWidget):
             if not key in self.cam_indicators:
                 
                 #make button
-                btn = QtGui.QPushButton(key, self)
+                btn = QtWidgets.QPushButton(key, self)
 
                 #set its background color
                 btn.setStyleSheet('QPushButton {background-color: green; color: black;}')
@@ -189,13 +191,14 @@ class PerceptionMonitor(QtGui.QWidget):
 
                 self.counter += 1
     def pauseTimer(self):
-        if self.timer.isActive():
-            self.timer.stop()
+        if self.timer_on:
+            self.timer_on = False
         else:
             for i in range(len(self.cam_status.depthCamera.time_of_last_image)):
                 self.cam_status.depthCamera.time_of_last_image[i] = time.time()
 
-            self.timer.start(3000)
+            self.timer_on = True
+            QtCore.QTimer.singleShot(0, self, update_views)
 
 class GLWidget(QtOpenGL.QGLWidget):
     def __init__(self, parent=None, pc=np.array([]), c=np.array([])):
@@ -298,10 +301,11 @@ class GLWidget(QtOpenGL.QGLWidget):
 
 
 def main():
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
 
     #set up the window
     pm = PerceptionMonitor()
+    pm.show()
     sys.exit(app.exec_())
 
 
