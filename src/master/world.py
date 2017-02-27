@@ -11,6 +11,12 @@ from pensive.client import Store
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+def xyz(x, y, z):
+    return xyz_rpy(xyz=[x, y, z])
+
+def rpy(r, p, y):
+    return xyz_rpy(rpy=[r, p, y])
+
 def xyz_rpy(xyz=None, rpy=None):
     xyz = xyz or [0, 0, 0]
     rpy = rpy or [0, 0, 0]
@@ -35,9 +41,9 @@ def numpy2klampt(T):
     # check output based on shape
     if T.shape in [(4, 4), (3, 4)]:
         # convert to SE3
-        return (list(T[:3, :3].flat), list(T[:3, 3].flat))
+        return (list(T[:3, :3].T.flat), list(T[:3, 3].flat))
     elif T.shape == (3, 3):
-        return list(T.flat)
+        return list(T.T.flat)
     else:
         raise RuntimeError('unknown array shape for conversion: {}'.format(T.shape))
 
@@ -147,14 +153,14 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
     shelf.setConfig(shelf.getConfig())
 
     # update tote
-    #amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
-    #_sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
+    amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
+    _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
 
-    #if task in ['stow', 'final']:
-    #    stow_tote = _get_rigid_object(world, 'stow_tote')
-    #    _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
-    #else:
-    #    _remove_rigid_object(world, 'stow_tote')
+    if task in ['stow', 'final']:
+       stow_tote = _get_rigid_object(world, 'stow_tote')
+       _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
+    else:
+       _remove_rigid_object(world, 'stow_tote')
 
     # update boxes
     for quantity in [2, 3, 5]:
@@ -166,16 +172,16 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
         else:
             _remove_rigid_object(world, 'order_box{}'.format(quantity))
 
-    #if 'camera' not in ignore:
-    #    # update cameras
-    #    for name in ['camera1']:
-    #        if name in ignore:
-    #            continue
+    if 'camera' not in ignore:
+        # update cameras
+        for name in ['camera1']:
+            if name in ignore:
+                continue
 
-    #        cam = _get_rigid_object(world, '{}_pc'.format(name), 'data/objects/empty.off')
-    #        _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
+            cam = _get_rigid_object(world, '{}_pc'.format(name), 'data/objects/sr300.stl')
+            _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
 
-            # # check timestamp for the point cloud
+            # check timestamp for the point cloud
             # ts = db.get('/camera/{}/timestamp'.format(name))
             # if ts > timestamps.get('{}_pc'.format(name), 0):
             #     timestamps['{}_pc'.format(name)] = ts
@@ -189,10 +195,10 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
             #         pc.setPoints(len(points) / 3, points)
             #         cam.geometry().setPointCloud(pc)
 
-    #if 'items' not in ignore:
-    #    # update items
-    #    for name in db.get('/item'):
-    #        item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
-    #        _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
+    if 'items' not in ignore:
+       # update items
+       for name in db.get('/item', {}):
+           item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
+           _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
 
     return world

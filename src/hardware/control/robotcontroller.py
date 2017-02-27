@@ -145,7 +145,7 @@ class Trajectory:
         # Update milestone
         if self.curr_index < len(self.milestones['robot']):
             self.curr_milestone = self.milestones['robot'][self.curr_index]
-            self.robot.vacuum.change(self.curr_milestone[1].get('vacuum', 'off') == 'on')
+            self.robot.vacuum.change(self.curr_milestone[1].get('vacuum', [0])[0] > 0)
             logger.info('Moving to milestone {}'.format(self.robot.getCurrentIndexAbs()))
             # Add new milestone
             if len(self.robot.receivedMilestones) < len(self.milestones['robot']):
@@ -211,3 +211,7 @@ class RobotController:
     #     ]
     # store.put('robot/waypoints', sample_milestones)
     # c.run()
+
+if __name__ == "__main__":
+    c = RobotController()
+    c.updateCurrentConfig()

@@ -6,14 +6,16 @@ import logging; logger = logging.getLogger(__name__)
 
 class FindItem(State):
     def run(self):
-        self.ItemDict = self.store.get('/item/'+self.store.get('/robot/selected_item'))
-        #self.lastLoc = self.ItemDict['location']
+        selected_item = self.store.get('/robot/selected_item')
+        self.ItemDict = self.store.get(['item', selected_item])
+        self.lastLoc = self.ItemDict['location']
+
 
         if self.store.get('/simulate/object_detection'):
-            logger.info('simulating object detection')
+            logger.warn('simulating object detection of "{}"'.format(selected_item))
 
             if self.store.get('/simulate/cameras'):
-                logger.info('simulating cameras')
+                logger.warn('simulating cameras')
 
                 # load previously acquired images in BGR format
                 color = cv2.imread('data/simulation/color-shelf-0.png')[:, :, ::-1]
@@ -49,7 +51,8 @@ class FindItem(State):
             self.binaryMask = (self.mask.sum(axis=2) > 0)
             #cv2.imwrite('test/checkMask.png', self.binaryMask)
             self.obj_pc = point_cloud[numpy.bitwise_and(self.binaryMask, point_cloud[:, :, 2] > 0)]
-            self.store.put('/item/'+self.ItemDict['name']+'/point_cloud', self.obj_pc)
+            mean = self.obj_pc.mean(axis=0)
+            self.store.put('/item/'+self.ItemDict['name']+'/point_cloud', self.obj_pc - mean)
             logger.debug('found {} object points'.format(self.obj_pc.shape[0]))
 
             #fix camera tmp
@@ -60,10 +63,10 @@ class FindItem(State):
 
             #update pose as mean of obj pc
             self.pose = numpy.eye(4, 4)
-            self.pose[:3, 3] = self.obj_pc.mean(axis=0)
+            self.pose[:3, 3] = mean
             logger.debug('object pose relative to camera\n{}'.format(self.pose))
 
-            obj_pose = numpy.linalg.inv(self.shelf).dot(self.pose)
+            obj_pose = numpy.linalg.inv(self.shelf).dot(self.cam_pose.dot(self.pose))
             logger.debug('object pose relative to shelf\n{}'.format(obj_pose))
 
             self.store.put(['item', self.ItemDict['name'], 'pose'], obj_pose)

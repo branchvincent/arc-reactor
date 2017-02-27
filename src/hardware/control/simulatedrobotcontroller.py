@@ -89,7 +89,7 @@ class SimulatedTrajectory:
         self.curr_index = index
         if self.curr_index < len(self.milestones['robot']):
             self.curr_milestone = self.milestones['robot'][self.curr_index]
-            self.vacuum.change(self.curr_milestone[1]['vacuum'] == 'on')
+            self.vacuum.change(self.curr_milestone[1].get('vacuum', [0])[0] > 0)
             dt = self.curr_milestone[0]
             qf = [round(qi,1) for qi in self.curr_milestone[1]['robot']]
             logger.info('Moving to milestone {}: {}'.format(self.curr_index, (round(dt,3),qf)))

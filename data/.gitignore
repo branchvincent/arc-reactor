@@ -1,6 +1,11 @@
 /bootstrap-*
 /jquery-*
 
+# modeling files
+*.blend
+*.sldprt
+*.sldasm
+
 # geometry files
 *.obj
 *.off
