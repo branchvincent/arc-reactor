@@ -23,20 +23,27 @@ class CameraStatus:
         self.cameraFullColorImages = {}         #full color images
         self.cameraDepthImages = {}             
         self.cameraPointClouds = {}             #point clouds in xyz
+        self.cameraIntrinsics = {}              #camera intrinsics. used to deproject points
+        self.cameraDepthScale = {}              #depth scaling for cameras
+        self.cameraExtrinsicsD2C = {}           #depth to color image extrinsics
         self.depthCamera = depthCamera.DepthCameras()
         self.depthCamera.connect()
         self.objectRecognizer = dl.ObjectRecognizer()
+
         # self.db_client = PensiveClient(host='http://10.10.1.102:8888')
         # self.store = self.db_client.default()
         # register_numpy()
 
-        self.cameraIntrinsics = {}
+        self.cameraCoeffs = {}
         #transforms from robot base to camera
         self.cameraXforms = {}
         self.load_camera_xforms(xformsFile)
         
         #get the camera intrinsics for all cameras
         self.get_camera_intrinsics()
+
+        #get the camera extrinsics from depth to color for segmentation
+        self.get_camera_extrinsics()
 
     def poll(self):
         '''
@@ -51,7 +58,7 @@ class CameraStatus:
 
             #get the recent pictures for the connected cameraStatus
             picSnTuple = self.depthCamera.acquire_image(cam_num)
-            if not picSnTuple is None:
+            if picSnTuple != (None, None):
                 images, serialNum = picSnTuple
                 self.cameraColorImages[serialNum] = images[1]
                 self.cameraDepthImages[serialNum] = images[4]
@@ -133,15 +140,32 @@ class CameraStatus:
         '''
         list_of_serial_nums = self.depthCamera.get_online_cams()
         for cam_num, sn in enumerate(list_of_serial_nums):
-            cameramat, cameracoeff = self.depthCamera.get_camera_intrinsics(cam_num, rs.stream_color)
+            cameramat, cameracoeff = self.depthCamera.get_camera_coefs(cam_num, rs.stream_color)
             if cameramat is None:
-                logger.warning("Unable to get camera intrinsics for camera {}. Setting to zeros...".format(sn))
-                cameramat = np.array([[0,0,0],[0,0,0],[0,0,1]])
+                logger.warning("Unable to get camera coefficients for camera {}. Setting to zeros...".format(sn))
+                cameramat = np.array([[1,0,0],[0,1,0],[0,0,1]])
                 cameracoeff = np.zeros((5))
-                self.cameraIntrinsics[sn] = (cameramat, cameracoeff)
+                self.cameraCoeffs[sn] = (cameramat, cameracoeff)
+            self.cameraCoeffs[sn] = (cameramat, cameracoeff)
 
-            self.cameraIntrinsics[sn] = (cameramat, cameracoeff)
+            cameraIntrinsics = self.depthCamera.get_camera_intrinsics(cam_num, rs.stream_depth)
+            if cameraIntrinsics is None:
+                logger.warning("Unable to get camera intrinsics for camera {}".format(sn))
+            self.cameraIntrinsics[sn] = cameraIntrinsics
 
+            cameraScale = self.depthCamera.get_camera_depthscale(cam_num)
+            if cameraScale is None:
+                logger.warning("Unable to get camera depth scale for {}. Setting to 1!".format(sn))
+                cameraScale = 1
+            self.cameraDepthScale[sn] = cameraScale
+
+    def get_camera_extrinsics(self):
+        list_of_serial_nums = self.depthCamera.get_online_cams()
+        for cam_num, sn in enumerate(list_of_serial_nums):
+            cameraEx = self.depthCamera.get_extrinsics(cam_num, rs.stream_depth, rs.stream_color)
+            if cameraEx is None:
+                logger.warning("Unable to get camera extrinsics for {}. Setting to None".format(sn))
+            self.cameraExtrinsicsD2C[sn] = cameraEx
 
     def load_camera_xforms(self, filename=''):
         '''
@@ -171,9 +195,31 @@ class CameraStatus:
             depthImage = self.cameraDepthImages[serialNum]
             colorImage = self.cameraFullColorImages[serialNum]
             #segment the image
-            list_of_images = segmentation.depthSegmentation(depthImage, colorImage)
+            color_images, depth_images = segmentation.depthSegmentation(depthImage, colorImage, self.cameraExtrinsicsD2C[serialNum])
             
             #for all sub images in the depth image guess what it is
-            for im in list_of_images:
+            for num, im in enumerate(color_images):
                 _, best_guess = self.objectRecognizer.guessObject(im)
+                best_guess = best_guess[0]
                 logger.info("Found object {}".format(best_guess))
+                #where is this object?
+                #get list of indices of points that are non zero in the depth image
+                indices = np.array(depth_images[num].nonzero()).astype('float32')
+                indices = np.transpose(indices)
+                pts_in_space = []
+                #transform those to points in space
+                for pt in indices:
+                    p = rs.float2()
+                    p.y = float(pt[0])
+                    p.x = float(pt[1])
+                    depthVal = self.cameraDepthScale[serialNum] * depth_images[num][int(p.y), int(p.x)]
+                    point3d = self.cameraIntrinsics[serialNum].deproject(p, depthVal)
+                    #TODO get this in real world coordinates based off of the camera xform
+                    #cameraXform * point3d? inv(cameraXform) * point3d?
+                    pts_in_space.append([point3d.x, point3d.y, point3d.z])
+                #guess object centroid by using mean
+                centroid = np.array(pts_in_space).mean(0)
+                logger.info("Object's {} point cloud centroid is {}, {}, {}".format(best_guess, centroid[0], centroid[1], centroid[2]))
+                #TODO send this info to the database server
+                # key = best_guess + "/centroid/"
+                # self.store.put(key=key,value=centroid)
