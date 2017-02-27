@@ -14,16 +14,16 @@ import time
 import json
 import planner
 
-box_vacuum_offset=[0.1,0,0.09]
-ee_local=[-0.015,-0.02,0.3]
-# ee_local=[0,0,0]
-box_release_offset=[0,0,0.06]
-idle_position=[0.6,0,1]
-approach_p1=[0.5,0.2,1]
-approach_p2=[0.5,-0.2,1]
-order_box_min=[0.36,0.65,0.5]
-order_box_max=[0.5278,0.904,0.5]
-angle_to_degree=57.296
+# box_vacuum_offset=[0.1,0,0.09]
+# ee_local=[-0.015,-0.02,0.3]
+# # ee_local=[0,0,0]
+# box_release_offset=[0,0,0.06]
+# idle_position=[0.6,0,1]
+# approach_p1=[0.5,0.2,1]
+# approach_p2=[0.5,-0.2,1]
+# order_box_min=[0.36,0.65,0.5]
+# order_box_max=[0.5278,0.904,0.5]
+# angle_to_degree=57.296
 ee_link=6
 
 
@@ -52,8 +52,8 @@ class MyGLViewer(GLSimulationProgram):
                 if self.t<len(self.trajectory): 
                     robot=self.sim.world.robot(0)
                     old_T=robot.link(ee_link).getTransform()
-                    old_R,old_t=old_T 
-                    self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0])
+                    old_R,old_t=old_T
+                    self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0]-(self.sim.getTime()-self.old_time))
                     robot.setConfig(self.trajectory[self.t][1]['robot'])
                     obj=self.sim.world.rigidObject(self.target)
                     #get a SimBody object
@@ -81,7 +81,9 @@ class MyGLViewer(GLSimulationProgram):
                     # print 'goal config',self.trajectory[self.t][1]['robot']
                     # if  vectorops.distance(robot.getConfig(),self.trajectory[self.t][1]['robot'])<0.01:
                     #     print 'get there'
-                    self.t+=1
+                    if self.sim.getTime()-self.old_time>self.trajectory[self.t][0]:
+	                    self.t+=1
+	                    self.old_time=self.sim.getTime()
                     if self.t==len(self.trajectory):
                         self.last_end_time=self.sim.getTime()
                 else:
@@ -111,8 +113,8 @@ class MyGLViewer(GLSimulationProgram):
                     self.place_position.append(self.sim.world.rigidObject(self.target).getTransform()[1])
                     target_item["vacuum_offset"]=[0,0,0.1]
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
-                    target_item['drop offset']=0.15
-                    target_box["drop position"]=[0.2,0.95-0.06*self.target,0.6]
+                    target_item['drop offset']=0.2
+                    target_box["drop position"]=[0.25,0.95-0.07*self.target,0.6]
                     target_box['position']=[0.2,0.8,0.15]
                     self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
                     if self.trajectory==False:
@@ -121,6 +123,9 @@ class MyGLViewer(GLSimulationProgram):
                         if self.score==self.total_object:
                             self.task='stow'
                             self.target-=1
+                    else:
+                    	self.old_time=self.sim.getTime()
+                    	self.time_count=0
                 else:
                     target_item={}
                     target_box={}
@@ -141,6 +146,9 @@ class MyGLViewer(GLSimulationProgram):
                         if self.score==2*self.total_object:
                             print 'done!'
                             exit()
+                    else:
+                    	self.old_time=self.sim.getTime()
+                    	self.time_count=0
             
 
     

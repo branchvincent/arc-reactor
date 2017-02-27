@@ -25,7 +25,7 @@ order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
 ee_link=6
 control_rate=30 #controlling the robot with 20 Hz
-
+max_end_effector_v=2 # max end effector move speed
 
 
 
@@ -61,6 +61,8 @@ def pick_up(world,item,target_box):
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation,p=robot.link(ee_link).getTransform()
 	current_T=[curr_orientation,curr_position]
+
+
 	# item_position=item['position']
 	# print 'item_position',item_position
 	# print vectorops.div(vectorops.add(item['bbox'][0],item['bbox'][1]),2.0)
@@ -69,11 +71,16 @@ def pick_up(world,item,target_box):
 	item_vacuum_offset=item['vacuum_offset']
 	drop_offset=item['drop offset']
 	drop_position=target_box['drop position']
+	print drop_position
+	# if target_box['drop position']:
+	# 	drop_position=target_box['drop position']
+	# else:
+	# 	drop_position=find_drop_position(item['bbox'],order_box_min,order_box_max,world)
 	box_bottom_high=target_box['position'][2]
 	vaccum_approach_distance=[0,0,0.03]
 	#setting some constant parameters and limits
 	
-	max_end_effector_v=0.8 # 0.8m/s
+	
 	test_cspace=TestCSpace(Globals(world))
 	approach_p1=[0.6,0.2+shelf_position[1],1]
 	approach_p2=[0.6,-0.2+shelf_position[1],1]
@@ -93,7 +100,7 @@ def pick_up(world,item,target_box):
 	dy=item_position[1]-start_position[1]
 	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,2,control_rate,current_T,end_T,0,0,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,1,control_rate,current_T,end_T,0,0,1)
 	if not motion_milestones:
 		return False
 	#from start position to the pregrasp position
@@ -104,7 +111,7 @@ def pick_up(world,item,target_box):
 	if not motion_milestones:
 		return False
 	#start the vacuum
-	motion_milestones.append(make_milestone(2,robot.getConfig(),1,0))
+	motion_milestones.append(make_milestone(1,robot.getConfig(),1,0))
 	# lower the vacuum
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
@@ -149,10 +156,8 @@ def pick_up(world,item,target_box):
 	#drop item
 	start_T=copy.deepcopy(end_T)
 	temp=end_T
-
 	temp[1][2]=box_bottom_high+item['drop offset']
 	end_T=temp
-	end_T[1]=[0.25,0.9,0.4]
 	l=vectorops.distance(start_T[1],end_T[1])
 	# print start_T[1]
 	# print end_T[1]
@@ -160,8 +165,20 @@ def pick_up(world,item,target_box):
 	if not motion_milestones:
 		return False
 	#turn off vacuum
-	motion_milestones.append(make_milestone(2,robot.getConfig(),0,0))
+	motion_milestones.append(make_milestone(1,robot.getConfig(),0,0))
 	# print 'drop item'
+
+	#go up a little bit
+	start_T=copy.deepcopy(end_T)
+	temp=end_T
+	temp[1][2]+=0.2
+	end_T=temp
+	l=vectorops.distance(start_T[1],end_T[1])
+	# print start_T[1]
+	# print end_T[1]
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
+	if not motion_milestones:
+		return False
 
 	# f=open('test.json','w')
 	# json.dump(motion_milestones,f)
@@ -206,11 +223,9 @@ def stow(world,item,target_box):
 	box_bottom_high=target_box['position'][2]
 	vaccum_approach_distance=[0,0,0.15]
 	#setting some constant parameters and limits
-	max_end_effector_v=0.7 # 0.8m/s
 	approach_p1=[0.6,0.2+shelf_position[1],1]
 	approach_p2=[0.6,-0.2+shelf_position[1],1]
 	test_cspace=TestCSpace(Globals(world))
-	vectorops
 	#list of T and time
 
 	#from current position to the start position, in 2 seconds
@@ -230,12 +245,12 @@ def stow(world,item,target_box):
 	start_T=copy.deepcopy(current_T)
 	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,2,control_rate,start_T,end_T,0,0,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,1,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
 		return False
 
 	#start the vacuum
-	motion_milestones.append(make_milestone(2,robot.getConfig(),1,0))
+	motion_milestones.append(make_milestone(1,robot.getConfig(),1,0))
 	# lower the vacuum
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
@@ -298,7 +313,7 @@ def stow(world,item,target_box):
 	if not motion_milestones:
 		return False
 	#turn off vacuum
-	motion_milestones.append(make_milestone(2,robot.getConfig(),0,0))
+	motion_milestones.append(make_milestone(1,robot.getConfig(),0,0))
 	
 	#come back
 	temp=start_T

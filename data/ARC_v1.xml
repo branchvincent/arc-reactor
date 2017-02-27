@@ -94,11 +94,11 @@
 
 
 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.9 0.45 0.87" rotateZ="0.0">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.24 0.87" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.5 0.57" rotateZ="0.0">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.23 0.57" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
