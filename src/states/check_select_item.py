@@ -7,9 +7,12 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class CheckSelectItem(State):
     def run(self):
-        app = QApplication(sys.argv)
+        app = QApplication.instance()
         wd = WidgetDialog(self.store)
-        sys.exit(app.exec_())
+        #wd.show()
+        #sys.exit(app.exec_())
+        ret = app.exec_()
+        #sys.exit(ret)
 
 class WidgetDialog(QWidget):
     def __init__(self, store):
@@ -29,10 +32,13 @@ class WidgetDialog(QWidget):
 
         self.btnClose = QPushButton('Accept item', self)
         self.btnClose.move(130, 50)
-        self.btnClose.clicked.connect(self.close)
+        self.btnClose.clicked.connect(self.closeMe)
 
         self.setGeometry(300, 300, 350, 150)
         self.show()
+
+    def closeMe(self):
+        QApplication.quit()
 
     def getItem(self):
         items = []
