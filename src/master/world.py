@@ -179,22 +179,8 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
             if name in ignore:
                 continue
 
-            cam = _get_rigid_object(world, '{}_pc'.format(name), 'data/objects/sr300.stl')
+            cam = _get_rigid_object(world, name, 'data/objects/sr300.stl')
             _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
-
-            # check timestamp for the point cloud
-            # ts = db.get('/camera/{}/timestamp'.format(name))
-            # if ts > timestamps.get('{}_pc'.format(name), 0):
-            #     timestamps['{}_pc'.format(name)] = ts
-
-            #     logger.info('updating {} point cloud'.format(name))
-            #     points = db.get('/camera/{}/point_cloud'.format(name))
-            #     if points is not None:
-            #         points = list(points.flat)
-
-            #         pc = PointCloud()
-            #         pc.setPoints(len(points) / 3, points)
-            #         cam.geometry().setPointCloud(pc)
 
     if 'items' not in ignore:
        # update items
