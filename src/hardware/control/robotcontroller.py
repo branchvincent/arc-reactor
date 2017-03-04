@@ -8,6 +8,7 @@ from math import degrees, radians, isnan, isinf
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.vacuum import Vacuum
+from motion.checker import MotionPlanChecker
 
 # List of robot IP addresses
 dof = 6
@@ -117,10 +118,12 @@ class Trajectory:
         Assert(0 < self.speed <= 1, 'Speed {} is not in (0,1]'.format(self.speed))
         self.milestones['database'] = milestones
         self.milestones['robot'] = [convertConfigToRobot(mi,self.speed) for mi in milestones]
+        self.check()
 
     def start(self):
         """Sets the current milestone to the first in the list"""
         logger.info('Starting trajectory')
+        # self.check()
         self.curr_index = 0
         self.curr_milestone = self.milestones['robot'][self.curr_index]
         # Check initial config is current config
@@ -130,6 +133,13 @@ class Trajectory:
         # Send first milestones
         for m in self.milestones['robot'][:bufferSize]:
             self.robot.sendMilestone(m)
+
+    def check(self):
+        """Sends milestones to motion plan checker"""
+        c = MotionPlanChecker(self.milestones['robot'])
+        failures = c.check()
+        if failures:
+            raise RuntimeError('Motion plan failed to pass checker')
 
     def update(self):
         """Checks the current milestone in progress and updates, if necessary"""
