@@ -8,8 +8,6 @@ class FindItem(State):
     def run(self):
         selected_item = self.store.get('/robot/selected_item')
         self.ItemDict = self.store.get(['item', selected_item])
-        self.lastLoc = self.ItemDict['location']
-
 
         if self.store.get('/simulate/object_detection'):
             logger.warn('simulating object detection of "{}"'.format(selected_item))
@@ -79,13 +77,7 @@ class FindItem(State):
         #ID shelf, location, etc
         #get point cloud
 
-        self.foundLoc = self.lastLoc #maybe
-
-        if self.foundLoc is not None:
-            logger.info("Item found at {}".format(self.foundLoc))
-
-
-        #self.store.put('/item/'+self.ItemDict['name']+'/location',  self.foundLoc)
+        
         self.store.put('/status/selected_item_location', True)
         #etc
 

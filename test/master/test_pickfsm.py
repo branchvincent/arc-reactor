@@ -5,7 +5,7 @@ from test.pensive.helper import DatabaseDependentTestCase
 from master.pickfsm import PickStateMachine
 
 import json
-with open('test/master/initial_db.json') as data_file:
+with open('test/master/test_022717_badik2.json') as data_file:
     initial_db = json.load(data_file)
 
 class SimplePickFSM(DatabaseDependentTestCase):
@@ -20,8 +20,10 @@ class SimplePickFSM(DatabaseDependentTestCase):
         self.store = self.client.default()
         self.store.put('', initial_db)
         self.store.put('/status/task', 'pick')
-        #simulate for now for robot controller
+        #simulate for now
         self.store.put('/simulate/robot_motion', True)
+        self.store.put('/simulate/object_detection', True)
+        self.store.put('/simulate/cameras', True)
 
         self.pick = PickStateMachine(store=self.store)
         self.pick.loadOrderFile('test/master/order_test.json')

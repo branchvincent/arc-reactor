@@ -26,7 +26,9 @@ class Transition():
             if self.store.get(self.checkpoint):
                 print "got checkpoint"
                 return self.checkState.upper()
-        elif self.condition == None:
+            else:
+                pass
+        if self.condition == None:
             print "no condition"
             return self.toState
         else:
@@ -105,9 +107,9 @@ class StateMachine():
             raise RuntimeError("Need to define a final state")
 
         self.runCurrent()
-        print "decide {}", self.transitions[self.getCurrentState()]
+        print "decide ", self.transitions[self.getCurrentState()]
         self.decideState = self.transitions[self.getCurrentState()].decideTransition()
-        print "whaaaat {}", self.decideState
+        print "whaaaat ", self.decideState
         self.setCurrentState(self.decideState)    
 
 

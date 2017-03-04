@@ -6,6 +6,7 @@ from states.exec_route import ExecRoute
 from states.check_item import CheckItem
 from states.check_route import CheckRoute
 from states.check_select_item import CheckSelectItem
+from states.move_shelf import MoveShelf
 import json
 import cv2
 import numpy
@@ -16,6 +17,7 @@ class PickStateMachine(StateMachine):
         self.add('si', SelectItem('si', store=self.store))
         self.add('fi', FindItem('fi', store=self.store))
         self.add('pr', PlanRoute('pr', store=self.store))
+        self.add('ms', MoveShelf('ms', store=self.store))
         self.add('er', ExecRoute('er', store=self.store))
         self.add('ci', CheckItem('ci', store=self.store), endState=1)
         self.add('csi', CheckSelectItem('csi', store=self.store))

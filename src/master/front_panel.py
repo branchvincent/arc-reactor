@@ -105,6 +105,7 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
         self.simulations = self._make_path_map([
             'robot_motion',
             'vacuum',
+            'cameras',
             'object_detection',
         ])
         self._load_toggle_list('/simulate/', self.simulations, self.ui.simulationLayout)
