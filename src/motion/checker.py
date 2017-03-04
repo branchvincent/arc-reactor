@@ -49,14 +49,14 @@ class MotionPlanChecker:
                 self.failedMilestones.append(('Exceeded joint distance',index,i))
                 logger.error('Milestone {}, Joint {} exceeded dq: {} > {}'.format(index,i,round(dq,2),DQ_MAX))
             #Joint velocity
-            dv = (m - m_p)/float(dt)
+            dv = dq/float(dt)
             if dv > DV_MAX:
                 self.failedMilestones.append(('Exceeded joint velocity',index,i))
                 logger.error('Milestone {}, Joint {} exceeded dv: {} > {}'.format(index,i,round(dv,2),DV_MAX))
 
-if __name__ == "__main__":
-    plan = PensiveClient().default().get('robot/waypoints')
-    c = MotionPlanChecker(plan)
-    f = c.check()
-    # if f:
-    #     print f
+# if __name__ == "__main__":
+#     plan = PensiveClient().default().get('robot/waypoints')
+#     c = MotionPlanChecker(plan)
+#     f = c.check()
+#     if f:
+#         print f
