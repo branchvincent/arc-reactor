@@ -1,6 +1,9 @@
 /bootstrap-*
 /jquery-*
 
+# simulation data
+simulation
+
 # modeling files
 *.blend
 *.sldprt
