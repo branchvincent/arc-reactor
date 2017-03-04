@@ -90,7 +90,8 @@ def _get_or_load(world, name, path, total, getter, loader):
         logger.info('loading "{}" from "{}"'.format(name, path))
         obj = loader(path)
         obj.setName(name)
-        world.add(name, obj)
+        # NOTE: loaded models are already added the world
+        # world.add(name, obj)
 
     return obj
 
