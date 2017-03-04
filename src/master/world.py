@@ -50,8 +50,8 @@ def numpy2klampt(T):
 def klampt2numpy(k):
     if len(k) == 9:
         # rotation matrix only
-        T = numpy.asmatrix(numpy.eye(4,4))
-        T[:3,:3] = numpy.array(k).reshape((3,3))
+        T = numpy.asmatrix(numpy.eye(4, 4))
+        T[:3,:3] = numpy.array(k).reshape((3, 3))
     elif len(k) == 2:
         # tuple of rotation matrix and translation vector
         T = klampt2numpy(k[0])
@@ -202,3 +202,45 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
            _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
 
     return world
+
+if __name__ == '__main__':
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
+    parser = ArgumentParser(description='world file generation', formatter_class=ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+    parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+    parser.add_argument('-p', '--path', metavar='PATH', help='path to a JSON database')
+    parser.add_argument('output', metavar='OUTPUT', help='path to save world file')
+
+    args = parser.parse_args()
+
+    if args.path:
+        # load the JSON object
+        from pensive.client import json_decode
+        obj = json_decode(open(args.path).read())
+
+        # populate in-memory store
+        from pensive.core import Store
+        store = Store(obj)
+
+    else:
+        # connect to the database
+        from pensive.client import PensiveClient
+        client = PensiveClient(args.address)
+
+        # create or get the store
+        if args.store and args.store not in client.index():
+            store = client.create(args.store)
+        else:
+            store = client.store(args.store)
+
+    # build the world
+    world = build_world(store)
+
+    path = args.output
+    if not path.endswith('.xml'):
+        path += '.xml'
+
+    # save it out
+    world.saveFile(path)
