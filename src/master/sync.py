@@ -103,6 +103,16 @@ def _make_qt_handler(app, windows, loop):
 
     return _handle_events
 
+def _make_signal_handler(windows):
+    # handler to close all windows
+    def _close_windows(signal, frame):
+        logger.info('closing all windows')
+        for window in windows:
+            # XXX: would use close() except Klampt overrides it to not close the window
+            window.hide()
+
+    return _close_windows
+
 def exec_async(app, windows=None, loop=None, qt_period=10, db_period=100):
     '''
     Run the given Qt application until all of the Qt windows close.
@@ -117,6 +127,11 @@ def exec_async(app, windows=None, loop=None, qt_period=10, db_period=100):
         if isinstance(window, AsyncUpdateMixin):
             # update the UI at 10 Hz
             PeriodicCallback(window._update_handler, db_period).start()
+            logger.info('scheduled window "{}" for async updates'.format(window.windowTitle()))
+
+    # install the KeyboardInterrupt handler
+    import signal
+    signal.signal(signal.SIGINT, _make_signal_handler(windows))
 
     # start servicing events
     loop.start()
