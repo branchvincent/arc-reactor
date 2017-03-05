@@ -66,7 +66,7 @@ def depthSegmentation(depthImage, fullcolor, extrinsics=None):
         indices = np.array((out_labels == i).nonzero()).astype('float32')
         indices = np.transpose(indices)
         y,x,h,w = cv2.boundingRect(indices)
-        cv2.rectangle(fullcolor,(x,y),(x+w,y+h),(0,255,0),2)
+        # cv2.rectangle(fullcolor,(x,y),(x+w,y+h),(0,255,0),2)
 
         rects.append([y,y+h, x, x+w])
         #min area rectangle
@@ -77,7 +77,7 @@ def depthSegmentation(depthImage, fullcolor, extrinsics=None):
         # newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
         # cv2.drawContours(fullcolor, [newbox], 0 , (255,0,0), 2)  
 
-    # plt.imshow(fullcolor)
+    # plt.imshow(np.rot90(fullcolor,3))
     # plt.show()
 
     #take the coordinates from rect and get those images in the full color image
@@ -142,11 +142,12 @@ def depthSegmentation(depthImage, fullcolor, extrinsics=None):
             bg[startY:startY +tinyColorImgs[i].shape[0], startX:startX+tinyColorImgs[i].shape[1]] = tinyColorImgs[i]
             imagesForDL.append(bg)
             
+    #these images are stored in BGR deep learning expects RGB!
     return (imagesForDL, tinyDepthImgs)
 
 
 if __name__ == "__main__":
-	depth=np.load('images2/0_depth.npy')
-	color=np.load('images2/0.npy')
+	depth=np.load('images/0_depth.npy')
+	color=np.load('images/0.npy')
 	list_imgs = depthSegmentation(depth,color)
 
