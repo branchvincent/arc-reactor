@@ -21,6 +21,9 @@ pytest-cov
 # general
 numpy
 
+# point cloud colorizing
+matplotlib
+
 # IPython embedded shell
 # IPython
 # enum

@@ -1,6 +1,8 @@
 import logging
 
 import numpy
+from scipy.interpolate import interp1d
+from matplotlib import cm
 
 from math import pi
 
@@ -18,7 +20,7 @@ from .world import update_world
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class PointCloud(object):
+class PointCloudRender(object):
     '''
     Helper class for using drawing point clouds with Vertex Buffer Objects.
     '''
@@ -33,8 +35,8 @@ class PointCloud(object):
         '''
         Update the point clouds points (XYZ or RGB) and/or pose.
 
-        `xyz` and `rgb` are (N, 3) arrays of positions and non-normalized colors (0-255).
-        `pose` is a 4x4 transformation matrix.
+        `xyz` and `rgb` are (N, 3) arrays of positions and colors. The normalization of colors
+        is assumed from their datatype.  `pose` is a 4x4 transformation matrix.
 
         Alternatively, `xyz` is an (N, 6) array of packed positions and colors.
         The first 3 elements of each vector are interpreted as position whereas
@@ -67,7 +69,13 @@ class PointCloud(object):
             if rgb.shape[-1] != 3:
                 raise RuntimeError('invalid point cloud RGB dimension: {}'.format(rgb.shape))
 
-            self._rgb_vbo = vbo.VBO(rgb.astype(numpy.float32) / 255)
+            # infer normalization from datatype
+            if numpy.issubdtype(rgb.dtype, numpy.integer):
+                normalization = 255
+            else:
+                normalization = 1
+
+            self._rgb_vbo = vbo.VBO(rgb.astype(numpy.float32) / normalization)
             logger.debug('loaded point cloud with {} RGB points'.format(rgb.shape))
 
     def draw(self):
@@ -160,6 +168,8 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         self.point_clouds = {}
 
+        self.options = {}
+
     def update(self):
         update_world(self.db, self.program.world, self.timestamps)
 
@@ -179,19 +189,49 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         logger.info('updating {} point cloud'.format(name))
 
-        cloud_xyz = self.db.get('/camera/{}/point_cloud'.format(name))
-        cloud_rgb = self.db.get('/camera/{}/aligned_image'.format(name))
-
         cloud = self.point_clouds.get(cloud_name)
         if not cloud:
             # construct and register a new point cloud
-            cloud = PointCloud()
+            cloud = PointCloudRender()
             self.program.post_drawables.append(cloud)
             self.point_clouds[cloud_name] = cloud
 
+        options = self.options.get(cloud, {})
+
+        # query point cloud XYZ
+        cloud_xyz = self.db.get('/camera/{}/point_cloud'.format(name))
+        cloud_rgb = None
+
+        if cloud_xyz is not None:
+            # mask out invalid pixels
+            mask = cloud_xyz[:, :, 2] > 0
+            cloud_xyz = cloud_xyz[mask]
+
+            color_mode = options.get('color_mode', 'rgb')
+
+            if color_mode == 'rgb':
+                # query aligned color image to colorize point cloud
+                cloud_rgb = self.db.get('/camera/{}/aligned_image'.format(name))
+                if cloud_rgb is not None:
+                    cloud_rgb = cloud_rgb[mask]
+                else:
+                    # fall back to depth colorizing
+                    color_mode = 'depth'
+
+            if color_mode == 'depth':
+                # generate colormap within range
+                (llimit, ulimit) = options.get('depth_range', (0.5, 1))
+                colormap = interp1d(numpy.linspace(llimit, ulimit, len(cm.viridis.colors)), cm.viridis.colors, axis=0)
+                # apply color map
+                cloud_rgb = colormap(cloud_xyz[:, 2].clip(llimit, ulimit))
+
+            if color_mode == 'solid':
+                color = options.get('color', (0, 255, 0))
+                # color all points the same
+                cloud_rgb = numpy.full(cloud_xyz.shape[:-1] + (len(color),), color)
+
         # perform the update
-        mask = cloud_xyz[:,:,2] > 0
-        cloud.update(xyz=cloud_xyz[mask], rgb=cloud_rgb[mask], pose=self.db.get('/camera/{}/pose'.format(name)))
+        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=self.db.get('/camera/{}/pose'.format(name)))
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
