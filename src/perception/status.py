@@ -8,6 +8,7 @@ import realsense as rs
 import segmentation
 import deepLearning as dl
 import cv2
+import scipy.misc
 # from pensive.client import PensiveClient
 # from pensive.coders import register_numpy
 import logging
@@ -27,7 +28,7 @@ class CameraStatus:
         self.cameraExtrinsicsD2C = {}           #depth to color image extrinsics
         self.depthCamera = depthCamera.DepthCameras()
         self.depthCamera.connect()
-        self.objectRecognizer = dl.ObjectRecognizer()
+        self.objectRecognizer = dl.ObjectRecognizer('vgg_finetuned_ARC2017_1.pkl',39)
 
         # self.db_client = PensiveClient(host='http://10.10.1.102:8888')
         # self.store = self.db_client.default()
@@ -197,10 +198,13 @@ class CameraStatus:
             colorImage = self.cameraFullColorImages[serialNum]
             #segment the image
             color_images, depth_images = segmentation.depthSegmentation(depthImage, colorImage, self.cameraExtrinsicsD2C[serialNum])
-            
-            #for all sub images in the depth image guess what it is
+            # for all sub images in the depth image guess what it is
             for num, im in enumerate(color_images):
-                _, best_guess = self.objectRecognizer.guessObject(im)
+                #convert the image from BGR to RGB
+                _, best_guess = self.objectRecognizer.guessObject(scipy.misc.toimage(im))
+
+                #TODO restrict the guess to what items are currently on the shelf
+
                 best_guess = best_guess[0]
                 logger.info("Found object {}".format(self.object_names[best_guess]))
                 #where is this object?
@@ -221,6 +225,22 @@ class CameraStatus:
                 #guess object centroid by using mean
                 centroid = np.array(pts_in_space).mean(0)
                 logger.info("Object's {} point cloud centroid is {}, {}, {}".format(self.object_names[best_guess], centroid[0], centroid[1], centroid[2]))
-                #TODO send this info to the database server
-                # key = best_guess + "/centroid/"
-                # self.store.put(key=key,value=centroid)
+                
+                #write text on image of what we think the object is
+                mean_image = indices.mean(0)
+                # font = cv2.FONT_HERSHEY_SIMPLEX
+                # cv2.putText(self.cameraFullColorImages[serialNum],self.object_names[best_guess],(mean_image[1], mean_image[0]), font, 0.3 ,(255,0 ,0),1,cv2.LINE_AA)
+                # send this info to the database server
+                # self.store.put('/item/'+self.object_names[best_guess]+'/point_cloud', pts_in_space - centroid)
+
+                #fix camera tmp
+                # cam_pose = self.store.get('/camera/camera1/pose')  
+                # and need shelf pose
+                # shelf = self.store.get('/shelf/pose')
+                # update pose as mean of obj pc
+                # pose = numpy.eye(4, 4)
+                # pose[:3, 3] = mean
+                # logger.debug('object pose relative to camera\n{}'.format(pose))
+                # obj_pose = np.linalg.inv(self.shelf).dot(self.cam_pose.dot(pose))
+                # logger.debug('object pose relative to shelf\n{}'.format(obj_pose))
+                # self.store.put(['item', self.ItemDict['name'], 'pose'], obj_pose)
