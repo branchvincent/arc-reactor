@@ -159,7 +159,7 @@ elif args.command == 'shell':
             runpy.run_path(args.module, run_name='__main__')
         else:
             # run the module directly
-            runpy.run_module(args.module, run_name='__main__')
+            runpy.run_module(args.module, run_name='__main__', alter_sys=True)
 
     elif args.help:
         shell_parser.print_help()
