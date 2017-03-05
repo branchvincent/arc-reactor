@@ -187,19 +187,27 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         self.timestamps[cloud_name] = stamp
 
-        logger.info('updating {} point cloud'.format(name))
+        logger.debug('updating {} point cloud'.format(name))
 
-        cloud = self.point_clouds.get(cloud_name)
+        self._update_point_cloud(
+            cloud_name,
+            '/camera/{}/pose'.format(name),
+            '/camera/{}/point_cloud'.format(name),
+            '/camera/{}/aligned_image'.format(name)
+        )
+
+    def _update_point_cloud(self, name, pose_url, xyz_url, rgb_url=None):
+        cloud = self.point_clouds.get(name)
         if not cloud:
             # construct and register a new point cloud
             cloud = PointCloudRender()
             self.program.post_drawables.append(cloud)
-            self.point_clouds[cloud_name] = cloud
+            self.point_clouds[name] = cloud
 
         options = self.options.get(cloud, {})
 
         # query point cloud XYZ
-        cloud_xyz = self.db.get('/camera/{}/point_cloud'.format(name))
+        cloud_xyz = self.db.get(xyz_url)
         cloud_rgb = None
 
         if cloud_xyz is not None:
@@ -211,7 +219,8 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
             if color_mode == 'rgb':
                 # query aligned color image to colorize point cloud
-                cloud_rgb = self.db.get('/camera/{}/aligned_image'.format(name))
+                if rgb_url:
+                    cloud_rgb = self.db.get(rgb_url)
                 if cloud_rgb is not None:
                     cloud_rgb = cloud_rgb[mask]
                 else:
@@ -231,7 +240,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
                 cloud_rgb = numpy.full(cloud_xyz.shape[:-1] + (len(color),), color)
 
         # perform the update
-        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=self.db.get('/camera/{}/pose'.format(name)))
+        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=self.db.get(pose_url))
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
