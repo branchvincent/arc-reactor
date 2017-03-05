@@ -105,4 +105,5 @@ class ObjectRecognizer:
         # prep images
         _,prepped_image = self.prep_image(image)
         guess = self.pred_fn(prepped_image)
+        #guess is vector of "probabilities" guess argmax is the index of the category
         return guess,guess.argmax(-1)
