@@ -71,7 +71,10 @@ class FindItem(State):
             binaryMask = (mask.sum(axis=2) > 0)
             obj_pc = point_cloud[numpy.bitwise_and(binaryMask, point_cloud[:, :, 2] > 0)]
             mean = obj_pc.mean(axis=0)
+
             self.store.put(['item', selected_item, 'point_cloud'], obj_pc - mean)
+            self.store.put(['item', selected_item, 'timestamp'], time())
+
             logger.debug('found {} object points'.format(obj_pc.shape[0]))
 
             #update pose as mean of obj pc

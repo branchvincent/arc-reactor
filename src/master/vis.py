@@ -178,6 +178,35 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         for name in ['shelf0', 'stow']:
             self._update_camera(name)
 
+        # update item point clouds
+        for name in self.db.get('item'):
+            self._update_item(name)
+
+    def _update_item(self, name):
+        cloud_name = '{}_pc'.format(name)
+
+        # check if point cloud is modified
+        stamp = self.db.get(['item', name, 'timestamp'])
+        if stamp <= self.timestamps.get(cloud_name, 0):
+            return
+
+        # retrieve the point clouds once
+        if self.db.get(['item', name, 'point_cloud']) is None:
+            self.requests.extend([
+                (-1, ['item', name, 'point_cloud']),
+            ])
+            return
+
+        self.timestamps[cloud_name] = stamp
+
+        logger.debug('updating {} point cloud'.format(name))
+
+        self._update_point_cloud(
+            cloud_name,
+            ['item', name, 'pose'],
+            ['item', name, 'point_cloud'],
+        )
+
     def _update_camera(self, name):
         cloud_name = '{}_pc'.format(name)
 
@@ -220,9 +249,12 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         cloud_rgb = None
 
         if cloud_xyz is not None:
-            # mask out invalid pixels
-            mask = cloud_xyz[:, :, 2] > 0
-            cloud_xyz = cloud_xyz[mask]
+            if len(cloud_xyz.shape) == 3:
+                # mask out invalid pixels
+                mask = cloud_xyz[:, :, 2] > 0
+                cloud_xyz = cloud_xyz[mask]
+            else:
+                mask = None
 
             color_mode = options.get('color_mode', 'rgb')
 
@@ -231,7 +263,8 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
                 if rgb_url:
                     cloud_rgb = self.db.get(rgb_url)
                 if cloud_rgb is not None:
-                    cloud_rgb = cloud_rgb[mask]
+                    if mask is not None:
+                        cloud_rgb = cloud_rgb[mask]
                 else:
                     # fall back to depth colorizing
                     color_mode = 'depth'
