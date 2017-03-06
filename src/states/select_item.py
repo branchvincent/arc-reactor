@@ -15,7 +15,7 @@ class SelectItem(State):
 
         elif self.alg == 'stow':
             # XXX: copied from picking for testing purposes
-            self.chosenItem = max(self.itemList, key=lambda l: self.itemList[l]['point_value'])
+            self.chosenItem = 'dr_dobbs_bottle_brush'
             #self.points =
             pass
 
