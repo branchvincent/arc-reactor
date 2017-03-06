@@ -4,7 +4,6 @@ import time
 from OpenGL import GL, GLU
 from status import CameraStatus
 from functools import partial
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -61,18 +60,12 @@ class PerceptionMonitor(QtWidgets.QWidget):
         self.horzBot.addWidget(self.glWidget)
 
         #add a plotter to the bottom right 
-        self.figure = plt.figure()
-        self.canvas = FigureCanvas(self.figure)
-        self.canvas.setMinimumSize(300,300)
-        self.canvas.setParent(self)
-        axes = self.figure.add_axes([0,0,1,1])
-        axes.set_axis_off()
-        axes.set_xmargin(0)
-        axes.set_frame_on(False)
-        axes.imshow(np.zeros((480,640,3),dtype='uint8'))
-
-        self.canvas.draw()
-        self.horzBot.addWidget(self.canvas)
+        self.camera_display = QtWidgets.QLabel(self)
+        zeroImg = np.zeros((480,640,3),dtype='uint8')
+        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1] * 3,QtGui.QImage.Format_RGB888)
+        pix = QtGui.QPixmap(image)
+        self.camera_display.setPixmap(pix)
+        self.horzBot.addWidget(self.camera_display)
         self.horzBot.setStretch(0,1)
         self.horzBot.setStretch(1,1)
 
@@ -92,17 +85,17 @@ class PerceptionMonitor(QtWidgets.QWidget):
 
 
         #start timer that updates views
-        self.timer_on = True
-        QtCore.QTimer.singleShot(2000, self.update_views)
+        self.timer_on = False
+        # QtCore.QTimer.singleShot(2000, self.update_views)
 
 
     #updates the pictures for all the cameras 
     def update_views(self):
         self.cam_status.poll()
         self.update_connected_cams()
-        self.cam_status.find_objects()
+        colorimgs = self.cam_status.find_objects()
         self.update_world_view()
-        self.saveImages()
+        self.saveImages(colorimgs)
         if self.timer_on:
             QtCore.QTimer.singleShot(0, self.update_views)
 
@@ -158,17 +151,27 @@ class PerceptionMonitor(QtWidgets.QWidget):
         #show the image from the serial number btn
         if not serialn is None:
             image = self.cam_status.cameraFullColorImages[serialn]
-            self.figure.clear()
-            axes = self.figure.add_axes([0,0,1,1])
-            axes.imshow(image)            
-            axes.set_axis_off()
-            self.canvas.draw()
+            pix_image = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
+            pix = QtGui.QPixmap(pix_image)
+            self.camera_display.setPixmap(pix)
 
     #change the view of the picture to the button that was clicked
     def change_view(self, btn):
         self.currentView = btn
 
-    def saveImages(self):
+    def saveImages(self, list_of_imgs = None):
+        # if self.textBox.text() != '':
+        #     if not self.textBox.text() in os.listdir():
+        #         #make it
+        #         os.mkdir(self.textBox.text())
+        #         #reset the counter
+        #         self.counter = 0
+        #     for image in list_of_imgs:
+        #         import scipy.misc
+        #         rgb = scipy.misc.toimage(image)
+        #         plt.imsave(self.textBox.text() + "/" + str(self.counter) + ".png", rgb)   
+        #         self.counter = self.counter + 1
+
         for key in self.cam_indicators:
             #check if we should save the image
             if self.textBox.text() != '':
@@ -291,10 +294,10 @@ class GLWidget(QtOpenGL.QGLWidget):
         self.lastY = event.pos().y()
 
     def wheelEvent(self, event):
-        if event.delta() < 0 :#towards user
-            self.radius -= 0.1
-        else:
-            self.radius += 0.1
+        # if event.delta() < 0 :#towards user
+        #     self.radius -= 0.1
+        # else:
+        #     self.radius += 0.1
 	    
 
         self.update()
