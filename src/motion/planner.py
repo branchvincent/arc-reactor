@@ -24,10 +24,11 @@ order_box_min=[0.36,0.65,0.5]
 order_box_max=[0.5278,0.904,0.5]
 angle_to_degree=57.296
 ee_link=6
-control_rate=30 #controlling the robot with 20 Hz
-max_end_effector_v=2 # max end effector move speed
-
-
+control_rate=20 #controlling the robot with 20 Hz
+max_end_effector_v=0.5 # max end effector move speed
+max_change=20.0/180.0*3.14159 #the max change between raw milestones is 10 degree
+milestone_check_max_change=5.0/180.0*3.14159 #the max change between milestones is 5 degree
+milestone_check_max_speed=60/180.0*3.14159
 
 def pick_up(world,item,target_box):
 	"""
@@ -43,15 +44,15 @@ def pick_up(world,item,target_box):
 			-- position: box position
 	outputs:
 		a list of milestones=(t, {
-              'robot': q,
-              'gripper': [0,0,0],
-              'vaccum': [0]
-            })
-        - t: planned time to reach this configuration
-        - robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot. 
-        Also all the values are in radius, while the real robot joint values are in degree
-        - gripper control
-        - vaccum: 0-off 1-on
+			  'robot': q,
+			  'gripper': [0,0,0],
+			  'vaccum': [0]
+			})
+		- t: planned time to reach this configuration
+		- robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot. 
+		Also all the values are in radius, while the real robot joint values are in degree
+		- gripper control
+		- vaccum: 0-off 1-on
 	"""
 	
 	#init
@@ -71,11 +72,11 @@ def pick_up(world,item,target_box):
 	item_vacuum_offset=item['vacuum_offset']
 	drop_offset=item['drop offset']
 	drop_position=target_box['drop position']
-	print drop_position
+	# print drop_position
 	# if target_box['drop position']:
-	# 	drop_position=target_box['drop position']
+	#   drop_position=target_box['drop position']
 	# else:
-	# 	drop_position=find_drop_position(item['bbox'],order_box_min,order_box_max,world)
+	#   drop_position=find_drop_position(item['bbox'],order_box_min,order_box_max,world)
 	box_bottom_high=target_box['position'][2]
 	vaccum_approach_distance=[0,0,0.03]
 	#setting some constant parameters and limits
@@ -100,19 +101,19 @@ def pick_up(world,item,target_box):
 	dy=item_position[1]-start_position[1]
 	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,1,control_rate,current_T,end_T,0,0,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 	if not motion_milestones:
 		return False
-	#from start position to the pregrasp position
+	print "#from start position to the pregrasp position"
 	start_T=copy.deepcopy(end_T)
 	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,1)
 	if not motion_milestones:
 		return False
-	#start the vacuum
+	print "#start the vacuum"
 	motion_milestones.append(make_milestone(1,robot.getConfig(),1,0))
-	# lower the vacuum
+	print "# lower the vacuum"
 	temp=start_T
 	start_T=copy.deepcopy(end_T)
 	temp[1]=vectorops.add(item_position,item_vacuum_offset)
@@ -183,6 +184,7 @@ def pick_up(world,item,target_box):
 	# f=open('test.json','w')
 	# json.dump(motion_milestones,f)
 	# f.close()
+	fix_milestones(motion_milestones)
 	return motion_milestones
 
 
@@ -199,15 +201,15 @@ def stow(world,item,target_box):
 		- target_box: hacked from pick function. right now drop position is a goal position for the target item on the shelf 
 	outputs:
 		a list of milestones=(t, {
-              'robot': q,
-              'gripper': [0,0,0],
-              'vaccum': [0]
-            })
-        - t: planned time to reach this configuration
-        - robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot. 
-        Also all the values are in radius, while the real robot joint values are in degree
-        - gripper control
-        - vaccum: 0-off 1-on
+			  'robot': q,
+			  'gripper': [0,0,0],
+			  'vaccum': [0]
+			})
+		- t: planned time to reach this configuration
+		- robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot. 
+		Also all the values are in radius, while the real robot joint values are in degree
+		- gripper control
+		- vaccum: 0-off 1-on
 	"""
 	robot=world.robot(0)
 	motion_milestones=[]
@@ -230,9 +232,9 @@ def stow(world,item,target_box):
 
 	#from current position to the start position, in 2 seconds
 	# if item_position[1]*shelf_position[0]>item_position[0]*shelf_position[1]:
-	# 	start_position=approach_p1
+	#   start_position=approach_p1
 	# else:
-	# 	start_position=approach_p2
+	#   start_position=approach_p2
 	# start_position[2]=item_position[2]+item_vacuum_offset[2]
 	# d=vectorops.distance(start_position[:1],item_position[:1])
 	# dx=item_position[0]-start_position[0]
@@ -245,7 +247,7 @@ def stow(world,item,target_box):
 	start_T=copy.deepcopy(current_T)
 	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,1,control_rate,start_T,end_T,0,0,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
 		return False
 
@@ -328,36 +330,56 @@ def stow(world,item,target_box):
 	# f=open('test.json','w')
 	# json.dump(motion_milestones,f)
 	# f.close()
+	fix_milestones(motion_milestones)
+	return motion_milestones
+
+def fix_milestones(motion_milestones):
+	old_config=motion_milestones[0][1]['robot']
+	i=1
+	while i<len(motion_milestones):
+		new_config=motion_milestones[i][1]['robot']
+		d_config=max(max(vectorops.sub(new_config,old_config)),-min(vectorops.sub(new_config,old_config)))
+		speed_config=d_config/motion_milestones[i][0]
+		if d_config>milestone_check_max_change:#the max change between milestones is 5 degree:
+			print 'd_config',d_config
+			new_milestone=make_milestone(motion_milestones[i][0],vectorops.div(vectorops.add(motion_milestones[i-1][1]['robot'],motion_milestones[i][1]['robot']),2),motion_milestones[i-1][1]['vacuum'],motion_milestones[i-1][1]['simulation'])
+			motion_milestones.insert(i,new_milestone)
+			continue
+		elif speed_config>milestone_check_max_speed:
+			new_milestone=make_milestone(d_config/(milestone_check_max_speed-0.1),motion_milestones[i][1]['robot'],motion_milestones[i][1]['vacuum'],motion_milestones[i][1]['simulation'])
+			motion_milestones[i]=new_milestone
+			i+=1
+			old_config=new_config
+		else:
+			i+=1
+			old_config=new_config
 	return motion_milestones
 
 
-
 def interpolate(start_T,end_T,u,flag):
-    R1,t1=start_T
-    R2,t2=end_T
-    T=se3.interpolate(start_T,end_T,u)
-    R,t=T
-    if flag:
-        ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0]),vectorops.add(ee_local,[0,0,0.01])]
-        ik_world=[t,vectorops.add(t,[R[0]/100.0,R[1]/100.0,R[2]/100.0]),vectorops.add(t,[R[6]/100.0,R[7]/100.0,R[8]/100.0])]
-    else:
-        ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0])]
-        ik_world=[t,vectorops.add(t,[R[0]/100.0,R[1]/100.0,R[2]/100.0])]
-    return [ik_local,ik_world]
+	R1,t1=start_T
+	R2,t2=end_T
+	T=se3.interpolate(start_T,end_T,u)
+	R,t=T
+	if flag:
+		ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0]),vectorops.add(ee_local,[0,0,0.01])]
+		ik_world=[t,vectorops.add(t,[R[0]/100.0,R[1]/100.0,R[2]/100.0]),vectorops.add(t,[R[6]/100.0,R[7]/100.0,R[8]/100.0])]
+	else:
+		ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0])]
+		ik_world=[t,vectorops.add(t,[R[0]/100.0,R[1]/100.0,R[2]/100.0])]
+	return [ik_local,ik_world]
 
 def make_milestone(t,q,vacuum_status,simulation_status):
 	milestone=(t, {
-              'robot': q,
-              'gripper': [0,0,0],
-              'vacuum': [vacuum_status], 
-              'simulation': simulation_status
-            })
+			  'robot': q,
+			  'gripper': [0,0,0],
+			  'vacuum': [vacuum_status], 
+			  'simulation': simulation_status
+			})
 	return milestone
 
 
 def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vacuum_status,simulation_status,ik_indicator):
-	# q=robot.getConfig()
-	# milestones.append(make_milestone(0.5,q,vacuum_status))
 	if t<0.3:
 		t=0.3
 	steps=t*control_rate
@@ -371,80 +393,94 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		[local_p,world_p]=interpolate(start_T,end_T,u,ik_indicator)
 		goal = ik.objective(robot.link(ee_link),local=local_p,world=world_p)
 		s=ik.solve_global(goal)
-		# s=ik.solve_nearby(goal,maxDeviation=5,feasibilityCheck=test_function)
+		# s=ik.solve_nearby(goal,maxDeviation=1000,feasibilityCheck=test_function)
 		q=robot.getConfig()
 		n=0
 		# print i
 		# print s
 		# print test_cspace.feasible(q)
-		while n<10:
-			if s and test_cspace.feasible(q):
+		
+		flag = 1
+		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)):
+			print "too much change!"
+			print max(vectorops.sub(q_old,q))
+			print min(vectorops.sub(q_old,q))
+			flag=0
+		while n<20:
+			if flag and (s and test_cspace.feasible(q)) :
 				break
 			else:
 				# print "no feasible ik solution found"
 				# print world_p
 				robot.setConfig(q_old)
-				# s=ik.solve_nearby(goal,maxDeviation=5,feasibilityCheck=test_function)
 				s=ik.solve_global(goal)
-	        	q=robot.getConfig()
-	        	# print 's',s
-	        	# print 'feasible test:',test_cspace.feasible(q)
-	        	n+=1
-		if s and test_cspace.feasible(q):
+				# s=ik.solve_nearby(goal,maxDeviation=1000,feasibilityCheck=test_function)
+				q=robot.getConfig()
+				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)):
+					# print "too much change!"
+					flag=0
+				else:
+					flag=1
+				# print 's',s
+				# print 'feasible test:',test_cspace.feasible(q)
+				n+=1
+		if flag and s and test_cspace.feasible(q):
+			m_change=max(max(vectorops.sub(q_old,q)),-min(vectorops.sub(q_old,q)))
 			milestones.append(make_milestone(t_step,q,vacuum_status,simulation_status))
 			i+=1
 		else:
 			print 'no feasible solution can be found!!!!!'
+			print s
 			return False
 	return milestones
 
 
 class Globals:
-    def __init__(self,world):
-        self.world = world
-        self.robot = world.robot(0)
-        self.collider = WorldCollider(world)
+	def __init__(self,world):
+		self.world = world
+		self.robot = world.robot(0)
+		self.collider = WorldCollider(world)
 
 
 class TestCSpace(CSpace):
-    """A CSpace defining the feasibility constraints of the robot"""
-    def __init__(self,globals):
-        CSpace.__init__(self)
-        self.globals = globals
-        self.robot = globals.robot
-        #initial whole-body configuratoin
-        self.q0 = self.robot.getConfig()
-        #setup CSpace sampling range
-        qlimits = zip(*self.robot.getJointLimits())
-        self.bound = [qlimits[i] for i in range(len(self.q0))]
-        #setup CSpace edge checking epsilon
-        self.eps = 1e-2
+	"""A CSpace defining the feasibility constraints of the robot"""
+	def __init__(self,globals):
+		CSpace.__init__(self)
+		self.globals = globals
+		self.robot = globals.robot
+		#initial whole-body configuratoin
+		self.q0 = self.robot.getConfig()
+		#setup CSpace sampling range
+		qlimits = zip(*self.robot.getJointLimits())
+		self.bound = [qlimits[i] for i in range(len(self.q0))]
+		#setup CSpace edge checking epsilon
+		self.eps = 1e-2
 
-    def feasible(self,x):
-        #check arm joint limits
-        for (xi,bi) in zip(x,self.bound):
-            if xi < bi[0] or xi > bi[1]:
-                return False
-        #set up whole body configuration to test environment and self collisions
-        q =x[:]
-        self.robot.setConfig(q)
-        world = self.globals.world
-        collider = self.globals.collider
-        #TODO: this could be much more efficient if you only tested the robot's moving joints
-        #test robot-object collisions
-        for o in xrange(world.numRigidObjects()):
-            if any(collider.robotObjectCollisions(self.robot.index,o)):
-                return False;
-        #test robot-terrain collisions
-        for o in xrange(world.numTerrains()):
-            if any(collider.robotTerrainCollisions(self.robot.index,o)):
-                return False;
-        #test robot self-collisions
-        if any(collider.robotSelfCollisions(self.robot.index)):
-            return False
-        return True
+	def feasible(self,x):
+		#check arm joint limits
+		for (xi,bi) in zip(x,self.bound):
+			if xi < bi[0] or xi > bi[1]:
+				return False
+		#set up whole body configuration to test environment and self collisions
+		q =x[:]
+		self.robot.setConfig(q)
+		world = self.globals.world
+		collider = self.globals.collider
+		#TODO: this could be much more efficient if you only tested the robot's moving joints
+		#test robot-object collisions
+		for o in xrange(world.numRigidObjects()):
+			if any(collider.robotObjectCollisions(self.robot.index,o)):
+				return False;
+		#test robot-terrain collisions
+		for o in xrange(world.numTerrains()):
+			if any(collider.robotTerrainCollisions(self.robot.index,o)):
+				return False;
+		#test robot self-collisions
+		if any(collider.robotSelfCollisions(self.robot.index)):
+			return False
+		return True
 
 def test_function():
-    return True
+	return True
 
 

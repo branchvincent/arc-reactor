@@ -2,6 +2,7 @@
 
 import sys
 from klampt import *
+from klampt import vis
 from klampt.vis.glrobotprogram import *
 from klampt.model import ik,coordinates,config,cartesian_trajectory,trajectory
 from klampt.model.collide import WorldCollider
@@ -28,9 +29,9 @@ ee_link=6
 
 
 
-class MyGLViewer(GLSimulationProgram):
+class MyGLViewer(GLSimulationPlugin):
     def __init__(self,world):
-        GLSimulationProgram.__init__(self,world,"My GL program")
+        GLSimulationPlugin.__init__(self,world)
         self.world = world
         self.robotController=self.sim.controller(0)
         self.score=0
@@ -116,6 +117,7 @@ class MyGLViewer(GLSimulationProgram):
                     target_item['drop offset']=0.2
                     target_box["drop position"]=[0.25,0.95-0.07*self.target,0.6]
                     target_box['position']=[0.2,0.8,0.15]
+                    old_config=self.sim.world.robot(0).getConfig()
                     self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
                     if self.trajectory==False:
                         self.score+=1
@@ -126,10 +128,26 @@ class MyGLViewer(GLSimulationProgram):
                     else:
                     	self.old_time=self.sim.getTime()
                     	self.time_count=0
+                        print "validing trajectory..."
+                        max_change_joint=0
+                        max_joint_speed=0
+                        for i in range(len(self.trajectory)):
+                            new_config=self.trajectory[i][1]['robot']
+                            d_config=max(max(vectorops.sub(new_config,old_config)),-min(vectorops.sub(new_config,old_config)))
+                            speed_config=d_config/self.trajectory[i][0]
+                            if d_config>max_change_joint:
+                                max_change_joint=d_config
+                            if speed_config>max_joint_speed:
+                                max_joint_speed=speed_config
+                            old_config=new_config
+                        print 'max joint change is :', max_change_joint/3.14159*180
+                        print 'max joint speed is:', max_joint_speed/3.14159*180
+
+
                 else:
                     target_item={}
                     target_box={}
-                    print self.sim.world.rigidObject(self.target).getVelocity()[0]
+                    # print self.sim.world.rigidObject(self.target).getVelocity()[0]
                     if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.01:
                         print 'turning!'
                         return
@@ -139,6 +157,7 @@ class MyGLViewer(GLSimulationProgram):
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
                     target_box["drop position"]=self.place_position[self.target]
                     target_box['position']=self.place_position[self.target]
+                    old_config=self.sim.world.robot(0).getConfig()
                     self.trajectory=planner.stow(self.sim.world,target_item,target_box)
                     if self.trajectory==False:
                         self.score+=1
@@ -149,6 +168,21 @@ class MyGLViewer(GLSimulationProgram):
                     else:
                     	self.old_time=self.sim.getTime()
                     	self.time_count=0
+                        print "validing trajectory..."
+                        max_change_joint=0
+                        max_joint_speed=0
+                        for i in range(len(self.trajectory)):
+                            new_config=self.trajectory[i][1]['robot']
+                            d_config=max(max(vectorops.sub(new_config,old_config)),-min(vectorops.sub(new_config,old_config)))
+                            speed_config=d_config/self.trajectory[i][0]
+                            if d_config>max_change_joint:
+                                max_change_joint=d_config
+                            if speed_config>max_joint_speed:
+                                max_joint_speed=speed_config
+                            old_config=new_config
+                        print 'max joint change is :', max_change_joint/3.14159*180
+                        print 'max joint speed is:', max_joint_speed/3.14159*180
+
             
 
     
@@ -162,10 +196,10 @@ class MyGLViewer(GLSimulationProgram):
             if state==0:
                 print [o.getName() for o in self.click_world(x,y)]
                 return
-        GLRealtimeProgram.mousefunc(self,button,state,x,y)
+        GLPluginInterface.mousefunc(self,button,state,x,y)
 
     def print_help(self):
-        GLSimulationProgram.print_help(self)
+        GLSimulationPlugin.print_help(self)
         print 'Drive keys:',sorted(self.keymap.keys())
 
     def keyboardfunc(self,c,x,y):
@@ -190,7 +224,7 @@ class MyGLViewer(GLSimulationProgram):
         #     print 'target:',self.target
 
         # else:
-        GLSimulationProgram.keyboardfunc(self,c,x,y)
+        GLSimulationPlugin.keyboardfunc(self,c,x,y)
         self.refresh()
 
 
@@ -207,4 +241,4 @@ if __name__ == "__main__":
     
 
     viewer = MyGLViewer(world)
-    viewer.run()
+    vis.run(viewer)
