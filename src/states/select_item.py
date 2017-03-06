@@ -14,18 +14,20 @@ class SelectItem(State):
             self.chosenItem = max(self.itemList, key=lambda l: self.itemList[l]['point_value'])
 
         elif self.alg == 'stow':
-            #self.points = 
+            # XXX: copied from picking for testing purposes
+            self.chosenItem = max(self.itemList, key=lambda l: self.itemList[l]['point_value'])
+            #self.points =
             pass
 
         elif self.alg == 'final':
-            #self.points = 
+            #self.points =
             pass
-            
+
         else:
             message = "Algorithm for selection is None, pick, stow, or final"
             logger.error(message)
             raise RuntimeError(message)
-        
+
         logger.info("Chosen item is {} worth {} points".format(self.chosenItem, self.store.get('/item/'+self.chosenItem+'/point_value')))
         self.store.put('/robot/selected_item', self.chosenItem)
         self.store.put('/status/selected_item', self.chosenItem is not None)
