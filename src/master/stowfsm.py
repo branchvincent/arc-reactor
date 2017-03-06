@@ -26,8 +26,10 @@ class StowStateMachine(StateMachine):
     def setupTransitions(self):
         self.setTransition('fa', 'si', 'fa', '/status/viewed_items')
         self.setTransition('si', 'fi', 'si', '/status/selected_item', '/checkpoint/select_item', checkState='csi')
+        self.setTransition('csi', 'fi', 'si', '/status/selected_item')
         self.setTransition('fi', 'pr', 'ms', '/status/selected_item_location')
         self.setTransition('pr', 'er', 'ms', '/status/route_plan', '/checkpoint/plan_route', checkState='cr')
+        self.setTransition('cr', 'er', 'pr', '/status/route_plan')
         self.setTransition('er', 'ci', 'fi', '/status/route_exec')
         self.setTransition('ms', 'fi', 'fi', '/status/shelf_move')
         self.setTransition('ci', 'si', 'fi', '/status/item_picked')
@@ -39,11 +41,9 @@ class StowStateMachine(StateMachine):
         # copied from PickStateMachine for testing only
         for (i, (k, v)) in enumerate(self.location_db['item'].items()):
             self.store.put(['item', k, 'location'], v['location'])
-
             self.points = 10
             self.store.put('/item/'+k+'/point_value', self.points)
-            self.store.put('/item/'+k+'/order', i)
-            print "item ", k, " is valued at ", self.points, " for ", i, "in", v['location']
+            print "item ", k, " is valued at ", self.points, "in", v['location']
 
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write
