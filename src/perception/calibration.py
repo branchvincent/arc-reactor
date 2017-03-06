@@ -8,6 +8,7 @@ import os
 import logging
 import sys
 sys.path.append('../hardware/SR300/')
+import time
 import realsense as rs
 #for when we want to read the current position of the robot from the server
 # from pensive.client import PensiveClient
@@ -52,6 +53,9 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.gridRobot = QtWidgets.QGridLayout()
         self.gridCamera = QtWidgets.QGridLayout()
         self.horzMid.addItem(self.gridRobot)
+        spacer =QtWidgets.QLabel("     ",self)
+        self.horzMid.addWidget(spacer)
+        spacer.show()
         self.horzMid.addItem(self.gridCamera)
         self.robotTextBoxes = []
         self.cameraTextBoxes = []
@@ -94,24 +98,24 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.save_button.clicked.connect(self.save_calibration)
 
         #add widget to show what the camera sees
-        self.figure = plt.figure()
-        self.canvas = FigureCanvas(self.figure)
-        self.canvas.setMinimumSize(300,300)
-        self.canvas.setParent(self)
-        axes = self.figure.add_axes([0,0,1,1])
-        axes.set_axis_off()
-        axes.set_xmargin(0)
-        axes.set_frame_on(False)
-        axes.imshow(np.zeros((480,640,3),dtype='uint8'))
+        self.camera_display = QtWidgets.QLabel(self)
+        zeroImg = np.zeros((480,640,3),dtype='uint8')
+        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1] * 3,QtGui.QImage.Format_RGB888)
+        pix = QtGui.QPixmap(image)
+        self.camera_display.setPixmap(pix)
+        self.horzBot = QtWidgets.QHBoxLayout()
+        self.horzBot.addStretch(1)
+        self.horzBot.addWidget(self.camera_display)
+        self.horzBot.addStretch(1)
 
         #add everthing to the layout
         self.layout.addItem(self.horzTop)
         self.layout.addItem(self.horzMid)
-        self.layout.addWidget(self.canvas)
+        self.layout.addItem(self.horzBot)
 
      
         self.calibrate_button.show()
-        self.canvas.draw()
+
     
     def calibrate_camera(self):
         if self.thread.isRunning():
@@ -121,12 +125,11 @@ class RealsenseCalibration(QtWidgets.QWidget):
             self.thread.start()
 
     def updateView(self, image):
-        self.figure.clear()
-        axes = self.figure.add_axes([0,0,1,1])
-        axes.imshow(image)            
-        axes.set_axis_off()
-        self.canvas.draw()
+        pix_img = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
+        pix = QtGui.QPixmap(pix_img)
+        self.camera_display.setPixmap(pix)
 
+        t = time.time()
         #set the dictionary
         dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
 
@@ -146,7 +149,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             xform[3, 3] = 1
             self.cameraXform = xform
         else:
-            logger.warning("Unable to get the camera transform for {}. Camera cannot see Charuco.".format(sn))
+            logger.warning("Unable to get the camera transform. Camera cannot see Charuco.")
             xform = np.zeros((4,4))
             xform[0,0] = 1
             xform[1,1] = 1
@@ -157,7 +160,8 @@ class RealsenseCalibration(QtWidgets.QWidget):
         #update the gui
         for row in range(4):
             for col in range(4):
-                self.cameraTextBoxes[row][col].setText(str(cameraXforms[row, col]))
+                self.cameraTextBoxes[row][col].setText(str(self.cameraXform[row, col]))
+        # logger.info(time.time()-t)
 
     def save_calibration(self):
         #get the camera serial number
@@ -232,30 +236,34 @@ class VideoThread(QtCore.QThread):
             return
         c = 0
         cam.start()
-        cam.wait_for_frames()
-        imageFullColor = cam.get_frame_data_u8(rs.stream_color)
-        if imageFullColor.size == 1:
-            #something went wrong
-            logger.error("Could not capture the full color image. Size of requested stream did not match")
-            imageFullColor = None
-        else:
-            width = cam.get_stream_width(rs.stream_color)
-            height = cam.get_stream_height(rs.stream_color)    
-            imageFullColor = np.reshape(imageFullColor, (height, width, 3) )
+        t = time.time()
+        while self.keepRunning:
+            cam.wait_for_frames()
+            imageFullColor = cam.get_frame_data_u8(rs.stream_color)
+            if imageFullColor.size == 1:
+                #something went wrong
+                logger.error("Could not capture the full color image. Size of requested stream did not match")
+                imageFullColor = None
+            else:
+                width = cam.get_stream_width(rs.stream_color)
+                height = cam.get_stream_height(rs.stream_color)    
+                imageFullColor = np.reshape(imageFullColor, (height, width, 3) )
 
-        imageDepth = cam.get_frame_data_u16(rs.stream_depth)
-        if imageDepth.size == 1:
-            logger.error("Could not capture the depth image. Size of requested stream did not match")
-            imageDepth = None
-        else:
-            width = cam.get_stream_width(rs.stream_depth)
-            height = cam.get_stream_height(rs.stream_depth)    
-            imageDepth = np.reshape(imageDepth, (height, width) )
+            imageDepth = cam.get_frame_data_u16(rs.stream_depth)
+            if imageDepth.size == 1:
+                logger.error("Could not capture the depth image. Size of requested stream did not match")
+                imageDepth = None
+            else:
+                width = cam.get_stream_width(rs.stream_depth)
+                height = cam.get_stream_height(rs.stream_depth)    
+                imageDepth = np.reshape(imageDepth, (height, width) )
 
-
-        self.signal.emit(imageFullColor)
-
-        
+            # logger.info(1/(time.time()-t))
+            # t = time.time()
+            if c%20 == 1:
+                self.signal.emit(imageFullColor)
+            # QtWidgets.QApplication.instance().processEvents()
+            c = c+1
         cam.stop()
 
 def main():
