@@ -8,6 +8,7 @@ from math import pi
 
 from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram
+from klampt.vis.qtbackend import QtGLWindow
 
 from pensive.core import Store
 from pensive.client import PensiveClient
@@ -35,7 +36,7 @@ class WorldViewer(GLRealtimeProgram):
         self.fps = 30.0
         self.dt = 1 / self.fps
 
-        self.speed_scale = 0.1
+        self.speed_scale = 1
         self.end_delay = 1
 
         self.n = 0
@@ -43,11 +44,6 @@ class WorldViewer(GLRealtimeProgram):
         self.waypoint_index = None
 
     def display(self):
-        # hack to help Klampt not crash
-        self.n += 1
-        if self.n < 10:
-            return
-
         self.world.drawGL()
 
     def idle(self):
@@ -98,8 +94,32 @@ class WorldViewer(GLRealtimeProgram):
     def motionfunc(self,x,y,dx,dy):
         return GLRealtimeProgram.motionfunc(self,x,y,dx,dy)
 
-if __name__ == '__main__':
-    import sys
-    import os
+class WorldViewerWindow(QtGLWindow):
+    def __init__(self):
+        super(WorldViewerWindow, self).__init__()
 
-    WorldViewer().run()
+        self.setProgram(WorldViewer())
+        self.setWindowTitle(self.program.name)
+        self.setMaximumSize(1920, 1080)
+
+def run(modal=True):
+    from PyQt4.QtGui import QApplication
+    app = QApplication.instance()
+    if app:
+        embedded = True
+    else:
+        embedded = False
+        app = QApplication([])
+        app.setApplicationName('ARC Reactor')
+
+    window = WorldViewerWindow()
+    if modal:
+        from PyQt4.QtCore import Qt
+        window.setWindowModality(Qt.ApplicationModal)
+    window.show()
+
+    if not embedded:
+        app.exec_()
+
+if __name__ == '__main__':
+    run()
