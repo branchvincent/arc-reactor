@@ -41,19 +41,44 @@ class AsyncUpdateMixin(object):
     @coroutine
     def _update_handler(self):
         gets = []
-        for request in self.requests:
+        removals = []
+        for (i, request) in enumerate(self.requests):
             # check if skip period is specified
             if isinstance(request, (list, tuple)):
                 (skips, path) = request
 
-                if self._update_count % skips == 0:
+                append = False
+                # check if one shot
+                if skips < 1:
+                    append = True
+                    removals.append(i)
+                # regular skipped update
+                elif self._update_count % skips == 0:
+                    append = True
+
+                if append:
                     gets.append(path)
             else:
                 gets.append(request)
 
+        # remove all the oneshot requests in reverse order
+        for i in reversed(removals):
+            del self.requests[i]
+
+        # join all list paths until multi_get accepts list-based keys
+        for i in range(len(gets)):
+            if not isinstance(gets[i], basestring):
+                gets[i] = Store.SEPARATOR.join(gets[i])
+
+        # remove duplicates
+        gets = list(set(gets))
+
         try:
-            yield self._access_store()
-            result = yield self._store.multi_get(gets)
+            if gets:
+                yield self._access_store()
+                result = yield self._store.multi_get(gets)
+            else:
+                result = {}
         except:
             logger.exception('UI get failed')
         else:
