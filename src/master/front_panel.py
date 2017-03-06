@@ -10,6 +10,7 @@ from PySide.QtGui import QMainWindow, QCheckBox
 from PySide.QtCore import QTimer
 
 from master.pickfsm import PickStateMachine
+from master.stowfsm import StowStateMachine
 
 from .ui.front_panel import Ui_FrontPanel
 from .sync import AsyncUpdateMixin
@@ -35,7 +36,7 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
         self.ui = Ui_FrontPanel()
         self.ui.setupUi(self)
 
-        self.pick = None
+        self.fsm = None
 
         self.setup_async()
 
@@ -139,37 +140,41 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
             checkbox.setEnabled(view.get('/robot/run_mode') != 'full_auto')
 
     def _run_handler(self):
-        if not self.pick:
+        if not self.fsm:
             self._reset_handler()
 
         run_mode = self.db.get('/robot/run_mode')
         logger.info('running in mode {}'.format(run_mode))
 
         if run_mode == 'step_once':
-            self.pick.runStep()
+            self.fsm.runStep()
         elif run_mode == 'run_once':
-            self.pick.runOrdered(self.pick.getCurrentState())
+            self.fsm.runOrdered(self.fsm.getCurrentState())
         elif run_mode in ['run_all', 'full_auto']:
-            while not self.pick.doneOrderFile():
-                self.pick.runOrdered(self.pick.getCurrentState())
+            while not self.fsm.isDone():
+                self.fsm.runOrdered(self.fsm.getCurrentState())
         else:
             logger.error('unimplemented run mode: "{}"'.format(run_mode))
 
     def _reset_handler(self):
         logger.info('reset state machine')
 
-        self.pick = PickStateMachine()
-        self.pick.loadStates()
-        self.pick.setupTransitions()
-        self.pick.setCurrentState('si') #always start with SelectItem
-
         job_type = self.db.get('/robot/task')
         if job_type == 'pick':
-            logger.info('load order file for pick task')
-            self.pick.loadOrderFile('test/master/order_test.json')
+            logger.info('initialize pick state machine')
+            self.fsm = PickStateMachine()
+            self.fsm.loadOrderFile('test/master/order_test.json')
+        elif job_type == 'stow':
+            logger.info('initialize stow state machine')
+            self.fsm = StowStateMachine()
+            self.fsm.loadLocationFile('test/master/location_test.json')
         else:
             logger.error('unimplemented job type: "{}"'.format(job_type))
+            return
 
+        self.fsm.loadStates()
+        self.fsm.setupTransitions()
+        self.fsm.setCurrentState('si') #always start with SelectItem
 
     def update(self):
         '''

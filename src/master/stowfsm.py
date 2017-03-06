@@ -31,7 +31,15 @@ class StowStateMachine(StateMachine):
     def loadLocationFile(self, file_location):
         with open(file_location) as data_file:
             self.location_db = json.load(data_file)
-        self.store.multi_put(self.location_db)
+
+        # copied from PickStateMachine for testing only
+        for (i, (k, v)) in enumerate(self.location_db['item'].items()):
+            self.store.put(['item', k, 'location'], v['location'])
+
+            self.points = 10
+            self.store.put('/item/'+k+'/point_value', self.points)
+            self.store.put('/item/'+k+'/order', i)
+            print "item ", k, " is valued at ", self.points, " for ", i, "in", v['location']
 
     def doneStow(self):
         #if all items picked, all their point values are 0. Need to re-write
