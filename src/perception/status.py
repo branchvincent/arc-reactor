@@ -201,7 +201,7 @@ class CameraStatus:
             # for all sub images in the depth image guess what it is
             for num, im in enumerate(color_images):
                 #convert the image from BGR to RGB
-                _, best_guess = self.objectRecognizer.guessObject(scipy.misc.toimage(im))
+                _, best_guess = self.objectRecognizer.guessObject(np.array(scipy.misc.toimage(im)))
 
                 #TODO restrict the guess to what items are currently on the shelf
 
