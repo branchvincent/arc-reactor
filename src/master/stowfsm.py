@@ -1,4 +1,5 @@
 from master.fsm import StateMachine
+from states.find_all import FindAll
 from states.select_item import SelectItem
 from states.find_item import FindItem
 from states.plan_route import PlanRoute
@@ -40,6 +41,7 @@ class StowStateMachine(StateMachine):
                 self.points = self.store.get('/item/'+k+'/point_value')
                 self.value+=self.points
         return (self.value==0)
+    isDone = doneStow
 
 #################################################################################
 def runStowFSM():
@@ -59,8 +61,8 @@ def runStowFSM():
     #pc = numpy.load('test/camera1_pc.npy')
     #pick.store.put('/camera/camera1/point_cloud', pc)
     #number = 10
-    #for _ in range(number): pick.runOrdered('si')  
-    stow.setCurrentState('si')  
+    #for _ in range(number): pick.runOrdered('si')
+    stow.setCurrentState('si')
     stow.runStep()
     while(not stow.doneOrderFile()): stow.runOrdered(stow.getCurrentState())
 

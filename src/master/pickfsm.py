@@ -55,6 +55,7 @@ class PickStateMachine(StateMachine):
                 self.points = self.store.get('/item/'+k+'/point_value')
                 self.value+=self.points
         return (self.value==0)
+    isDone = doneOrderFile
 
 #################################################################################
 def runPickFSM():
@@ -74,8 +75,8 @@ def runPickFSM():
     #pc = numpy.load('test/camera1_pc.npy')
     #pick.store.put('/camera/camera1/point_cloud', pc)
     #number = 10
-    #for _ in range(number): pick.runOrdered('si')  
-    pick.setCurrentState('si')  
+    #for _ in range(number): pick.runOrdered('si')
+    pick.setCurrentState('si')
     pick.runStep()
     pick.runStep()
     while(not pick.doneOrderFile()): pick.runOrdered(pick.getCurrentState())
