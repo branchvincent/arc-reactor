@@ -11,24 +11,26 @@ class CheckItem(State):
             self.store.put('/status/'+i, False)
         self.store.put('/status/item_picked', True)
 
-        logger.info("{} item was picked successfully".format(self.chosenItem))
+        logger.info("{} item was moved successfully".format(self.chosenItem))
 
-        self.orderUp = self.store.get('/item/'+self.chosenItem+'/order')
-        self.filled = self.store.get('/order/'+self.orderUp+'/filled_items')
-        if self.filled == None:
-            self.filled = [str(self.chosenItem)]
-        else:
-            self.filled.append(str(self.chosenItem))
-        self.store.put('/order/'+self.orderUp+'/filled_items', self.filled)
+        if alg=="pick":
 
-        #update point values in the order
-        self.number = self.store.get('/order/'+self.orderUp+'/number')
-        if len(self.filled) < self.number:
-            self.notDone = self.store.get('/order/'+self.orderUp)
-            for i in self.notDone['items']:
-                if i not in self.filled:
-                    self.points = (20 if self.store.get('/item/'+i+'/new_item') else 10)
-                    self.points += 10/(self.number-len(self.filled))
-                    self.store.put('/item/'+i+'/point_value', self.points)
+            self.orderUp = self.store.get('/item/'+self.chosenItem+'/order')
+            self.filled = self.store.get('/order/'+self.orderUp+'/filled_items')
+            if self.filled == None:
+                self.filled = [str(self.chosenItem)]
+            else:
+                self.filled.append(str(self.chosenItem))
+            self.store.put('/order/'+self.orderUp+'/filled_items', self.filled)
+
+            #update point values in the order
+            self.number = self.store.get('/order/'+self.orderUp+'/number')
+            if len(self.filled) < self.number:
+                self.notDone = self.store.get('/order/'+self.orderUp)
+                for i in self.notDone['items']:
+                    if i not in self.filled:
+                        self.points = (20 if self.store.get('/item/'+i+'/new_item') else 10)
+                        self.points += 10/(self.number-len(self.filled))
+                        self.store.put('/item/'+i+'/point_value', self.points)
 
 

@@ -86,7 +86,7 @@ class StateMachine():
             raise RuntimeError("Need to define a final state")
 
         self.setCurrentState(nameInit)
-        #for _ in range(len(self.transitions)+1):
+
         while self.current not in self.finStates:
             self.runCurrent()
             self.decideState = self.transitions[self.getCurrentState()].decideTransition()
@@ -96,10 +96,6 @@ class StateMachine():
         self.decideState = self.transitions[self.getCurrentState()].decideTransition()
         self.setCurrentState(self.decideState)
 
-            #if self.current in self.finStates:
-                #print "Finished running all states."
-            #    return
-
     def runStep(self):
         if not self.getCurrentState():
             raise RuntimeError("Need to define initial state")
@@ -107,9 +103,9 @@ class StateMachine():
             raise RuntimeError("Need to define a final state")
 
         self.runCurrent()
-        print "decide ", self.transitions[self.getCurrentState()]
         self.decideState = self.transitions[self.getCurrentState()].decideTransition()
-        print "whaaaat ", self.decideState
         self.setCurrentState(self.decideState)    
 
+    def isDone(self):
+        raise NotImplementedError
 

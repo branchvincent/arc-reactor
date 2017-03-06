@@ -5,6 +5,8 @@ from states.find_item import FindItem
 from states.plan_route import PlanRoute
 from states.exec_route import ExecRoute
 from states.check_item import CheckItem
+from states.check_select_item import CheckSelectItem
+from states.check_route import CheckRoute
 import json
 import cv2
 import numpy
@@ -18,12 +20,14 @@ class StowStateMachine(StateMachine):
         self.add('pr', PlanRoute('pr', store=self.store))
         self.add('er', ExecRoute('er', store=self.store))
         self.add('ci', CheckItem('ci', store=self.store), endState=1)
+        self.add('csi', CheckSelectItem('csi', store=self.store))
+        self.add('cr', CheckRoute('cr', store=self.store))
 
     def setupTransitions(self):
         self.setTransition('fa', 'si', 'fa', '/status/viewed_items')
-        self.setTransition('si', 'fi', 'si', '/status/selected_item')
+        self.setTransition('si', 'fi', 'si', '/status/selected_item', '/checkpoint/select_item', checkState='csi')
         self.setTransition('fi', 'pr', 'ms', '/status/selected_item_location')
-        self.setTransition('pr', 'er', 'ms', '/status/route_plan')
+        self.setTransition('pr', 'er', 'ms', '/status/route_plan', '/checkpoint/plan_route', checkState='cr')
         self.setTransition('er', 'ci', 'fi', '/status/route_exec')
         self.setTransition('ms', 'fi', 'fi', '/status/shelf_move')
         self.setTransition('ci', 'si', 'fi', '/status/item_picked')
@@ -41,15 +45,14 @@ class StowStateMachine(StateMachine):
             self.store.put('/item/'+k+'/order', i)
             print "item ", k, " is valued at ", self.points, " for ", i, "in", v['location']
 
-    def doneStow(self):
-        #if all items picked, all their point values are 0. Need to re-write
+    def isDone(self):
+        #if all items stowed, all their point values are 0. Need to re-write
         self.value = 0
-        for i, n in self.store.get('/order/').items():
+        for i, n in self.store.get('/item/').items():
             for k in n['items']:
                 self.points = self.store.get('/item/'+k+'/point_value')
                 self.value+=self.points
         return (self.value==0)
-    isDone = doneStow
 
 #################################################################################
 def runStowFSM():
@@ -72,7 +75,7 @@ def runStowFSM():
     #for _ in range(number): pick.runOrdered('si')
     stow.setCurrentState('si')
     stow.runStep()
-    while(not stow.doneOrderFile()): stow.runOrdered(stow.getCurrentState())
+    while(not stow.isDone()): stow.runOrdered(stow.getCurrentState())
 
 if __name__ == '__main__':
     runStowFSM()

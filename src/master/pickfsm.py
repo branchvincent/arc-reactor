@@ -45,9 +45,10 @@ class PickStateMachine(StateMachine):
                 self.points += 10/n['number']
                 self.store.put('/item/'+k+'/point_value', self.points)
                 self.store.put('/item/'+k+'/order', i)
+                self.store.put('/item/'+k+'/location', 'shelf')
                 print "item ", k, " is valued at ", self.points, " for ", i
 
-    def doneOrderFile(self):
+    def isDone(self):
         #if all items picked, all their point values are 0. Need to re-write
         self.value = 0
         for i, n in self.store.get('/order/').items():
@@ -55,7 +56,7 @@ class PickStateMachine(StateMachine):
                 self.points = self.store.get('/item/'+k+'/point_value')
                 self.value+=self.points
         return (self.value==0)
-    isDone = doneOrderFile
+
 
 #################################################################################
 def runPickFSM():
@@ -79,7 +80,7 @@ def runPickFSM():
     pick.setCurrentState('si')
     pick.runStep()
     pick.runStep()
-    while(not pick.doneOrderFile()): pick.runOrdered(pick.getCurrentState())
+    while(not pick.isDone()): pick.runOrdered(pick.getCurrentState())
 
 if __name__ == '__main__':
     runPickFSM()
