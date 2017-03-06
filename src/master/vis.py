@@ -172,7 +172,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         self.options = {}
 
     def update(self):
-        update_world(self.db, self.program.world, self.timestamps)
+        update_world(self.db, self.program.world, self.timestamps, ignore=['items'])
 
         # update camera point clouds
         for name in ['shelf0', 'stow']:
@@ -201,10 +201,19 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         logger.debug('updating {} point cloud'.format(name))
 
+        location = self.db.get(['item', name, 'location'])
+        if location == 'shelf':
+            reference = ['shelf', 'pose']
+        elif location in ['stow_tote', 'stow tote']:
+            reference = ['tote', 'stow', 'pose']
+        else:
+            reference = []
+
         self._update_point_cloud(
             cloud_name,
-            ['item', name, 'pose'],
+            [reference, ['item', name, 'pose']],
             ['item', name, 'point_cloud'],
+            ['item', name, 'point_cloud_color'],
         )
 
     def _update_camera(self, name):
@@ -229,12 +238,12 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         self._update_point_cloud(
             cloud_name,
-            ['camera', name, 'pose'],
+            [['camera', name, 'pose']],
             ['camera', name, 'point_cloud'],
             ['camera', name, 'aligned_image']
         )
 
-    def _update_point_cloud(self, name, pose_url, xyz_url, rgb_url=None):
+    def _update_point_cloud(self, name, pose_urls, xyz_url, rgb_url=None):
         cloud = self.point_clouds.get(name)
         if not cloud:
             # construct and register a new point cloud
@@ -281,8 +290,20 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
                 # color all points the same
                 cloud_rgb = numpy.full(cloud_xyz.shape[:-1] + (len(color),), color)
 
+        # build the pose
+        world_pose = None
+        for url in pose_urls:
+            pose = self.db.get(url)
+            if pose is None:
+                world_pose = None
+                break
+            elif world_pose is None:
+                world_pose = pose
+            else:
+                world_pose = world_pose.dot(pose)
+
         # perform the update
-        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=self.db.get(pose_url))
+        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=world_pose)
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
