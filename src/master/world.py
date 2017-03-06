@@ -50,7 +50,7 @@ def numpy2klampt(T):
 def klampt2numpy(k):
     if len(k) == 9:
         # rotation matrix only
-        T = numpy.asmatrix(numpy.eye(4, 4))
+        T = numpy.asmatrix(numpy.eye(4))
         T[:3,:3] = numpy.array(k).reshape((3, 3))
     elif len(k) == 2:
         # tuple of rotation matrix and translation vector
@@ -77,8 +77,8 @@ terrains = {
 }
 
 rigid_objects = {
-    'amnesty_tote': 'data/objects/box-K3.off',
-    'stow_tote': 'data/objects/box-K3.off',
+    'amnesty_tote': 'data/objects/tote.off',
+    'stow_tote': 'data/objects/tote.off',
 }
 
 def _get_or_load(world, name, path, total, getter, loader):
@@ -175,7 +175,7 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
     if 'camera' not in ignore:
         # update cameras
-        for name in ['camera1']:
+        for name in ['shelf0', 'stow']:
             if name in ignore:
                 continue
 
@@ -183,10 +183,15 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
             _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
 
     if 'items' not in ignore:
-       # update items
-       for name in db.get('/item', {}):
-           item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
-           _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
+        # update items
+        for name in db.get('/item', {}):
+            item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
+
+            location = db.get(['item', name, 'location'], 'shelf')
+            if location == 'shelf':
+                _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
+            elif location in ['stow_tote', 'stow tote']:
+                _sync(db, ['/tote/stow/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
 
     return world
 

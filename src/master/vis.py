@@ -158,10 +158,11 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
             (3, '/shelf'),
             (3, '/item'),
             (3, '/box'),
-            (3, '/camera/camera1/pose'),
-            (3, '/camera/camera1/timestamp'),
-            (30, '/camera/camera1/point_cloud'),
-            (30, '/camera/camera1/aligned_image'),
+            (3, '/tote'),
+            (3, '/camera/shelf0/pose'),
+            (3, '/camera/shelf0/timestamp'),
+            (3, '/camera/stow/pose'),
+            (3, '/camera/stow/timestamp'),
         ]
 
         self.timestamps = {}
@@ -174,15 +175,23 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         update_world(self.db, self.program.world, self.timestamps)
 
         # update camera point clouds
-        for name in ['camera1']:
+        for name in ['shelf0', 'stow']:
             self._update_camera(name)
 
     def _update_camera(self, name):
         cloud_name = '{}_pc'.format(name)
 
-        stamp = self.db.get('/camera/{}/timestamp'.format(name))
+        # check if point cloud is modified
+        stamp = self.db.get(['camera', name, 'timestamp'])
         if stamp <= self.timestamps.get(cloud_name, 0):
-            # point cloud is up to date
+            return
+
+        # retrieve the point clouds once
+        if self.db.get(['camera', name, 'point_cloud']) is None:
+            self.requests.extend([
+                (-1, ['camera', name, 'point_cloud']),
+                (-1, ['camera', name, 'aligned_image'])
+            ])
             return
 
         self.timestamps[cloud_name] = stamp
@@ -191,9 +200,9 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         self._update_point_cloud(
             cloud_name,
-            '/camera/{}/pose'.format(name),
-            '/camera/{}/point_cloud'.format(name),
-            '/camera/{}/aligned_image'.format(name)
+            ['camera', name, 'pose'],
+            ['camera', name, 'point_cloud'],
+            ['camera', name, 'aligned_image']
         )
 
     def _update_point_cloud(self, name, pose_url, xyz_url, rgb_url=None):
