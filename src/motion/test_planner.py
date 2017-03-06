@@ -155,10 +155,13 @@ class MyGLViewer(GLSimulationPlugin):
                     target_item["vacuum_offset"]=[0,0,0.1]
                     target_item['drop offset']=0.15
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
-                    target_box["drop position"]=self.place_position[self.target]
-                    target_box['position']=self.place_position[self.target]
+                    # target_box["drop position"]=self.place_position[self.target]
+                    # target_box['position']=self.place_position[self.target]
+                    print self.place_position[self.target]
+                    target_box["drop position"]=[]
+                    target_box['position']=[]
                     old_config=self.sim.world.robot(0).getConfig()
-                    self.trajectory=planner.stow(self.sim.world,target_item,target_box)
+                    self.trajectory=planner.stow(self.sim.world,target_item,target_box,self.target)
                     if self.trajectory==False:
                         self.score+=1
                         self.target-=1

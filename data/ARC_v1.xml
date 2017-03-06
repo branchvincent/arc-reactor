@@ -98,6 +98,18 @@
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.5 0.87" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.5 0.57" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.5 0.37" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
   <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.23 0.57" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
@@ -110,7 +122,7 @@
 
   <target position="-0.4 0 0.3" />
 
-  <simulation>
+  <!-- <simulation>
     <globals /> 
     <object index="0">
        <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
@@ -123,5 +135,5 @@
        <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
     </object>
   
-  </simulation>
+  </simulation> -->
 </world>
