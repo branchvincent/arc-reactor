@@ -244,6 +244,7 @@ def stow(world,item,target_box,target_index):
 			-- vacuum_offset: hacked parameter for each item, added to the high of the item to find the grasp position for the vacuum
 			-- drop offset: hacked parameter for each item, added to the high of the order box bottom high to find the drop position for the vacuum
 		- target_box: hacked from pick function. right now drop position is a goal position for the target item on the shelf 
+		- target_index: the index of the target item in the world, this is used for feasible placement finding
 	outputs:
 		a list of milestones=(t, {
 			  'robot': q,
