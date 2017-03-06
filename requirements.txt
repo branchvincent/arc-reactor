@@ -23,6 +23,7 @@ numpy
 
 # point cloud colorizing
 matplotlib
+scipy
 
 # IPython embedded shell
 # IPython
