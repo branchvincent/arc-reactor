@@ -94,24 +94,29 @@ class AsyncUpdateMixin(object):
         logger.info('set {}'.format(keys))
         IOLoop.current().add_callback(lambda: self._multi_put_handler(keys))
 
-def _make_qt_handler(app, windows, loop):
+def _make_qt_handler(app, loop):
     # IOLoop handler for processing Qt events
     def _handle_events():
         app.processEvents()
-        if not any([window.isVisible() for window in windows]):
+        if not any([window.isVisible() for window in app.topLevelWidgets()]):
             loop.stop()
 
     return _handle_events
 
-def _make_signal_handler(windows):
+def _make_signal_handler(app):
     # handler to close all windows
     def _close_windows(signal, frame):
-        logger.info('closing all windows')
-        for window in windows:
-            # XXX: would use close() except Klampt overrides it to not close the window
-            window.hide()
+        logger.info('closing all windows on interrupt')
+        app.closeAllWindows()
 
     return _close_windows
+
+def register_async(windows, db_period=100):
+    for window in windows:
+        if isinstance(window, AsyncUpdateMixin):
+            # update the UI at 10 Hz
+            PeriodicCallback(window._update_handler, db_period).start()
+            logger.info('scheduled window "{}" for async updates'.format(window.windowTitle()))
 
 def exec_async(app, windows=None, loop=None, qt_period=10, db_period=100):
     '''
@@ -121,17 +126,14 @@ def exec_async(app, windows=None, loop=None, qt_period=10, db_period=100):
     loop = loop or IOLoop.current()
 
     # process Qt events at 100 Hz
-    PeriodicCallback(_make_qt_handler(app, windows, loop), qt_period).start()
+    PeriodicCallback(_make_qt_handler(app, loop), qt_period).start()
 
-    for window in windows:
-        if isinstance(window, AsyncUpdateMixin):
-            # update the UI at 10 Hz
-            PeriodicCallback(window._update_handler, db_period).start()
-            logger.info('scheduled window "{}" for async updates'.format(window.windowTitle()))
+    # register the windows
+    register_async(windows, db_period=db_period)
 
     # install the KeyboardInterrupt handler
     import signal
-    signal.signal(signal.SIGINT, _make_signal_handler(windows))
+    signal.signal(signal.SIGINT, _make_signal_handler(app))
 
     # start servicing events
     loop.start()
