@@ -1,4 +1,4 @@
-image: python:2.7
+image: reactor
 
 stages:
 - Build
@@ -8,7 +8,6 @@ stages:
 cmake:
     stage: Build
     script:
-    - apt-get update -qq && apt-get install -y -qq cmake
     - mkdir build && cd build
     - cmake -f ..
     - make all
@@ -20,7 +19,6 @@ cmake:
 cpp-unittest:
     stage: Test
     script:
-    - apt-get update -qq && apt-get install -y -qq cmake
     - mkdir build && cd build
     - cmake -f ..
     - make test
@@ -29,7 +27,7 @@ python-unittest:
     stage: Test
     script:
     - pip install -q -r requirements.txt
-    - apt-get update -qq && xargs apt-get install -y -qq < dependencies.txt
+    - wget --quiet http://people.duke.edu/~mtd13/arc-2017/data.tgz && tar xf data.tgz && rm data.tgz
     - python reactor test -c
 
 doxygen:

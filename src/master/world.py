@@ -50,7 +50,7 @@ def numpy2klampt(T):
 def klampt2numpy(k):
     if len(k) == 9:
         # rotation matrix only
-        T = numpy.asmatrix(numpy.eye(4, 4))
+        T = numpy.asmatrix(numpy.eye(4))
         T[:3,:3] = numpy.array(k).reshape((3, 3))
     elif len(k) == 2:
         # tuple of rotation matrix and translation vector
@@ -68,8 +68,7 @@ def _rad2deg(x):
     return numpy.array(x) * 180.0 / pi
 
 robots = {
-    'tx90l': 'data/robots/tx90l.rob',
-    'shelf': 'data/robots/shelf.rob',
+    'tx90l': 'data/robots/tx90l.rob'
 }
 
 terrains = {
@@ -77,8 +76,9 @@ terrains = {
 }
 
 rigid_objects = {
-    'amnesty_tote': 'data/objects/box-K3.off',
-    'stow_tote': 'data/objects/box-K3.off',
+    'amnesty_tote': 'data/objects/tote.off',
+    'stow_tote': 'data/objects/tote.off',
+    'shelf': 'data/objects/linear_shelf.stl'
 }
 
 def _get_or_load(world, name, path, total, getter, loader):
@@ -142,16 +142,15 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
     # update terrains
     _get_terrain(world, 'ground')
 
-    # update robots
+    # update robot
     tx90l = _get_robot(world, 'tx90l')
     _sync(db, '/robot/base_pose', lambda bp: tx90l.link(0).setParentTransform(*numpy2klampt(bp)))
     _sync(db, '/robot/current_config', lambda q: tx90l.setConfig(q))
     tx90l.setConfig(tx90l.getConfig())
 
-    shelf = _get_robot(world, 'shelf')
-    _sync(db, '/shelf/pose', lambda bp: shelf.link(0).setParentTransform(*numpy2klampt(bp)))
-    _sync(db, '/shelf/current_angle', lambda q: shelf.setConfig([0, q]))
-    shelf.setConfig(shelf.getConfig())
+    # update shelf
+    shelf = _get_rigid_object(world, 'shelf')
+    _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
 
     # update tote
     amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
@@ -175,7 +174,7 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
     if 'camera' not in ignore:
         # update cameras
-        for name in ['camera1']:
+        for name in ['shelf0', 'stow']:
             if name in ignore:
                 continue
 
@@ -183,10 +182,15 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
             _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
 
     if 'items' not in ignore:
-       # update items
-       for name in db.get('/item', {}):
-           item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
-           _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
+        # update items
+        for name in db.get('/item', {}):
+            item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
+
+            location = db.get(['item', name, 'location'], 'shelf')
+            if location == 'shelf':
+                _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
+            elif location in ['stow_tote', 'stow tote']:
+                _sync(db, ['/tote/stow/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
 
     return world
 
@@ -216,11 +220,8 @@ if __name__ == '__main__':
         from pensive.client import PensiveClient
         client = PensiveClient(args.address)
 
-        # create or get the store
-        if args.store and args.store not in client.index():
-            store = client.create(args.store)
-        else:
-            store = client.store(args.store)
+        # get the store
+        store = client.store(args.store)
 
     # build the world
     world = build_world(store)

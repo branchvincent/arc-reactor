@@ -1,12 +1,13 @@
 from unittest import SkipTest
 
+import numpy
+
+import json
+import gzip
+
 from test.pensive.helper import DatabaseDependentTestCase
 
 from master.pickfsm import PickStateMachine
-
-import json
-with open('test/master/test_022717_badik2.json') as data_file:
-    initial_db = json.load(data_file)
 
 class SimplePickFSM(DatabaseDependentTestCase):
     def setUp(self):
@@ -18,12 +19,18 @@ class SimplePickFSM(DatabaseDependentTestCase):
             raise SkipTest('Klampt is not installed')
 
         self.store = self.client.default()
-        self.store.put('', initial_db)
+        self.store.put('', json.loads(gzip.open('data/test/test_031017_new_pick.json.gz').read()))
+
         self.store.put('/status/task', 'pick')
-        #simulate for now
+
+        # simulate for now
         self.store.put('/simulate/robot_motion', True)
         self.store.put('/simulate/object_detection', True)
         self.store.put('/simulate/cameras', True)
+
+        # skip difficult to simulate parts
+        self.store.put('/test/skip_grabcut', True)
+        self.store.put('/test/skip_planning', True)
 
         self.pick = PickStateMachine(store=self.store)
         self.pick.loadOrderFile('test/master/order_test.json')

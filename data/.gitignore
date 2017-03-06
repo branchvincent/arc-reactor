@@ -1,8 +1,11 @@
 /bootstrap-*
 /jquery-*
 
+# test data
+/test
+
 # simulation data
-simulation
+/simulation
 
 # modeling files
 *.blend

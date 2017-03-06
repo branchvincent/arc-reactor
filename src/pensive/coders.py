@@ -3,6 +3,7 @@ JSON encoders/decoders for specific complex types.
 '''
 
 from base64 import b64encode, b64decode
+import zlib
 
 from .client import JSON_DECODERS, JSON_ENCODERS
 
@@ -30,18 +31,29 @@ def register_numpy():
         else:
             data = numpy.ascontiguousarray(obj).data
 
-        return {
-            'data': b64encode(data).decode('ascii'),
+        out = {
             'dtype': str(obj.dtype),
             'shape': obj.shape,
         }
+
+        if len(data) > 1024:
+            data = zlib.compress(data)
+            out['compress'] = True
+
+        out['data'] = b64encode(data).decode('ascii')
+
+        return out
 
     # install encoding handlers
     JSON_ENCODERS[numpy.ndarray] = lambda obj: {'__numpy.ndarray__': encode(obj)}
     JSON_ENCODERS[numpy.matrix] = lambda obj: {'__numpy.matrix__': encode(obj)}
 
     def decode_ndarray(obj):
-        return numpy.frombuffer(b64decode(obj['data']), obj['dtype']).reshape(obj['shape'])
+        data = b64decode(obj['data'])
+        if obj.get('compress', False):
+            data = zlib.decompress(data)
+
+        return numpy.frombuffer(data, obj['dtype']).reshape(obj['shape'])
 
     # install decoding handlers
     JSON_DECODERS['__numpy.ndarray__'] = decode_ndarray

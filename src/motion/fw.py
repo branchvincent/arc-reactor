@@ -38,18 +38,15 @@ shelf_height = 0.25
 #load related files for objects 
 object_template_fn = '../../..//data/objects/object_template.obj'
 objects = {}
-objects['ycb'] = [f for f in sorted(os.listdir('../../../data/objects/ycb'))]
 objects['apc2015'] = [f for f in sorted(os.listdir('../../../data/objects/apc2015'))]
 
 
 object_geom_file_patterns = {
-	'ycb':['../../../data/objects/ycb/%s/meshes/tsdf_mesh.stl','~/data/objects/ycb/%s/meshes/poisson_mesh.stl'],
 	'apc2015':['../../../data/objects/apc2015/%s/textured_meshes/optimized_tsdf_textured_mesh.ply']
 }
 #default mass for objects whose masses are not specified, in kg
 default_object_mass = 0.5
 object_masses = {
-	'ycb':dict(),
 	'apc2015':dict(),
 }
 
@@ -290,9 +287,9 @@ class MyGLViewer(GLSimulationProgram):
             t=0.5
             if self.score==self.numberOfObjects:
                 print 'finished!'
-                f=open('test.json','w')
-                json.dump(self.output,f)
-                f.close()
+                # f=open('test.json','w')
+                # json.dump(self.output,f)
+                # f.close()
                 exit()
             else:
                 if self.sim.getTime()-self.last_state_end<t:

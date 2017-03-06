@@ -330,7 +330,7 @@ class PensiveClient(JSONClientMixin):
             # fall back to environment variable
             self._host = environ.get('PENSIVE_SERVER', None)
         if not self._host:
-            # call back to default
+            # fall back to default
             self._host = 'http://localhost:{}/'.format(DEFAULT_PORT)
 
         super(PensiveClient, self).__init__(self._host, **kwargs)
