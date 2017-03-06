@@ -178,12 +178,16 @@ class CameraStatus:
         if filename == "":
             list_of_serial_nums = self.depthCamera.get_online_cams()
             for sn in list_of_serial_nums:
-                logger.warning("No camera transform provided. Setting to identity matrix")
-                xform = np.zeros((4,4))
-                xform[0,0] = 1
-                xform[1,1] = 1
-                xform[2,2] = 1
-                xform[3,3] = 1
+                try:
+                    xform = np.load(sn)
+                except:
+                    logger.warning("No camera transform provided. Setting to identity matrix")
+                    xform = np.zeros((4,4))
+                    xform[0,0] = 1
+                    xform[1,1] = 1
+                    xform[2,2] = 1
+                    xform[3,3] = 1
+                    
                 self.cameraXforms[sn] = xform
 
 
