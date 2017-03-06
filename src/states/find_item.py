@@ -69,10 +69,12 @@ class FindItem(State):
             cv2.destroyAllWindows()
 
             binaryMask = (mask.sum(axis=2) > 0)
-            obj_pc = point_cloud[numpy.bitwise_and(binaryMask, point_cloud[:, :, 2] > 0)]
+            mask = numpy.bitwise_and(binaryMask, point_cloud[:, :, 2] > 0)
+            obj_pc = point_cloud[mask]
             mean = obj_pc.mean(axis=0)
 
             self.store.put(['item', selected_item, 'point_cloud'], obj_pc - mean)
+            self.store.put(['item', selected_item, 'point_cloud_color'], aligned_color[mask])
             self.store.put(['item', selected_item, 'timestamp'], time())
 
             logger.debug('found {} object points'.format(obj_pc.shape[0]))
