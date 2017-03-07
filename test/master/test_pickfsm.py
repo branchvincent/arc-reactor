@@ -1,5 +1,7 @@
 from unittest import SkipTest
 
+import numpy
+
 from test.pensive.helper import DatabaseDependentTestCase
 
 from master.pickfsm import PickStateMachine
@@ -24,6 +26,14 @@ class SimplePickFSM(DatabaseDependentTestCase):
         self.store.put('/simulate/robot_motion', True)
         self.store.put('/simulate/object_detection', True)
         self.store.put('/simulate/cameras', True)
+
+        self.store.put('/simulate/headless', True)
+        self.store.put('/camera/shelf0/pose', numpy.array(
+            [[ 0.70711,  0.2706 , -0.65328,  1.58   ],
+             [ 0.70711, -0.2706 ,  0.65328, -0.47   ],
+             [    -0.     , -0.92388, -0.38268,  1.04   ],
+             [ 0.     ,  0.     ,  0.     ,  1.     ]]
+        ))
 
         self.pick = PickStateMachine(store=self.store)
         self.pick.loadOrderFile('test/master/order_test.json')

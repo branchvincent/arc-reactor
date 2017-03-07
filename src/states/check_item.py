@@ -13,7 +13,7 @@ class CheckItem(State):
 
         logger.info("{} item was moved successfully".format(self.chosenItem))
 
-        self.alg = self.store.get('/robot/task')
+        alg = self.store.get('/robot/task')
         if alg=="pick":
 
             self.orderUp = self.store.get('/item/'+self.chosenItem+'/order')
