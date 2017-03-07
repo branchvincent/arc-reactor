@@ -8,7 +8,6 @@ stages:
 cmake:
     stage: Build
     script:
-    - apt-get update -qq && apt-get install -y -qq cmake
     - mkdir build && cd build
     - cmake -f ..
     - make all
@@ -20,7 +19,6 @@ cmake:
 cpp-unittest:
     stage: Test
     script:
-    - apt-get update -qq && apt-get install -y -qq cmake
     - mkdir build && cd build
     - cmake -f ..
     - make test
@@ -29,7 +27,6 @@ python-unittest:
     stage: Test
     script:
     - pip install -q -r requirements.txt
-    - apt-get update -qq && xargs apt-get install -y -qq < dependencies.txt
     - python reactor test -c
 
 doxygen:
