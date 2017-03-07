@@ -9,6 +9,7 @@ jsonschema
 sqlalchemy
 
 # vacuum interface
+usb
 pigpio
 appdirs
 six
@@ -19,6 +20,7 @@ pytest-cov
 
 # general
 numpy
+# opencv        # manual install
 
 # point cloud colorizing
 matplotlib
@@ -31,5 +33,6 @@ scipy
 # scandir
 
 # user interface
-# pyside
-# pyopengl
+# pyqt          # manual install
+# pyside        # manual install
+# pyopengl      # manual install

@@ -2,8 +2,11 @@ FROM klampt:0.7
 
 # install core dependencies
 RUN apt-get update && apt-get install -y \
+    python-pip \
     python-opencv \
     python-numpy \
     python-scipy \
-    python-pip \
+    python-pyside \
+    python-qt4 \
+    python-qt4-gl \
 && rm -rf /var/lib/apt/lists/*
