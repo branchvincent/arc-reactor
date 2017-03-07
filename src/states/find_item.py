@@ -15,7 +15,7 @@ class FindItem(State):
 
         logger.info('finding item "{}" in "{}"'.format(selected_item, location))
 
-        if location == 'shelf':
+        if location == 'shelf' or location.startswith('bin'):
             camera = 'shelf0'
         elif location in ['stow_tote', 'stow tote']:
             camera = 'stow'
@@ -61,10 +61,13 @@ class FindItem(State):
             self.store.put(['camera', camera, 'point_cloud'], point_cloud)
             self.store.put(['camera', camera, 'timestamp'], time())
 
-            # perform grab cut selection on color-aligned-to-depth image
-            from simulation.grabcut import GrabObject
-            grab = GrabObject(aligned_color)
-            mask = grab.run()
+            if self.store.get('/simulate/headless', False):
+                mask = aligned_color
+            else:
+                # perform grab cut selection on color-aligned-to-depth image
+                from simulation.grabcut import GrabObject
+                grab = GrabObject(aligned_color)
+                mask = grab.run()
 
             cv2.destroyAllWindows()
 
