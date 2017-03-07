@@ -10,18 +10,14 @@ from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram
 from klampt.vis.qtbackend import QtGLWindow
 
-from pensive.core import Store
-from pensive.client import PensiveClient
-
 from master.world import build_world, update_world
 
 logger = logging.getLogger(__name__)
 
 class WorldViewer(GLRealtimeProgram):
-    def __init__(self):
+    def __init__(self, store):
         GLRealtimeProgram.__init__(self, 'Motion Plan Checkpoint')
 
-        store = PensiveClient().default()
         self.world = build_world(store)
 
         self.robot_path = []
@@ -95,14 +91,17 @@ class WorldViewer(GLRealtimeProgram):
         return GLRealtimeProgram.motionfunc(self,x,y,dx,dy)
 
 class WorldViewerWindow(QtGLWindow):
-    def __init__(self):
+    def __init__(self, store):
         super(WorldViewerWindow, self).__init__()
 
-        self.setProgram(WorldViewer())
+        self.setProgram(WorldViewer(store))
         self.setWindowTitle(self.program.name)
         self.setMaximumSize(1920, 1080)
 
-def run(modal=True):
+def run(modal=True, store=None):
+    from pensive.client import PensiveClient
+    store = store or PensiveClient().default()
+
     from PyQt4.QtGui import QApplication
     app = QApplication.instance()
     if app:
@@ -112,7 +111,7 @@ def run(modal=True):
         app = QApplication([])
         app.setApplicationName('ARC Reactor')
 
-    window = WorldViewerWindow()
+    window = WorldViewerWindow(store)
     if modal:
         from PyQt4.QtCore import Qt
         window.setWindowModality(Qt.ApplicationModal)
