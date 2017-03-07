@@ -148,7 +148,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         super(WorldViewerWindow, self).__init__()
 
         self.setProgram(WorldViewer())
-        self.setWindowTitle('ARC Reactor Viewer')
+        self.setWindowTitle(self.program.name)
         self.setMaximumSize(1920, 1080)
 
         self.setup_async()
@@ -277,6 +277,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
                 else:
                     # fall back to depth colorizing
                     color_mode = 'depth'
+                    logger.warn('fallback to depth color for point cloud {}'.format(name))
 
             if color_mode == 'depth':
                 # generate colormap within range
