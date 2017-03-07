@@ -9,7 +9,7 @@ jsonschema
 sqlalchemy
 
 # vacuum interface
-usb
+pyusb
 pigpio
 appdirs
 six
