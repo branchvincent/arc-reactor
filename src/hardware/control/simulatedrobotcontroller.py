@@ -62,7 +62,7 @@ class SimulatedTrajectory:
         self.curr_milestone = None
         self.speed = speed
         self.complete = False
-        self.vacuum = Vacuum()
+        self.vacuum = Vacuum(store=store)
         # Process milestones
         Assert(0 < self.speed <= 1, 'Speed {} is not in (0,1]'.format(self.speed))
         self.milestones['database'] = milestones
