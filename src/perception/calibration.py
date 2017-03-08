@@ -1,5 +1,4 @@
 from PyQt5 import QtGui, QtOpenGL, QtCore, QtWidgets
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import cv2
 import math
