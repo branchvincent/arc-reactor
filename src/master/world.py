@@ -221,11 +221,8 @@ if __name__ == '__main__':
         from pensive.client import PensiveClient
         client = PensiveClient(args.address)
 
-        # create or get the store
-        if args.store and args.store not in client.index():
-            store = client.create(args.store)
-        else:
-            store = client.store(args.store)
+        # get the store
+        store = client.store(args.store)
 
     # build the world
     world = build_world(store)
