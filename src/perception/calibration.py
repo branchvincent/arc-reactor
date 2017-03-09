@@ -9,8 +9,9 @@ sys.path.append('../hardware/SR300/')
 import time
 import realsense as rs
 #for when we want to read the current position of the robot from the server
-# from pensive.client import PensiveClient
-# from pensive.coders import register_numpy
+sys.path.append('../')
+from pensive.client import PensiveClient
+from pensive.coders import register_numpy
 
 logger = logging.getLogger(__name__)
 # configure the root logger to accept all records
@@ -40,6 +41,10 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.camera_matrix = cameramat
         self.camera_coeff = cameracoeff
         self.cameraXform = np.identity(4)
+
+        self.db_client = PensiveClient(host='http://10.10.1.60:8888')
+        self.store = self.db_client.default()
+        register_numpy()
     def initUI(self):
 
         #make the layout vertical
@@ -122,17 +127,13 @@ class RealsenseCalibration(QtWidgets.QWidget):
             self.thread.keepRunning = True
             self.thread.start()
 
-    def updateView(self, image):
-        pix_img = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
-        pix = QtGui.QPixmap(pix_img)
-        self.camera_display.setPixmap(pix)
-
-        t = time.time()
+    def updateView(self, image, aligned_image, point_cloud):
+        
         #set the dictionary
         dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
 
         #need to measure out a target
-        board = cv2.aruco.CharucoBoard_create(8,11,.0172, 0.0125, dictionary)
+        board = cv2.aruco.GridBoard_create(4, 6, .021, 0.003, dictionary)
 
         #get the camera transform
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -146,6 +147,12 @@ class RealsenseCalibration(QtWidgets.QWidget):
             xform[0:3, 3] = pose[2].flatten()
             xform[3, 3] = 1
             self.cameraXform = xform
+            #draw what opencv is tracking
+            #flip r and b channels to draw
+            image = image[:,:,::-1].copy()
+            cv2.aruco.drawAxis(image, self.camera_matrix, self.camera_coeff, pose[1], pose[2], 0.1)
+            image = image[:,:,::-1].copy()
+            #flip back
         else:
             logger.warning("Unable to get the camera transform. Camera cannot see Charuco.")
             xform = np.zeros((4,4))
@@ -155,12 +162,38 @@ class RealsenseCalibration(QtWidgets.QWidget):
             xform[3,3] = 1
             self.cameraXform = xform
 
+
+        pix_img = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
+        pix = QtGui.QPixmap(pix_img)
+        self.camera_display.setPixmap(pix)
+
+        #get the base to end effector transform
+        base2ee = self.store.get(key='robot/tcp_pose')
+        #get the end effector to aruco pose
+        ee2aruco = self.store.get(key='calibration/target_xform')
+
+        target_pose = base2ee.dot(ee2aruco)
+        #update the gui
+        for row in range(4):
+            for col in range(4):
+                self.robotTextBoxes[row][col].setText(str(target_pose[row, col]))
+
+
+        #multiply to get the camera world pose
+        self.cameraXform = target_pose.dot(np.linalg.inv(self.cameraXform))
         #update the gui
         for row in range(4):
             for col in range(4):
                 self.cameraTextBoxes[row][col].setText(str(self.cameraXform[row, col]))
         # logger.info(time.time()-t)
         self.thread.can_emit = True
+
+        #update the database with the camera world location
+        self.store.put(key="camera/shelf0/pose", value=self.cameraXform)
+        #push out the point cloud
+        self.store.put(key="camera/shelf0/point_cloud", value=point_cloud)
+        self.store.put(key="camera/shelf0/aligned_image", value=aligned_image)
+        self.store.put(key="camera/shelf0/timestamp", value=time.time())
 
     def save_calibration(self):
         #get the camera serial number
@@ -182,7 +215,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         np.save(sn + "_xform", full_transform)
 
 class VideoThread(QtCore.QThread):
-    signal = QtCore.pyqtSignal(np.ndarray)
+    signal = QtCore.pyqtSignal(np.ndarray, np.ndarray, np.ndarray)
     def __init__(self):
         QtCore.QThread.__init__(self)
         self.keepRunning = True
@@ -249,19 +282,30 @@ class VideoThread(QtCore.QThread):
                 height = cam.get_stream_height(rs.stream_color)    
                 imageFullColor = np.reshape(imageFullColor, (height, width, 3) )
 
-            imageDepth = cam.get_frame_data_u16(rs.stream_depth)
-            if imageDepth.size == 1:
-                logger.error("Could not capture the depth image. Size of requested stream did not match")
-                imageDepth = None
+            imageAllignedColor = cam.get_frame_data_u8(rs.stream_color_aligned_to_depth)
+            if imageAllignedColor.size == 1:
+                #something went wrong
+                logger.error("Could not capture the depth alinged image. Size of requested stream did not match")
+                imageAllignedColor = None
             else:
-                width = cam.get_stream_width(rs.stream_depth)
-                height = cam.get_stream_height(rs.stream_depth)    
-                imageDepth = np.reshape(imageDepth, (height, width) )
+                width = cam.get_stream_width(rs.stream_color_aligned_to_depth)
+                height = cam.get_stream_height(rs.stream_color_aligned_to_depth)    
+                imageAllignedColor = np.reshape(imageAllignedColor, (height, width, 3) )
+
+            points = cam.get_frame_data_f32(rs.stream_points)
+            if points.size == 1:
+                #something went wrong
+                logger.error("Could not capture the point cloud. Size of requested stream did not match")
+                points = None
+            else:
+                width = cam.get_stream_width(rs.stream_points)
+                height = cam.get_stream_height(rs.stream_points)    
+                points = np.reshape(points, (height, width, 3) )
 
             # logger.info(1/(time.time()-t))
             # t = time.time()
             if c%20 == 1 and self.can_emit:
-                self.signal.emit(imageFullColor)
+                self.signal.emit(imageFullColor, imageAllignedColor, points)
                 self.can_emit = False
             # QtWidgets.QApplication.instance().processEvents()
             c = c+1
