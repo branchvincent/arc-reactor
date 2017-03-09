@@ -15,13 +15,9 @@ import os
 import time
 import json
 import copy
-ee_local=[-0.015,-0.02,0.28]
+ee_local=[0.0,0.0,0.31]
 # ee_local=[0,0,0]
 box_release_offset=[0,0,0.06]
-idle_position=[0.6,0,1]
-shelf_position=[1.0,0.4,0.235]
-shelf_radius=0.2
-shelf_h=[0.8,0.54,0.3]
 # approach_p1=[0.6,0.2+shelf_position[1],1]
 # approach_p2=[0.6,-0.1+shelf_position[1],1]
 order_box_min=[0.36,0.65,0.5]
@@ -30,7 +26,7 @@ angle_to_degree=57.296
 ee_link=6
 control_rate=20 #controlling the robot with 20 Hz
 max_end_effector_v=0.3 # max end effector move speed
-max_change=20.0/180.0*3.14159 #the max change between raw milestones is 20 degree
+max_change=300.0/180.0*3.14159 #the max change between raw milestones is 20 degree
 milestone_check_max_change=5.0/180.0*3.14159 #the max change between milestones is 5 degree
 milestone_check_max_speed=60/180.0*3.14159
 
@@ -66,21 +62,6 @@ def pick_up(world,item,target_box):
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation,p=robot.link(ee_link).getTransform()
 	current_T=[curr_orientation,curr_position]
-
-
-
-
-
-
-
-
-
-
-
-	# item_position=item['position']
-	# print 'item_position',item_position
-	# print vectorops.div(vectorops.add(item['bbox'][0],item['bbox'][1]),2.0)
-	# time.sleep(1)
 	item_position=vectorops.div(vectorops.add(item['bbox'][0],item['bbox'][1]),2.0)
 	item_vacuum_offset=item['vacuum_offset']
 	drop_offset=item['drop offset']
@@ -94,117 +75,71 @@ def pick_up(world,item,target_box):
 	vaccum_approach_distance=[0,0,0.03]
 	#setting some constant parameters and limits
 	
-	
 	test_cspace=TestCSpace(Globals(world))
-	approach_p1=[0.6,0.2+shelf_position[1],1]
-	approach_p2=[0.6,-0.2+shelf_position[1],1]
+	
 
-
-
-	#list of T and time
-
-	#from current position to the start position, in 2 seconds
-	if item_position[1]*shelf_position[0]>item_position[0]*shelf_position[1]:
-		start_position=approach_p1
-	else:
-		start_position=approach_p2
-	start_position[2]=item_position[2]+item_vacuum_offset[2]
-	d=vectorops.distance(start_position[:1],item_position[:1])
-	dx=item_position[0]-start_position[0]
-	dy=item_position[1]-start_position[1]
-	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
+	#move the robot from current position to a start position that is above the target item
+	start_position=vectorops.add(item_position,[0,0,0.4])
+	start_position[2]=min(0.4,start_position[2])
+	end_T=[[-1,0,0,0,1,0,0,0,-1],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,0)
 	if not motion_milestones:
 		print "can't find a feasible path to start position"
 		return False
 	
-	start_T=copy.deepcopy(end_T)
-	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
-	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,1)
-	if not motion_milestones:
-		print "can't go from start position to the pregrasp position"
-		return False
-	# print "#start the vacuum"
+	#start the vacuum
 	motion_milestones.append(make_milestone(1,robot.getConfig(),1,0))
-	
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	temp[1]=vectorops.add(item_position,item_vacuum_offset)
-	end_T=temp
-	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,1)
-	if not motion_milestones:
-		print "can't lower the vacuum"
-		return False
 
-
-
-	
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	temp[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
-	end_T=temp
-	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
-	if not motion_milestones:
-		print "can't pick the item"
-		return False
-	#retract
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	temp[1]=start_position
-	end_T=temp
-	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
-	if not motion_milestones:
-		print "can't retract"
-		return False
-	#go to tote
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	temp[1]=drop_position
-	end_T=temp
+	#lower the vacuum
+	start_T=end_T
+	end_T[1]=vectorops.add(item_position,item_vacuum_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
-	# print 'go to tote'
 	if not motion_milestones:
-		print "can't go to tote"
+		print "can't find a feasible path to lower the vacuum"
 		return False
 
-	#drop item
-	start_T=copy.deepcopy(end_T)
-	temp=end_T
-	temp[1][2]=box_bottom_high+item['drop offset']
-	end_T=temp
+	#pick up the item
+	start_T=end_T
+	end_T[1][2]+=0.4
 	l=vectorops.distance(start_T[1],end_T[1])
-	# print start_T[1]
-	# print end_T[1]
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
-		print "can't drop item"
-		return False
-	#turn off vacuum
+		print "can't find a feasible path to pick up the item"
+		return False	
+
+	#move the item to the start position for droping
+	start_T=end_T
+	end_T[1][0]=drop_position[0]
+	end_T[1][1]=drop_position[1]
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	if not motion_milestones:
+		print "can't find a feasible path to the drop position"
+		return False	
+
+	#lower the item
+	start_T=end_T
+	end_T[1]=vectorops.add(drop_position,drop_offset)
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	if not motion_milestones:
+		print "can't find a feasible path to lower the item"
+		return False	
+
+	#turn off the vacuum
 	motion_milestones.append(make_milestone(1,robot.getConfig(),0,0))
-	# print 'drop item'
 
-	#go up a little bit
-	start_T=copy.deepcopy(end_T)
-	temp=end_T
-	temp[1][2]+=0.2
-	end_T=temp
+	#raise the robot
+	start_T=end_T
+	end_T[1][2]=0.45
 	l=vectorops.distance(start_T[1],end_T[1])
-	# print start_T[1]
-	# print end_T[1]
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
-		print "can't go up a little bit"
+		print "can't find a feasible path to raise the robot"
 		return False
 
-	# f=open('test.json','w')
-	# json.dump(motion_milestones,f)
-	# f.close()
 	fix_milestones(motion_milestones)
 	return motion_milestones
 
@@ -269,9 +204,7 @@ def stow(world,item,target_box,target_index):
 	drop_offset=item['drop offset']
 	
 	vaccum_approach_distance=[0,0,0.15]
-	#setting some constant parameters and limits
-	approach_p1=[0.6,0.2+shelf_position[1],1]
-	approach_p2=[0.6,-0.2+shelf_position[1],1]
+	
 	test_cspace=TestCSpace(Globals(world))
 
 
@@ -330,100 +263,68 @@ def stow(world,item,target_box,target_index):
 
 
 
-	#from start position to the pregrasp position
-	start_T=copy.deepcopy(current_T)
-	end_T=[[0,0,-1, 0,1,0,1,0,0],vectorops.add(item_position,vectorops.add(item_vacuum_offset,vaccum_approach_distance))]
-	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
+	#move the robot from current position to a start position that is above the target item
+	start_position=vectorops.add(item_position,[0,0,0.3])
+	end_T=[[-1,0,0,0,1,0,0,0,-1],start_position]
+	l=vectorops.distance(current_T[1],end_T[1])
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,0)
 	if not motion_milestones:
-		print "can't go from start position to the pregrasp position"
+		print "can't find a feasible path to start position"
 		return False
-
+	
 	#start the vacuum
 	motion_milestones.append(make_milestone(1,robot.getConfig(),1,0))
-	# lower the vacuum
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	temp[1]=vectorops.add(item_position,item_vacuum_offset)
-	end_T=temp
-	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,0,0)
-	if not motion_milestones:
-		print "can't lower the vacuum"
-		return False
 
-	#pick the item
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	temp[1]=vectorops.add(vectorops.add(item_position,item_vacuum_offset),vaccum_approach_distance)
-	end_T=temp
+	#lower the vacuum
+	start_T=end_T
+	end_T[1]=vectorops.add(item_position,item_vacuum_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
-		print "can't pick the item"
-		return False
-	#retract
-	temp=start_T
-	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
-	curr_orientation=robot.link(ee_link).getTransform()[0]
-	start_T=[curr_orientation,curr_position]
-	if drop_position[1]*shelf_position[0]>drop_position[0]*shelf_position[1]:
-		start_position=approach_p1
-	else:
-		# print 'p2!!'
-		start_position=approach_p2
-	start_position[2]=drop_position[2]+item_vacuum_offset[2]
-	d=vectorops.distance(start_position[:1],drop_position[:1])
-	dx=drop_position[0]-start_position[0]
-	dy=drop_position[1]-start_position[1]
-	end_T=[[0,0,-1, -dy/d,dx/d,0, dx/d,dy/d,0],start_position]
-	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
-	# print 'retract'
-	if not motion_milestones:
-		print "can't go to the preposition"
+		print "can't find a feasible path to lower the vacuum"
 		return False
 
-	#go to shelf
-	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
-	curr_orientation=robot.link(ee_link).getTransform()[0]
-	start_T=[curr_orientation,curr_position]
-	temp=[curr_orientation,drop_position]
-	temp[1][2]+=drop_offset
-	end_T=temp
+	#pick up the item
+	start_T=end_T
+	end_T[1][2]+=0.4
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
-		print "can't go to the shelf"
-		return False
-	# print 'go to shelf'
-	#drop item
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	end_T=temp
-	end_T[1][2]=box_bottom_high+item['drop offset']
+		print "can't find a feasible path to pick up the item"
+		return False	
+
+	#move the item to the start position for droping
+	start_T=end_T
+	end_T[1][0]=drop_position[0]
+	end_T[1][1]=drop_position[1]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
-		print "can't drop item"
-		return False
-	#turn off vacuum
+		print "can't find a feasible path to drop position"
+		return False	
+
+	#lower the item
+	start_T=end_T
+	end_T[1]=vectorops.add(drop_position,drop_offset)
+	l=vectorops.distance(start_T[1],end_T[1])
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	if not motion_milestones:
+		print "can't find a feasible path to lower the item"
+		return False	
+
+	#turn off the vacuum
 	motion_milestones.append(make_milestone(1,robot.getConfig(),0,0))
-	
-	#come back
-	temp=start_T
-	start_T=copy.deepcopy(end_T)
-	end_T=temp
-	end_T[1]=curr_position
+
+	#raise the robot
+	start_T=end_T
+	end_T[1][2]=0.45
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
-		print "can't come back to the start position"
+		print "can't find a feasible path to raise the robot"
 		return False
-	
-	# f=open('test.json','w')
-	# json.dump(motion_milestones,f)
-	# f.close()
+  
+
 	fix_milestones(motion_milestones)
 	return motion_milestones
 
@@ -435,7 +336,7 @@ def fix_milestones(motion_milestones):
 		d_config=max(max(vectorops.sub(new_config,old_config)),-min(vectorops.sub(new_config,old_config)))
 		speed_config=d_config/motion_milestones[i][0]
 		if d_config>milestone_check_max_change:#the max change between milestones is 5 degree:
-			print 'd_config',d_config
+			# print 'd_config',d_config
 			new_milestone=make_milestone(motion_milestones[i][0],vectorops.div(vectorops.add(motion_milestones[i-1][1]['robot'],motion_milestones[i][1]['robot']),2),motion_milestones[i-1][1]['vacuum'],motion_milestones[i-1][1]['simulation'])
 			motion_milestones.insert(i,new_milestone)
 			continue
@@ -459,8 +360,8 @@ def interpolate(start_T,end_T,u,flag):
 		ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0]),vectorops.add(ee_local,[0,0,0.01])]
 		ik_world=[t,vectorops.add(t,[R[0]/100.0,R[1]/100.0,R[2]/100.0]),vectorops.add(t,[R[6]/100.0,R[7]/100.0,R[8]/100.0])]
 	else:
-		ik_local=[ee_local,vectorops.add(ee_local,[0.01,0,0])]
-		ik_world=[t,vectorops.add(t,[R[0]/100.0,R[1]/100.0,R[2]/100.0])]
+		ik_local=[ee_local,vectorops.add(ee_local,[0,0,0.01])]
+		ik_world=[t,vectorops.add(t,[R[6]/100.0,R[7]/100.0,R[8]/100.0])]
 	return [ik_local,ik_world]
 
 def make_milestone(t,q,vacuum_status,simulation_status):
@@ -500,7 +401,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 			print max(vectorops.sub(q_old,q))
 			print min(vectorops.sub(q_old,q))
 			flag=0
-		while n<20:
+		while n<30:
 			if flag and (s and test_cspace.feasible(q)) :
 				break
 			else:

@@ -99,9 +99,12 @@ class MyGLViewer(GLSimulationPlugin):
                     print "one pick task is done!"
                     self.t=0
                     self.trajectory=[]
-                if self.score==2*self.total_object:
-                    print "all items are picked up!"
-                    exit()
+                    print 'score:',self.score
+                    time.sleep(1)
+                    if self.score==2*self.total_object:
+                        print "all items are picked up!"
+                        print self.sim.world.robot(0).getConfig()
+                        exit()
             else:
                 if self.score<self.total_object:
                     target_item={}
@@ -114,8 +117,8 @@ class MyGLViewer(GLSimulationPlugin):
                     self.place_position.append(self.sim.world.rigidObject(self.target).getTransform()[1])
                     target_item["vacuum_offset"]=[0,0,0.1]
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
-                    target_item['drop offset']=0.2
-                    target_box["drop position"]=[0.25,0.95-0.07*self.target,0.6]
+                    target_item['drop offset']=[0,0,0.2]
+                    target_box["drop position"]=[-0.4,0.3,0.2]
                     target_box['position']=[0.2,0.8,0.15]
                     old_config=self.sim.world.robot(0).getConfig()
                     self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
@@ -153,13 +156,13 @@ class MyGLViewer(GLSimulationPlugin):
                         return
                     target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
                     target_item["vacuum_offset"]=[0,0,0.1]
-                    target_item['drop offset']=0.15
+                    target_item['drop offset']=[0,0,0.15]
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
-                    # target_box["drop position"]=self.place_position[self.target]
-                    # target_box['position']=self.place_position[self.target]
+                    target_box["drop position"]=self.place_position[self.target]
+                    target_box['position']=self.place_position[self.target]
                     print self.place_position[self.target]
-                    target_box["drop position"]=[]
-                    target_box['position']=[]
+                    # target_box["drop position"]=[]
+                    # target_box['position']=[]
                     old_config=self.sim.world.robot(0).getConfig()
                     self.trajectory=planner.stow(self.sim.world,target_item,target_box,self.target)
                     if self.trajectory==False:
