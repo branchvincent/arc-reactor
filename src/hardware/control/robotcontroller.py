@@ -222,6 +222,6 @@ class RobotController:
     # store.put('robot/waypoints', sample_milestones)
     # c.run()
 
-if __name__ == "__main__":
-    c = RobotController()
-    c.updateCurrentConfig()
+# if __name__ == "__main__":
+#     c = RobotController()
+#     c.updateCurrentConfig()
