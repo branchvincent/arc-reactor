@@ -306,6 +306,12 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         # perform the update
         cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=world_pose)
 
+        # clear the point cloud for next update
+        if xyz_url:
+            self.db.put(xyz_url, None)
+        if rgb_url:
+            self.db.put(rgb_url, None)
+
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
     app = QApplication([])
