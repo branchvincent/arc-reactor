@@ -1,5 +1,4 @@
 from PyQt5 import QtGui, QtOpenGL, QtCore, QtWidgets
-import matplotlib.pyplot as plt
 import cv2
 import math
 import numpy as np
@@ -161,6 +160,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             for col in range(4):
                 self.cameraTextBoxes[row][col].setText(str(self.cameraXform[row, col]))
         # logger.info(time.time()-t)
+        self.thread.can_emit = True
 
     def save_calibration(self):
         #get the camera serial number
@@ -187,6 +187,7 @@ class VideoThread(QtCore.QThread):
         QtCore.QThread.__init__(self)
         self.keepRunning = True
         self.serialNum = ''
+        self.can_emit = True
 
     def getIntrinsics(self):
         context = rs.context()
@@ -259,8 +260,9 @@ class VideoThread(QtCore.QThread):
 
             # logger.info(1/(time.time()-t))
             # t = time.time()
-            if c%20 == 1:
+            if c%20 == 1 and self.can_emit:
                 self.signal.emit(imageFullColor)
+                self.can_emit = False
             # QtWidgets.QApplication.instance().processEvents()
             c = c+1
         cam.stop()
