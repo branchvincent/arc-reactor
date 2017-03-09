@@ -12,8 +12,9 @@ from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointer
 from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS
 
 from klampt import WorldModel
-from klampt.vis import GLRealtimeProgram
+from klampt.vis import GLRealtimeProgram, gldraw
 from klampt.vis.qtbackend import QtGLWindow
+from klampt.math import se3
 
 from .sync import AsyncUpdateMixin
 from .world import update_world
@@ -136,6 +137,19 @@ class WorldViewer(GLRealtimeProgram):
 
         for drawable in self.post_drawables:
             drawable.draw()
+
+        poses = [se3.identity()]
+
+        for i in range(self.world.numRobots()):
+            robot = self.world.robot(i)
+            poses.append(robot.link(0).getTransform())
+            poses.append(robot.link(robot.numLinks()-1).getTransform())
+
+        for i in range(self.world.numRigidObjects()):
+            poses.append(self.world.rigidObject(i).getTransform())
+
+        for pose in poses:
+            gldraw.xform_widget(pose, 0.1, 0.01, fancy=True)
 
     def mousefunc(self,button,state,x,y):
         return GLRealtimeProgram.mousefunc(self,button,state,x,y)
