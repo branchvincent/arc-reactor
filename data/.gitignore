@@ -1,2 +1,27 @@
 /bootstrap-*
 /jquery-*
+
+# test data
+/test
+
+# simulation data
+/simulation
+
+# modeling files
+*.blend
+*.sldprt
+*.sldasm
+
+# geometry files
+*.obj
+*.off
+*.tri
+*.ply
+*.stl
+*.pcd
+
+# compressed files
+*.gz
+*.bz2
+*.zip
+*.7z

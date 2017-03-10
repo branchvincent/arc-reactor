@@ -527,4 +527,3 @@ class TestCSpace(CSpace):
 def test_function():
 	return True
 
-
