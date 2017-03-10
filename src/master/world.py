@@ -68,8 +68,7 @@ def _rad2deg(x):
     return numpy.array(x) * 180.0 / pi
 
 robots = {
-    'tx90l': 'data/robots/tx90l.rob',
-    'shelf': 'data/robots/shelf.rob',
+    'tx90l': 'data/robots/tx90l.rob'
 }
 
 terrains = {
@@ -79,6 +78,7 @@ terrains = {
 rigid_objects = {
     'amnesty_tote': 'data/objects/tote.off',
     'stow_tote': 'data/objects/tote.off',
+    'shelf': 'data/objects/linear_shelf.stl'
 }
 
 def _get_or_load(world, name, path, total, getter, loader):
@@ -142,16 +142,15 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
     # update terrains
     _get_terrain(world, 'ground')
 
-    # update robots
+    # update robot
     tx90l = _get_robot(world, 'tx90l')
     _sync(db, '/robot/base_pose', lambda bp: tx90l.link(0).setParentTransform(*numpy2klampt(bp)))
     _sync(db, '/robot/current_config', lambda q: tx90l.setConfig(q))
     tx90l.setConfig(tx90l.getConfig())
 
-    shelf = _get_robot(world, 'shelf')
-    _sync(db, '/shelf/pose', lambda bp: shelf.link(0).setParentTransform(*numpy2klampt(bp)))
-    _sync(db, '/shelf/current_angle', lambda q: shelf.setConfig([0, q]))
-    shelf.setConfig(shelf.getConfig())
+    # update shelf
+    shelf = _get_rigid_object(world, 'shelf')
+    _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
 
     # update tote
     amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
