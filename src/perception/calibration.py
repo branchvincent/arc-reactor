@@ -42,6 +42,9 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.camera_coeff = cameracoeff
         self.cameraXform = np.identity(4)
 
+        self.objectName = ""
+        self.cameraName = ""
+
         self.db_client = PensiveClient(host='http://10.10.1.60:8888')
         self.store = self.db_client.default()
         register_numpy()
@@ -78,9 +81,9 @@ class RealsenseCalibration(QtWidgets.QWidget):
         label = QtWidgets.QLabel("Camera Xform",self)
         self.gridCamera.addWidget(label, 5, 2)
         label.show()
-        label = QtWidgets.QLabel("Robot Xform",self)
-        self.gridRobot.addWidget(label, 5, 2)
-        label.show()
+        self.objectXformLabel = QtWidgets.QLabel("Robot Xform",self)
+        self.gridRobot.addWidget(self.objectXformLabel, 5, 2)
+        self.objectXformLabel.show()
 
         #set initial values for the matrices
         eye = np.identity(4)
@@ -92,10 +95,30 @@ class RealsenseCalibration(QtWidgets.QWidget):
         #add a push button at the top
         self.horzTop = QtWidgets.QHBoxLayout()
         self.horzTop.addStretch(1)
+        self.gridTop = QtWidgets.QGridLayout()
         self.calibrate_button = QtWidgets.QPushButton("Calibrate", self)
         self.save_button = QtWidgets.QPushButton("Save", self)
-        self.horzTop.addWidget(self.calibrate_button)
-        self.horzTop.addWidget(self.save_button)
+        self.objectNameTextBox = QtWidgets.QLineEdit(self)
+        self.objectNameTextBox.editingFinished.connect(self.updateObjectName)
+        self.calib_cameraCheckBox = QtWidgets.QCheckBox("Calibrate Camera?",self)
+        self.calib_cameraCheckBox.setChecked(True)
+        self.calib_cameraCheckBox.show()
+        self.cameraNameTextBox = QtWidgets.QLineEdit(self)
+        self.cameraNameTextBox.editingFinished.connect(self.updateCameraName)
+
+        self.gridTop.addWidget(self.calibrate_button, 0, 0)
+        self.gridTop.addWidget(self.save_button, 0, 1)
+        self.gridTop.addWidget(self.calib_cameraCheckBox, 0, 2)
+        label = QtWidgets.QLabel("Camera name",self)
+        label.show()
+        self.gridTop.addWidget(label, 1, 0)
+        self.gridTop.addWidget(self.cameraNameTextBox, 1, 1)
+        label = QtWidgets.QLabel("Calibration Object Name", self)
+        label.show()
+        self.gridTop.addWidget(label, 2, 0)
+        self.gridTop.addWidget(self.objectNameTextBox, 2, 1)
+        self.horzTop.addLayout(self.gridTop)
+        
         self.horzTop.addStretch(1)
         self.calibrate_button.clicked.connect(self.calibrate_camera)
         self.save_button.clicked.connect(self.save_calibration)
@@ -126,6 +149,12 @@ class RealsenseCalibration(QtWidgets.QWidget):
         else:
             self.thread.keepRunning = True
             self.thread.start()
+
+    def updateCameraName(self):
+        self.cameraName = self.cameraNameTextBox.text()
+
+    def updateObjectName(self):
+        self.objectName = self.objectNameTextBox.text()
 
     def updateView(self, image, aligned_image, point_cloud):
         
@@ -167,52 +196,110 @@ class RealsenseCalibration(QtWidgets.QWidget):
         pix = QtGui.QPixmap(pix_img)
         self.camera_display.setPixmap(pix)
 
-        #get the base to end effector transform
-        base2ee = self.store.get(key='robot/tcp_pose')
-        #get the end effector to aruco pose
-        ee2aruco = self.store.get(key='calibration/target_xform')
 
-        target_pose = base2ee.dot(ee2aruco)
-        #update the gui
-        for row in range(4):
-            for col in range(4):
-                self.robotTextBoxes[row][col].setText(str(target_pose[row, col]))
+        if self.calib_cameraCheckBox.isChecked():
+            self.objectXformLabel.setText("Robot Xform")
+            #calbrate the camera
+            #get the base to end effector transform
+            base2ee = self.store.get(key='robot/tcp_pose')
+            #get the end effector to aruco pose
+            ee2aruco = self.store.get(key='calibration/target_xform')
+
+            #check if they actually exist
+            if base2ee is None or ee2aruco is None:
+                logger.warn("Did not recieve transforms from database. Not updating poses")
+                return
+
+            target_pose = base2ee.dot(ee2aruco)
+            #update the gui
+            for row in range(4):
+                for col in range(4):
+                    self.robotTextBoxes[row][col].setText(str(target_pose[row, col]))
 
 
-        #multiply to get the camera world pose
-        self.cameraXform = target_pose.dot(np.linalg.inv(self.cameraXform))
-        #update the gui
-        for row in range(4):
-            for col in range(4):
-                self.cameraTextBoxes[row][col].setText(str(self.cameraXform[row, col]))
-        # logger.info(time.time()-t)
-        self.thread.can_emit = True
+            #multiply to get the camera world pose
+            pose_of_obj = target_pose.dot(np.linalg.inv(self.cameraXform))
+            #update the gui
+            for row in range(4):
+                for col in range(4):
+                    self.cameraTextBoxes[row][col].setText(str(pose_of_obj[row, col]))
+            # logger.info(time.time()-t)
+            self.thread.can_emit = True
 
-        #update the database with the camera world location
-        self.store.put(key="camera/shelf0/pose", value=self.cameraXform)
-        #push out the point cloud
-        self.store.put(key="camera/shelf0/point_cloud", value=point_cloud)
-        self.store.put(key="camera/shelf0/aligned_image", value=aligned_image)
-        self.store.put(key="camera/shelf0/timestamp", value=time.time())
+            #update the database with the camera world location
+            if self.cameraName != "":
+                # logger.debug("storing {}".format("camera/" + self.cameraName + "/pose"))
+                self.store.put(key="camera/" + self.cameraName + "/pose", value=pose_of_obj)
+
+        else:
+            #change text of robotTextBoxes
+            self.objectXformLabel.setText("Object Xform")
+            #calibrate what is in the text box
+            #read in camera world pose
+            camera_xform = np.identity(4)
+            if self.cameraName != "":
+                camera_xform = self.store.get(key="camera/" + self.cameraName + "/pose")
+            if camera_xform is None:
+                logger.warn("Could not retrieve camera_xform")
+                camera_xform = np.identity(4)
+                return
+
+            #where is the origin of the object with respect to the target
+            origin_to_target = np.identity(4)
+            #try reading from the database
+            if self.objectName != "":
+                origin_to_target = self.store.get(key=self.objectName + "/origin_to_target")
+                if origin_to_target is None:
+                    origin_to_target = np.identity(4)
+
+            pose_of_obj = camera_xform.dot(self.cameraXform).dot(np.linalg.inv(origin_to_target))
+            #update the gui
+            for row in range(4):
+                for col in range(4):
+                    self.robotTextBoxes[row][col].setText(str(pose_of_obj[row, col]))
+
+            #update the gui
+            for row in range(4):
+                for col in range(4):
+                    self.cameraTextBoxes[row][col].setText(str(self.cameraXform[row, col]))
+
+            if self.objectName != "":
+                # logger.debug("storing {}".format(self.objectName + "/pose"))
+                self.store.put(key=self.objectName + "/pose", value=pose_of_obj)
+            
+            #tell the thread to continue
+            self.thread.can_emit = True
+
+        # #push out the point cloud
+        if self.cameraName != "":
+            self.store.put(key="camera/" + self.cameraName + "/point_cloud", value=point_cloud)
+            self.store.put(key="camera/" + self.cameraName + "aligned_image", value=aligned_image)
+            self.store.put(key="camera/" + self.cameraName + "timestamp", value=time.time())
 
     def save_calibration(self):
-        #get the camera serial number
-        sn = self.thread.serialNum
+        if self.calib_cameraCheckBox.isChecked():
+            #get the camera serial number
+            sn = self.thread.serialNum
 
-        #get the robot matrix
-        robotmat = np.identity(4)
-        for row in range(4):
-            for col in range(4):
-                num = float(self.robotTextBoxes[row][col].text())
-                robotmat[row, col] = num
+            #get the robot matrix
+            cameraMat = np.identity(4)
+            for row in range(4):
+                for col in range(4):
+                    num = float(self.cameraTextBoxes[row][col].text())
+                    cameraMat[row, col] = num
 
-        
-        #multiply the transforms
-        full_transform = self.cameraXform * robotmat
-        print(full_transform)
+            #save it
+            np.save(sn + "_xform", cameraMat)
 
-        #save it
-        np.save(sn + "_xform", full_transform)
+        else:
+            #save the object name
+            objectmat = np.identity(4)
+            for row in range(4):
+                for col in range(4):
+                    num = float(self.robotTextBoxes[row][col].text())
+                    objectmat[row, col] = num
+
+            np.save(self.objectName + "_xform", objectmat)
 
 class VideoThread(QtCore.QThread):
     signal = QtCore.pyqtSignal(np.ndarray, np.ndarray, np.ndarray)
