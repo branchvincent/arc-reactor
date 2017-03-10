@@ -26,11 +26,11 @@ angle_to_degree=57.296
 ee_link=6
 control_rate=20 #controlling the robot with 20 Hz
 max_end_effector_v=0.3 # max end effector move speed
-max_change=300.0/180.0*3.14159 #the max change between raw milestones is 20 degree
+max_change=200.0/180.0*3.14159 #the max change between raw milestones is 20 degree
 milestone_check_max_change=5.0/180.0*3.14159 #the max change between milestones is 5 degree
 milestone_check_max_speed=60/180.0*3.14159
 
-def pick_up(world,item,target_box):
+def pick_up(world,item,target_box,target_index):
 	"""
 	This function will return a motion plan that will pick up the target item from the shelf and drop it to the tote.
 	Inputs:
@@ -42,6 +42,8 @@ def pick_up(world,item,target_box):
 		- target_box: the ID of the target order box, a default droping position for that order box. 
 			-- drop position: right now is above the center of the box
 			-- position: box position
+			-- box_limit:box_min and box_max, the bounding box for the target container
+		- target_index: the index of the target item in the world, this is used for feasible placement finding
 	outputs:
 		a list of milestones=(t, {
 			  'robot': q,
@@ -77,6 +79,54 @@ def pick_up(world,item,target_box):
 	
 	test_cspace=TestCSpace(Globals(world))
 	
+	#find a placement position if no goal position is given by the input
+	if target_box['drop position']:
+		drop_position=target_box['drop position']
+		print drop_position
+		box_bottom_high=target_box['position'][2]
+	else:
+		print "here!!!!!!!!"
+		box_min,box_max=target_box["box_limit"]
+		origin_T=world.rigidObject(target_index).getTransform()
+		goal_T=[[],[]]
+		goal_T[0]=origin_T[0]
+		flag=1
+		n=0
+		while (flag and n<10):
+			x=random.uniform(box_min[0],box_max[0])
+			y=random.uniform(box_min[1],box_max[1])
+			z=random.uniform(box_min[2],box_max[2])
+			goal_T[1]=[x,y,z]
+			print goal_T[1]
+			# goal_T[1]=[1.10298067096586, 0.3038671358694375, 0.791611841275841]
+			if check_placement(world,goal_T,target_index):
+				flag=0
+				drop_position=goal_T[1]
+				box_bottom_high=goal_T[1][2]
+			n+=1
+		if flag:
+			print "can't find a feasible placement"
+			world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
+			return False
+		n=0
+		check_flag=1
+		low_bound=0
+		high_bound=z
+		while n<5:
+			new_z=0.5*(low_bound+high_bound)
+			goal_T[1]=[x,y,new_z]
+			if check_placement(world,goal_T,target_index):
+				drop_position=goal_T[1]
+				box_bottom_high=goal_T[1][2]
+				high_bound=new_z
+				print 'lower!!'
+			else:
+				low_bound=0.5*(low_bound+high_bound)
+			n+=1
+		print 'find a placement:',goal_T[1]
+		world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
+		
+
 
 	#move the robot from current position to a start position that is above the target item
 	start_position=vectorops.add(item_position,[0,0,0.4])
@@ -179,6 +229,7 @@ def stow(world,item,target_box,target_index):
 			-- vacuum_offset: hacked parameter for each item, added to the high of the item to find the grasp position for the vacuum
 			-- drop offset: hacked parameter for each item, added to the high of the order box bottom high to find the drop position for the vacuum
 		- target_box: hacked from pick function. right now drop position is a goal position for the target item on the shelf 
+			--box_limit:box_min and box_max, the bounding box for the target container
 		- target_index: the index of the target item in the world, this is used for feasible placement finding
 	outputs:
 		a list of milestones=(t, {
@@ -217,19 +268,17 @@ def stow(world,item,target_box,target_index):
 		box_bottom_high=target_box['position'][2]
 	else:
 		print "here!!!!!!!!"
+		box_min,box_max=target_box["box_limit"]
 		origin_T=world.rigidObject(target_index).getTransform()
 		goal_T=[[],[]]
 		goal_T[0]=origin_T[0]
 		flag=1
 		n=0
 		while (flag and n<10):
-			r=random.uniform(0,shelf_radius)
-			theta=random.uniform(-2,2)
-			level=random.randrange(3)
-			# level=2
-			# h=random.uniform(0.3+(level-1)*0.3,0.3+level*0.3)
-			h=shelf_h[level]
-			goal_T[1]=[shelf_position[0]-math.cos(theta)*r,shelf_position[1]+math.sin(theta)*r,h]
+			x=random.uniform(box_min[0],box_max[0])
+			y=random.uniform(box_min[1],box_max[1])
+			z=random.uniform(box_min[2],box_max[2])
+			goal_T[1]=[x,y,z]
 			print goal_T[1]
 			# goal_T[1]=[1.10298067096586, 0.3038671358694375, 0.791611841275841]
 			if check_placement(world,goal_T,target_index):
@@ -244,19 +293,19 @@ def stow(world,item,target_box,target_index):
 		n=0
 		check_flag=1
 		low_bound=0
-		high_bound=r
+		high_bound=z
 		while n<5:
-			new_r=0.5*(low_bound+high_bound)
-			goal_T[1]=[shelf_position[0]-math.cos(theta)*new_r,shelf_position[1]+math.sin(theta)*new_r,h]
+			new_z=0.5*(low_bound+high_bound)
+			goal_T[1]=[x,y,new_z]
 			if check_placement(world,goal_T,target_index):
 				drop_position=goal_T[1]
 				box_bottom_high=goal_T[1][2]
-				high_bound=new_r
-				print 'closer to the center!!'
+				high_bound=new_z
+				print 'lower!!'
 			else:
 				low_bound=0.5*(low_bound+high_bound)
 			n+=1
-
+		print 'find a placement:',goal_T[1]
 		world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
 		
 

@@ -118,10 +118,12 @@ class MyGLViewer(GLSimulationPlugin):
                     target_item["vacuum_offset"]=[0,0,0.1]
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
                     target_item['drop offset']=[0,0,0.2]
-                    target_box["drop position"]=[-0.4,0.3,0.2]
+                    target_box["box_limit"]=[[-0.5,0.2,0.1],[-0.35,0.45,0.4]]
+                    # target_box["drop position"]=[-0.4,0.3,0.2]
+                    target_box["drop position"]=[]
                     target_box['position']=[0.2,0.8,0.15]
                     old_config=self.sim.world.robot(0).getConfig()
-                    self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
+                    self.trajectory=planner.pick_up(self.sim.world,target_item,target_box,self.target)
                     if self.trajectory==False:
                         self.score+=1
                         self.target+=1
@@ -158,11 +160,12 @@ class MyGLViewer(GLSimulationPlugin):
                     target_item["vacuum_offset"]=[0,0,0.1]
                     target_item['drop offset']=[0,0,0.15]
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
-                    target_box["drop position"]=self.place_position[self.target]
-                    target_box['position']=self.place_position[self.target]
-                    print self.place_position[self.target]
-                    # target_box["drop position"]=[]
-                    # target_box['position']=[]
+                    # target_box["drop position"]=self.place_position[self.target]
+                    # target_box['position']=self.place_position[self.target]
+                    target_box["box_limit"]=[[-0.2,0.3,0.1],[0.6,0.5,0.4]]
+                    # print self.place_position[self.target]
+                    target_box["drop position"]=[]
+                    target_box['position']=[]
                     old_config=self.sim.world.robot(0).getConfig()
                     self.trajectory=planner.stow(self.sim.world,target_item,target_box,self.target)
                     if self.trajectory==False:
