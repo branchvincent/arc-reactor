@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
-  <robot name="ARC" file="robots/ARC.rob" translation="0 0 0"  config="7 0.0 1.62 -0.175  -1.95 0 -1.38 -0.69"/>
+  <robot name="ARC_new" file="robots/ARC_new.rob" translation="0 0 0" rotateZ="-3" config="8 0.0  0.22688705773255044  0.6762228583897952 2.0223069448008717  -1.0481573202202497  0.4290251616222686  -2.1354668552516776"/>
  
 
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
   <terrain file="terrains/block.off" />
 <!-- The table -->
-  <terrain file="terrains/LinearShelf.stl" scale="0.001 0.001 0.001" translation="0.8 0.6 0.0" rotateZ="3.14159">
+  <terrain file="terrains/shelf.stl" scale="0.001 0.001 0.001" translation="1.0 0.4 0.235" rotateX="1.57" rotateZ="3.8">
      <display color="0.8 0.7 0.2"/>
   </terrain>
 
@@ -30,19 +30,19 @@
   -->
   
 <!-- The 13.5*9.5*3.5 box --> 
-  <terrain file="terrains/cube.off" scale="0.01 0.3429 0.0889" translation="-0.55 0.15 0.0"> 
+  <terrain file="terrains/cube.off" scale="0.01 0.3429 0.0889" translation="0.15 0.65 0.1"> 
      <display color="0.2 0.3 0.5"/>
   </terrain>
-  <terrain file="terrains/cube.off" scale="0.2413 0.01 0.0889" translation="-0.55 0.15 0.0">
+  <terrain file="terrains/cube.off" scale="0.2413 0.01 0.0889" translation="0.15 0.65 0.1">
      <display color="0.2 0.3 0.5"/>
   </terrain>
-  <terrain file="terrains/cube.off" scale="0.01 0.3429 0.0889" translation="-0.3087 0.15 0.0"> 
+  <terrain file="terrains/cube.off" scale="0.01 0.3429 0.0889" translation="0.3913 0.65 0.1"> 
      <display color="0.2 0.3 0.5"/>
   </terrain>
-  <terrain file="terrains/cube.off" scale="0.2413 0.01 0.0889" translation="-0.55 0.4929 0.0">
+  <terrain file="terrains/cube.off" scale="0.2413 0.01 0.0889" translation="0.15 0.9929 0.1">
      <display color="0.2 0.3 0.5"/> 
   </terrain>
-   <terrain file="terrains/cube.off" scale="0.2413 0.3429 0.01" translation="-0.55 0.167 0.0">
+   <terrain file="terrains/cube.off" scale="0.2413 0.3429 0.01" translation="0.15 0.667 0.1">
      <display color="0.2 0.3 0.5"/> 
   </terrain>
 
@@ -94,23 +94,11 @@
 
 
 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.1 0.5 0.2" rotateZ="0.0">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.9 0.45 0.87" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.35 0.5 0.2" rotateZ="0.0">
-     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
-     <display color="1 1 0"/>
-  </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.6 0.5 0.2" rotateZ="0.0">
-     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
-     <display color="1 1 0"/>
-  </rigidObject> 
-<!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.5 0.37" rotateZ="0.0">
-     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
-     <display color="1 1 0"/>
-  </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.23 0.57" rotateZ="0.0">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.5 0.57" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
@@ -118,11 +106,11 @@
   <rigidObject name="srimug2" file="objects/block_small.obj"  position="1.0 0.25 0.37" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
-  </rigidObject>  -->
+  </rigidObject> 
 
-  <!-- <target position="-0.4 0 0.3" /> -->
+  <target position="-0.4 0 0.3" />
 
-  <!-- <simulation>
+  <simulation>
     <globals /> 
     <object index="0">
        <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
@@ -135,5 +123,5 @@
        <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
     </object>
   
-  </simulation> -->
+  </simulation>
 </world>
