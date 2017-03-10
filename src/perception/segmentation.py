@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 import scipy.signal
 import numpy as np

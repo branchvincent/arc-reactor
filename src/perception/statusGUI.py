@@ -4,7 +4,6 @@ import time
 from OpenGL import GL, GLU
 from status import CameraStatus
 from functools import partial
-import matplotlib.pyplot as plt
 import math
 import numpy as np
 import os
