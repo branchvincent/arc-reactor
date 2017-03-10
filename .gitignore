@@ -278,3 +278,4 @@ ve/
 
 #SWIG wrapper
 *_wrap.cxx
+*.pkl
