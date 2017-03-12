@@ -259,6 +259,8 @@ class DepthCameras:
         return extrinsics
 
 def test():
+    import matplotlib
+    matplotlib.use('Qt5Agg')
     import matplotlib.pyplot as plt
     x = DepthCameras()
     if not x.connect():
