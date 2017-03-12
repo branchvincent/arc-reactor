@@ -22,6 +22,8 @@ mass       20 10 10 5 5 1 0.2
 automass
 torqueMax  0 800 600 400 200 200 100
 
+mount 6 "vacuum_adapter4_tube.stl"  1 0 0    0 1 0     0 0 1    0 0 0  as "gripper"
+
 # simulation parameters
 servoP  40000 50000 20000 10000 2000 400
 servoI  100 100 100 100 40 10
