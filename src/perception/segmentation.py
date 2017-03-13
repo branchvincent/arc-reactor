@@ -70,7 +70,7 @@ def depthSegmentation(depthImage, fcolor, extrinsics=None):
         indices = np.array((out_labels == i).nonzero()).astype('float32')
         indices = np.transpose(indices)
         y,x,h,w = cv2.boundingRect(indices)
-        cv2.rectangle(fullcolor,(x,y),(x+w,y+h),(0,255,0),1)
+        cv2.rectangle(fullcolor,(x,y),(x+w,y+h),(0,255,0),2)
 
         rects.append([y,y+h, x, x+w])
         #min area rectangle
@@ -126,7 +126,7 @@ def depthSegmentation(depthImage, fcolor, extrinsics=None):
         #create zero image
         if tinyColorImgs[i].shape[0] > 256 or tinyColorImgs[i].shape[1] > 256:
             #large image, put it in 512, 512
-            bg = np.zeros((512,512, 3))
+            bg = np.zeros((512,512, 3)) #TODO assumes 512x512, but isnt always the case
             startY = int(bg.shape[0]/2 - tinyColorImgs[i].shape[0]/2)
             startX = int(bg.shape[1]/2 - tinyColorImgs[i].shape[1]/2)
             if startX < 0:
