@@ -309,18 +309,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         options = self.options.get(bb, {})
 
-        world_pose = None
-        for url in pose_urls:
-            pose = self.db.get(url)
-            if pose is None:
-                world_pose = None
-                break
-            elif world_pose is None:
-                world_pose = pose
-            else:
-                world_pose = world_pose.dot(pose)
-
-        bb.update(pose=world_pose, bounds=self.db.get(bounds_url))
+        bb.update(pose=self._build_pose(pose_urls), bounds=self.db.get(bounds_url))
 
     def _update_point_cloud(self, name, pose_urls, xyz_url, rgb_url=None):
         cloud = self.point_clouds.get(name)
@@ -370,26 +359,27 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
                 # color all points the same
                 cloud_rgb = numpy.full(cloud_xyz.shape[:-1] + (len(color),), color)
 
-        # build the pose
-        world_pose = None
-        for url in pose_urls:
-            pose = self.db.get(url)
-            if pose is None:
-                world_pose = None
-                break
-            elif world_pose is None:
-                world_pose = pose
-            else:
-                world_pose = world_pose.dot(pose)
-
         # perform the update
-        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=world_pose)
+        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=self._build_pose(pose_urls))
 
         # clear the point cloud for next update
         if xyz_url:
             self.db.put(xyz_url, None)
         if rgb_url:
             self.db.put(rgb_url, None)
+
+    def _build_pose(self, urls):
+        full_pose = None
+        for url in urls:
+            pose = self.db.get(url)
+            if pose is None:
+                return None
+            elif full_pose is None:
+                full_pose = pose
+            else:
+                full_pose = full_pose.dot(pose)
+
+        return full_pose
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
