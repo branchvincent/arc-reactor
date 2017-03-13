@@ -220,7 +220,7 @@ class Perception:
         #TODO
         pass
 
-    def compute_xform_of_obejcts(self):
+    def compute_xform_of_objects(self):
         '''
         Find the transform in world coordinates of all of the objects seen by all cameras
         '''
