@@ -15,7 +15,7 @@ import os
 import time
 import json
 import copy
-ee_local=[0.0,0.0,0.31]
+ee_local=[0.0,0.0,0.35]
 # ee_local=[0,0,0]
 box_release_offset=[0,0,0.06]
 # approach_p1=[0.6,0.2+shelf_position[1],1]
@@ -39,7 +39,7 @@ def pick_up(world,item,target_box,target_index):
 			-- position: item position
 			-- vacuum_offset: hacked parameter for each item, added to the high of the item to find the grasp position for the vacuum
 			-- drop offset: hacked parameter for each item, added to the high of the order box bottom high to find the drop position for the vacuum
-		- target_box: the ID of the target order box, a default droping position for that order box. 
+		- target_box: the ID of the target order box, a default droping position for that order box.
 			-- drop position: right now is above the center of the box
 			-- position: box position
 			-- box_limit:box_min and box_max, the bounding box for the target container
@@ -51,12 +51,12 @@ def pick_up(world,item,target_box,target_index):
 			  'vaccum': [0]
 			})
 		- t: planned time to reach this configuration
-		- robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot. 
+		- robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot.
 		Also all the values are in radius, while the real robot joint values are in degree
 		- gripper control
 		- vaccum: 0-off 1-on
 	"""
-	
+
 	#init
 	robot=world.robot(0)
 	motion_milestones=[]
@@ -76,9 +76,9 @@ def pick_up(world,item,target_box,target_index):
 	box_bottom_high=target_box['position'][2]
 	vaccum_approach_distance=[0,0,0.03]
 	#setting some constant parameters and limits
-	
+
 	test_cspace=TestCSpace(Globals(world))
-	
+
 	#find a placement position if no goal position is given by the input
 	if target_box['drop position']:
 		drop_position=target_box['drop position']
@@ -125,7 +125,7 @@ def pick_up(world,item,target_box,target_index):
 			n+=1
 		print 'find a placement:',goal_T[1]
 		world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
-		
+
 
 
 	#move the robot from current position to a start position that is above the target item
@@ -137,7 +137,7 @@ def pick_up(world,item,target_box,target_index):
 	if not motion_milestones:
 		print "can't find a feasible path to start position"
 		return False
-	
+
 	#start the vacuum
 	motion_milestones.append(make_milestone(1,robot.getConfig(),1,0))
 
@@ -157,7 +157,7 @@ def pick_up(world,item,target_box,target_index):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
 		print "can't find a feasible path to pick up the item"
-		return False	
+		return False
 
 	#move the item to the start position for droping
 	start_T=end_T
@@ -167,7 +167,7 @@ def pick_up(world,item,target_box,target_index):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
 		print "can't find a feasible path to the drop position"
-		return False	
+		return False
 
 	#lower the item
 	start_T=end_T
@@ -176,7 +176,7 @@ def pick_up(world,item,target_box,target_index):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
 		print "can't find a feasible path to lower the item"
-		return False	
+		return False
 
 	#turn off the vacuum
 	motion_milestones.append(make_milestone(1,robot.getConfig(),0,0))
@@ -196,7 +196,7 @@ def pick_up(world,item,target_box,target_index):
 def check_placement(world,T,target_index):
 	world.rigidObject(target_index).setTransform(T[0],T[1])
 	glist_target=[]
-	glist_target.append(world.rigidObject(target_index).geometry())	
+	glist_target.append(world.rigidObject(target_index).geometry())
 	glist_terrain=[]
 	glist_object=[]
 	for i in xrange(world.numTerrains()):
@@ -228,7 +228,7 @@ def stow(world,item,target_box,target_index):
 			-- position: item position
 			-- vacuum_offset: hacked parameter for each item, added to the high of the item to find the grasp position for the vacuum
 			-- drop offset: hacked parameter for each item, added to the high of the order box bottom high to find the drop position for the vacuum
-		- target_box: hacked from pick function. right now drop position is a goal position for the target item on the shelf 
+		- target_box: hacked from pick function. right now drop position is a goal position for the target item on the shelf
 			--box_limit:box_min and box_max, the bounding box for the target container
 		- target_index: the index of the target item in the world, this is used for feasible placement finding
 	outputs:
@@ -238,7 +238,7 @@ def stow(world,item,target_box,target_index):
 			  'vaccum': [0]
 			})
 		- t: planned time to reach this configuration
-		- robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot. 
+		- robot q: raw output from the klampt simulation. q=[q0,q1,q2,q3,q4,q5,q6]. q0 is alwasy 0. The signs for q3 and q5 is flipped on the real robot.
 		Also all the values are in radius, while the real robot joint values are in degree
 		- gripper control
 		- vaccum: 0-off 1-on
@@ -253,14 +253,14 @@ def stow(world,item,target_box,target_index):
 	item_position=vectorops.div(vectorops.add(item['bbox'][0],item['bbox'][1]),2.0)
 	item_vacuum_offset=item['vacuum_offset']
 	drop_offset=item['drop offset']
-	
+
 	vaccum_approach_distance=[0,0,0.15]
-	
+
 	test_cspace=TestCSpace(Globals(world))
 
 
 
-	
+
 	#find a stowing position if no goal position is given by the input
 	if target_box['drop position']:
 		drop_position=target_box['drop position']
@@ -307,7 +307,7 @@ def stow(world,item,target_box,target_index):
 			n+=1
 		print 'find a placement:',goal_T[1]
 		world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
-		
+
 
 
 
@@ -320,7 +320,7 @@ def stow(world,item,target_box,target_index):
 	if not motion_milestones:
 		print "can't find a feasible path to start position"
 		return False
-	
+
 	#start the vacuum
 	motion_milestones.append(make_milestone(1,robot.getConfig(),1,0))
 
@@ -340,7 +340,7 @@ def stow(world,item,target_box,target_index):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
 		print "can't find a feasible path to pick up the item"
-		return False	
+		return False
 
 	#move the item to the start position for droping
 	start_T=end_T
@@ -350,7 +350,7 @@ def stow(world,item,target_box,target_index):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
 		print "can't find a feasible path to drop position"
-		return False	
+		return False
 
 	#lower the item
 	start_T=end_T
@@ -359,7 +359,7 @@ def stow(world,item,target_box,target_index):
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
 	if not motion_milestones:
 		print "can't find a feasible path to lower the item"
-		return False	
+		return False
 
 	#turn off the vacuum
 	motion_milestones.append(make_milestone(1,robot.getConfig(),0,0))
@@ -372,7 +372,7 @@ def stow(world,item,target_box,target_index):
 	if not motion_milestones:
 		print "can't find a feasible path to raise the robot"
 		return False
-  
+
 
 	fix_milestones(motion_milestones)
 	return motion_milestones
@@ -417,7 +417,7 @@ def make_milestone(t,q,vacuum_status,simulation_status):
 	milestone=(t, {
 			  'robot': q,
 			  'gripper': [0,0,0],
-			  'vacuum': [vacuum_status], 
+			  'vacuum': [vacuum_status],
 			  'simulation': simulation_status
 			})
 	return milestone
@@ -443,7 +443,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		# print i
 		# print s
 		# print test_cspace.feasible(q)
-		
+
 		flag = 1
 		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)):
 			print "too much change!"
