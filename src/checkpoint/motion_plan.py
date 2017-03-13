@@ -29,13 +29,11 @@ class WorldViewer(GLRealtimeProgram):
         self.robot = self.world.robot('tx90l')
 
         self.robot_path = []
-        self.motion_plan = store.get('/robot/waypoints')
 
-        t = 0
-        for waypoint in self.motion_plan:
-            dt = waypoint[0]
-            waypoint[0] = t
-            t += dt
+        mp = store.get('/robot/waypoints')
+
+        self.dts = [wp[0] for wp in mp]
+        self.commands = [{'robot': self.robot.getConfig()}] + [wp[1] for wp in mp]
 
         self.fps = 30.0
         self.dt = 1 / self.fps
@@ -45,13 +43,13 @@ class WorldViewer(GLRealtimeProgram):
 
         self.n = 0
         self.start_time = -self.end_delay
-        self.waypoint_index = None
+        self.duration = sum(self.dts)
 
         self.dofs = self.robot.numLinks()
 
         self.trace_vbos = []
         for i in range(1, self.dofs):
-            trace = self.trace_link(self.motion_plan, i)
+            trace = self.trace_link(self.commands, i)
             data = numpy.array(trace, dtype=numpy.float32)
             color = cm.gist_rainbow(float(i - 1) / (self.dofs - 2))
             self.trace_vbos.append((color, vbo.VBO(data, GL_STATIC_DRAW)))
@@ -59,7 +57,7 @@ class WorldViewer(GLRealtimeProgram):
     def trace_link(self, plan, link):
         trace = []
 
-        for (t, cmd) in plan:
+        for cmd in plan:
             self.robot.setConfig(cmd['robot'])
             trace.append(self.robot.link(link).getTransform()[1])
 
@@ -151,36 +149,33 @@ class WorldViewer(GLRealtimeProgram):
     #         return ((1 - ratio)*segment[0][0] + ratio*segment[1][0], command)
 
     def query_time(self, t, hint=None):
-        command = {}
-
         if t < 0:
-            # before start
-            command = self.motion_plan[0][1]
-        elif t > self.motion_plan[-1][0]:
-            # after end
-            command = self.motion_plan[-1][1]
-        else:
-            # find the waypoint before and after the current time
-            segment = None
-            for i in range(hint or 1, len(self.motion_plan)):
-                if self.motion_plan[i][0] < t:
-                    continue
+            return self.commands[0]
 
-                segment = self.motion_plan[i-1:i+1]
-                break
+        for i in range(len(self.dts)):
+            dt = self.dts[i]
+            if t > dt:
+                t -= dt
+                continue
+
+            ratio = t / dt
+            (cmd_start, cmd_end) = self.commands[i:i+2]
+
+            command = {}
 
             # first-order hold for continuous variables
-            ratio = (segment[0][0] - t) / (segment[1][0] - segment[0][0])
             for name in ['robot', 'shelf', 'gripper']:
-                if name in segment[0][1] and name in segment[1][1]:
-                    command[name] = [ratio*a + (1 - ratio)*b for (a, b) in zip(segment[0][1][name], segment[1][1][name])]
+                if name in cmd_start and name in cmd_end:
+                    command[name] = [(1 - ratio)*x + ratio*y for (x, y) in zip(cmd_start[name], cmd_end[name])]
 
             # zero-order hold for discrete variables
             for name in ['vacuum']:
-                if name in segment[0][1]:
-                    command[name] = segment[0][1][name]
+                if name in cmd_start:
+                    command[name] = cmd_start[name]
 
-        return command
+            return command
+
+        return self.commands[-1]
 
     def display(self):
         self.world.drawGL()
@@ -201,11 +196,11 @@ class WorldViewer(GLRealtimeProgram):
         glEnable(GL_LIGHTING)
 
     def idle(self):
-        if not self.motion_plan:
+        if not self.commands:
             return
 
         current_time = self.speed_scale * (time() - self.start_time)
-        if current_time > self.motion_plan[-1][0] + self.end_delay:
+        if current_time > self.duration + self.end_delay:
             self.start_time = time() + self.end_delay
 
         command = self.query_time(current_time)
