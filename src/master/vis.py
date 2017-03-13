@@ -9,7 +9,7 @@ from math import pi
 from OpenGL.arrays import vbo
 from OpenGL.GL import glEnable, glDisable, glPushMatrix, glPopMatrix, glMultMatrixf, glMatrixMode
 from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glColorPointerf, glDrawArrays, glPointSize, glLineWidth, glColor
-from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS
+from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS, GL_LINE_STRIP
 
 from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram, gldraw
@@ -154,6 +154,37 @@ class BoundingBox(object):
 
         glPopMatrix()
 
+class Trace(object):
+    def __init__(self):
+        self._color = (1.0, 1.0, 0, 1.0)
+        self._width = 2.0
+
+        self._vbo = None
+
+    def update(self, path=None, width=None, color=None):
+        if path:
+            self._vbo = vbo.VBO(numpy.array(path, dtype=numpy.float32))
+
+        self._width = width or self._width
+        self._color = color or self._color
+
+    def draw(self):
+        glDisable(GL_LIGHTING)
+
+        glLineWidth(self._width)
+        glColor(*self._color)
+
+        glEnableClientState(GL_VERTEX_ARRAY)
+
+        if self._vbo:
+            with self._vbo:
+                glVertexPointerf(self._vbo)
+                glDrawArrays(GL_LINE_STRIP, 0, len(self._vbo))
+
+        glDisableClientState(GL_VERTEX_ARRAY)
+
+        glEnable(GL_LIGHTING)
+
 class WorldViewer(GLRealtimeProgram):
     def __init__(self):
         GLRealtimeProgram.__init__(self, 'World Viewer')
@@ -221,6 +252,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         self.point_clouds = {}
         self.bounding_boxes = {}
+        self.traces = {}
 
         self.options = {}
 
@@ -238,6 +270,36 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         # update shelf bin bounding boxes
         for name in self.db.get('shelf/bin', {}):
             self._update_bounding_box(name + '_bb', ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
+
+        self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
+
+    def _update_robot_trace(self, name, robot, link, path_url, timestamp_url):
+        trace_name = '{}_pc'.format(name)
+
+        # check if path is modified
+        stamp = self.db.get(timestamp_url)
+        if stamp <= self.timestamps.get(trace_name, 0):
+            return
+
+        self.timestamps[trace_name] = stamp
+
+        logger.debug('updating {} trace'.format(name))
+
+        # build the trace path
+        path = []
+        for cmd in self.db.get(path_url):
+            robot.setConfig(cmd[1]['robot'])
+            path.append(robot.link(link).getTransform()[1])
+
+        trace = self.traces.get(trace_name)
+        if not trace:
+            trace = Trace()
+            self.program.post_drawables.append(trace)
+            self.traces[trace_name] = trace
+
+        options = self.options.get(trace, {})
+
+        trace.update(path=path, **options)
 
     def _update_item(self, name):
         cloud_name = '{}_pc'.format(name)
@@ -309,7 +371,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         options = self.options.get(bb, {})
 
-        bb.update(pose=self._build_pose(pose_urls), bounds=self.db.get(bounds_url))
+        bb.update(pose=self._build_pose(pose_urls), bounds=self.db.get(bounds_url), **options)
 
     def _update_point_cloud(self, name, pose_urls, xyz_url, rgb_url=None):
         cloud = self.point_clouds.get(name)

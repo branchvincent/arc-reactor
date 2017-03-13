@@ -1,5 +1,7 @@
 import logging
 
+from time import time
+
 from master.fsm import State
 from master.world import build_world
 
@@ -92,6 +94,7 @@ class PlanRoute(State):
         else:
             self.store.put('/robot/waypoints', motion_plan)
             self.store.put('/status/route_plan', True)
+            self.store.put('/robot/timestamp', time())
             logger.info('route generated')
 
 if __name__ == '__main__':
