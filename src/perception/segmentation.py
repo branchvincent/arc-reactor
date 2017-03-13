@@ -11,7 +11,7 @@ sys.path.append('../hardware/SR300/')
 sys.path.append('..')
 import realsense as rs
 
-def depthSegmentation(depthImage, fullcolor, extrinsics=None):
+def depthSegmentation(depthImage, fcolor, extrinsics=None):
     '''
     Takes in a depth image plus full color image and returns a list of images
     that can be fed into deep learning to figure out what they are. also returns
@@ -27,7 +27,9 @@ def depthSegmentation(depthImage, fullcolor, extrinsics=None):
     morphW = 5
     minNumCC = 500
 
-    depth = depthImage    
+    depth = depthImage  
+    #make a copy of the color image to return
+    fullcolor = fcolor.copy()  
     #filter
     depth = scipy.signal.medfilt(depth, medianFileterW)
     #plt.imshow(depth)
@@ -68,7 +70,7 @@ def depthSegmentation(depthImage, fullcolor, extrinsics=None):
         indices = np.array((out_labels == i).nonzero()).astype('float32')
         indices = np.transpose(indices)
         y,x,h,w = cv2.boundingRect(indices)
-        # cv2.rectangle(fullcolor,(x,y),(x+w,y+h),(0,255,0),2)
+        cv2.rectangle(fullcolor,(x,y),(x+w,y+h),(0,255,0),1)
 
         rects.append([y,y+h, x, x+w])
         #min area rectangle
@@ -145,7 +147,8 @@ def depthSegmentation(depthImage, fullcolor, extrinsics=None):
             imagesForDL.append(bg)
             
     #these images are stored in BGR deep learning expects RGB!
-    return (imagesForDL, tinyDepthImgs)
+    #tiny depth images are the size of the full depth image and non zero where the object is
+    return (imagesForDL, tinyDepthImgs, fullcolor)
 
 
 if __name__ == "__main__":
