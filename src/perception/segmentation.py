@@ -114,7 +114,8 @@ def depthSegmentation(depthImage, fcolor, extrinsics=None):
             colorEndX = int(newpt.x)
             colorEndY = int(newpt.y)
 
-        img = fullcolor[colorStartY:colorEndY, colorStartX:colorEndX]
+        #dont use the image with the rectangles drawn on it
+        img = fcolor[colorStartY:colorEndY, colorStartX:colorEndX]
         tinyColorImgs.append(img)
         img = np.zeros(depthImage.shape)
         img[startY:endY, startX:endX] = depthImage[startY:endY, startX:endX]
