@@ -61,8 +61,9 @@ class FindItem(State):
             self.store.put(['camera', camera, 'point_cloud'], point_cloud)
             self.store.put(['camera', camera, 'timestamp'], time())
 
-            if self.store.get('/simulate/headless', False):
+            if self.store.get('/test/skip_grabcut', False):
                 mask = aligned_color
+                logger.warn('skipped grabcut for testing')
             else:
                 # perform grab cut selection on color-aligned-to-depth image
                 from simulation.grabcut import GrabObject

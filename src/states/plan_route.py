@@ -54,7 +54,11 @@ class PlanRoute(State):
 
         # compute route
         try:
-            if alg=='pick':
+            if self.store.get('/test/skip_planning', False):
+                motion_plan = [(1,{'robot': self.store.get('/robot/current_config')})]
+                logger.warn('skipped motion planning for testing')
+
+            elif alg=='pick':
                 box_pose = self.store.get(['box', box, 'pose'])
 
                 target_box = {
@@ -67,6 +71,7 @@ class PlanRoute(State):
                 logger.debug('arguments\n{}'.format(self.arguments))
 
                 motion_plan = planner.pick_up(world, target_item, target_box, 0)
+
             elif alg=='stow':
                 # XXX: this will actually need to be a shelf location eventually...
 
