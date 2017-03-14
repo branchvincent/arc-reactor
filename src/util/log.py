@@ -2,7 +2,29 @@
 Utility classes and functions for logging.
 '''
 
+import os
+import sys
+import inspect
+
 import logging
+
+# XXX: monkey-patch to get correct logger names when modules are run as __main__
+_getLoggerOriginal = logging.getLogger
+def getLogger(name=None):
+    '''
+    Return a logger with the specified name, creating it if necessary.
+
+    If no name is specified, return the root logger.
+    '''
+    if name == '__main__':
+        filename = os.path.relpath(inspect.getfile(sys.modules[name]))
+        names = [ os.path.relpath(filename, path) for path in sys.path ]
+
+        if names:
+            name = os.path.splitext(min(names, key=len))[0].replace(os.sep, '.')
+
+    return _getLoggerOriginal(name)
+logging.getLogger = getLogger
 
 logger = logging.getLogger(__name__)
 

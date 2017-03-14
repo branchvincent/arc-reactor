@@ -5,7 +5,7 @@ from unittest import TestCase, SkipTest
 
 import usb
 
-from hardware.vacuum.vpower import PowerUSBStrip, PowerUSBSocket
+from hardware.vacuum.powerusb import PowerUSBStrip, PowerUSBSocket
 
 class PowerUSBSocket_Power(TestCase):
 
