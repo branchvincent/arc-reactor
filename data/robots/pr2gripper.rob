@@ -1,20 +1,34 @@
 ### Kinematics of the PR2 gripper ###
-parents     -1   0      1    0     3
-Tparent     1 0 0 0 1 0 0 0 1 0 0 0   1 0 0 0 1 0 0 0 1 0.046 0.010 0      1 0 0 0 0 1 0 -1 0 0.09 0.0 0    1 0 0 0 1 0 0 0 1 0.046 -0.010 0      1 0 0 0 0 -1 0 1 0 0.09 0.0 0
-axis       0 0 1      0 0 1     0 1 0      0 0 1     0 1 0
-qMinDeg    0      2.75  2.75     -62.75    2.75 
-qMaxDeg    0      62.75 62.75  -2.75   62.75
-velMaxDeg  0      90    90      90    90
-accMaxDeg  0      300    300    300   300
-qDeg 0 2.751 2.751 -2.751 2.751
-geometry   "pr2/wrist.off" "pr2/finger_left.off" "pr2/finger_tip.off"  "pr2/finger_right.off"  "pr2/finger_tip.off"
-geomscale 0.01 0.01 0.01 0.01 0.01
-mass       1  0.5   0.2   0.5   0.2
+parents     -1   0      1    0     3  0
+Tparent     1 0 0	0 1 0	0 0 1	0 0 0 \
+0.0111961 0.999937 3.67297e-06	2.22045e-16 -3.67321e-06 1	0.999937 -0.0111961 -4.11255e-08	-0.020842 -0.072415 0.015031 \
+0.999938 0.0111778 0	-0.0111778 0.999938 -0	-0 0 1	0 0.068 0.0058865 \
+0.0111961 0.999937 -3.67297e-06	-1.11022e-16 -3.67321e-06 -1	-0.999937 0.0111961 -4.11255e-08	-0.020842 -0.072415 -0.034969 \
+0.999938 0.0111778 0	-0.0111778 0.999938 -0	-0 0 1	0 0.068 -0.0058865 \
+-3.67321e-06 -1 3.67321e-06	0 -3.67321e-06 -1	1 -3.67321e-06 1.34923e-11	-0.0014495 0.0025852 -0.040069
+
+
+axis       1 0 0	0 0 -1	0 0 -1	0 0 1	0 0 1  1 0 0
+
+qmin	0 0 -2.44 -2.44 0 -3
+qmax	0 2.44 0 0 2.44 3
+velMaxDeg  0      90    90      90    90 90
+accMaxDeg  0      300    300    300   300  300
+
+#geometry   "pr2/wrist.off" "pr2/finger_left.off" "pr2/finger_tip.off"  "pr2/finger_right.off"  "pr2/finger_tip.off"
+geometry "gripper7/base_link.tri" "gripper7/left_link.tri" "gripper7/left_gripper_link.tri" "gripper7/right_link.tri" "gripper7/right_gripper_link.tri"  "gripper7/vacuum_link.tri"
+ 
+geomscale 1 1 1 1 1 1
+mass       1  0.5   0.2   0.5   0.2 0.5
 automass
-torqueMax  1   1     0.5    1     0.5
-noSelfCollision  1 3   2 3   2 4
-driver affine   4   1 2 3 4   1 1 -1 1   0.048 0.048 -0.048 0.048    0 1.047    -3 3   -2 2
-servoP    50
-servoI    100
-servoD    0.1
-dryFriction 0.3
+torqueMax  1   1     0.5    1     0.5 1
+#noSelfCollision  1 3   2 4
+#driver affine   4   1 2 3 4   1 -1 -1 1   0 0 0 0    0 3    -1 1   -1 1
+#servoP    50
+#servoI    100
+#servoD    0.1
+#dryFriction 0.3
+servoP    50 50 50 50 50
+servoI    100 100 100 100 100
+servoD    0.1 0.1 0.1 0.1  0.1
+dryFriction 0.3  0.3  0.3  0.3 0.3 
