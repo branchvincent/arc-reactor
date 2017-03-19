@@ -4,6 +4,7 @@ import math
 import numpy as np
 import os
 import logging
+from multiprocessing import Lock
 import sys
 sys.path.append('../hardware/SR300/')
 import time
@@ -12,6 +13,7 @@ import realsense as rs
 sys.path.append('../')
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
+
 
 logger = logging.getLogger(__name__)
 # configure the root logger to accept all records
@@ -30,7 +32,8 @@ class RealsenseCalibration(QtWidgets.QWidget):
     def __init__(self):
         super(RealsenseCalibration, self).__init__()
         self.initUI()
-        self.thread = VideoThread()
+        ctx = rs.context()
+        self.thread = VideoThread(ctx,0)
         self.thread.signal.connect(self.updateView)
         cameramat, cameracoeff = self.thread.getIntrinsics()
         if cameramat is None:
@@ -156,7 +159,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
     def updateObjectName(self):
         self.objectName = self.objectNameTextBox.text()
 
-    def updateView(self, image, aligned_image, point_cloud):
+    def updateView(self, image, aligned_image, point_cloud, cam_num):
         
         #set the dictionary
         dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
@@ -302,22 +305,24 @@ class RealsenseCalibration(QtWidgets.QWidget):
             np.save(self.objectName + "_xform", objectmat)
 
 class VideoThread(QtCore.QThread):
-    signal = QtCore.pyqtSignal(np.ndarray, np.ndarray, np.ndarray)
-    def __init__(self):
+    signal = QtCore.pyqtSignal(np.ndarray, np.ndarray, np.ndarray, int)
+    def __init__(self, context, cam_num, update_rate=20):
         QtCore.QThread.__init__(self)
         self.keepRunning = True
         self.serialNum = ''
         self.can_emit = True
-
+        self.context = context
+        self.cam_num = cam_num
+        self.update_rate = update_rate
+        self.mutex = Lock()
     def getIntrinsics(self):
-        context = rs.context()
-        if context.get_device_count() == 0:
+        if self.context.get_device_count() == 0:
             logger.warn("No cameras attached")
             mat = np.zeros((3,3))
             coeffs = np.zeros((5))
             return (mat, coeffs)
 
-        cam = context.get_device(0)
+        cam = self.context.get_device(self.cam_num)
         try:
             self.serialNum = cam.get_info(rs.camera_info_serial_number)
             cam.enable_stream(rs.stream_color, rs.preset_best_quality)
@@ -342,11 +347,10 @@ class VideoThread(QtCore.QThread):
         return (mat, coeffs)
 
     def run(self):
-        context = rs.context()
-        if context.get_device_count() == 0:
+        if self.context.get_device_count() == 0:
             logger.warn("No cameras attached")
             return
-        cam = context.get_device(0)
+        cam = self.context.get_device(self.cam_num)
         try:
             #enable the stream
             for s in [rs.stream_color, rs.stream_depth, rs.stream_infrared]:
@@ -388,13 +392,14 @@ class VideoThread(QtCore.QThread):
                 width = cam.get_stream_width(rs.stream_points)
                 height = cam.get_stream_height(rs.stream_points)    
                 points = np.reshape(points, (height, width, 3) )
-
-            # logger.info(1/(time.time()-t))
-            # t = time.time()
-            if c%20 == 1 and self.can_emit:
-                self.signal.emit(imageFullColor, imageAllignedColor, points)
+            self.mutex.acquire()
+            if c%self.update_rate == 1 and self.can_emit:
+                logger.debug("Cam {} sent {}".format(self.cam_num, c))
+                self.signal.emit(imageFullColor, imageAllignedColor, points, self.cam_num)
                 self.can_emit = False
-            # QtWidgets.QApplication.instance().processEvents()
+
+            self.mutex.release()
+           
             c = c+1
         cam.stop()
 
