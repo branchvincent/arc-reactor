@@ -24,6 +24,7 @@ class MakeModelsGUI(QtWidgets.QWidget):
         self.cam1.signal.connect(self.updateView)
         self.initUI()
         self.image_num = 0
+        self.obj_name = ""
         self.show()
 
     def initUI(self):
@@ -184,8 +185,9 @@ class MakeModelsGUI(QtWidgets.QWidget):
             logger.error("did not get cam num")
 
         #save the images
-        scipy.misc.imsave(self.obj_name + "/" + str(self.image_num)+ ".png", image)
-        self.image_num += 1
+        if self.obj_name != "":
+            scipy.misc.imsave(self.obj_name + "/" + str(self.image_num)+ ".png", image)
+            self.image_num += 1
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
