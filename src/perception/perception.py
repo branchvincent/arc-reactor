@@ -163,7 +163,10 @@ class Perception:
                 c_image = self.camera_variables[sn].full_color_image
                 extrin = self.camera_variables[sn].depth2color_extrinsics
                 #segment the image
-                color_images, depth_images, boxed_color = segmentation.depthSegmentation(d_image, c_image, extrin)
+                ret = segmentation.depthSegmentation(d_image, c_image, extrin)
+                color_images = ret['DL_images']
+                depth_images = ret['depth_images']
+                boxed_color = ret['boxed_color']
                 self.camera_variables[sn].segmented_image = boxed_color
                 self.camera_variables[sn].dl_images = color_images
                 self.camera_variables[sn].depth_object_images = depth_images
