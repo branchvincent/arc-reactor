@@ -170,10 +170,10 @@ class DepthCameras:
         online_cams = []
         for cam in range(self.num_cameras):
             try:
-                c = self.context.get_device(cam)
-                t = time.time() - self.time_of_last_image[cam]
-                if t < 50 or self.time_of_last_image[cam] == 0: #if last image was less than 5 seconds ago camera is probably online
-                    online_cams.append(c.get_info(rs.camera_info_serial_number))
+                #only way to tell if a camera is connected is to get images
+                res = self.acquire_image(cam)
+                if not res[0] is None: 
+                   online_cams.append(res[1])
             except:
                 logger.exception("Tried to access camera {}, but an error occured".format(cam))
                 continue
