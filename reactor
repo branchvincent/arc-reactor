@@ -41,16 +41,24 @@ test_parser.add_argument('-q', '--quiet', action='store_true', help='decrease ve
 test_parser.add_argument('-v', '--verbose', action='store_true', help='increase verbosity')
 test_parser.add_argument('path', nargs=REMAINDER, metavar='PATH', help='search path for tests')
 
-shell_parser = subparsers.add_parser('shell', help='Python shell', description='launch Python', formatter_class=ArgumentDefaultsHelpFormatter)
+shell_parser = subparsers.add_parser('shell', help='Python shell', description='launch Python', formatter_class=ArgumentDefaultsHelpFormatter, add_help=False)
+shell_parser.add_argument('-h', '--help', action='store_true', help='show this help message and exit')
 shell_parser.add_argument('-m', '--module', metavar='MODULE', help='run module')
+shell_parser.add_argument('args', nargs='*', metavar='ARGS', help='module arguments')
 
 load_parser = subparsers.add_parser('load', help='load database', description='load database', formatter_class=ArgumentDefaultsHelpFormatter)
 load_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
 load_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
-load_parser.add_argument('-p', '--path', metavar='DB_PATH', help='path for the load', default='')
+load_parser.add_argument('-p', '--path', metavar='DB_PATH', help='path for the load', default='/')
 load_parser.add_argument('json_path', metavar='JSON_PATH', help='JSON file to load')
 
-args = parser.parse_args()
+dump_parser = subparsers.add_parser('dump', help='dump database', description='dump database', formatter_class=ArgumentDefaultsHelpFormatter)
+dump_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+dump_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+dump_parser.add_argument('-c', '--compress', action='store_true', help='compress JSON', default=False)
+dump_parser.add_argument('path', nargs='?', metavar='PATH', help='path for the dump', default='/')
+
+args, other_args = parser.parse_known_args()
 
 # configure the root logger to accept all records
 import logging
@@ -143,21 +151,41 @@ elif args.command == 'test':
 elif args.command == 'shell':
     if args.module:
         import runpy
+        sys.argv = [args.module] + other_args + args.args
+        if args.help:
+            sys.argv.insert(1, '-h')
 
-        if os.pathsep in args.module or args.module.endswith('.py'):
+        if os.sep in args.module or args.module.endswith('.py'):
             # run the file directly
             runpy.run_path(args.module, run_name='__main__')
         else:
             # run the module directly
-            runpy.run_module(args.module, run_name='__main__')
+            runpy.run_module(args.module, run_name='__main__', alter_sys=True)
 
+    elif args.help:
+        shell_parser.print_help()
     else:
-        import code
-        code.interact()
+        try:
+            # try using IPython shell if installed
+            import IPython
+        except ImportError:
+            # fall back to regular Python shell
+            import code
+            code.interact()
+        else:
+            IPython.start_ipython(argv=args.args)
+
 elif args.command == 'load':
+    # handle compressed JSON files
+    if args.json_path.endswith('.gz'):
+        import gzip
+        data = gzip.open(args.json_path, 'rb').read()
+    else:
+        data = open(args.json_path).read()
+
     # load the JSON object
     import json
-    obj = json.load(open(args.json_path))
+    obj = json.loads(data)
 
     # connect to the database
     from pensive.client import PensiveClient
@@ -171,3 +199,22 @@ elif args.command == 'load':
 
     # load the object
     store.put(args.path, obj)
+
+elif args.command == 'dump':
+    # connect to the database
+    from pensive.client import PensiveClient
+    client = PensiveClient(args.address)
+
+    # get the store
+    store = client.store(args.store)
+
+    # load the object
+    obj = store.get(args.path)
+
+    # dump as JSON to stdout using json_encode for custom data types
+    from pensive.client import json_encode
+    if args.compress:
+        from gzip import GzipFile
+        GzipFile(fileobj=sys.stdout).write(json_encode(obj))
+    else:
+        print(json_encode(obj, indent=4))

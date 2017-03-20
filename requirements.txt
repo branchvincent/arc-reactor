@@ -10,6 +10,29 @@ sqlalchemy
 
 # vacuum interface
 pyusb
+pigpio
+appdirs
+six
+packaging
 
 # unit test coverage
 pytest-cov
+
+# general
+numpy
+# opencv        # manual install
+
+# point cloud colorizing
+matplotlib
+scipy
+
+# IPython embedded shell
+# IPython
+# enum
+# ipython_genutils
+# scandir
+
+# user interface
+# pyqt          # manual install
+# pyside        # manual install
+# pyopengl      # manual install

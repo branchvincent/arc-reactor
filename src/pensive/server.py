@@ -20,7 +20,7 @@ import logging
 import httplib
 
 from tornado.ioloop import IOLoop
-from tornado.web import RequestHandler, Application
+from tornado.web import RequestHandler, StaticFileHandler, Application
 from tornado.escape import json_decode
 
 import jsonschema
@@ -232,7 +232,16 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
             ...
         }
         ```
-        The keys are relative to the requested path.
+        If the operation is `INDEX`, the response body will be a JSON object
+        with the structure below.
+        ```
+        {
+            <key1>: <index1>,
+            <key2>: <index2>,
+            ...
+        }
+        ```
+        In both cases, the keys are relative to the requested path.
 
         If the operation is `DELETE`, there is no response body.
         '''
@@ -258,6 +267,10 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
                 if obj['operation'].lower() == 'get':
                     # multiple GET
                     self.write({key: store.get(path + key.strip('/')) for key in obj['keys']})
+                elif obj['operation'].lower() == 'index':
+                    # multiple INDEX
+                    # FIXME: this will cause an error if options['depth'] is not an integer
+                    self.write({key: store.index(path + key.strip('/'), depth=self.options.get('depth', -1)) for key in obj['keys']})
                 elif obj['operation'].lower() == 'delete':
                     # multiple DELETE
                     for key in obj['keys']:
@@ -364,10 +377,15 @@ class PensiveServer(Application):
         }
 
         # install handlers for various URLs
-        self.add_handlers(r'.*', [(r'/d/(?P<path>.*)/*', StoreHandler)])
-        self.add_handlers(r'.*', [(r'/i/(?P<instance>.+?)/(?P<path>.*)/*', StoreHandler)])
-        self.add_handlers(r'.*', [(r'/s/*', ManagerHandler)])
-        self.add_handlers(r'.*', [(r'/s/(?P<instance>.+?)?/*', ManagerHandler)])
+        self.add_handlers(r'.*', [
+            (r'/d/(?P<path>.*)/*', StoreHandler),
+            (r'/i/(?P<instance>.+?)/(?P<path>.*)/*', StoreHandler),
+            (r'/s/*', ManagerHandler),
+            (r'/s/(?P<instance>.+?)?/*', ManagerHandler),
+            (r'//*()', StaticFileHandler, {'path': 'src/pensive/viewer.html'}),
+            (r'/js/viewer.js()', StaticFileHandler, {'path': 'src/pensive/viewer.js'}),
+            (r'/(.*)/*', StaticFileHandler, {'path': 'data/web/static/'})
+        ])
 
     def log_request(self, handler):
         '''

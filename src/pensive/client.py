@@ -41,11 +41,13 @@ def _json_decoder(obj):
 
     return obj
 
-def _json_encode(obj):
-    return json.dumps(obj, default=_json_encoder).replace("</", "<\\/")
+def json_encode(obj, **kwargs):
+    kwargs['default'] = _json_encoder
+    return json.dumps(obj, **kwargs).replace("</", "<\\/")
 
-def _json_decode(data):
-    return json.loads(to_basestring(data), object_hook=_json_decoder)
+def json_decode(data, **kwargs):
+    kwargs['object_hook'] = _json_decoder
+    return json.loads(to_basestring(data), **kwargs)
 
 class JSONClientMixin(object):
     '''
@@ -77,12 +79,12 @@ class JSONClientMixin(object):
         # encode object body using JSON
         if body and not isinstance(body, basestring):
             # see tornado.escape.json_encode()
-            body = _json_encode(body)
+            body = json_encode(body)
 
         # encode the query parameters
         if args:
             if not isinstance(args, basestring):
-                args = dict([(k, _json_encode(v)) for (k, v) in args.iteritems()])
+                args = dict([(k, json_encode(v)) for (k, v) in args.iteritems()])
             path = url_concat(path, args)
 
         # perform the request
@@ -110,7 +112,7 @@ class JSONClientMixin(object):
 
             try:
                 # see tornado.escape.json_decode()
-                obj = _json_decode(response.body)
+                obj = json_decode(response.body)
                 jsonschema.validate(obj, schema)
             except (ValueError, jsonschema.ValidationError) as exc:
                 logger.error('malformed response: {}\
@@ -160,11 +162,18 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
 
         super(StoreProxy, self).__init__(base_url, **kwargs)
 
+    def _concat_key(self, key):
+        if key and not isinstance(key, basestring):
+            key = Store.SEPARATOR.join(key)
+
+        return key
+
     def get(self, key=None, default=None, strict=False):
         '''
         Call `get()` on the remote `Store`.
         '''
 
+        key = self._concat_key(key)
         result = self._fetch(key or '', 'GET', args={'strict': strict}, schema=StoreProxy.GET_SCHEMA)['value']
         # optimize out sending default over the network
         if result is None:
@@ -178,16 +187,17 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         in a single HTTP request.
         '''
 
+        keys = [self._concat_key(key) for key in keys]
         return self._fetch(root or '', 'POST',
                            body={'operation': 'GET', 'keys': keys},
                            schema=StoreProxy.MULTI_GET_SCHEMA)
-
 
     def put(self, key=None, value=None, strict=False):
         '''
         Call `put()` on the remote `Store`.
         '''
 
+        key = self._concat_key(key)
         return self._fetch(key or '', 'PUT', args={'strict': strict}, body={'value': value})
 
     def multi_put(self, mapping, root=None):
@@ -196,6 +206,7 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         in a single HTTP request.
         '''
 
+        mapping = {self._concat_key(key): value for (key, value) in mapping.iteritems()}
         return self._fetch(root or '', 'PUT', body={'keys': mapping})
 
     def delete(self, key=None, strict=False):
@@ -203,6 +214,7 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         Call `delete()` on the remote `Store`.
         '''
 
+        key = self._concat_key(key)
         return self._fetch(key or '', 'DELETE', args={'strict': strict})
 
     def multi_delete(self, keys, root=None):
@@ -211,6 +223,7 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         in a single HTTP request.
         '''
 
+        keys = [self._concat_key(key) for key in keys]
         return self._fetch(root or '', 'POST',
                            body={'operation': 'DELETE', 'keys': keys})
 
@@ -309,7 +322,7 @@ class PensiveClient(JSONClientMixin):
         'required': ['index'],
     }
 
-    NO_PARENT = object()
+    DEFAULT_STORE = object()
 
     def __init__(self, host=None, **kwargs):
         self._host = host
@@ -347,7 +360,7 @@ class PensiveClient(JSONClientMixin):
         Return the list of all known `Store` instances.
         '''
 
-        return self._fetch('s', 'GET', schema=self.GET_SCHEMA)['index']
+        return self._fetch('s', 'GET', schema=PensiveClient.GET_SCHEMA)['index']
 
     def create(self, instance, parent=None, force=False):
         '''
@@ -356,7 +369,7 @@ class PensiveClient(JSONClientMixin):
         If `instance` already exists and not `force`, `ValueError` is raised.
         Otherwise, the existing instance is first deleted.
 
-        If `parent is None`, an empty instance is created. Otherwise,
+        If `parent is PensiveClient.DEFAULT_STORE`, an empty instance is created. Otherwise,
         the created instance is a fork of `parent`.
         '''
 
@@ -366,7 +379,9 @@ class PensiveClient(JSONClientMixin):
             else:
                 raise ValueError('instance already exists')
 
-        if parent is self.NO_PARENT:
+        if parent is PensiveClient.DEFAULT_STORE:
+            self._fetch('s/{}'.format(instance), 'PUT', body={'parent': None})
+        elif parent is None:
             self._fetch('s/{}'.format(instance), 'PUT', body='')
         else:
             self._fetch('s/{}'.format(instance), 'PUT', body={'parent': parent})

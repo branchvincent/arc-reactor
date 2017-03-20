@@ -1,0 +1,228 @@
+{
+    "box": {
+        "order2": {
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "AAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAA4XoUrkfhyr8AAAAAAAAAAAAAAAAAAPA/AAAAAAAAAABmZmZmZmbuPwAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP83MzMzMzOw/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            },
+            "size": "A1"
+        }
+    },
+    "shelf": {
+        "current_angle": 0,
+        "pose": {
+            "__numpy.ndarray__": {
+                "dtype": "float64",
+                "shape": [
+                    4,
+                    4
+                ],
+                "data": "e1xorJ2g5r8jFZYgn6DmvwAAAAAAAAAAAAAAAAAA8D8jFZYgn6DmP3tcaKydoOa/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP83MzMzMzNw/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+            }
+        }
+    },
+    "robot": {
+        "selected_item": "kong_duck_dog_toy",
+        "selected_box": "order2",
+        "task": "pick",
+        "current_config": [
+            0,
+            1.2035266922977297,
+            -0.3672870877896867,
+            -2.2868351057180902,
+            1.4545224920270343,
+            1.2618381426068603,
+            -1.204067744365848
+        ],
+        "base_pose": {
+            "__numpy.ndarray__": {
+                "dtype": "float64",
+                "shape": [
+                    4,
+                    4
+                ],
+                "data": "AAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP4/C9Shcj9I/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+            }
+        }
+    },
+
+    "item": {
+        "dr_dobbs_bottle_brush": {
+            "name": "dr_dobbs_bottle_brush",
+            "display_name": "Dr. Dobbs Bottle Brush",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binA",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "kong_duck_dog_toy": {
+            "name": "kong_duck_dog_toy",
+            "display_name": "Kong Duck Dog Toy",
+            "new_item": true,
+            "point_value": 20,
+            "location": "binA",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "expo_markers": {
+            "name": "expo_markers",
+            "display_name": "Expo Markers",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binB",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "item_1": {
+            "name": "item_1",
+            "display_name": "Random Item 1",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binB",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "item_2": {
+            "name": "item_2",
+            "display_name": "Random Item 2",
+            "new_item": true,
+            "point_value": 20,
+            "location": "binC",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "item_3": {
+            "name": "item_3",
+            "display_name": "Random Item 3",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binC",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "item_4": {
+            "name": "item_4",
+            "display_name": "Random Item 4",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binB",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "item_5": {
+            "name": "item_5",
+            "display_name": "Random Item 5",
+            "new_item": false,
+            "point_value": 10,
+            "location": "binE",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "item_6": {
+            "name": "item_6",
+            "display_name": "Random Item 6",
+            "new_item": true,
+            "point_value": 20,
+            "location": "binD",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        },
+        "item_7": {
+            "name": "item_7",
+            "display_name": "Random Item 7",
+            "new_item": true,
+            "point_value": 20,
+            "location": "binA",
+            "pose": {
+                "__numpy.ndarray__": {
+                    "dtype": "float64",
+                    "shape": [
+                        4,
+                        4
+                    ],
+                    "data": "P9qGpJ6g5j+wnHconqDmvwAAAAAAAAAAmpmZmZmZuT+wnHconqDmPz/ahqSeoOY/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwP5qZmZmZmeE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                }
+            }
+        }
+    }
+}
+

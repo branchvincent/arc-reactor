@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+
+import json
+
+from math import pi
+
+plan = []
+
+t = 0
+
+home = [0] * 7
+plan.append([0, {'robot': home}])
+
+for i in range(6):
+
+    for j in range(5):
+        q = home[:]
+        dt = j / 5.0
+        q[i + 1] = dt * 30 / 180.0 * pi
+        plan.append([0.2, {'robot': q}])
+        print dt, q
+    t += 1
+
+    for j in range(5):
+        q = home[:]
+        dt = j / 5.0
+        q[i + 1] = (1 - dt) * 30 / 180.0 * pi
+        plan.append([0.2, {'robot': q}])
+        print dt, q
+    t += 1
+
+plan.append([1, {'robot': home}])
+t += 1
+
+plan.append([1, {'robot': home, 'vacuum': 'on'}])
+t += 1
+plan.append([1, {'robot': home, 'vacuum': 'off'}])
+t += 1
+
+open('jiggle.json', 'w').write(json.dumps(plan, indent=4) + '\n')

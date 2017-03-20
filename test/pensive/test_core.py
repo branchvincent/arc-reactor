@@ -258,12 +258,12 @@ class Store_Fork(TestCase):
 
     def test_store_copy_empty(self):
         copy = Store().fork()
-        self.assertIsNone(copy)
+        self.assertIsNone(copy.get())
 
     def test_store_copy_empty2(self):
         self.store.delete('a')
         copy = self.store.fork()
-        self.assertIsNone(copy)
+        self.assertIsNone(copy.get())
 
     # def test_store_copy_nested(self):
     #     copy = self.store.fork('a/b3')

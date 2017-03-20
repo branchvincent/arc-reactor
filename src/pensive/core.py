@@ -6,6 +6,8 @@ Core database components of Pensive.
 
 import re
 
+from copy import copy
+
 import logging
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -62,7 +64,12 @@ class Store(StoreInterface):
         '''
 
         logger.debug('get: "{}"'.format(key))
-        result = self._get(key, strict)
+
+        # split the key into parts if it is a string path
+        if isinstance(key, basestring):
+            key = [k for k in self._separator.split(key) if len(k)]
+
+        result = self._get(copy(key), strict)
         if result is None:
             return default
         else:
@@ -73,10 +80,6 @@ class Store(StoreInterface):
             # null key indicates the value of this Store
             return self._serialize()
         else:
-            # split the key into parts if it is a string path
-            if isinstance(key, basestring):
-                key = [k for k in self._separator.split(key) if len(k)]
-
             # get of store without children is null
             if not self._children:
                 if strict:
@@ -107,8 +110,13 @@ class Store(StoreInterface):
         deleted.
         '''
 
-        logger.debug('put: "{}" -> {}'.format(key, value))
-        return self._put(key, value, strict)
+        logger.debug('put: "{}"'.format(key))
+
+        # split the key into parts if it is a string path
+        if isinstance(key, basestring):
+            key = [k for k in self._separator.split(key) if len(k)]
+
+        return self._put(copy(key), value, strict)
 
     def _put(self, key, value, strict):
         if not key:
@@ -118,10 +126,6 @@ class Store(StoreInterface):
 
             self._deserialize(value)
         else:
-            # split the key into parts if it is a string path
-            if isinstance(key, basestring):
-                key = [k for k in self._separator.split(key) if len(k)]
-
             # initialize the children map
             if not self._children:
                 if strict and self._value is not None:
@@ -155,7 +159,7 @@ class Store(StoreInterface):
         '''
 
         logger.debug('index: "{}"'.format(key))
-        return self._index(key, depth)
+        return self._index(copy(key), depth)
 
     def _index(self, key, depth):
         if not key:
@@ -311,10 +315,12 @@ class Store(StoreInterface):
                 store._children = result
                 return store
             else:
-                return None
+                # return empty store
+                return Store()
         elif self._value is not None:
             store = Store()
             store._value = self._value
             return store
         else:
-            return None
+            # return empty store
+            return Store()
