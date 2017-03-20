@@ -309,11 +309,11 @@ class SegmentationGUI(QtWidgets.QWidget):
         self.params.medianFilterW = int(self.param_spinboxes[0].value())
         self.params.minDepth = self.param_spinboxes[1].value()
         self.params.maxDepth = self.param_spinboxes[2].value()
-        self.params.threshold = self.param_spinboxes[3].value()
+        self.params.gradientThreshold = self.param_spinboxes[3].value()
         self.params.morphW = int(self.param_spinboxes[4].value())
         self.params.minNumCC = int(self.param_spinboxes[5].value())
 
-        logger.debug("Params Med filter = {} Min depth = {} Max depth = {} Threshold = {} Morph width = {} Min CC = {}".format(self.params.medianFilterW, self.params.minDepth, self.params.maxDepth, self.params.threshold, self.params.morphW, self.params.minNumCC))
+        logger.debug("Params Med filter = {} Min depth = {} Max depth = {} Threshold = {} Morph width = {} Min CC = {}".format(self.params.medianFilterW, self.params.minDepth, self.params.maxDepth, self.params.gradientThreshold, self.params.morphW, self.params.minNumCC))
 
         if self.depth_image is None:
             logger.warn("No image has been loaded")
