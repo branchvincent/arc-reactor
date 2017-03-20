@@ -30,9 +30,9 @@ ee_link=6
 
 
 #shelf parameters for object rigid transformation
-shelf_dims = (0.8,0.3,0.3)
-shelf_x_shift = 0.4
-shelf_offset = 0.45
+shelf_dims = (0.75,0.3,0.3)
+shelf_x_shift = 0.45
+shelf_offset = 0.43
 shelf_height = 0.50
 firstbin_dims = (0.20,0.20,0.25)
 firstbin_x_shift = -0.09
