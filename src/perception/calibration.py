@@ -206,7 +206,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             #get the base to end effector transform
             base2ee = self.store.get(key='robot/tcp_pose')
             #get the end effector to aruco pose
-            ee2aruco = self.store.get(key='calibration/target_xform')
+            ee2aruco = self.store.get(key='robot/target_xform')
 
             #check if they actually exist
             if base2ee is None or ee2aruco is None:
@@ -251,7 +251,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             origin_to_target = np.identity(4)
             #try reading from the database
             if self.objectName != "":
-                origin_to_target = self.store.get(key=self.objectName + "/origin_to_target")
+                origin_to_target = self.store.get(key=self.objectName + "/target_xform")
                 if origin_to_target is None:
                     origin_to_target = np.identity(4)
 
