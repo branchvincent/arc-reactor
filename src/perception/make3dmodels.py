@@ -5,7 +5,6 @@ from OpenGL import GL, GLU
 import numpy as np
 sys.path.append('../hardware/SR300/')
 import realsense as rs
-import scipy
 import os
 from perceptionGUI import GLWidget
 from calibration import VideoThread
@@ -23,6 +22,7 @@ class MakeModelsGUI(QtWidgets.QWidget):
         self.cam0.signal.connect(self.updateView)
         self.cam1.signal.connect(self.updateView)
         self.initUI()
+        self.timer = QtCore.QTimer()
         self.image_num = 0
         self.obj_name = ""
         self.show()
@@ -65,9 +65,14 @@ class MakeModelsGUI(QtWidgets.QWidget):
         self.horzTop.addWidget(self.save_button)
         self.horzTop.addStretch(1)
 
+        #disable unused buttons
+        self.take_image_button.setEnabled(False)
+        self.remove_last_image_button.setEnabled(False)
+        self.save_button.setEnabled(False)
+
         #connections 
         self.take_image_button.pressed.connect(self.take_images)
-        self.video_capture_button.pressed.connect(self.start_stop_video_capture)
+        self.video_capture_button.pressed.connect(self.start_video_capture)
 
         #mid
         self.rotx_text = QtWidgets.QTextEdit(self)
@@ -147,29 +152,37 @@ class MakeModelsGUI(QtWidgets.QWidget):
         if not self.obj_name in folder_names:
             os.mkdir(self.obj_name)
 
-    def start_stop_video_capture(self):
-        if self.cam0.isRunning():
-            logger.info("Stopping image capture on camera 0")
-            self.cam0.keepRunning = False
+    def start_video_capture(self):
+        #add timer for 50 seconds
+        self.timer.timeout.connect(self.stop_video_capture)
+        if self.timer.isActive():
+            return
         else:
-            self.cam0.keepRunning = True
-            while not self.cam0.can_emit:
-                self.cam0.can_emit = True
-            self.cam0.start()
-            logger.info("Starting image capture on camera 0")
-        if self.cam1.isRunning():
-            self.cam1.keepRunning = False
-            logger.info("Stopping image capture on camera 1")
-        else:
-            self.cam1.keepRunning = True
-            while not self.cam1.can_emit:
-                self.cam1.can_emit = True
-            self.cam1.start()
-            logger.info("Starting image capture on camera 1")
+            self.timer.setSingleShot(True)
+            self.timer.setInterval(5000)
+            self.timer.start()
+        self.cam0.keepRunning = True
+        while not self.cam0.can_emit:
+            self.cam0.can_emit = True
+        self.cam0.start()
+        logger.info("Starting image capture on camera 0")
+       
+        self.cam1.keepRunning = True
+        while not self.cam1.can_emit:
+            self.cam1.can_emit = True
+        self.cam1.laseron = False
+        self.cam1.start()
+        logger.info("Starting image capture on camera 1")
+
+    def stop_video_capture(self):
+        logger.info("Stopping image capture on camera 0")
+        logger.info("Stopping image capture on camera 1")
+        self.cam0.keepRunning = False
+        self.cam1.keepRunning = False
 
     def updateView(self, image, aligned_image, point_cloud, cam_num):
         logger.info("Received image from camera {}".format(cam_num))
-        pix_img = QtGui.QImage(aligned_image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
+        pix_img = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(pix_img)
         if cam_num == 0:
             self.camera_display0.setPixmap(pix.scaled(320,240))
@@ -186,7 +199,10 @@ class MakeModelsGUI(QtWidgets.QWidget):
 
         #save the images
         if self.obj_name != "":
-            scipy.misc.imsave(self.obj_name + "/" + str(self.image_num)+ ".png", image)
+            np.save(self.obj_name + "/image_" + str(self.image_num), image)
+            if cam_num == 0:
+                np.save(self.obj_name + "/aligned_image_" + str(self.image_num), aligned_image)
+                np.save(self.obj_name + "/pc_" + str(self.image_num), point_cloud)
             self.image_num += 1
 
 def main():
