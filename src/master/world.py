@@ -174,7 +174,7 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
     if 'camera' not in ignore:
         # update cameras
-        for name in ['shelf0', 'stow']:
+        for name in db.get('/system/cameras', []):
             if name in ignore:
                 continue
 

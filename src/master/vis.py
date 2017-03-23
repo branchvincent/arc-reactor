@@ -236,6 +236,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         self.setup_async()
         self.requests = [
+            (1, '/system'),
             (3, '/robot'),
             (1, '/robot/current_config'),
             (3, '/shelf'),
@@ -260,7 +261,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         update_world(self.db, self.program.world, self.timestamps, ignore=['items'])
 
         # update camera point clouds
-        for name in ['shelf0', 'stow']:
+        for name in self.db.get('/system/cameras', []):
             self._update_camera(name)
 
         # update item point clouds
