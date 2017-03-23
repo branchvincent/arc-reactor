@@ -125,7 +125,6 @@ def pick_up(world,item,target_box,target_index):
 			n+=1
 		print 'find a placement:',goal_T[1]
 		world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
-		
 
 
 	#move the robot from current position to a start position that is above the target item
@@ -158,6 +157,16 @@ def pick_up(world,item,target_box,target_index):
 	if not motion_milestones:
 		print "can't find a feasible path to pick up the item"
 		return False	
+
+	curr_orientation,p=robot.link(ee_link).getTransform()
+	while drop_position[0]*p[1]<p[0]*drop_position[1]:
+		q=robot.getConfig()
+		q[1]+=0.05
+		motion_milestones.append(make_milestone(0.05,q,1,1))
+		robot.setConfig(q)
+		curr_orientation,p=robot.link(ee_link).getTransform()
+
+
 
 	#move the item to the start position for droping
 	start_T=end_T
@@ -342,6 +351,17 @@ def stow(world,item,target_box,target_index):
 		print "can't find a feasible path to pick up the item"
 		return False	
 
+
+	curr_orientation,p=robot.link(ee_link).getTransform()
+	while drop_position[0]*p[1]>p[0]*drop_position[1]:
+		q=robot.getConfig()
+		q[1]-=0.05
+		motion_milestones.append(make_milestone(0.05,q,1,1))
+		robot.setConfig(q)
+		curr_orientation,p=robot.link(ee_link).getTransform()
+
+
+
 	#move the item to the start position for droping
 	start_T=end_T
 	end_T[1][0]=drop_position[0]
@@ -445,7 +465,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		# print test_cspace.feasible(q)
 		
 		flag = 1
-		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)):
+		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]>0:
 			print "too much change!"
 			print max(vectorops.sub(q_old,q))
 			print min(vectorops.sub(q_old,q))
@@ -460,7 +480,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 				s=ik.solve_global(goal)
 				# s=ik.solve_nearby(goal,maxDeviation=1000,feasibilityCheck=test_function)
 				q=robot.getConfig()
-				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)):
+				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]>0:
 					# print "too much change!"
 					flag=0
 				else:
