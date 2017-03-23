@@ -276,8 +276,8 @@ class RealsenseCalibration(QtWidgets.QWidget):
         # #push out the point cloud
         if self.cameraName != "":
             self.store.put(key="camera/" + self.cameraName + "/point_cloud", value=point_cloud)
-            self.store.put(key="camera/" + self.cameraName + "aligned_image", value=aligned_image)
-            self.store.put(key="camera/" + self.cameraName + "timestamp", value=time.time())
+            self.store.put(key="camera/" + self.cameraName + "/aligned_image", value=aligned_image)
+            self.store.put(key="camera/" + self.cameraName + "/timestamp", value=time.time())
 
     def save_calibration(self):
         if self.calib_cameraCheckBox.isChecked():
