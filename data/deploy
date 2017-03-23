@@ -1,0 +1,13 @@
+#!/bin/bash
+
+OUT=data.tgz
+
+tar czvf ${OUT} \
+    test/test_03* \
+    test/workcell_03* \
+    robots \
+    simulation \
+    objects/*.* \
+    terrains
+
+scp ${OUT} login.oit.duke.edu:~/public_html/arc-2017/${OUT}
