@@ -15,7 +15,7 @@ import os
 import time
 import json
 import copy
-ee_local=[0.0,0.0,0.35]
+ee_local=[0.0,0.0,0.37]
 # ee_local=[0,0,0]
 box_release_offset=[0,0,0.06]
 # approach_p1=[0.6,0.2+shelf_position[1],1]

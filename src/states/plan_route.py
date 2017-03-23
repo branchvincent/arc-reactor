@@ -21,7 +21,7 @@ class PlanRoute(State):
 
         logger.info('planning route for "{}" to "{}"'.format(item, box))
 
-        world = build_world(self.store, ignore=['camera'])
+        world = build_world(self.store, ignore=['camera', 'items'])
         self.world = world
 
         item_pose_local = self.store.get(['item', item, 'pose'])
@@ -48,8 +48,8 @@ class PlanRoute(State):
         target_item = {
             # 'bbox': [item_position, item_position],
             'bbox': bounding_box,
-            'vacuum_offset': [0, 0, 0.02],
-            'drop offset': [0, 0, 0.20],
+            'vacuum_offset': [0, 0, -0.01],
+            'drop offset': [0, 0, 0.2],
         }
 
         self.store.put('/robot/target_bounding_box', bounding_box)
