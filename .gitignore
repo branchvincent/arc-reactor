@@ -275,3 +275,6 @@ ve/
 
 # CLion
 .idea
+
+#SWIG wrapper
+*_wrap.cxx

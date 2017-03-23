@@ -1,6 +1,0 @@
-<package>
-  <description brief="gripper7">gripper7</description>
-  <depend package="gazebo" />
-  <author>me</author>
-  <license>BSD</license>
-</package>

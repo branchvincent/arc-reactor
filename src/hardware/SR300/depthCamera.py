@@ -180,7 +180,11 @@ class DepthCameras:
         
         return online_cams
 
-    def get_camera_intrinsics(self, camera, stream):
+    def get_camera_coefs(self, camera, stream):
+        '''
+        retruns camera coefficents and matrix for calibration
+        used for opencv
+        '''
         if self.context is None:
             logger.warning("Tried to access camera matrix without connecting")
             return (None, None)
@@ -206,7 +210,53 @@ class DepthCameras:
         coeffs[4] = rs.floatp_getitem(intrinsics.coeffs, 4)
 
         return (mat, coeffs)
-            
+
+    def get_camera_intrinsics(self, camera, stream):
+        '''
+        retruns camera intrinsics. used to deproject points back into real world coordinates
+        '''
+        if self.context is None:
+            logger.warning("Tried to access camera intrinsics without connecting")
+            return (None, None)
+        cam = self.context.get_device(camera)
+        try:
+            cam.enable_stream(stream, rs.preset_best_quality)
+            intrinsics = cam.get_stream_intrinsics(stream)
+        except:
+            logger.exception("Unable to enable stream and get intrinsics")
+            return (None, None)
+        return intrinsics
+
+    def get_camera_depthscale(self, camera):
+        '''
+        returns depth scale for camera. multiply this value by the value
+        in the depth image to get real distance
+        '''
+        if self.context is None:
+            logger.warning("Tried to access camera depth scale without connecting")
+            return None
+        cam = self.context.get_device(camera)
+        try:
+            scale = cam.get_depth_scale()
+        except:
+            logger.exception("Unable to get depth scale")
+            return None
+        return scale
+
+    def get_extrinsics(self, camera, streamfrom, streamto):
+        '''Retruns extrinsics which convert points from streamfrom to points
+        in streamto
+        '''
+        if self.context is None:
+            logger.warning("Tried to access camera extrinsics without connecting")
+            return None
+        cam = self.context.get_device(camera)
+        try:
+            extrinsics = cam.get_extrinsics(streamfrom, streamto)
+        except:
+            logger.exception("Unable to enable stream and get extrinsics")
+            return None
+        return extrinsics
 
 def test():
     import matplotlib.pyplot as plt

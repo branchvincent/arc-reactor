@@ -51,7 +51,7 @@ def klampt2numpy(k):
     if len(k) == 9:
         # rotation matrix only
         T = numpy.asmatrix(numpy.eye(4))
-        T[:3,:3] = numpy.array(k).reshape((3, 3))
+        T[:3,:3] = numpy.array(k).reshape((3, 3)).T
     elif len(k) == 2:
         # tuple of rotation matrix and translation vector
         T = klampt2numpy(k[0])
@@ -68,17 +68,18 @@ def _rad2deg(x):
     return numpy.array(x) * 180.0 / pi
 
 robots = {
-    'tx90l': 'data/robots/tx90l.rob',
-    'shelf': 'data/robots/shelf.rob',
+    'tx90l': 'data/robots/tx90l.rob'
 }
 
 terrains = {
     'ground': 'data/terrains/block.off',
+    'obstacles': 'data/terrains/obstacles.stl',
 }
 
 rigid_objects = {
     'amnesty_tote': 'data/objects/tote.off',
     'stow_tote': 'data/objects/tote.off',
+    'shelf': 'data/objects/linear_shelf.stl'
 }
 
 def _get_or_load(world, name, path, total, getter, loader):
@@ -89,7 +90,7 @@ def _get_or_load(world, name, path, total, getter, loader):
     else:
         logger.info('loading "{}" from "{}"'.format(name, path))
         obj = loader(path)
-        obj.setName(name)
+        obj.setName(str(name))
         # NOTE: loaded models are already added the world
         # world.add(name, obj)
 
@@ -141,27 +142,28 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
     # update terrains
     _get_terrain(world, 'ground')
+    #_get_terrain(world, 'obstacles')
 
-    # update robots
+    # update robot
     tx90l = _get_robot(world, 'tx90l')
     _sync(db, '/robot/base_pose', lambda bp: tx90l.link(0).setParentTransform(*numpy2klampt(bp)))
     _sync(db, '/robot/current_config', lambda q: tx90l.setConfig(q))
     tx90l.setConfig(tx90l.getConfig())
 
-    shelf = _get_robot(world, 'shelf')
-    _sync(db, '/shelf/pose', lambda bp: shelf.link(0).setParentTransform(*numpy2klampt(bp)))
-    _sync(db, '/shelf/current_angle', lambda q: shelf.setConfig([0, q]))
-    shelf.setConfig(shelf.getConfig())
+    # update shelf
+    shelf = _get_rigid_object(world, 'shelf')
+    _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
 
     # update tote
-    amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
-    _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
-
     if task in ['stow', 'final']:
-       stow_tote = _get_rigid_object(world, 'stow_tote')
-       _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
+        amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
+        _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
+
+        stow_tote = _get_rigid_object(world, 'stow_tote')
+        _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
     else:
-       _remove_rigid_object(world, 'stow_tote')
+        _remove_rigid_object(world, 'amnesty_tote')
+        _remove_rigid_object(world, 'stow_tote')
 
     # update boxes
     for quantity in [2, 3, 5]:
@@ -175,7 +177,7 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
     if 'camera' not in ignore:
         # update cameras
-        for name in ['shelf0', 'stow']:
+        for name in db.get('/system/cameras', []):
             if name in ignore:
                 continue
 

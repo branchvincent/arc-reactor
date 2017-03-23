@@ -8,8 +8,8 @@ from math import pi
 
 from OpenGL.arrays import vbo
 from OpenGL.GL import glEnable, glDisable, glPushMatrix, glPopMatrix, glMultMatrixf, glMatrixMode
-from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glColorPointerf, glDrawArrays, glPointSize
-from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS
+from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glColorPointerf, glDrawArrays, glPointSize, glLineWidth, glColor
+from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS, GL_LINE_STRIP
 
 from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram, gldraw
@@ -30,7 +30,7 @@ class PointCloudRender(object):
         self._xyz_vbo = None
         self._rgb_vbo = None
 
-        self._pose = numpy.eye(4, 4)
+        self._pose = numpy.eye(4)
 
     def update(self, xyz=None, rgb=None, pose=None):
         '''
@@ -117,6 +117,74 @@ class PointCloudRender(object):
 
         glPopMatrix()
 
+class BoundingBox(object):
+    def __init__(self):
+        self._pose = numpy.eye(4)
+        self._bounds = None
+
+        self._color = (1.0, 0, 0, 1.0)
+        self._width = 2.0
+
+    def update(self, pose=None, bounds=None, color=None, width=None):
+        if pose is not None:
+            self._pose = numpy.array(pose, dtype=numpy.float32)
+
+        if bounds is not None:
+            self._bounds = bounds
+
+        if color is not None:
+            self._color = color
+
+        if width is not None:
+            self._width = width
+
+    def draw(self):
+        glMatrixMode(GL_MODELVIEW)
+        glPushMatrix()
+        glMultMatrixf(self._pose.T)
+
+        glDisable(GL_LIGHTING)
+
+        if self._bounds:
+            glColor(*self._color)
+            glLineWidth(self._width)
+            gldraw.box(self._bounds[0], self._bounds[1], lighting=False, filled=False)
+
+        glEnable(GL_LIGHTING)
+
+        glPopMatrix()
+
+class Trace(object):
+    def __init__(self):
+        self._color = (1.0, 1.0, 0, 1.0)
+        self._width = 2.0
+
+        self._vbo = None
+
+    def update(self, path=None, width=None, color=None):
+        if path:
+            self._vbo = vbo.VBO(numpy.array(path, dtype=numpy.float32))
+
+        self._width = width or self._width
+        self._color = color or self._color
+
+    def draw(self):
+        glDisable(GL_LIGHTING)
+
+        glLineWidth(self._width)
+        glColor(*self._color)
+
+        glEnableClientState(GL_VERTEX_ARRAY)
+
+        if self._vbo:
+            with self._vbo:
+                glVertexPointerf(self._vbo)
+                glDrawArrays(GL_LINE_STRIP, 0, len(self._vbo))
+
+        glDisableClientState(GL_VERTEX_ARRAY)
+
+        glEnable(GL_LIGHTING)
+
 class WorldViewer(GLRealtimeProgram):
     def __init__(self):
         GLRealtimeProgram.__init__(self, 'World Viewer')
@@ -138,6 +206,7 @@ class WorldViewer(GLRealtimeProgram):
         for drawable in self.post_drawables:
             drawable.draw()
 
+        # draw poses for all robots and boxes
         poses = [se3.identity()]
 
         for i in range(self.world.numRobots()):
@@ -167,6 +236,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         self.setup_async()
         self.requests = [
+            (1, '/system'),
             (3, '/robot'),
             (1, '/robot/current_config'),
             (3, '/shelf'),
@@ -182,6 +252,8 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         self.timestamps = {}
 
         self.point_clouds = {}
+        self.bounding_boxes = {}
+        self.traces = {}
 
         self.options = {}
 
@@ -189,12 +261,46 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         update_world(self.db, self.program.world, self.timestamps, ignore=['items'])
 
         # update camera point clouds
-        for name in ['shelf0', 'stow']:
+        for name in self.db.get('/system/cameras', []):
             self._update_camera(name)
 
         # update item point clouds
-        for name in self.db.get('item'):
+        for name in self.db.get('item', {}):
             self._update_item(name)
+
+        # update shelf bin bounding boxes
+        for name in self.db.get('shelf/bin', {}):
+            self._update_bounding_box(name + '_bb', ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
+
+        self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
+
+    def _update_robot_trace(self, name, robot, link, path_url, timestamp_url):
+        trace_name = '{}_pc'.format(name)
+
+        # check if path is modified
+        stamp = self.db.get(timestamp_url)
+        if stamp <= self.timestamps.get(trace_name, 0):
+            return
+
+        self.timestamps[trace_name] = stamp
+
+        logger.debug('updating {} trace'.format(name))
+
+        # build the trace path
+        path = []
+        for cmd in self.db.get(path_url):
+            robot.setConfig(cmd[1]['robot'])
+            path.append(robot.link(link).getTransform()[1])
+
+        trace = self.traces.get(trace_name)
+        if not trace:
+            trace = Trace()
+            self.program.post_drawables.append(trace)
+            self.traces[trace_name] = trace
+
+        options = self.options.get(trace, {})
+
+        trace.update(path=path, **options)
 
     def _update_item(self, name):
         cloud_name = '{}_pc'.format(name)
@@ -257,6 +363,17 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
             ['camera', name, 'aligned_image']
         )
 
+    def _update_bounding_box(self, name, pose_urls, bounds_url):
+        bb = self.bounding_boxes.get(name)
+        if not bb:
+            bb = BoundingBox()
+            self.program.post_drawables.append(bb)
+            self.bounding_boxes[name] = bb
+
+        options = self.options.get(bb, {})
+
+        bb.update(pose=self._build_pose(pose_urls), bounds=self.db.get(bounds_url), **options)
+
     def _update_point_cloud(self, name, pose_urls, xyz_url, rgb_url=None):
         cloud = self.point_clouds.get(name)
         if not cloud:
@@ -305,26 +422,27 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
                 # color all points the same
                 cloud_rgb = numpy.full(cloud_xyz.shape[:-1] + (len(color),), color)
 
-        # build the pose
-        world_pose = None
-        for url in pose_urls:
-            pose = self.db.get(url)
-            if pose is None:
-                world_pose = None
-                break
-            elif world_pose is None:
-                world_pose = pose
-            else:
-                world_pose = world_pose.dot(pose)
-
         # perform the update
-        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=world_pose)
+        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=self._build_pose(pose_urls))
 
         # clear the point cloud for next update
         if xyz_url:
             self.db.put(xyz_url, None)
         if rgb_url:
             self.db.put(rgb_url, None)
+
+    def _build_pose(self, urls):
+        full_pose = None
+        for url in urls:
+            pose = self.db.get(url)
+            if pose is None:
+                return None
+            elif full_pose is None:
+                full_pose = pose
+            else:
+                full_pose = full_pose.dot(pose)
+
+        return full_pose
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
