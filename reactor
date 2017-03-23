@@ -217,7 +217,7 @@ elif args.command == 'dump':
     from pensive.client import json_encode
     if args.compress:
         from gzip import GzipFile
-        GzipFile(fileobj=sys.stdout).write(json_encode(obj))
+        GzipFile('', fileobj=sys.stdout).write(json_encode(obj))
     elif args.pretty:
         from pprint import pprint
         pprint(obj)
