@@ -36,6 +36,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.thread = VideoThread(ctx,0)
         self.thread.signal.connect(self.updateView)
         cameramat, cameracoeff = self.thread.getIntrinsics()
+        self.extrinsics = self.thread.getExtrinsics()
         if cameramat is None:
             logger.warning("Unable to get camera coefficients for camera. Setting to zeros...")
             cameramat = np.array([[1,0,0],[0,1,0],[0,0,1]])
@@ -94,7 +95,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             for col in range(4):
                 self.robotTextBoxes[row][col].setText(str(eye[row, col]))
                 self.cameraTextBoxes[row][col].setText(str(eye[row, col]))
-        
+
         #add a push button at the top
         self.horzTop = QtWidgets.QHBoxLayout()
         self.horzTop.addStretch(1)
@@ -121,7 +122,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.gridTop.addWidget(label, 2, 0)
         self.gridTop.addWidget(self.objectNameTextBox, 2, 1)
         self.horzTop.addLayout(self.gridTop)
-        
+
         self.horzTop.addStretch(1)
         self.calibrate_button.clicked.connect(self.calibrate_camera)
         self.save_button.clicked.connect(self.save_calibration)
@@ -142,10 +143,10 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.layout.addItem(self.horzMid)
         self.layout.addItem(self.horzBot)
 
-     
+
         self.calibrate_button.show()
 
-    
+
     def calibrate_camera(self):
         if self.thread.isRunning():
             self.thread.keepRunning = False
@@ -160,7 +161,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.objectName = self.objectNameTextBox.text()
 
     def updateView(self, image, aligned_image, point_cloud, cam_num):
-        
+
         #set the dictionary
         dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
 
@@ -178,7 +179,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             xform[0:3, 0:3] = rotMat
             xform[0:3, 3] = pose[2].flatten()
             xform[3, 3] = 1
-            self.cameraXform = xform
+            self.cameraXform = self.extrinsics.dot(xform)
             #draw what opencv is tracking
             #flip r and b channels to draw
             image = image[:,:,::-1].copy()
@@ -269,7 +270,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             if self.objectName != "":
                 # logger.debug("storing {}".format(self.objectName + "/pose"))
                 self.store.put(key=self.objectName + "/pose", value=pose_of_obj)
-            
+
             #tell the thread to continue
             self.thread.can_emit = True
 
@@ -346,6 +347,26 @@ class VideoThread(QtCore.QThread):
 
         return (mat, coeffs)
 
+    def getExtrinsics(self):
+        if self.context.get_device_count() == 0:
+            logger.warn("No cameras attached")
+            mat = np.eye(4)
+            return mat
+
+        cam = self.context.get_device(self.cam_num)
+        try:
+            self.serialNum = cam.get_info(rs.camera_info_serial_number)
+            extrinsics = cam.get_extrinsics(rs.stream_color, rs.stream_depth)
+        except:
+            logger.exception("Unable to enable stream and get intrinsics")
+            return (None, None)
+
+        mat = np.eye(4)
+        mat[:3, :3] = np.array([rs.floatp_getitem(extrinsics.rotation, i) for i in range(9)]).reshape((3, 3))
+        mat[:3, 3] = [rs.floatp_getitem(extrinsics.translation, i) for i in range(3)]
+
+        return mat
+
     def run(self):
         if self.context.get_device_count() == 0:
             logger.warn("No cameras attached")
@@ -370,7 +391,7 @@ class VideoThread(QtCore.QThread):
                 imageFullColor = None
             else:
                 width = cam.get_stream_width(rs.stream_color)
-                height = cam.get_stream_height(rs.stream_color)    
+                height = cam.get_stream_height(rs.stream_color)
                 imageFullColor = np.reshape(imageFullColor, (height, width, 3) )
 
             imageAllignedColor = cam.get_frame_data_u8(rs.stream_color_aligned_to_depth)
@@ -380,7 +401,7 @@ class VideoThread(QtCore.QThread):
                 imageAllignedColor = None
             else:
                 width = cam.get_stream_width(rs.stream_color_aligned_to_depth)
-                height = cam.get_stream_height(rs.stream_color_aligned_to_depth)    
+                height = cam.get_stream_height(rs.stream_color_aligned_to_depth)
                 imageAllignedColor = np.reshape(imageAllignedColor, (height, width, 3) )
 
             points = cam.get_frame_data_f32(rs.stream_points)
@@ -390,7 +411,7 @@ class VideoThread(QtCore.QThread):
                 points = None
             else:
                 width = cam.get_stream_width(rs.stream_points)
-                height = cam.get_stream_height(rs.stream_points)    
+                height = cam.get_stream_height(rs.stream_points)
                 points = np.reshape(points, (height, width, 3) )
             self.mutex.acquire()
             if c%self.update_rate == 1 and self.can_emit:
@@ -399,7 +420,7 @@ class VideoThread(QtCore.QThread):
                 self.can_emit = False
 
             self.mutex.release()
-           
+
             c = c+1
         cam.stop()
 
@@ -413,5 +434,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()        
+    main()
 
