@@ -19,7 +19,7 @@ class SimplePickFSM(DatabaseDependentTestCase):
             raise SkipTest('Klampt is not installed')
 
         self.store = self.client.default()
-        self.store.put('', json.loads(gzip.open('data/test/test_031017_new_pick.json.gz').read()))
+        self.store.put('', json.loads(gzip.open('data/test/workcell_032317.json.gz').read()))
 
         self.store.put('/status/task', 'pick')
 
