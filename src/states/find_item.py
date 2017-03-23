@@ -27,10 +27,10 @@ class FindItem(State):
         else:
             raise RuntimeError('no camera available for {}'.format(location))
 
-        if self.store.get('/simulate/object_detection'):
+        if self.store.get('/simulate/object_detection', False):
             logger.warn('simulating object detection of "{}"'.format(selected_item))
 
-            if self.store.get('/simulate/cameras'):
+            if self.store.get('/simulate/cameras', False):
                 logger.warn('simulating cameras')
 
                 # load previously acquired images in BGR format
