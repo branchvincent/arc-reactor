@@ -330,12 +330,12 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         logger.debug('updating {} point cloud'.format(name))
 
         location = self.db.get(['item', name, 'location'])
-        if location == 'shelf':
+        if location.startswith('bin'):
             reference = ['shelf', 'pose']
         elif location in ['stow_tote', 'stow tote']:
             reference = ['tote', 'stow', 'pose']
         else:
-            reference = []
+            logger.error('unrecognized location for "{}": {}'.format(name, location))
 
         self._update_point_cloud(
             cloud_name,

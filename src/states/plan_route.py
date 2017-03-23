@@ -27,7 +27,7 @@ class PlanRoute(State):
         item_pose_local = self.store.get(['item', item, 'pose'])
         item_pc_local = self.store.get(['item', item, 'point_cloud'])
 
-        if location == 'shelf':
+        if location.startswith('bin'):
             reference_pose = self.store.get('/shelf/pose')
         elif location in ['stow_tote', 'stow tote']:
             reference_pose = self.store.get('/tote/stow/pose')

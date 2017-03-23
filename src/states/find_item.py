@@ -114,11 +114,12 @@ class FindItem(State):
             camera_pose = self.store.get(['camera', camera, 'pose'])
             reference_pose = numpy.eye(4)
 
-            if location == 'shelf':
-                #and need shelf pose
+            if location.startswith('bin'):
                 reference_pose = self.store.get('/shelf/pose')
             elif location in ['stow_tote', 'stow tote']:
                 reference_pose = self.store.get('/tote/stow/pose')
+            else:
+                raise RuntimeError('unrecognized item location: {}'.format(selected_item))
 
             item_pose_reference = numpy.linalg.inv(reference_pose).dot(camera_pose.dot(item_pose_camera))
             logger.debug('object pose relative to {}\n{}'.format(location, item_pose_reference))

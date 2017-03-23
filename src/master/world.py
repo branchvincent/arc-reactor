@@ -190,10 +190,12 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
             item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
 
             location = db.get(['item', name, 'location'], 'shelf')
-            if location == 'shelf':
+            if location.startswith('bin'):
                 _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
             elif location in ['stow_tote', 'stow tote']:
                 _sync(db, ['/tote/stow/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
+            else:
+                logger.error('unrecognized location for item "{}": {}'.format(name, location))
 
     return world
 

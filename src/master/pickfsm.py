@@ -39,13 +39,18 @@ class PickStateMachine(StateMachine):
         self.store.multi_put(self.order_db)
         self.order = self.store.get('/order/').items()
         #need to set all other items point values to 0 to ignore (?)
+
+        bins = ['binA', 'binB', 'binC']
+        c = 0
+
         for i, n in self.order:
             for k in n['items']:
                 self.points = (20 if self.store.get('/item/'+k+'/new_item') else 10)
                 self.points += 10/n['number']
                 self.store.put('/item/'+k+'/point_value', self.points)
                 self.store.put('/item/'+k+'/order', i)
-                self.store.put('/item/'+k+'/location', 'shelf')
+                self.store.put('/item/'+k+'/location', bins[c % len(bins)])
+                c += 1
                 print "item ", k, " is valued at ", self.points, " for ", i
 
     def isDone(self):
