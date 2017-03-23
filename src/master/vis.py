@@ -234,6 +234,8 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         self.setWindowTitle(self.program.name)
         self.setMaximumSize(1920, 1080)
 
+        self.ready = False
+
         self.setup_async()
         self.requests = [
             (1, '/system'),
@@ -243,10 +245,6 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
             (3, '/item'),
             (3, '/box'),
             (3, '/tote'),
-            (3, '/camera/shelf0/pose'),
-            (3, '/camera/shelf0/timestamp'),
-            (3, '/camera/stow/pose'),
-            (3, '/camera/stow/timestamp'),
         ]
 
         self.timestamps = {}
@@ -258,6 +256,16 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         self.options = {}
 
     def update(self):
+        if not self.ready:
+            # populate the camera requests
+            for name in self.db.get('/system/cameras', []):
+                self.requests.extend([
+                    (3, '/camera/{}/timestamp'.format(name)),
+                    (3, '/camera/{}/pose'.format(name)),
+                ])
+
+            self.ready = True
+
         update_world(self.db, self.program.world, self.timestamps, ignore=['items'])
 
         # update camera point clouds
