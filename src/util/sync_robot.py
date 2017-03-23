@@ -11,7 +11,8 @@ def sync(db):
     world = build_world(db)
 
     # update the robot tool pose
-    db.put('/robot/tcp_pose', klampt2numpy(world.robot('tx90l').link(6).getTransform()))
+    robot = world.robot('tx90l')
+    db.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter

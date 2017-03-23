@@ -51,7 +51,7 @@ def klampt2numpy(k):
     if len(k) == 9:
         # rotation matrix only
         T = numpy.asmatrix(numpy.eye(4))
-        T[:3,:3] = numpy.array(k).reshape((3, 3))
+        T[:3,:3] = numpy.array(k).reshape((3, 3)).T
     elif len(k) == 2:
         # tuple of rotation matrix and translation vector
         T = klampt2numpy(k[0])
@@ -73,6 +73,7 @@ robots = {
 
 terrains = {
     'ground': 'data/terrains/block.off',
+    'obstacles': 'data/terrains/obstacles.stl',
 }
 
 rigid_objects = {
@@ -89,7 +90,7 @@ def _get_or_load(world, name, path, total, getter, loader):
     else:
         logger.info('loading "{}" from "{}"'.format(name, path))
         obj = loader(path)
-        obj.setName(name)
+        obj.setName(str(name))
         # NOTE: loaded models are already added the world
         # world.add(name, obj)
 
@@ -141,6 +142,7 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
     # update terrains
     _get_terrain(world, 'ground')
+    #_get_terrain(world, 'obstacles')
 
     # update robot
     tx90l = _get_robot(world, 'tx90l')
@@ -153,14 +155,15 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
     _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
 
     # update tote
-    amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
-    _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
-
     if task in ['stow', 'final']:
-       stow_tote = _get_rigid_object(world, 'stow_tote')
-       _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
+        amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
+        _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
+
+        stow_tote = _get_rigid_object(world, 'stow_tote')
+        _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
     else:
-       _remove_rigid_object(world, 'stow_tote')
+        _remove_rigid_object(world, 'amnesty_tote')
+        _remove_rigid_object(world, 'stow_tote')
 
     # update boxes
     for quantity in [2, 3, 5]:
@@ -174,7 +177,7 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
     if 'camera' not in ignore:
         # update cameras
-        for name in ['shelf0', 'stow']:
+        for name in db.get('/system/cameras', []):
             if name in ignore:
                 continue
 
