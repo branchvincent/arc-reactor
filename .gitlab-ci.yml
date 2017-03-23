@@ -27,7 +27,7 @@ python-unittest:
     stage: Test
     script:
     - pip install -q -r requirements.txt
-    - cd data && ./setup
+    - cd data && ./setup && cd ..
     - python reactor test -c
 
 doxygen:
