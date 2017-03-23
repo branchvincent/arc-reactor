@@ -33,21 +33,9 @@ class FindItem(State):
             if self.store.get('/simulate/cameras', False):
                 logger.warn('simulating cameras')
 
-                # load previously acquired images in BGR format
-                if camera == 'shelf0':
-                    color = cv2.imread('data/simulation/color-shelf-0.png')[:, :, ::-1]
-                    aligned_color = cv2.imread('data/simulation/aligned-shelf-0.png')[:, :, ::-1]
-                    point_cloud = numpy.load('data/simulation/pc-shelf-0.npy')
-                elif camera == 'shelf1':
-                    color = cv2.imread('data/simulation/color-shelf-1.png')[:, :, ::-1]
-                    aligned_color = cv2.imread('data/simulation/aligned-shelf-1.png')[:, :, ::-1]
-                    point_cloud = numpy.load('data/simulation/pc-shelf-1.npy')
-                elif camera == 'stow':
-                    color = cv2.imread('data/simulation/color-stow_tote-0.png')[:, :, ::-1]
-                    aligned_color = cv2.imread('data/simulation/aligned-stow_tote-0.png')[:, :, ::-1]
-                    point_cloud = numpy.load('data/simulation/pc-stow_tote-0.npy')
-                else:
-                    raise RuntimeError('no simulated camera image available for {}'.format(location))
+                color = cv2.imread('data/simulation/color-{}-0.png'.format(camera))[:, :, ::-1]
+                aligned_color = cv2.imread('data/simulation/aligned-{}-0.png'.format(camera))[:, :, ::-1]
+                point_cloud = numpy.load('data/simulation/pc-{}-0.npy'.format(camera))
 
             else:
                 from hardware.SR300 import DepthCameras

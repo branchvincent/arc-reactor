@@ -1,0 +1,13 @@
+import cv2
+import numpy
+
+from pensive.client import PensiveClient
+
+db = PensiveClient().default()
+
+for camera in db.get('/system/cameras', []):
+    cv2.imwrite('data/simulation/color-{}-0.png'.format(camera), db.get(['camera', camera, 'color_image'])[:, :, ::-1])
+    cv2.imwrite('data/simulation/aligned-{}-0.png'.format(camera), db.get(['camera', camera, 'aligned_image'])[:, :, ::-1])
+    numpy.save('data/simulation/pc-{}-0.npy'.format(camera), db.get(['camera', camera, 'point_cloud'])[:, :, ::-1])
+
+    print camera
