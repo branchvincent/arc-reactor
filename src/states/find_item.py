@@ -2,6 +2,7 @@ from master.fsm import State
 
 import cv2
 import numpy
+import realsense
 
 from time import time
 
@@ -15,7 +16,12 @@ class FindItem(State):
 
         logger.info('finding item "{}" in "{}"'.format(selected_item, location))
 
-        if location == 'shelf' or location.startswith('bin'):
+        # choose camera
+        if location == 'binA':
+            camera = 'shelf1'
+        elif location == 'binB':
+            camera = 'shelf0' #TODO: add overlapping camera 'shelf1'
+        elif location == 'binC':
             camera = 'shelf0'
         elif location in ['stow_tote', 'stow tote']:
             camera = 'stow'
@@ -33,6 +39,10 @@ class FindItem(State):
                     color = cv2.imread('data/simulation/color-shelf-0.png')[:, :, ::-1]
                     aligned_color = cv2.imread('data/simulation/aligned-shelf-0.png')[:, :, ::-1]
                     point_cloud = numpy.load('data/simulation/pc-shelf-0.npy')
+                elif camera == 'shelf1':
+                    color = cv2.imread('data/simulation/color-shelf-1.png')[:, :, ::-1]
+                    aligned_color = cv2.imread('data/simulation/aligned-shelf-1.png')[:, :, ::-1]
+                    point_cloud = numpy.load('data/simulation/pc-shelf-1.npy')
                 elif camera == 'stow':
                     color = cv2.imread('data/simulation/color-stow_tote-0.png')[:, :, ::-1]
                     aligned_color = cv2.imread('data/simulation/aligned-stow_tote-0.png')[:, :, ::-1]
@@ -43,12 +53,29 @@ class FindItem(State):
             else:
                 from hardware.SR300 import DepthCameras
 
-                # acquire a camera image
-                cam = DepthCameras()
-                if not cam.connect():
-                    raise RuntimeError('failed accessing camera')
+                # connect cameras
+                cams = DepthCameras()
+                if not cams.connect():
+                    raise RuntimeError('failed accessing cameras')
 
-                (images, serial) = cam.acquire_image(0)
+                # find desired camera's serial number
+                db_cams = self.store.get('/system/cameras')
+                try:
+                    serial_num = db_cams[camera]
+                except:
+                    raise RuntimeError('could not find serial number for camera "{}" in database'.format(camera))
+
+                # acquire desired camera by serial number
+                desired_cam = None
+                for i in xrange(cams.num_cameras):
+                    cam = cams.context.get_device(i)
+                    if cam.get_info(realsense.camera_info_serial_number) == serial_num:
+                        desired_cam = i
+                if desired_cam == None:
+                    raise RuntimeError('could not find serial number for camera "{}"'.format(camera))
+
+                # acquire a camera image
+                (images, serial) = cams.acquire_image(desired_cam)
                 if not serial:
                     raise RuntimeError('camera acquisition failed')
 
