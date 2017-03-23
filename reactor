@@ -55,8 +55,10 @@ load_parser.add_argument('json_path', metavar='JSON_PATH', help='JSON file to lo
 dump_parser = subparsers.add_parser('dump', help='dump database', description='dump database', formatter_class=ArgumentDefaultsHelpFormatter)
 dump_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
 dump_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
-dump_parser.add_argument('-c', '--compress', action='store_true', help='compress JSON', default=False)
 dump_parser.add_argument('path', nargs='?', metavar='PATH', help='path for the dump', default='/')
+group = dump_parser.add_mutually_exclusive_group()
+group.add_argument('-c', '--compress', action='store_true', help='compress JSON', default=False)
+group.add_argument('-p', '--pretty', action='store_true', help='print JSON nicely', default=False)
 
 args, other_args = parser.parse_known_args()
 
@@ -216,5 +218,8 @@ elif args.command == 'dump':
     if args.compress:
         from gzip import GzipFile
         GzipFile(fileobj=sys.stdout).write(json_encode(obj))
+    elif args.pretty:
+        from pprint import pprint
+        pprint(obj)
     else:
         print(json_encode(obj, indent=4))
