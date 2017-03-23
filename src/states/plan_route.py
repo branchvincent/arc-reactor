@@ -35,7 +35,7 @@ class PlanRoute(State):
             raise RuntimeError('unrecognized item location: "{}"'.format(location))
 
         item_pose_world = reference_pose.dot(item_pose_local)
-        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3]) + item_pose_world[:3, 3].T
+        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
 
         bounding_box = [
             [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
