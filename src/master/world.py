@@ -51,7 +51,7 @@ def klampt2numpy(k):
     if len(k) == 9:
         # rotation matrix only
         T = numpy.asmatrix(numpy.eye(4))
-        T[:3,:3] = numpy.array(k).reshape((3, 3))
+        T[:3,:3] = numpy.array(k).reshape((3, 3)).T
     elif len(k) == 2:
         # tuple of rotation matrix and translation vector
         T = klampt2numpy(k[0])
