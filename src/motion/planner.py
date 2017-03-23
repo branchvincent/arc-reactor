@@ -132,7 +132,7 @@ def pick_up(world,item,target_box,target_index):
 	start_position[2]=min(0.4,start_position[2])
 	end_T=[[-1,0,0,0,1,0,0,0,-1],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 	if not motion_milestones:
 		print "can't find a feasible path to start position"
 		return False
@@ -144,7 +144,7 @@ def pick_up(world,item,target_box,target_index):
 	start_T=end_T
 	end_T[1]=vectorops.add(item_position,item_vacuum_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to lower the vacuum"
 		return False
@@ -153,7 +153,7 @@ def pick_up(world,item,target_box,target_index):
 	start_T=end_T
 	end_T[1][2]+=0.4
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to pick up the item"
 		return False	
@@ -162,6 +162,7 @@ def pick_up(world,item,target_box,target_index):
 	while drop_position[0]*p[1]<p[0]*drop_position[1]:
 		q=robot.getConfig()
 		q[1]+=0.05
+		q[6]+=0.05
 		motion_milestones.append(make_milestone(0.05,q,1,1))
 		robot.setConfig(q)
 		curr_orientation,p=robot.link(ee_link).getTransform()
@@ -173,7 +174,7 @@ def pick_up(world,item,target_box,target_index):
 	end_T[1][0]=drop_position[0]
 	end_T[1][1]=drop_position[1]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to the drop position"
 		return False	
@@ -182,7 +183,7 @@ def pick_up(world,item,target_box,target_index):
 	start_T=end_T
 	end_T[1]=vectorops.add(drop_position,drop_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to lower the item"
 		return False	
@@ -325,7 +326,7 @@ def stow(world,item,target_box,target_index):
 	start_position=vectorops.add(item_position,[0,0,0.3])
 	end_T=[[-1,0,0,0,1,0,0,0,-1],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 	if not motion_milestones:
 		print "can't find a feasible path to start position"
 		return False
@@ -337,7 +338,7 @@ def stow(world,item,target_box,target_index):
 	start_T=end_T
 	end_T[1]=vectorops.add(item_position,item_vacuum_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to lower the vacuum"
 		return False
@@ -346,7 +347,7 @@ def stow(world,item,target_box,target_index):
 	start_T=end_T
 	end_T[1][2]+=0.4
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to pick up the item"
 		return False	
@@ -356,6 +357,7 @@ def stow(world,item,target_box,target_index):
 	while drop_position[0]*p[1]>p[0]*drop_position[1]:
 		q=robot.getConfig()
 		q[1]-=0.05
+		q[6]-=0.05
 		motion_milestones.append(make_milestone(0.05,q,1,1))
 		robot.setConfig(q)
 		curr_orientation,p=robot.link(ee_link).getTransform()
@@ -367,7 +369,7 @@ def stow(world,item,target_box,target_index):
 	end_T[1][0]=drop_position[0]
 	end_T[1][1]=drop_position[1]
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to drop position"
 		return False	
@@ -376,7 +378,7 @@ def stow(world,item,target_box,target_index):
 	start_T=end_T
 	end_T[1]=vectorops.add(drop_position,drop_offset)
 	l=vectorops.distance(start_T[1],end_T[1])
-	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,0)
+	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to lower the item"
 		return False	
@@ -465,7 +467,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		# print test_cspace.feasible(q)
 		
 		flag = 1
-		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]>0:
+		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]<0:
 			print "too much change!"
 			print max(vectorops.sub(q_old,q))
 			print min(vectorops.sub(q_old,q))
@@ -480,7 +482,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 				s=ik.solve_global(goal)
 				# s=ik.solve_nearby(goal,maxDeviation=1000,feasibilityCheck=test_function)
 				q=robot.getConfig()
-				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]>0:
+				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]<0:
 					# print "too much change!"
 					flag=0
 				else:

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
-  <robot name="ARC" file="robots/ARC.rob" translation="0 0 0"  config="7 0.0 1.62 -0.175  -1.95 0 -1.38 -0.69"/>
+  <robot name="ARC" file="robots/ARC.rob" translation="0 0 0"  config="7  0 -1.52414 -0.275 1.38927 -0.14 0.78 -0.69 "/>
  
 
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
