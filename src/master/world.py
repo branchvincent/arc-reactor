@@ -142,7 +142,8 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
     # update terrains
     _get_terrain(world, 'ground')
-    #_get_terrain(world, 'obstacles')
+    if 'obstacles' not in ignore:
+        _get_terrain(world, 'obstacles')
 
     # update robot
     tx90l = _get_robot(world, 'tx90l')

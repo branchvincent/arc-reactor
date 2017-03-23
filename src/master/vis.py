@@ -266,7 +266,9 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
             self.ready = True
 
-        update_world(self.db, self.program.world, self.timestamps, ignore=['items'])
+        update_world(self.db, self.program.world, self.timestamps, ignore=['items', 'obstacles'])
+
+        self._update_bounding_box('target_bb', [], ['robot', 'target_bounding_box'])
 
         # update camera point clouds
         for name in self.db.get('/system/cameras', []):
@@ -440,13 +442,11 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
             self.db.put(rgb_url, None)
 
     def _build_pose(self, urls):
-        full_pose = None
+        full_pose = numpy.eye(4)
         for url in urls:
             pose = self.db.get(url)
             if pose is None:
                 return None
-            elif full_pose is None:
-                full_pose = pose
             else:
                 full_pose = full_pose.dot(pose)
 

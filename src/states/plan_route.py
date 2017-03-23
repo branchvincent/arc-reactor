@@ -52,6 +52,8 @@ class PlanRoute(State):
             'drop offset': [0, 0, 0.20],
         }
 
+        self.store.put('/robot/target_bounding_box', bounding_box)
+
         # compute route
         try:
             if self.store.get('/test/skip_planning', False):
