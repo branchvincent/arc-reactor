@@ -66,13 +66,9 @@ class FindItem(State):
                     raise RuntimeError('could not find serial number for camera "{}" in database'.format(camera))
 
                 # acquire desired camera by serial number
-                desired_cam = None
-                for i in xrange(cams.num_cameras):
-                    cam = cams.context.get_device(i)
-                    if cam.get_info(realsense.camera_info_serial_number) == serial_num:
-                        desired_cam = i
-                if desired_cam == None:
-                    raise RuntimeError('could not find serial number for camera "{}"'.format(camera))
+                desired_cam = cams.get_camera_by_serial(serial_num)
+                if not desired_cam:
+                    raise RuntimeError('could not find camera with serial number {}'.format(camera))
 
                 # acquire a camera image
                 (images, serial) = cams.acquire_image(desired_cam)
