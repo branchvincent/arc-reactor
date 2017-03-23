@@ -258,7 +258,7 @@ class DepthCameras:
             return None
         return extrinsics
 
-    def get_camera_by_serial(self, serial):
+    def get_camera_index_by_serial(self, serial):
         '''Returns the camera with the specified serial number'''
         if self.context is None:
             logger.warning("Tried to access online cams without connecting")
@@ -268,8 +268,8 @@ class DepthCameras:
             if cam is None:
                 logger.error("Tried to get a camera that does not exist")
             elif cam.get_info(rs.camera_info_serial_number) == serial:
-                return cam
-        logger.error("Could not find camera with serial number {}".format(camera))
+                return i
+        logger.error("Could not find camera with serial number {}".format(serial))
         return None
 
 def test():

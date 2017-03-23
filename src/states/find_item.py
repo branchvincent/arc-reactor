@@ -2,7 +2,6 @@ from master.fsm import State
 
 import cv2
 import numpy
-import realsense
 
 from time import time
 
@@ -26,7 +25,7 @@ class FindItem(State):
         elif location in ['stow_tote', 'stow tote']:
             camera = 'stow'
         else:
-            raise RuntimeError('no simulated camera image available for {}'.format(location))
+            raise RuntimeError('no camera available for {}'.format(location))
 
         if self.store.get('/simulate/object_detection'):
             logger.warn('simulating object detection of "{}"'.format(selected_item))
@@ -66,12 +65,12 @@ class FindItem(State):
                     raise RuntimeError('could not find serial number for camera "{}" in database'.format(camera))
 
                 # acquire desired camera by serial number
-                desired_cam = cams.get_camera_by_serial(serial_num)
-                if not desired_cam:
-                    raise RuntimeError('could not find camera with serial number {}'.format(camera))
+                desired_cam_index = cams.get_camera_index_by_serial(serial_num)
+                if desired_cam_index is None:
+                    raise RuntimeError('could not find camera with serial number {}'.format(serial_num))
 
                 # acquire a camera image
-                (images, serial) = cams.acquire_image(desired_cam)
+                (images, serial) = cams.acquire_image(desired_cam_index)
                 if not serial:
                     raise RuntimeError('camera acquisition failed')
 
