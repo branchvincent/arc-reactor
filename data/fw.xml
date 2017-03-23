@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
-  <robot name="ARC" file="robots/ARC.rob" translation="0 0 0"  config="7  0 -1.52414 -0.275 1.38927 -0.14 0.78 -0.69 "/>
+  <robot name="ARC" file="robots/ARC.rob" translation="0 0 0"  config="7 0.0 1.62 -0.175  -1.95 0 -1.38 -0.69"/>
  
 
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
@@ -8,6 +8,11 @@
 <!-- The table -->
   <terrain file="terrains/LinearShelf.stl" scale="0.001 0.001 0.001" translation="0.8 0.6 0.0" rotateZ="3.14159">
      <display color="0.8 0.7 0.2"/>
+  </terrain>
+
+<!-- a blocker of the self --> 
+  <terrain file="terrains/cube.off" scale="1.05 0.01 0.200" translation="-0.25 0.29 0.0"> 
+     <display color="0.2 0.3 0.5"/>
   </terrain>
 
   
@@ -45,6 +50,7 @@
    <terrain file="terrains/cube.off" scale="0.2413 0.3429 0.01" translation="-0.55 0.167 0.0">
      <display color="0.2 0.3 0.5"/> 
   </terrain>
+
 
 
   
@@ -94,18 +100,7 @@
 
 
 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.1 0.5 0.2" rotateZ="0.0">
-     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
-     <display color="1 1 0"/>
-  </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.35 0.5 0.2" rotateZ="0.0">
-     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
-     <display color="1 1 0"/>
-  </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.6 0.5 0.2" rotateZ="0.0">
-     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
-     <display color="1 1 0"/>
-  </rigidObject> 
+
 <!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.5 0.37" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>

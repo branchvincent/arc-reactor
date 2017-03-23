@@ -29,7 +29,8 @@ servoD  1000 2000 700 400 50 2
 dryFriction 5 5 3 1 0.1 0.02
 viscousFriction 100 100 70 40 5 1
 
-mount 6 "pr2gripper.rob"  0 0 -1    0 1  0     1 0 0    0 0 0.025 as "gripper"
+mount 6 "pr2gripper.rob"  0 0 -1    0 1  0     1 0 0    -0.01 0 0.18 as "gripper"
+#mount 6 "pr2gripper.rob"  0 1  0   0 0 -1  1 0 0    0.01 -0.01 0.175 as "gripper"
 
 noselfcollision 0 2
 noselfcollision 0 3
@@ -67,13 +68,4 @@ noselfcollision 5 11
 
 #clear all PR2 self collisions
 
-noselfcollision 7 8
-noselfcollision 7 9
-noselfcollision 7 10
-noselfcollision 7 11
-noselfcollision 8 9
-noselfcollision 8 10
-noselfcollision 8 11
-noselfcollision 9 10
-noselfcollision 9 11
-noselfcollision 10 11
+
