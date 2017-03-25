@@ -2,71 +2,134 @@
     "binA": {
         "pose": {
             "__numpy.matrix__": {
-                "dtype": "float64",
-                "shape": [
-                    4,
-                    4
-                ],
-                "data": "AAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwPwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                "dtype": "float64", 
+                "list": [
+                    [
+                        1.0, 
+                        0.0, 
+                        0.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        1.0, 
+                        0.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        0.0, 
+                        1.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        0.0, 
+                        0.0, 
+                        1.0
+                    ]
+                ]
             }
-        },
+        }, 
         "bounds": [
             [
-                0.0127,
-                0.3,
+                0.0127, 
+                0.3, 
                 0.3
-            ],
+            ], 
             [
-                0.3,
-                0.0127,
+                0.3, 
+                0.0127, 
                 0.0127
             ]
         ]
-    },
+    }, 
     "binC": {
         "pose": {
             "__numpy.matrix__": {
-                "dtype": "float64",
-                "shape": [
-                    4,
-                    4
-                ],
-                "data": "AAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwPwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                "dtype": "float64", 
+                "list": [
+                    [
+                        1.0, 
+                        0.0, 
+                        0.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        1.0, 
+                        0.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        0.0, 
+                        1.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        0.0, 
+                        0.0, 
+                        1.0
+                    ]
+                ]
             }
-        },
+        }, 
         "bounds": [
             [
-                0.75,
-                0.3,
+                0.75, 
+                0.3, 
                 0.3
-            ],
+            ], 
             [
-                1.0373,
-                0.0127,
+                1.0373, 
+                0.0127, 
                 0.0127
             ]
         ]
-    },
+    }, 
     "binB": {
         "pose": {
             "__numpy.matrix__": {
-                "dtype": "float64",
-                "shape": [
-                    4,
-                    4
-                ],
-                "data": "AAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwPwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8D8="
+                "dtype": "float64", 
+                "list": [
+                    [
+                        1.0, 
+                        0.0, 
+                        0.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        1.0, 
+                        0.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        0.0, 
+                        1.0, 
+                        0.0
+                    ], 
+                    [
+                        0.0, 
+                        0.0, 
+                        0.0, 
+                        1.0
+                    ]
+                ]
             }
-        },
+        }, 
         "bounds": [
             [
-                0.3127,
-                0.3,
+                0.3127, 
+                0.3, 
                 0.3
-            ],
+            ], 
             [
-                0.7373,
-                0.0127,
+                0.7373, 
+                0.0127, 
                 0.0127
             ]
         ]
