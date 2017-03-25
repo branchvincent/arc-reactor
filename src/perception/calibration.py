@@ -53,7 +53,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.objectName = ""
         self.cameraName = ""
 
-
+        self.last_x_poses = []              #stores the last 10 poses of the camera charuco
         self.db_client = PensiveClient(host='http://10.10.1.60:8888')
         self.store = self.db_client.default()
         self.store = None
@@ -168,6 +168,8 @@ class RealsenseCalibration(QtWidgets.QWidget):
 
         self.camera_matrix = cameramat
         self.camera_coeff = cameracoeff
+        self.last_x_poses = []
+        self.pose_counter = 0
     
     def calibrate_camera(self):
         if self.thread.isRunning():
@@ -201,13 +203,26 @@ class RealsenseCalibration(QtWidgets.QWidget):
             xform[0:3, 0:3] = rotMat
             xform[0:3, 3] = pose[2].flatten()
             xform[3, 3] = 1
-            self.cameraXform = xform
+
+            if len(self.last_x_poses) >= 10:
+                #replace at the counter
+                self.last_x_poses[self.pose_counter] = xform
+                self.pose_counter = (self.pose_counter + 1) % 10
+            else:
+                self.last_x_poses.append(xform)
             #draw what opencv is tracking
             #flip r and b channels to draw
             image = image[:,:,::-1].copy()
             cv2.aruco.drawAxis(image, self.camera_matrix, self.camera_coeff, pose[1], pose[2], 0.1)
             image = image[:,:,::-1].copy()
             #flip back
+
+            #average the poses last X poses
+            avg_pose = np.zeros((4,4))
+            for pose in self.last_x_poses:
+                avg_pose = avg_pose + pose
+            avg_pose /= len(self.last_x_poses)
+            self.cameraXform = avg_pose  
         else:
             logger.warning("Unable to get the camera transform. Camera cannot see Charuco.")
             xform = np.zeros((4,4))
@@ -221,8 +236,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         pix_img = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(pix_img)
         self.camera_display.setPixmap(pix)
-
-
+        
         if self.calib_cameraCheckBox.isChecked():
             self.objectXformLabel.setText("Robot Xform")
             #calbrate the camera
