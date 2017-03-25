@@ -1,5 +1,7 @@
 import logging
 
+import numpy
+
 from time import time
 
 from master.fsm import State
@@ -80,11 +82,16 @@ class PlanRoute(State):
                 shelf_pose = self.store.get(['shelf', 'pose'])
                 from master.world import xyz
 
-                bin_pose = shelf_pose * xyz(0.8, 0.2, 0.4)
+                target_bin = 'binA'
+                bin_pose_local = self.store.get(['shelf', 'bin', target_bin, 'pose'])
+                bin_pose_world = shelf_pose.dot(bin_pose_local)
+
+                bin_bounds_local = self.store.get(['shelf', 'bin', target_bin, 'bounds'])
+                bin_center_world = bin_pose_world[:3,:3].dot(numpy.matrix(bin_bounds_local).T.mean(axis=1)) + bin_pose_world[:3, 3]
 
                 target_box = {
-                    'position': list(bin_pose[:3, 3].flat),
-                    'drop position': list(bin_pose[:3, 3].flat)
+                    'position': list(bin_center_world.flat),
+                    'drop position': list(bin_center_world.flat)
                 }
 
                 logger.info('requesting stow motion plan')
