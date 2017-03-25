@@ -1,63 +1,75 @@
 import logging
-import sys
+
+from PySide.QtCore import QSize
+from PySide.QtGui import QWidget, QPushButton, QLineEdit, QInputDialog, QApplication, QComboBox, QGridLayout, QIcon
+
 from master.fsm import State
-from PySide.QtGui import QWidget, QPushButton, QLineEdit, QInputDialog, QApplication, QComboBox
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+def _call(target, *args, **kwargs):
+    def _cb():
+        return target(*args, **kwargs)
+    return _cb
+
 class CheckSelectItem(State):
     def run(self):
-        app = QApplication.instance()
-        wd = WidgetDialog(self.store)
-        #wd.show()
-        #sys.exit(app.exec_())
-        ret = app.exec_()
-        #sys.exit(ret)
+        window = ItemSelector(self.store)
+        window.show()
 
-class WidgetDialog(QWidget):
+class ItemSelector(QWidget):
     def __init__(self, store):
+        super(ItemSelector, self).__init__()
+
+        self.setWindowTitle('Select Item Checkpoint')
+
         self.store = store
-        super(WidgetDialog, self).__init__()
-        self.initUI()
-    
-    def initUI(self):
-        self.btn = QPushButton('Change item', self)
-        self.btn.move(10, 50)
-        self.btn.clicked.connect(self.getItem)
 
-        self.le = QLineEdit(self)
-        self.le.move(10, 20)
-        self.le.setFixedSize(300, 30)
-        self.le.setText(self.store.get('/robot/selected_item'))
+        items = self.store.get('/item').keys()
 
-        self.btnClose = QPushButton('Accept item', self)
-        self.btnClose.move(130, 50)
-        self.btnClose.clicked.connect(self.closeMe)
+        layout = QGridLayout()
+        self.setLayout(layout)
 
-        self.setGeometry(300, 300, 350, 150)
-        self.show()
+        self.buttons = {}
 
-    def closeMe(self):
-        QApplication.quit()
+        width = 5
+        for (i, item) in enumerate(sorted(items)):
+            parts = item.replace('_', ' ').title().split()
+            lines = ['']
+            for part in parts:
+                if len(lines[-1]) > 10:
+                    lines.append('')
 
-    def getItem(self):
-        items = []
-        self.itemList = self.store.get('/item/')
-        for k, n in self.itemList.items():
-            items.append(self.itemList[k]['name'])
+                lines[-1] += ' ' + part
 
-        item, ok = QInputDialog.getItem(self, 'Select item', 'Available items:', items, 0, False)
-        if ok and item:
-            self.le.setText(item)
+            button = QPushButton('\n'.join([line.strip() for line in lines]))
+            button.setIcon(QIcon('data/objects/apc2017/{0}/thumb.png'.format(item)))
+            button.setIconSize(QSize(64, 64))
+            button.setCheckable(True)
 
-        self.store.put('/robot/selected_item', item)
+            button.clicked.connect(_call(self.select, item))
 
+            self.buttons[item] = button
+            layout.addWidget(button, i // width, i % width)
 
-##########################
-def main():
+        self.select(self.store.get('/robot/selected_item'))
+
+    def select(self, selected_item):
+        for (item, button) in self.buttons.items():
+            if item == selected_item:
+                button.setStyleSheet('color: blue; font-weight: bold;')
+                button.setChecked(True)
+            else:
+                button.setStyleSheet('')
+                button.setChecked(False)
+
+        self.store.put('/robot/selected_item', selected_item)
+        logger.info('selected item: "{}"'.format(selected_item))
+
+if __name__ == '__main__':
+    app = QApplication([])
+
     csi = CheckSelectItem('csi')
     csi.run()
 
-if __name__ == '__main__':
-    main()
-
+    app.exec_()
