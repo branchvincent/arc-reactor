@@ -30,6 +30,35 @@ max_change=200.0/180.0*3.14159 #the max change between raw milestones is 20 degr
 milestone_check_max_change=5.0/180.0*3.14159 #the max change between milestones is 5 degree
 milestone_check_max_speed=60/180.0*3.14159
 
+
+def joint_space_rotate(motion_milestones,current_p,target_p,robot,vacuum_status):
+	theta1=math.atan2(current_p[1],current_p[0])
+	theta2=math.atan2(target_p[1],target_p[0])
+	delta=theta2-theta1
+	if delta>math.pi:
+		delta=delta-2*math.pi
+	elif delta<-math.pi:
+		delta=delta+2*math.pi
+	if delta>0:
+		#ccw rotate
+		while delta>0:
+			q=robot.getConfig()
+			q[1]+=0.05
+			q[6]+=0.05
+			motion_milestones.append(make_milestone(0.05,q,vacuum_status,vacuum_status))
+			robot.setConfig(q)
+			delta-=0.05
+	else:
+		while delta<0:
+			q=robot.getConfig()
+			q[1]-=0.05
+			q[6]-=0.05
+			motion_milestones.append(make_milestone(0.05,q,vacuum_status,vacuum_status))
+			robot.setConfig(q)
+			delta+=0.05
+	return motion_milestones
+
+
 def pick_up(world,item,target_box,target_index):
 	"""
 	This function will return a motion plan that will pick up the target item from the shelf and drop it to the tote.
@@ -127,6 +156,11 @@ def pick_up(world,item,target_box,target_index):
 		world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
 
 
+
+	motion_milestones=joint_space_rotate(motion_milestones,p,item_position,robot,0)
+	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
+	curr_orientation,p=robot.link(ee_link).getTransform()
+	current_T=[curr_orientation,curr_position]
 	#move the robot from current position to a start position that is above the target item
 	start_position=vectorops.add(item_position,[0,0,0.4])
 	start_position[2]=min(0.4,start_position[2])
@@ -159,13 +193,14 @@ def pick_up(world,item,target_box,target_index):
 		return False
 
 	curr_orientation,p=robot.link(ee_link).getTransform()
-	while drop_position[0]*p[1]<p[0]*drop_position[1]:
-		q=robot.getConfig()
-		q[1]+=0.05
-		q[6]+=0.05
-		motion_milestones.append(make_milestone(0.05,q,1,1))
-		robot.setConfig(q)
-		curr_orientation,p=robot.link(ee_link).getTransform()
+	motion_milestones=joint_space_rotate(motion_milestones,p,drop_position,robot,1)
+	# while drop_position[0]*p[1]<p[0]*drop_position[1]:
+	# 	q=robot.getConfig()
+	# 	q[1]+=0.05
+	# 	q[6]+=0.05
+	# 	motion_milestones.append(make_milestone(0.05,q,1,1))
+	# 	robot.setConfig(q)
+	# 	curr_orientation,p=robot.link(ee_link).getTransform()
 
 
 
@@ -257,7 +292,7 @@ def stow(world,item,target_box,target_index):
 	motion_milestones=[]
 	current_config=robot.getConfig()
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
-	curr_orientation=robot.link(ee_link).getTransform()[0]
+	curr_orientation,p=robot.link(ee_link).getTransform()
 	current_T=[curr_orientation,curr_position]
 	# item_position=item['position']
 	item_position=vectorops.div(vectorops.add(item['bbox'][0],item['bbox'][1]),2.0)
@@ -321,7 +356,10 @@ def stow(world,item,target_box,target_index):
 
 
 
-
+	motion_milestones=joint_space_rotate(motion_milestones,p,item_position,robot,0)
+	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
+	curr_orientation,p=robot.link(ee_link).getTransform()
+	current_T=[curr_orientation,curr_position]
 	#move the robot from current position to a start position that is above the target item
 	start_position=vectorops.add(item_position,[0,0,0.3])
 	end_T=[[-1,0,0,0,1,0,0,0,-1],start_position]
@@ -354,13 +392,14 @@ def stow(world,item,target_box,target_index):
 
 
 	curr_orientation,p=robot.link(ee_link).getTransform()
-	while drop_position[0]*p[1]>p[0]*drop_position[1]:
-		q=robot.getConfig()
-		q[1]-=0.05
-		q[6]-=0.05
-		motion_milestones.append(make_milestone(0.05,q,1,1))
-		robot.setConfig(q)
-		curr_orientation,p=robot.link(ee_link).getTransform()
+	motion_milestones=joint_space_rotate(motion_milestones,p,drop_position,robot,1)
+	# while drop_position[0]*p[1]>p[0]*drop_position[1]:
+	# 	q=robot.getConfig()
+	# 	q[1]-=0.05
+	# 	q[6]-=0.05
+	# 	motion_milestones.append(make_milestone(0.05,q,1,1))
+	# 	robot.setConfig(q)
+	# 	curr_orientation,p=robot.link(ee_link).getTransform()
 
 
 
