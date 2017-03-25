@@ -25,7 +25,7 @@ class ItemSelector(QWidget):
 
         self.store = store
 
-        items = self.store.get('/item').keys()
+        items = self.store.get('/item')
 
         layout = QGridLayout()
         self.setLayout(layout)
@@ -34,7 +34,7 @@ class ItemSelector(QWidget):
 
         width = 5
         for (i, item) in enumerate(sorted(items)):
-            parts = item.replace('_', ' ').title().split()
+            parts = items[item]['display_name'].split(' ')
             lines = ['']
             for part in parts:
                 if len(lines[-1]) > 10:
@@ -43,8 +43,10 @@ class ItemSelector(QWidget):
                 lines[-1] += ' ' + part
 
             button = QPushButton('\n'.join([line.strip() for line in lines]))
-            button.setIcon(QIcon('data/objects/apc2017/{0}/thumb.png'.format(item)))
-            button.setIconSize(QSize(64, 64))
+            icon = QIcon(items[item].get('thumbnail', ''))
+            if not icon.isNull():
+                button.setIcon(icon)
+                button.setIconSize(QSize(64, 64))
             button.setCheckable(True)
 
             button.clicked.connect(_call(self.select, item))
