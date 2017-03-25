@@ -3,8 +3,7 @@
 OUT=data.tgz
 
 tar czvf ${OUT} --exclude='*.blend*' \
-    test/test_03* \
-    test/workcell_03* \
+    test/workcell_0325* \
     robots/*.* \
     robots/tx90l \
     robots/gripper7 \
@@ -13,3 +12,5 @@ tar czvf ${OUT} --exclude='*.blend*' \
     terrains
 
 scp ${OUT} mtd13@login.oit.duke.edu:~/public_html/arc-2017/${OUT}
+
+rm ${OUT}
