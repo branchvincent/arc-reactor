@@ -32,24 +32,31 @@ class RealsenseCalibration(QtWidgets.QWidget):
     def __init__(self):
         super(RealsenseCalibration, self).__init__()
         self.initUI()
-        ctx = rs.context()
-        self.thread = VideoThread(ctx,0)
-        self.thread.signal.connect(self.updateView)
-        cameramat, cameracoeff = self.thread.getIntrinsics()
-        if cameramat is None:
-            logger.warning("Unable to get camera coefficients for camera. Setting to zeros...")
-            cameramat = np.array([[1,0,0],[0,1,0],[0,0,1]])
-            cameracoeff = np.zeros((5))
+        self.ctx = rs.context()
+        
+        #what cameras are connected?
+        self.connected_cams = self.ctx.get_device_count()
+        self.cam_serial_nums = []
+        for i in range(self.connected_cams):
+            cam = self.ctx.get_device(i)
+            #return the serial num of the camera too
+            sn = cam.get_info(rs.camera_info_serial_number)
+            self.cam_serial_nums.append(sn)
+        
+        #fill in the combo box with the cameras attached
+        self.camera_selector_combo.addItems(self.cam_serial_nums)
+        self.camera_selector_combo.currentIndexChanged.connect(self.change_camera)
+        self.change_camera(0)
 
-        self.camera_matrix = cameramat
-        self.camera_coeff = cameracoeff
         self.cameraXform = np.identity(4)
 
         self.objectName = ""
         self.cameraName = ""
 
+
         self.db_client = PensiveClient(host='http://10.10.1.60:8888')
         self.store = self.db_client.default()
+        self.store = None
         register_numpy()
     def initUI(self):
 
@@ -120,8 +127,11 @@ class RealsenseCalibration(QtWidgets.QWidget):
         label.show()
         self.gridTop.addWidget(label, 2, 0)
         self.gridTop.addWidget(self.objectNameTextBox, 2, 1)
-        self.horzTop.addLayout(self.gridTop)
+        self.horzTop.addItem(self.gridTop)
         
+        self.camera_selector_combo = QtWidgets.QComboBox(self)
+        self.horzTop.addWidget(self.camera_selector_combo)
+
         self.horzTop.addStretch(1)
         self.calibrate_button.clicked.connect(self.calibrate_camera)
         self.save_button.clicked.connect(self.save_calibration)
@@ -145,6 +155,19 @@ class RealsenseCalibration(QtWidgets.QWidget):
      
         self.calibrate_button.show()
 
+
+    def change_camera(self, cam_num):
+        logger.info("Camera changed to {}".format(self.cam_serial_nums[cam_num]))
+        self.thread = VideoThread(self.ctx, cam_num)
+        self.thread.signal.connect(self.updateView)
+        cameramat, cameracoeff = self.thread.getIntrinsics()
+        if cameramat is None:
+            logger.warning("Unable to get camera coefficients for camera. Setting to zeros...")
+            cameramat = np.array([[1,0,0],[0,1,0],[0,0,1]])
+            cameracoeff = np.zeros((5))
+
+        self.camera_matrix = cameramat
+        self.camera_coeff = cameracoeff
     
     def calibrate_camera(self):
         if self.thread.isRunning():
@@ -397,7 +420,6 @@ class VideoThread(QtCore.QThread):
                 points = np.reshape(points, (height, width, 3) )
             self.mutex.acquire()
             if c%self.update_rate == 1 and self.can_emit:
-                logger.debug("Cam {} sent {}".format(self.cam_num, c))
                 self.signal.emit(imageFullColor, imageAllignedColor, points, self.cam_num)
                 self.can_emit = False
 
