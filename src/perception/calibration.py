@@ -315,6 +315,7 @@ class VideoThread(QtCore.QThread):
         self.cam_num = cam_num
         self.update_rate = update_rate
         self.mutex = Lock()
+        self.laseron = True
     def getIntrinsics(self):
         if self.context.get_device_count() == 0:
             logger.warn("No cameras attached")
@@ -360,6 +361,8 @@ class VideoThread(QtCore.QThread):
             return
         c = 0
         cam.start()
+        if not self.laseron:
+            cam.set_option(rs.option_f200_laser_power, 0)
         t = time.time()
         while self.keepRunning:
             cam.wait_for_frames()
