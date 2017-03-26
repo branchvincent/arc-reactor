@@ -84,11 +84,13 @@ def pick_up(world,item,target_box,target_index):
 		Also all the values are in radius, while the real robot joint values are in degree
 		- gripper control
 		- vaccum: 0-off 1-on
+		check_points for the motion plan:
+			-- a list of transform matrixs for the end-effector at key points for the plan
 	"""
 
 	#init
 	robot=world.robot(0)
-	motion_milestones=[]
+	
 	current_config=robot.getConfig()
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation,p=robot.link(ee_link).getTransform()
@@ -104,8 +106,9 @@ def pick_up(world,item,target_box,target_index):
 	#   drop_position=find_drop_position(item['bbox'],order_box_min,order_box_max,world)
 	box_bottom_high=target_box['position'][2]
 	vaccum_approach_distance=[0,0,0.03]
-	#setting some constant parameters and limits
-
+	#setting outputs
+	check_points=[]
+	motion_milestones=[]
 	test_cspace=TestCSpace(Globals(world))
 
 	#find a placement position if no goal position is given by the input
@@ -156,15 +159,17 @@ def pick_up(world,item,target_box,target_index):
 		world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
 
 
-
+	check_points.append(current_T)
 	motion_milestones=joint_space_rotate(motion_milestones,p,item_position,robot,0)
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation,p=robot.link(ee_link).getTransform()
 	current_T=[curr_orientation,curr_position]
+	check_points.append(current_T)
 	#move the robot from current position to a start position that is above the target item
 	start_position=vectorops.add(item_position,[0,0,0.4])
 	start_position[2]=min(0.4,start_position[2])
 	end_T=[[-1,0,0,0,1,0,0,0,-1],start_position]
+	check_points.append(end_T)
 	l=vectorops.distance(current_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 	if not motion_milestones:
@@ -177,6 +182,7 @@ def pick_up(world,item,target_box,target_index):
 	#lower the vacuum
 	start_T=end_T
 	end_T[1]=vectorops.add(item_position,item_vacuum_offset)
+	check_points.append(end_T)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
@@ -187,6 +193,7 @@ def pick_up(world,item,target_box,target_index):
 	start_T=end_T
 	end_T[1][2]+=0.4
 	l=vectorops.distance(start_T[1],end_T[1])
+	check_points.append(end_T)
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
 		print "can't find a feasible path to pick up the item"
@@ -208,6 +215,7 @@ def pick_up(world,item,target_box,target_index):
 	start_T=end_T
 	end_T[1][0]=drop_position[0]
 	end_T[1][1]=drop_position[1]
+	check_points.append(end_T)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
@@ -217,6 +225,7 @@ def pick_up(world,item,target_box,target_index):
 	#lower the item
 	start_T=end_T
 	end_T[1]=vectorops.add(drop_position,drop_offset)
+	check_points.append(end_T)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,1,1,1)
 	if not motion_milestones:
@@ -229,6 +238,7 @@ def pick_up(world,item,target_box,target_index):
 	#raise the robot
 	start_T=end_T
 	end_T[1][2]=0.45
+	check_points.append(end_T)
 	l=vectorops.distance(start_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,start_T,end_T,0,0,0)
 	if not motion_milestones:
@@ -491,6 +501,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 	t_step=1.0/control_rate
 	# print "start config",robot.getConfig()
 	i=0
+	start_q=robot.getConfig()[3]
 	while i<=steps:
 		q_old=robot.getConfig()
 		u=i*1.0/steps
@@ -506,7 +517,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		# print test_cspace.feasible(q)
 
 		flag = 1
-		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]<0:
+		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]*start_q<0:
 			print "too much change!"
 			print max(vectorops.sub(q_old,q))
 			print min(vectorops.sub(q_old,q))
@@ -521,7 +532,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 				s=ik.solve_global(goal)
 				# s=ik.solve_nearby(goal,maxDeviation=1000,feasibilityCheck=test_function)
 				q=robot.getConfig()
-				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]<0:
+				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]*start_q<0:
 					# print "too much change!"
 					flag=0
 				else:
