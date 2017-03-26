@@ -82,12 +82,13 @@ class PlanRoute(State):
                 shelf_pose = self.store.get(['shelf', 'pose'])
                 from master.world import xyz
 
-                target_bin = 'binA'
+                target_bin = self.store.get(['robot', 'target_bin'])
                 bin_pose_local = self.store.get(['shelf', 'bin', target_bin, 'pose'])
                 bin_pose_world = shelf_pose.dot(bin_pose_local)
 
-                bin_bounds_local = self.store.get(['shelf', 'bin', target_bin, 'bounds'])
-                bin_center_world = bin_pose_world[:3,:3].dot(numpy.matrix(bin_bounds_local).T.mean(axis=1)) + bin_pose_world[:3, 3]
+                bin_bounds_local = numpy.array(self.store.get(['shelf', 'bin', target_bin, 'bounds'])).T
+                bin_target_local = numpy.matrix([bin_bounds_local[0].mean(), bin_bounds_local[1].mean(), bin_bounds_local[2].max()]).T
+                bin_center_world = bin_pose_world[:3,:3].dot(bin_target_local) + bin_pose_world[:3, 3]
 
                 target_box = {
                     'position': list(bin_center_world.flat),
