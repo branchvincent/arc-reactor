@@ -38,7 +38,7 @@ for name in paths:
         'bounds': [[0, 0, 0], obj['dimensions']],
         'type': obj['type'],
 
-        'location': 'tote',
+        'location': 'stow_tote',
         'new_item': False,
         'point_value': 10,
         'properties': [],

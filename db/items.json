@@ -20,7 +20,7 @@
                 0.113
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "epsom_salts": {
         "thumbnail": "data/objects/apc2017/Epsom_Salts/thumb.png", 
@@ -43,7 +43,7 @@
                 0.068
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "measuring_spoons": {
         "thumbnail": "data/objects/apc2017/Measuring_Spoons/thumb.png", 
@@ -66,7 +66,7 @@
                 0.027
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "bath_sponge": {
         "thumbnail": "data/objects/apc2017/Bath_Sponge/thumb.png", 
@@ -89,7 +89,7 @@
                 0.123
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "white_facecloth": {
         "thumbnail": "data/objects/apc2017/White_Facecloth/thumb.png", 
@@ -112,7 +112,7 @@
                 0.039
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "glue_sticks": {
         "thumbnail": "data/objects/apc2017/Glue_Sticks/thumb.png", 
@@ -135,7 +135,7 @@
                 0.022
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "windex": {
         "thumbnail": "data/objects/apc2017/Windex/thumb.png", 
@@ -158,7 +158,7 @@
                 0.061
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "flashlight": {
         "thumbnail": "data/objects/apc2017/Flashlight/thumb.png", 
@@ -181,7 +181,7 @@
                 0.03
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "black_fashion_gloves": {
         "thumbnail": "data/objects/apc2017/Black_Fashion_Gloves/thumb.png", 
@@ -204,7 +204,7 @@
                 0.03
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "hinged_ruled_index_cards": {
         "thumbnail": "data/objects/apc2017/Hinged_Ruled_Index_Cards/thumb.png", 
@@ -227,7 +227,7 @@
                 0.022
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "fiskars_scissors": {
         "thumbnail": "data/objects/apc2017/Fiskars_Scissors/thumb.png", 
@@ -250,7 +250,7 @@
                 0.011
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "reynolds_wrap": {
         "thumbnail": "data/objects/apc2017/Reynolds_Wrap/thumb.png", 
@@ -273,7 +273,7 @@
                 0.047
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "colgate_toothbrush_4pk": {
         "thumbnail": "data/objects/apc2017/Colgate_Toothbrush_4PK/thumb.png", 
@@ -296,7 +296,7 @@
                 0.023
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "burts_bees_baby_wipes": {
         "thumbnail": "data/objects/apc2017/Burts_Bees_Baby_Wipes/thumb.png", 
@@ -319,7 +319,7 @@
                 0.066
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "balloons": {
         "thumbnail": "data/objects/apc2017/Balloons/thumb.png", 
@@ -342,7 +342,7 @@
                 0.03
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "mouse_traps": {
         "thumbnail": "data/objects/apc2017/Mouse_Traps/thumb.png", 
@@ -365,7 +365,7 @@
                 0.036
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "avery_binder": {
         "thumbnail": "data/objects/apc2017/Avery_Binder/thumb.png", 
@@ -388,7 +388,7 @@
                 0.041
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "scotch_sponges": {
         "thumbnail": "data/objects/apc2017/Scotch_Sponges/thumb.png", 
@@ -411,7 +411,7 @@
                 0.072
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "crayons": {
         "thumbnail": "data/objects/apc2017/Crayons/thumb.png", 
@@ -434,7 +434,7 @@
                 0.028
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "marbles": {
         "thumbnail": "data/objects/apc2017/Marbles/thumb.png", 
@@ -457,7 +457,7 @@
                 0.085
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "duct_tape": {
         "thumbnail": "data/objects/apc2017/Duct_Tape/thumb.png", 
@@ -480,7 +480,7 @@
                 0.049
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "plastic_wine_glass": {
         "thumbnail": "data/objects/apc2017/Plastic_Wine_Glass/thumb.png", 
@@ -503,7 +503,7 @@
                 0.079
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "laugh_out_loud_jokes": {
         "thumbnail": "data/objects/apc2017/Laugh_Out_Loud_Jokes/thumb.png", 
@@ -526,7 +526,7 @@
                 0.015
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "ice_cube_tray": {
         "thumbnail": "data/objects/apc2017/Ice_Cube_Tray/thumb.png", 
@@ -549,7 +549,7 @@
                 0.043
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "irish_spring_soap": {
         "thumbnail": "data/objects/apc2017/Irish_Spring_Soap/thumb.png", 
@@ -572,7 +572,7 @@
                 0.039
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "tennis_ball_container": {
         "thumbnail": "data/objects/apc2017/Tennis_Ball_Container/thumb.png", 
@@ -595,7 +595,7 @@
                 0.077
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "pie_plates": {
         "thumbnail": "data/objects/apc2017/Pie_Plates/thumb.png", 
@@ -618,7 +618,7 @@
                 0.05
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "toilet_brush": {
         "thumbnail": "data/objects/apc2017/Toilet_Brush/thumb.png", 
@@ -641,7 +641,7 @@
                 0.085
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "composition_book": {
         "thumbnail": "data/objects/apc2017/Composition_Book/thumb.png", 
@@ -664,7 +664,7 @@
                 0.011
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "robots_dvd": {
         "thumbnail": "data/objects/apc2017/Robots_DVD/thumb.png", 
@@ -687,7 +687,7 @@
                 0.016
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "ticonderoga_pencils": {
         "thumbnail": "data/objects/apc2017/Ticonderoga_Pencils/thumb.png", 
@@ -710,7 +710,7 @@
                 0.012
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "band_aid_tape": {
         "thumbnail": "data/objects/apc2017/Band_Aid_Tape/thumb.png", 
@@ -733,7 +733,7 @@
                 0.03
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "mesh_cup": {
         "thumbnail": "data/objects/apc2017/Mesh_Cup/thumb.png", 
@@ -756,7 +756,7 @@
                 0.109
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "speed_stick": {
         "thumbnail": "data/objects/apc2017/Speed_Stick/thumb.png", 
@@ -779,7 +779,7 @@
                 0.061
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "poland_spring_water": {
         "thumbnail": "data/objects/apc2017/Poland_Spring_Water/thumb.png", 
@@ -802,7 +802,7 @@
                 0.065
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "expo_eraser": {
         "thumbnail": "data/objects/apc2017/Expo_Eraser/thumb.png", 
@@ -825,7 +825,7 @@
                 0.037
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "robots_everywhere": {
         "thumbnail": "data/objects/apc2017/Robots_Everywhere/thumb.png", 
@@ -848,7 +848,7 @@
                 0.006
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "table_cloth": {
         "thumbnail": "data/objects/apc2017/Table_Cloth/thumb.png", 
@@ -871,7 +871,7 @@
                 0.023
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "hanes_socks": {
         "thumbnail": "data/objects/apc2017/Hanes_Socks/thumb.png", 
@@ -894,7 +894,7 @@
                 0.072
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }, 
     "hand_weight": {
         "thumbnail": "data/objects/apc2017/Hand_Weight/thumb.png", 
@@ -917,6 +917,6 @@
                 0.057
             ]
         ], 
-        "location": "tote"
+        "location": "stow_tote"
     }
 }
