@@ -64,7 +64,7 @@ class ItemSelector(QWidget):
 
         self.box_buttons = {}
 
-        label = QLabel('Target Box')
+        label = QLabel('Selected Box')
         label.setAlignment(Qt.AlignHCenter)
         label.setStyleSheet('font-weight: bold;')
         layout.addWidget(label, 0, width + 1)
@@ -78,11 +78,11 @@ class ItemSelector(QWidget):
             self.box_buttons[box] = button
             layout.addWidget(button, i + 1, width + 1)
 
-        self.select_box(self.store.get('/robot/target_box'))
+        self.select_box(self.store.get('/robot/selected_box'))
 
         self.bin_buttons = {}
 
-        label = QLabel('Target Bin')
+        label = QLabel('Selected Bin')
         label.setAlignment(Qt.AlignHCenter)
         label.setStyleSheet('font-weight: bold;')
         layout.addWidget(label, 0, width + 2)
@@ -96,7 +96,7 @@ class ItemSelector(QWidget):
             self.bin_buttons[bin] = button
             layout.addWidget(button, i + 1, width + 2)
 
-        self.select_bin(self.store.get('/robot/target_bin'))
+        self.select_bin(self.store.get('/robot/selected_bin'))
 
     def select_item(self, selected_item):
         for (item, button) in self.item_buttons.items():
@@ -110,29 +110,29 @@ class ItemSelector(QWidget):
         self.store.put('/robot/selected_item', selected_item)
         logger.info('selected item: "{}"'.format(selected_item))
 
-    def select_box(self, target_box):
+    def select_box(self, selected_box):
         for (box, button) in self.box_buttons.items():
-            if box == target_box:
+            if box == selected_box:
                 button.setStyleSheet('color: blue; font-weight: bold;')
                 button.setChecked(True)
             else:
                 button.setStyleSheet('')
                 button.setChecked(False)
 
-        self.store.put('/robot/target_box', target_box)
-        logger.info('target box: "{}"'.format(target_box))
+        self.store.put('/robot/selected_box', selected_box)
+        logger.info('selected box: "{}"'.format(selected_box))
 
-    def select_bin(self, target_bin):
+    def select_bin(self, selected_bin):
         for (bin, button) in self.bin_buttons.items():
-            if bin == target_bin:
+            if bin == selected_bin:
                 button.setStyleSheet('color: blue; font-weight: bold;')
                 button.setChecked(True)
             else:
                 button.setStyleSheet('')
                 button.setChecked(False)
 
-        self.store.put('/robot/target_bin', target_bin)
-        logger.info('target bin: "{}"'.format(target_bin))
+        self.store.put('/robot/selected_bin', selected_bin)
+        logger.info('selected bin: "{}"'.format(selected_bin))
 
 if __name__ == '__main__':
     app = QApplication([])

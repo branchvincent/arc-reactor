@@ -82,7 +82,7 @@ class PlanRoute(State):
                 shelf_pose = self.store.get(['shelf', 'pose'])
                 from master.world import xyz
 
-                target_bin = self.store.get(['robot', 'target_bin'])
+                target_bin = self.store.get(['robot', 'selected_bin'])
                 bin_pose_local = self.store.get(['shelf', 'bin', target_bin, 'pose'])
                 bin_pose_world = shelf_pose.dot(bin_pose_local)
 
