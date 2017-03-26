@@ -19,7 +19,7 @@ class SimplePickFSM(DatabaseDependentTestCase):
             raise SkipTest('Klampt is not installed')
 
         self.store = self.client.default()
-        self.store.put('', json.loads(gzip.open('data/test/workcell_032517.json.gz').read()))
+        self.store.put('', json.loads(gzip.open('data/test/workcell_032617.json.gz').read()))
 
         self.store.put('/status/task', 'pick')
 
@@ -27,6 +27,9 @@ class SimplePickFSM(DatabaseDependentTestCase):
         self.store.put('/simulate/robot_motion', True)
         self.store.put('/simulate/object_detection', True)
         self.store.put('/simulate/cameras', True)
+
+        # disable checkpoints
+        self.store.delete('/checkpoint')
 
         # skip difficult to simulate parts
         self.store.put('/test/skip_grabcut', True)
