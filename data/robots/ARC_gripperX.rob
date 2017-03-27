@@ -1,0 +1,44 @@
+parents -1 0 1 2 3 4 5 6 7 6 9  
+TParent 1 0 0   0 1 0   0 0 1   0 0 0 \
+0 1 0   -1 0 0   0 0 1   -0.0248 0 0.242   \
+ 0 0 -1   1 0 0   0 -1 0   -0.16 0.05 0.23  \
+ 1 0 0   0 -1 0   0 0 -1   -0.0001 -0.5 0  \
+1 0 0   0 0 1   0 -1 0   -0.0002 0.156 0.11 \
+1 0 0   0 0 -1   0 1 0   0.008 0.0305 0.3952  \
+0 0 1    1 0  0     0 1 0    0 0.1 0.03 \
+1 0 0	0 1 0	0 0 1	0.078287 0.021 0.012011 \
+1 0 0	0 1 0	0 0 1	0.062744 0.026213 0.009 \
+1 0 -0	0 -1 7.34641e-06	0 -7.34641e-06 -1	0.078287 -0.019 0.012011 \
+1 0 0	0 1 0	0 0 1	0.062791 0.026101 -0.009
+
+
+axis 0 0 1    0 0 1    0 0 1    0 0 1    0 0 1   0 0 1    1 0 0	0 0 1	0 0 1	0 0 -1	0 0 -1	
+
+translation  0 0 0
+
+qMinDeg    0    -179   -147.5   -145    -179   -140    -359 -15 -120.3 -120.3 -15 
+
+qMaxDeg    0    179    130       145    179    115    359 120.3 15 15 120.3 
+
+velMaxDeg  0    400    400      430    540    475    760 90    90      90    90 
+
+accMaxDeg  0    400    400      400    400     400    400 300    300    300   300  
+
+geometry   "tx90l/part6.off" "tx90l/part5.off" "tx90l/part4.off" "tx90l/part3.off" "tx90l/part2.off" "tx90l/part1.off" "gripperX/base_link.tri" "gripperX/left_link.tri" "gripperX/left_gripper.tri" "gripperX/right_link.tri" "gripperX/right_gripper.tri" 
+
+mass       20 10 10 5 5 1 1 1 0.5 1 0.5 
+
+automass
+torqueMax  0 800 600 400 200 200 100 1000 100 100 100
+
+servoP  40000 50000 20000 10000 2000 400 500 500 500 500  
+servoI  100 100 100 100 40 10 100 100 100 100 
+servoD  1000 2000 700 400 50 2 0.1 0.1 0.1 0.1  
+
+dryFriction 5 5 3 1 0.1 0.02 1 1 1 1 
+viscousFriction 100 100 70 40 5 1 1 1 1 1  
+
+noselfcollision 7 9 
+noselfcollision 8 9
+noselfcollision 8 10
+

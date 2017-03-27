@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<world>
+ <robot name="ARC_X" file="robots/ARC_gripperX.rob" translation="0 0 0"  config="11 0.0 1.62 -0.175  -1.95 0 -1.38 1.57 0 0 0 0 "/>
+<!--   <robot name="ARC" file="robots/ARC.rob" translation="0 0 0"  config="7 0.0 1.62 -0.175  -1.95 0 -1.38 -0.69"/> -->
+
+  <terrain file="terrains/block.off" />
+
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.66 0.5 0.1" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
+<!-- 1.Avery_Binder  -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Avery_Binder/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 2. Balloons -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Balloons/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 3. Band_Aid_Tape -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Band_Aid_Tape/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 4. Bath_Sponge  -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Bath_Sponge/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 5. Black_Fashion_Gloves -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Black_Fashion_Gloves/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 6. Burts_Bees_Baby_Wipes -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Burts_Bees_Baby_Wipes/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 7. Colgate_Toothbrush_4PK -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Colgate_Toothbrush_4PK/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 8. Composition_Book -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Composition_Book/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 9. Crayons -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Crayons/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 10. Duct_Tape -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Duct_Tape/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 11. Epsom_Salts -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Epsom_Salts/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 12. Expo_Eraser -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Expo_Eraser/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 13. Fiskars_Scissors -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Fiskars_Scissors/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 14. Flashlight -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Flashlight/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 15. Glue_Sticks -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Glue_Sticks/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 16. Hand_Weight -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Hand_Weight/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 17. Hanes_Socks -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Hanes_Socks/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 18. Hinged_Ruled_Index_Cards -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Hinged_Ruled_Index_Cards/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 19. Ice_Cube_Tray -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Ice_Cube_Tray/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 20. Irish_Spring_Soap -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Irish_Spring_Soap/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 21. Laugh_Out_Loud_Jokes -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Laugh_Out_Loud_Jokes/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> --> 
+<!-- 22. Marbles -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Marbles/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 23. Measuring_Spoons -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Measuring_Spoons/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 24. Mesh_Cup -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Mesh_Cup/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 25. Mouse_Traps -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Mouse_Traps/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 26. Pie_Plates -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Pie_Plates/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 27. Plastic_Wine_Glass -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Plastic_Wine_Glass/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 28. Poland_Spring_Water -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Poland_Spring_Water/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 29. Reynolds_Wrap -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Reynolds_Wrap/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 30. Robots_DVD -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Robots_DVD/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 31. Robots_Everywhere -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Robots_Everywhere/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 32. Scotch_Sponges -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Scotch_Sponges/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 33. Speed_Stick -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Speed_Stick/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 34. Table_Cloth -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Table_Cloth/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 35. Tennis_Ball_Container -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Tennis_Ball_Container/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 36. Ticonderoga_Pencils -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Ticonderoga_Pencils/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 37. Tissue_Box -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Tissue_Box/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 38. Toilet_Brush -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Toilet_Brush/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 39. White_Facecloth -->
+<!--   <rigidObject name="srimug" file="../../apc2017/White_Facecloth/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!-- 40. Windex -->
+<!--   <rigidObject name="srimug" file="../../apc2017/Windex/mesh.ply"  position="-0.02 0.5 0.3" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+
+</world>
