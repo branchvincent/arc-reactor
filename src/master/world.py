@@ -174,7 +174,7 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
                 box = _get_rigid_object(world, '{}_box'.format(name), 'data/objects/box-{}.off'.format(size))
                 _sync(db, '/box/{}/pose'.format(name), lambda p: box.setTransform(*numpy2klampt(p)))
         else:
-            _remove_rigid_object(world, '{}_box'.format(box))
+            _remove_rigid_object(world, '{}_box'.format(name))
 
     if 'camera' not in ignore:
         # update cameras
