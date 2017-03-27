@@ -51,7 +51,7 @@ class PlanRoute(State):
             # 'bbox': [item_position, item_position],
             'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
-            'drop offset': [0, 0, 0.2],
+            'drop offset': [0, 0, 0.1],
         }
 
         self.store.put('/robot/target_bounding_box', bounding_box)
@@ -87,12 +87,12 @@ class PlanRoute(State):
                 bin_pose_world = shelf_pose.dot(bin_pose_local)
 
                 bin_bounds_local = numpy.array(self.store.get(['shelf', 'bin', target_bin, 'bounds'])).T
-                bin_target_local = numpy.matrix([bin_bounds_local[0].mean(), bin_bounds_local[1].mean(), bin_bounds_local[2].max()]).T
-                bin_center_world = bin_pose_world[:3,:3].dot(bin_target_local) + bin_pose_world[:3, 3]
+                bin_bounds_world = bin_pose_world[:3,:3].dot(bin_bounds_local) + bin_pose_world[:3, 3]
+                bin_target_world = numpy.matrix([bin_bounds_world[0].mean(), bin_bounds_world[1].mean(), bin_bounds_world[2].max()]).T
 
                 target_box = {
-                    'position': list(bin_center_world.flat),
-                    'drop position': list(bin_center_world.flat)
+                    'position': list(bin_target_world.flat),
+                    'drop position': list(bin_target_world.flat)
                 }
 
                 logger.info('requesting stow motion plan')
