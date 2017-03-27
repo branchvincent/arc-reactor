@@ -69,7 +69,7 @@ class ItemSelector(QWidget):
         label.setStyleSheet('font-weight: bold;')
         layout.addWidget(label, 0, width + 1)
 
-        for (i, box) in enumerate(sorted(self.store.get('/box'))):
+        for (i, box) in enumerate(sorted(self.store.get('/order'))):
             button = QPushButton(box)
             button.setCheckable(True)
             button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
