@@ -167,14 +167,14 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
         _remove_rigid_object(world, 'stow_tote')
 
     # update boxes
-    for quantity in [2, 3, 5]:
+    for name in db.get('/box'):
         if task in ['pick', 'final']:
-            size = db.get('/box/order{}/size'.format(quantity))
+            size = db.get('/box/{}/size'.format(name))
             if size:
-                box = _get_rigid_object(world, 'order_box{}'.format(quantity), 'data/objects/box-{}.off'.format(size))
-                _sync(db, '/box/order{}/pose'.format(quantity), lambda p: box.setTransform(*numpy2klampt(p)))
+                box = _get_rigid_object(world, '{}_box'.format(name), 'data/objects/box-{}.off'.format(size))
+                _sync(db, '/box/{}/pose'.format(name), lambda p: box.setTransform(*numpy2klampt(p)))
         else:
-            _remove_rigid_object(world, 'order_box{}'.format(quantity))
+            _remove_rigid_object(world, '{}_box'.format(box))
 
     if 'camera' not in ignore:
         # update cameras
