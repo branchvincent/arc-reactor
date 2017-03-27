@@ -15,7 +15,7 @@ import os
 import time
 import json
 import copy
-ee_local=[0.0,0.0,0.37]
+ee_local=[0.0,0.0,0.4]
 # ee_local=[0,0,0]
 box_release_offset=[0,0,0.06]
 # approach_p1=[0.6,0.2+shelf_position[1],1]
@@ -501,7 +501,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 	t_step=1.0/control_rate
 	# print "start config",robot.getConfig()
 	i=0
-	start_q=robot.getConfig()[3]
+	start_q=robot.getConfig()
 	while i<=steps:
 		q_old=robot.getConfig()
 		u=i*1.0/steps
@@ -517,7 +517,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		# print test_cspace.feasible(q)
 
 		flag = 1
-		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]*start_q<0:
+		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]*start_q[3]<0 <0:
 			print "too much change!"
 			print vectorops.sub(q_old,q)
 			flag=0
@@ -532,7 +532,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 				s=ik.solve_global(goal)
 				# s=ik.solve_nearby(goal,maxDeviation=1000,feasibilityCheck=test_function)
 				q=robot.getConfig()
-				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]*start_q<0:
+				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]*start_q[3]<0 :
 					print "too much change!"
 					flag=0
 				else:
@@ -547,6 +547,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		else:
 			print 'no feasible solution can be found!!!!!'
 			print s
+			print flag
 			return False
 	return milestones
 
