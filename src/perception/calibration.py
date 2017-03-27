@@ -32,25 +32,31 @@ class RealsenseCalibration(QtWidgets.QWidget):
     def __init__(self):
         super(RealsenseCalibration, self).__init__()
         self.initUI()
-        ctx = rs.context()
-        self.thread = VideoThread(ctx,0)
-        self.thread.signal.connect(self.updateView)
-        cameramat, cameracoeff = self.thread.getIntrinsics()
-        self.extrinsics = self.thread.getExtrinsics()
-        if cameramat is None:
-            logger.warning("Unable to get camera coefficients for camera. Setting to zeros...")
-            cameramat = np.array([[1,0,0],[0,1,0],[0,0,1]])
-            cameracoeff = np.zeros((5))
+        self.ctx = rs.context()
+        
+        #what cameras are connected?
+        self.connected_cams = self.ctx.get_device_count()
+        self.cam_serial_nums = []
+        for i in range(self.connected_cams):
+            cam = self.ctx.get_device(i)
+            #return the serial num of the camera too
+            sn = cam.get_info(rs.camera_info_serial_number)
+            self.cam_serial_nums.append(sn)
+        
+        #fill in the combo box with the cameras attached
+        self.camera_selector_combo.addItems(self.cam_serial_nums)
+        self.camera_selector_combo.currentIndexChanged.connect(self.change_camera)
+        self.change_camera(0)
 
-        self.camera_matrix = cameramat
-        self.camera_coeff = cameracoeff
         self.cameraXform = np.identity(4)
 
         self.objectName = ""
         self.cameraName = ""
 
+        self.last_x_poses = []              #stores the last 10 poses of the camera charuco
         self.db_client = PensiveClient(host='http://10.10.1.60:8888')
         self.store = self.db_client.default()
+        self.store = None
         register_numpy()
     def initUI(self):
 
@@ -121,7 +127,10 @@ class RealsenseCalibration(QtWidgets.QWidget):
         label.show()
         self.gridTop.addWidget(label, 2, 0)
         self.gridTop.addWidget(self.objectNameTextBox, 2, 1)
-        self.horzTop.addLayout(self.gridTop)
+        self.horzTop.addItem(self.gridTop)
+        
+        self.camera_selector_combo = QtWidgets.QComboBox(self)
+        self.horzTop.addWidget(self.camera_selector_combo)
 
         self.horzTop.addStretch(1)
         self.calibrate_button.clicked.connect(self.calibrate_camera)
@@ -147,6 +156,22 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.calibrate_button.show()
 
 
+    def change_camera(self, cam_num):
+        logger.info("Camera changed to {}".format(self.cam_serial_nums[cam_num]))
+        self.thread = VideoThread(self.ctx, cam_num)
+        self.thread.signal.connect(self.updateView)
+        cameramat, cameracoeff = self.thread.getIntrinsics()
+        self.extrinsics = self.thread.getExtrinsics()
+        if cameramat is None:
+            logger.warning("Unable to get camera coefficients for camera. Setting to zeros...")
+            cameramat = np.array([[1,0,0],[0,1,0],[0,0,1]])
+            cameracoeff = np.zeros((5))
+
+        self.camera_matrix = cameramat
+        self.camera_coeff = cameracoeff
+        self.last_x_poses = []
+        self.pose_counter = 0
+    
     def calibrate_camera(self):
         if self.thread.isRunning():
             self.thread.keepRunning = False
@@ -179,13 +204,26 @@ class RealsenseCalibration(QtWidgets.QWidget):
             xform[0:3, 0:3] = rotMat
             xform[0:3, 3] = pose[2].flatten()
             xform[3, 3] = 1
-            self.cameraXform = self.extrinsics.dot(xform)
+
+            if len(self.last_x_poses) >= 10:
+                #replace at the counter
+                self.last_x_poses[self.pose_counter] = xform
+                self.pose_counter = (self.pose_counter + 1) % 10
+            else:
+                self.last_x_poses.append(xform)
             #draw what opencv is tracking
             #flip r and b channels to draw
             image = image[:,:,::-1].copy()
             cv2.aruco.drawAxis(image, self.camera_matrix, self.camera_coeff, pose[1], pose[2], 0.1)
             image = image[:,:,::-1].copy()
             #flip back
+
+            #average the poses last X poses
+            avg_pose = np.zeros((4,4))
+            for pose in self.last_x_poses:
+                avg_pose = avg_pose + pose
+            avg_pose /= len(self.last_x_poses)
+            self.cameraXform = self.extrinsics.dot(avg_pose)
         else:
             logger.warning("Unable to get the camera transform. Camera cannot see Charuco.")
             xform = np.zeros((4,4))
@@ -199,8 +237,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         pix_img = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(pix_img)
         self.camera_display.setPixmap(pix)
-
-
+        
         if self.calib_cameraCheckBox.isChecked():
             self.objectXformLabel.setText("Robot Xform")
             #calbrate the camera
@@ -316,6 +353,7 @@ class VideoThread(QtCore.QThread):
         self.cam_num = cam_num
         self.update_rate = update_rate
         self.mutex = Lock()
+        self.laseron = True
     def getIntrinsics(self):
         if self.context.get_device_count() == 0:
             logger.warn("No cameras attached")
@@ -381,6 +419,8 @@ class VideoThread(QtCore.QThread):
             return
         c = 0
         cam.start()
+        if not self.laseron:
+            cam.set_option(rs.option_f200_laser_power, 0)
         t = time.time()
         while self.keepRunning:
             cam.wait_for_frames()
@@ -415,7 +455,6 @@ class VideoThread(QtCore.QThread):
                 points = np.reshape(points, (height, width, 3) )
             self.mutex.acquire()
             if c%self.update_rate == 1 and self.can_emit:
-                logger.debug("Cam {} sent {}".format(self.cam_num, c))
                 self.signal.emit(imageFullColor, imageAllignedColor, points, self.cam_num)
                 self.can_emit = False
 
