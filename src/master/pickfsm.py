@@ -76,6 +76,9 @@ class PickStateMachine(StateMachine):
                 for n in k:
                     self.store.put('/bins/bin'+n['bin_id'], n)
                     for l in n['contents']:
+                        #we only have bins A-C
+                        if n['bin_id'] not in ['A', 'B', 'C']:
+                            n['bin_id'] = 'C'
                         self.store.put('/item/'+l+'/location', 'bin'+n['bin_id'])
 
     def isDone(self):
