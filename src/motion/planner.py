@@ -90,7 +90,7 @@ def pick_up(world,item,target_box,target_index):
 
 	#init
 	robot=world.robot(0)
-	
+
 	current_config=robot.getConfig()
 	curr_position=robot.link(ee_link).getWorldPosition(ee_local)
 	curr_orientation,p=robot.link(ee_link).getTransform()
@@ -168,7 +168,7 @@ def pick_up(world,item,target_box,target_index):
 	#move the robot from current position to a start position that is above the target item
 	start_position=vectorops.add(item_position,[0,0,0.4])
 	start_position[2]=min(0.4,start_position[2])
-	end_T=[[-1,0,0,0,1,0,0,0,-1],start_position]
+	end_T=[[1,0,0,0,-1,0,0,0,-1],start_position]
 	check_points.append(end_T)
 	l=vectorops.distance(current_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
@@ -372,7 +372,7 @@ def stow(world,item,target_box,target_index):
 	current_T=[curr_orientation,curr_position]
 	#move the robot from current position to a start position that is above the target item
 	start_position=vectorops.add(item_position,[0,0,0.3])
-	end_T=[[-1,0,0,0,1,0,0,0,-1],start_position]
+	end_T=[[1,0,0,0,-1,0,0,0,-1],start_position]
 	l=vectorops.distance(current_T[1],end_T[1])
 	motion_milestones=add_milestones(test_cspace,robot,motion_milestones,l/max_end_effector_v,control_rate,current_T,end_T,0,0,1)
 	if not motion_milestones:
@@ -457,11 +457,11 @@ def fix_milestones(motion_milestones):
 		speed_config=d_config/motion_milestones[i][0]
 		if d_config>milestone_check_max_change:#the max change between milestones is 5 degree:
 			# print 'd_config',d_config
-			new_milestone=make_milestone(motion_milestones[i][0],vectorops.div(vectorops.add(motion_milestones[i-1][1]['robot'],motion_milestones[i][1]['robot']),2),motion_milestones[i-1][1]['vacuum'],motion_milestones[i-1][1]['simulation'])
+			new_milestone=make_milestone(motion_milestones[i][0],vectorops.div(vectorops.add(motion_milestones[i-1][1]['robot'],motion_milestones[i][1]['robot']),2),motion_milestones[i-1][1]['vacuum'][0],motion_milestones[i-1][1]['simulation'])
 			motion_milestones.insert(i,new_milestone)
 			continue
 		elif speed_config>milestone_check_max_speed:
-			new_milestone=make_milestone(d_config/(milestone_check_max_speed-0.1),motion_milestones[i][1]['robot'],motion_milestones[i][1]['vacuum'],motion_milestones[i][1]['simulation'])
+			new_milestone=make_milestone(d_config/(milestone_check_max_speed-0.1),motion_milestones[i][1]['robot'],motion_milestones[i][1]['vacuum'][0],motion_milestones[i][1]['simulation'])
 			motion_milestones[i]=new_milestone
 			i+=1
 			old_config=new_config
@@ -519,9 +519,9 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 		flag = 1
 		if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]*start_q<0:
 			print "too much change!"
-			print max(vectorops.sub(q_old,q))
-			print min(vectorops.sub(q_old,q))
+			print vectorops.sub(q_old,q)
 			flag=0
+
 		while n<30:
 			if flag and (s and test_cspace.feasible(q)) :
 				break
@@ -533,7 +533,7 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 				# s=ik.solve_nearby(goal,maxDeviation=1000,feasibilityCheck=test_function)
 				q=robot.getConfig()
 				if (max(vectorops.sub(q_old,q))>max_change) or (min(vectorops.sub(q_old,q))<(-max_change)) or q[3]*start_q<0:
-					# print "too much change!"
+					print "too much change!"
 					flag=0
 				else:
 					flag=1
