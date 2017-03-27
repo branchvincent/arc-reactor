@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
-  <robot name="ARC" file="robots/tx90l.rob" translation="0 0 0.29"  config="7  0.0 -0.1782669034720337 -0.1156759396675328 2.129368466340817 -4.334907193026182e-06 0.8965048532707963 2.9633533665702125 "/>
+  <robot name="ARC" file="robots/tx90l.rob" translation="0 0 0.29"  config="7  0.0 -0.1782669034720337 -0.1156759396675328 1.529368466340817 -4.334907193026182e-06 0.8965048532707963 2.9633533665702125 "/>
  
 
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
