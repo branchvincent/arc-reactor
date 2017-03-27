@@ -67,10 +67,7 @@ def runStowFSM():
     #simulate for now
     stow.store.put('/simulate/robot_motion', True)
     stow.store.put('/simulate/object_detection', True)
-    #image = cv2.imread('test/camera1.png')
-    #pick.store.put('/camera/camera1/color_image', image)
-    #pc = numpy.load('test/camera1_pc.npy')
-    #pick.store.put('/camera/camera1/point_cloud', pc)
+    
     #number = 10
     #for _ in range(number): pick.runOrdered('si')
     stow.setCurrentState('si')

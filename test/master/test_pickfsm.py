@@ -36,7 +36,10 @@ class SimplePickFSM(DatabaseDependentTestCase):
         self.store.put('/test/skip_planning', True)
 
         self.pick = PickStateMachine(store=self.store)
-        self.pick.loadOrderFile('test/master/order_test.json')
+        self.pick.loadBoxFile('data/test/box_sizes.json')
+        self.store.delete('/order')
+        self.pick.loadOrderFile('data/test/order_file.json')
+        self.pick.loadLocationFile('data/test/item_location_file.json')
         self.pick.loadStates()
         self.pick.setupTransitions()
 
