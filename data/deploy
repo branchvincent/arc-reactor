@@ -3,7 +3,7 @@
 OUT=data.tgz
 
 tar czvf ${OUT} --exclude='*.blend*' \
-    test/workcell_0326* \
+    test/workcell_full_0327* \
     robots/*.* \
     robots/tx90l \
     robots/gripper7 \
