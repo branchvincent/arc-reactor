@@ -41,6 +41,9 @@ class PickStateMachine(StateMachine):
                 self.store.put('/box/box'+k['size_id'], k)
 
     def loadOrderFile(self, file_location):
+        #this is dumb
+        self.store.delete('/order')
+
         with open(file_location) as data_file:
             self.order_db = json.load(data_file)
 
@@ -99,7 +102,7 @@ def runPickFSM():
     #with open('data/test/workcell_032617.json.gz') as data_file:
     #    initial_db = json.load(data_file)
     #pick.store.put('', initial_db)
-    pick.loadBoxFile('data/test/box_sizes.json')
+    #pick.loadBoxFile('data/test/box_sizes.json')
     pick.store.delete('/order')
     pick.loadOrderFile('data/test/order_file.json')
     pick.loadLocationFile('data/test/item_location_file.json')

@@ -35,15 +35,14 @@ class StowStateMachine(StateMachine):
         self.setTransition('ci', 'si', 'fi', '/status/item_picked')
 
     def loadLocationFile(self, file_location):
-        with open(file_location) as data_file:
-            self.location_db = json.load(data_file)
+        #with open(file_location) as data_file:
+        #    self.location_db = json.load(data_file)
 
-        # copied from PickStateMachine for testing only
-        for (i, (k, v)) in enumerate(self.location_db['item'].items()):
-            self.store.put(['item', k, 'location'], v['location'])
-            self.points = 10
-            self.store.put('/item/'+k+'/point_value', self.points)
-            print "item ", k, " is valued at ", self.points, "in", v['location']
+        for i, n in self.store.get('/item/').items():
+            for k in n['items']:
+                self.store.put('/item/'+k+'/location', 'stow_tote')
+                self.store.put('/item/'+k+'/point_value', 10)
+                print "item ", k, " is valued at ", self.points, "in", v['location']
 
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write
