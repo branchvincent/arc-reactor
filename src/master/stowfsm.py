@@ -38,11 +38,11 @@ class StowStateMachine(StateMachine):
         #with open(file_location) as data_file:
         #    self.location_db = json.load(data_file)
 
-        for i, n in self.store.get('/item/').items():
-            for k in n['items']:
-                self.store.put('/item/'+k+'/location', 'stow_tote')
-                self.store.put('/item/'+k+'/point_value', 10)
-                print "item ", k, " is valued at ", self.points, "in", v['location']
+        for k, v in self.store.get('/item/').items():
+            self.store.put('/item/'+k+'/location', 'stow_tote')
+            self.store.put('/item/'+k+'/point_value', 10)
+            v = self.store.get('/item/' + k)
+            print "item ", k, " is valued at ", v['point_value'], "in", v['location']
 
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write
@@ -66,7 +66,7 @@ def runStowFSM():
     #simulate for now
     stow.store.put('/simulate/robot_motion', True)
     stow.store.put('/simulate/object_detection', True)
-    
+
     #number = 10
     #for _ in range(number): pick.runOrdered('si')
     stow.setCurrentState('si')
