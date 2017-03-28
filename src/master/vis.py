@@ -16,7 +16,9 @@ from klampt.vis import GLRealtimeProgram, gldraw
 from klampt.vis.qtbackend import QtGLWindow
 from klampt.math import se3
 
-from .sync import AsyncUpdateMixin
+from pensive.core import Store
+
+from .sync import AsyncUpdateHandler
 from .world import update_world
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -226,7 +228,7 @@ class WorldViewer(GLRealtimeProgram):
     def motionfunc(self,x,y,dx,dy):
         return GLRealtimeProgram.motionfunc(self,x,y,dx,dy)
 
-class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
+class WorldViewerWindow(QtGLWindow):
     def __init__(self):
         super(WorldViewerWindow, self).__init__()
 
@@ -234,8 +236,11 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         self.setWindowTitle(self.program.name)
         self.setMaximumSize(1920, 1080)
 
-        self.setup_async()
-        self.requests = [
+        self.ready = False
+        self.db = Store()
+
+        self.sync = AsyncUpdateHandler(self.update, 33)
+        self.sync.request_many([
             (1, '/system'),
             (3, '/robot'),
             (1, '/robot/current_config'),
@@ -243,11 +248,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
             (3, '/item'),
             (3, '/box'),
             (3, '/tote'),
-            (3, '/camera/shelf0/pose'),
-            (3, '/camera/shelf0/timestamp'),
-            (3, '/camera/stow/pose'),
-            (3, '/camera/stow/timestamp'),
-        ]
+        ])
 
         self.timestamps = {}
 
@@ -257,8 +258,23 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         self.options = {}
 
-    def update(self):
-        update_world(self.db, self.program.world, self.timestamps, ignore=['items'])
+    def update(self, db=None):
+        if db:
+            self.db = db
+
+        if not self.ready:
+            # populate the camera requests
+            for name in self.db.get('/system/cameras', []):
+                self.sync.request_many([
+                    (3, '/camera/{}/timestamp'.format(name)),
+                    (3, '/camera/{}/pose'.format(name)),
+                ])
+
+            self.ready = True
+
+        update_world(self.db, self.program.world, self.timestamps, ignore=['items', 'obstacles'])
+
+        self._update_bounding_box('target_bb', [], ['robot', 'target_bounding_box'])
 
         # update camera point clouds
         for name in self.db.get('/system/cameras', []):
@@ -312,9 +328,7 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
 
         # retrieve the point clouds once
         if self.db.get(['item', name, 'point_cloud']) is None:
-            self.requests.extend([
-                (-1, ['item', name, 'point_cloud']),
-            ])
+            self.sync.request_once(['item', name, 'point_cloud'])
             return
 
         self.timestamps[cloud_name] = stamp
@@ -322,12 +336,12 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         logger.debug('updating {} point cloud'.format(name))
 
         location = self.db.get(['item', name, 'location'])
-        if location == 'shelf':
+        if location.startswith('bin'):
             reference = ['shelf', 'pose']
         elif location in ['stow_tote', 'stow tote']:
             reference = ['tote', 'stow', 'pose']
         else:
-            reference = []
+            logger.error('unrecognized location for "{}": {}'.format(name, location))
 
         self._update_point_cloud(
             cloud_name,
@@ -340,16 +354,14 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
         cloud_name = '{}_pc'.format(name)
 
         # check if point cloud is modified
-        stamp = self.db.get(['camera', name, 'timestamp'])
+        stamp = self.db.get(['camera', name, 'timestamp'], 0)
         if stamp <= self.timestamps.get(cloud_name, 0):
             return
 
         # retrieve the point clouds once
         if self.db.get(['camera', name, 'point_cloud']) is None:
-            self.requests.extend([
-                (-1, ['camera', name, 'point_cloud']),
-                (-1, ['camera', name, 'aligned_image'])
-            ])
+            self.sync.request_once(['camera', name, 'point_cloud'])
+            self.sync.request_once(['camera', name, 'aligned_image'])
             return
 
         self.timestamps[cloud_name] = stamp
@@ -432,13 +444,11 @@ class WorldViewerWindow(QtGLWindow, AsyncUpdateMixin):
             self.db.put(rgb_url, None)
 
     def _build_pose(self, urls):
-        full_pose = None
+        full_pose = numpy.eye(4)
         for url in urls:
             pose = self.db.get(url)
             if pose is None:
                 return None
-            elif full_pose is None:
-                full_pose = pose
             else:
                 full_pose = full_pose.dot(pose)
 
@@ -453,4 +463,4 @@ if __name__ == '__main__':
     window.show()
 
     from .sync import exec_async
-    exec_async(app, [window], db_period=33)
+    exec_async(app)

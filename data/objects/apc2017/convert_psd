@@ -1,0 +1,9 @@
+#!/bin/bash
+
+PSD_FILES=$(find . | grep png$ | xargs file | grep Adobe | cut -d':' -f 1)
+
+for PSD in $PSD_FILES; do
+    echo ${PSD}
+    convert ${PSD} /tmp/out.png
+    mv /tmp/out.png ${PSD}
+done;

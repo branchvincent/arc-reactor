@@ -1,15 +1,15 @@
 {
     "order": {
         "order1": {
-            "items": ["kong_air_dog_squeakair_tennis_ball", "kong_duck_dog_toy", "rolodex_jumbo_pencil_cup", "stanley_66_052", "item_10"],
+            "items": ["tissue_box", "epsom_salts", "bath_sponge", "white_facecloth", "glue_sticks"],
             "number": 5
         },
-        "order2": {
-            "items": ["laugh_out_loud_joke_book", "item_9", "expo_dry_erase_board_eraser"],
+        "order3": {
+            "items": ["windex", "flashlight", "black_fashion_gloves"],
             "number": 3
         },
-        "order3": {
-            "items": ["elmers_washable_no_run_school_glue", "dr_dobbs_bottle_brush"],
+        "order2": {
+            "items": ["hinged_ruled_index_cards", "fiskars_scissors"],
             "number": 2
         }
     }

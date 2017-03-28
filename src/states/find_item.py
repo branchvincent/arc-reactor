@@ -2,7 +2,6 @@ from master.fsm import State
 
 import cv2
 import numpy
-import realsense
 
 from time import time
 
@@ -26,29 +25,17 @@ class FindItem(State):
         elif location in ['stow_tote', 'stow tote']:
             camera = 'stow'
         else:
-            raise RuntimeError('no simulated camera image available for {}'.format(location))
+            raise RuntimeError('no camera available for {}'.format(location))
 
-        if self.store.get('/simulate/object_detection'):
+        if self.store.get('/simulate/object_detection', False):
             logger.warn('simulating object detection of "{}"'.format(selected_item))
 
-            if self.store.get('/simulate/cameras'):
+            if self.store.get('/simulate/cameras', False):
                 logger.warn('simulating cameras')
 
-                # load previously acquired images in BGR format
-                if camera == 'shelf0':
-                    color = cv2.imread('data/simulation/color-shelf-0.png')[:, :, ::-1]
-                    aligned_color = cv2.imread('data/simulation/aligned-shelf-0.png')[:, :, ::-1]
-                    point_cloud = numpy.load('data/simulation/pc-shelf-0.npy')
-                elif camera == 'shelf1':
-                    color = cv2.imread('data/simulation/color-shelf-1.png')[:, :, ::-1]
-                    aligned_color = cv2.imread('data/simulation/aligned-shelf-1.png')[:, :, ::-1]
-                    point_cloud = numpy.load('data/simulation/pc-shelf-1.npy')
-                elif camera == 'stow':
-                    color = cv2.imread('data/simulation/color-stow_tote-0.png')[:, :, ::-1]
-                    aligned_color = cv2.imread('data/simulation/aligned-stow_tote-0.png')[:, :, ::-1]
-                    point_cloud = numpy.load('data/simulation/pc-stow_tote-0.npy')
-                else:
-                    raise RuntimeError('no simulated camera image available for {}'.format(location))
+                color = cv2.imread('data/simulation/color-{}-0.png'.format(camera))[:, :, ::-1]
+                aligned_color = cv2.imread('data/simulation/aligned-{}-0.png'.format(camera))[:, :, ::-1]
+                point_cloud = numpy.load('data/simulation/pc-{}-0.npy'.format(camera))
 
             else:
                 from hardware.SR300 import DepthCameras
@@ -66,16 +53,12 @@ class FindItem(State):
                     raise RuntimeError('could not find serial number for camera "{}" in database'.format(camera))
 
                 # acquire desired camera by serial number
-                desired_cam = None
-                for i in xrange(cams.num_cameras):
-                    cam = cams.context.get_device(i)
-                    if cam.get_info(realsense.camera_info_serial_number) == serial_num:
-                        desired_cam = i
-                if desired_cam == None:
-                    raise RuntimeError('could not find serial number for camera "{}"'.format(camera))
+                desired_cam_index = cams.get_camera_index_by_serial(serial_num)
+                if desired_cam_index is None:
+                    raise RuntimeError('could not find camera with serial number {}'.format(serial_num))
 
                 # acquire a camera image
-                (images, serial) = cams.acquire_image(desired_cam)
+                (images, serial) = cams.acquire_image(desired_cam_index)
                 if not serial:
                     raise RuntimeError('camera acquisition failed')
 
@@ -118,11 +101,12 @@ class FindItem(State):
             camera_pose = self.store.get(['camera', camera, 'pose'])
             reference_pose = numpy.eye(4)
 
-            if location == 'shelf':
-                #and need shelf pose
+            if location.startswith('bin'):
                 reference_pose = self.store.get('/shelf/pose')
             elif location in ['stow_tote', 'stow tote']:
                 reference_pose = self.store.get('/tote/stow/pose')
+            else:
+                raise RuntimeError('unrecognized item location: {}'.format(selected_item))
 
             item_pose_reference = numpy.linalg.inv(reference_pose).dot(camera_pose.dot(item_pose_camera))
             logger.debug('object pose relative to {}\n{}'.format(location, item_pose_reference))

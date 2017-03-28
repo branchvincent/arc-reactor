@@ -1,111 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
-  <robot name="ARC" file="robots/ARC.rob" translation="0 0 0"  config="7  0 -1.52414 -0.275 1.38927 -0.14 0.78 -0.69 "/>
+  <robot name="ARC" file="robots/tx90l.rob" translation="0 0 0.29"  config="7  0.0 -0.1782669034720337 -0.1156759396675328 1.529368466340817 -4.334907193026182e-06 0.8965048532707963 2.9633533665702125 "/>
  
 
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
   <terrain file="terrains/block.off" />
 <!-- The table -->
-  <terrain file="terrains/LinearShelf.stl" scale="0.001 0.001 0.001" translation="0.8 0.6 0.0" rotateZ="3.14159">
+  <terrain name="shelf" file="terrains/LinearShelf.stl" scale="0.001 0.001 0.001" translation="-0.55 -0.5 0.0" rotateZ="1.57">
+     <display color="0.8 0.7 0.2"/>
+  </terrain>
+  <terrain file="terrains/cube.off" scale="0.01 1.05 0.3" translation="-0.85 -0.5 0.0"> 
      <display color="0.8 0.7 0.2"/>
   </terrain>
 
+<terrain file="terrains/obstacles.stl"  translation="0 0 0" >
+     <display color="0.8 0.7 0.2"/>
+  </terrain>
   
-<!-- The 10*7*3.25 box --> 
-<!--   <terrain file="terrains/cube.off" scale="0.01 0.254 0.08255" translation="0.35 0.65 0.2"> 
-     <display color="0.2 0.3 0.5"/>
+
+  <terrain name="order_box" file="objects/box-1A5.off"  translation="-0.1 0.55 0" >
+     <display color="1 1 00"/>
   </terrain>
-  <terrain file="terrains/cube.off" scale="0.1778 0.01 0.08255" translation="0.35 0.65 0.2">
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.01 0.254 0.08255" translation="0.5278 0.65 0.2"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.1778 0.01 0.08255" translation="0.35 0.904 0.2">
-     <display color="0.2 0.3 0.5"/> 
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.1778 0.254 0.01" translation="0.35 0.667 0.2">
-     <display color="0.2 0.3 0.5"/> 
-  </terrain>
-  -->
   
-<!-- The 13.5*9.5*3.5 box --> 
-  <terrain file="terrains/cube.off" scale="0.01 0.3429 0.0889" translation="-0.55 0.15 0.0"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.2413 0.01 0.0889" translation="-0.55 0.15 0.0">
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.01 0.3429 0.0889" translation="-0.3087 0.15 0.0"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.2413 0.01 0.0889" translation="-0.55 0.4929 0.0">
-     <display color="0.2 0.3 0.5"/> 
-  </terrain>
-   <terrain file="terrains/cube.off" scale="0.2413 0.3429 0.01" translation="-0.55 0.167 0.0">
-     <display color="0.2 0.3 0.5"/> 
-  </terrain>
-
-
-  
-<!-- The 13.5*11*4.75 box --> 
-<!--   <terrain file="terrains/cube.off" scale="0.01 0.3429 0.12065" translation="-1.5 -0.5 0.01"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.2794 0.01 0.12065" translation="-1.5 -0.5 0.01">
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.01 0.3429 0.12065" translation="-1.2206 -0.5 0.01"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.2794 0.01 0.12065" translation="-1.5 -0.1571 0.01">
-     <display color="0.2 0.3 0.5"/> 
-  </terrain> -->
-
-   
-<!-- The 15.5*13*3.5 box --> 
-<!--   <terrain file="terrains/cube.off" scale="0.01 0.3937 0.0889" translation="-1.5 -0.1 0.01"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.3302 0.01 0.0889" translation="-1.5 -0.1 0.01">
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.01 0.3937 0.0889" translation="-1.1698 -0.1 0.01"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.3302 0.01 0.0889" translation="-1.5 0.2937 0.01">
-     <display color="0.2 0.3 0.5"/> 
-  </terrain> -->
-
-     
-<!-- The 19.5*13*6.25 box --> 
-<!--   <terrain file="terrains/cube.off" scale="0.01 0.4953 0.15875" translation="-1.5 0.5 0.01"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.3302 0.01 0.15875" translation="-1.5 0.5 0.01">
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.01 0.4953 0.15875" translation="-1.1698 0.5 0.01"> 
-     <display color="0.2 0.3 0.5"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.3302 0.01 0.15875" translation="-1.5 0.9953 0.01">
-     <display color="0.2 0.3 0.5"/> 
-  </terrain> -->
 
 
 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.1 0.5 0.2" rotateZ="0.0">
+
+  <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.65 0 0.2" rotateZ="0.0"> -->
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.11442071233740891 0.7424367833231837 0.12065000000000001" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.35 0.5 0.2" rotateZ="0.0">
+<!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="0.35 0.5 0.2" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
   <rigidObject name="srimug" file="objects/block_small.obj"  position="0.6 0.5 0.2" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
-  </rigidObject> 
+  </rigidObject>  -->
 <!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.5 0.37" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>

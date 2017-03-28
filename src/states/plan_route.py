@@ -1,5 +1,7 @@
 import logging
 
+import numpy
+
 from time import time
 
 from master.fsm import State
@@ -21,13 +23,13 @@ class PlanRoute(State):
 
         logger.info('planning route for "{}" to "{}"'.format(item, box))
 
-        world = build_world(self.store, ignore=['camera'])
+        world = build_world(self.store, ignore=['camera', 'items'])
         self.world = world
 
         item_pose_local = self.store.get(['item', item, 'pose'])
         item_pc_local = self.store.get(['item', item, 'point_cloud'])
 
-        if location == 'shelf':
+        if location.startswith('bin'):
             reference_pose = self.store.get('/shelf/pose')
         elif location in ['stow_tote', 'stow tote']:
             reference_pose = self.store.get('/tote/stow/pose')
@@ -35,7 +37,7 @@ class PlanRoute(State):
             raise RuntimeError('unrecognized item location: "{}"'.format(location))
 
         item_pose_world = reference_pose.dot(item_pose_local)
-        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3]) + item_pose_world[:3, 3].T
+        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
 
         bounding_box = [
             [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
@@ -48,9 +50,11 @@ class PlanRoute(State):
         target_item = {
             # 'bbox': [item_position, item_position],
             'bbox': bounding_box,
-            'vacuum_offset': [0, 0, 0.02],
-            'drop offset': [0, 0, 0.20],
+            'vacuum_offset': [0, 0, -0.01],
+            'drop offset': [0, 0, 0.1],
         }
+
+        self.store.put('/robot/target_bounding_box', bounding_box)
 
         # compute route
         try:
@@ -78,11 +82,17 @@ class PlanRoute(State):
                 shelf_pose = self.store.get(['shelf', 'pose'])
                 from master.world import xyz
 
-                bin_pose = shelf_pose * xyz(0.8, 0.2, 0.4)
+                target_bin = self.store.get(['robot', 'selected_bin'])
+                bin_pose_local = self.store.get(['shelf', 'bin', target_bin, 'pose'])
+                bin_pose_world = shelf_pose.dot(bin_pose_local)
+
+                bin_bounds_local = numpy.array(self.store.get(['shelf', 'bin', target_bin, 'bounds'])).T
+                bin_bounds_world = bin_pose_world[:3,:3].dot(bin_bounds_local) + bin_pose_world[:3, 3]
+                bin_target_world = numpy.matrix([bin_bounds_world[0].mean(), bin_bounds_world[1].mean(), bin_bounds_world[2].max()]).T
 
                 target_box = {
-                    'position': list(bin_pose[:3, 3].flat),
-                    'drop position': list(bin_pose[:3, 3].flat)
+                    'position': list(bin_target_world.flat),
+                    'drop position': list(bin_target_world.flat)
                 }
 
                 logger.info('requesting stow motion plan')

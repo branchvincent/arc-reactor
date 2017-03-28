@@ -35,10 +35,10 @@ class DepthCameras:
                     if cam.supports_capability(j):
                         logger.info("Camera %i supports %s", i, rs.rs_stream_to_string(j))
             return True
-        
-    
+
+
     def acquire_image(self, camera, ivcam_preset=rs.RS_IVCAM_PRESET_OBJECT_SCANNING):
-        if self.connect is None:
+        if self.context is None:
             logger.warning("No cameras connected, or connect has not been run")
             return (None, None)
         elif camera >= self.num_cameras or camera < 0:
@@ -54,15 +54,15 @@ class DepthCameras:
             if cam is None:
                 logger.error("Tried to get a camera that does not exist")
                 return (None, None)
-            
+
             #return the serial num of the camera too
             sn = cam.get_info(rs.camera_info_serial_number)
-        
+
             try:
                 #enable the stream
                 for s in [rs.stream_color, rs.stream_depth, rs.stream_infrared]:
                     cam.enable_stream(s, rs.preset_best_quality)
-            
+
                 #apply the preset
                 rs.apply_ivcam_preset(cam, ivcam_preset)
             except:
@@ -77,7 +77,7 @@ class DepthCameras:
             except:
                 logger.exception("Unable to start the camera")
                 return (None, None)
-           
+
 
             #get all the images at once
             try:
@@ -88,7 +88,7 @@ class DepthCameras:
                     imageFullColor = None
                 else:
                     width = cam.get_stream_width(rs.stream_color)
-                    height = cam.get_stream_height(rs.stream_color)    
+                    height = cam.get_stream_height(rs.stream_color)
                     imageFullColor = np.reshape(imageFullColor, (height, width, 3) )
 
                 imageRectColor = cam.get_frame_data_u8(rs.stream_rectified_color)
@@ -98,7 +98,7 @@ class DepthCameras:
                     imageRectColor = None
                 else:
                     width = cam.get_stream_width(rs.stream_rectified_color)
-                    height = cam.get_stream_height(rs.stream_rectified_color)    
+                    height = cam.get_stream_height(rs.stream_rectified_color)
                     imageRectColor = np.reshape(imageRectColor, (height, width, 3) )
 
                 imageAllignedColor = cam.get_frame_data_u8(rs.stream_color_aligned_to_depth)
@@ -108,7 +108,7 @@ class DepthCameras:
                     imageAllignedColor = None
                 else:
                     width = cam.get_stream_width(rs.stream_color_aligned_to_depth)
-                    height = cam.get_stream_height(rs.stream_color_aligned_to_depth)    
+                    height = cam.get_stream_height(rs.stream_color_aligned_to_depth)
                     imageAllignedColor = np.reshape(imageAllignedColor, (height, width, 3) )
 
                 imageDepth = cam.get_frame_data_u16(rs.stream_depth)
@@ -117,17 +117,17 @@ class DepthCameras:
                     imageDepth = None
                 else:
                     width = cam.get_stream_width(rs.stream_depth)
-                    height = cam.get_stream_height(rs.stream_depth)    
+                    height = cam.get_stream_height(rs.stream_depth)
                     imageDepth = np.reshape(imageDepth, (height, width) )
 
-                
+
                 imageAlignedDepth = cam.get_frame_data_u16(rs.stream_depth_aligned_to_color)
                 if imageAlignedDepth.size == 1:
                     logger.error("Could not capture the depth alinged to color image. Size of requested stream did not match")
                     imageAlignedDepth = None
                 else:
                     width = cam.get_stream_width(rs.stream_depth)
-                    height = cam.get_stream_height(rs.stream_depth)    
+                    height = cam.get_stream_height(rs.stream_depth)
                     imageAlignedDepth = np.reshape(imageAlignedDepth, (height, width) )
 
                 points = cam.get_frame_data_f32(rs.stream_points)
@@ -137,7 +137,7 @@ class DepthCameras:
                     points = None
                 else:
                     width = cam.get_stream_width(rs.stream_points)
-                    height = cam.get_stream_height(rs.stream_points)    
+                    height = cam.get_stream_height(rs.stream_points)
                     points = np.reshape(points, (height, width, 3) )
 
             except:
@@ -159,7 +159,7 @@ class DepthCameras:
             if np.array_equal(imageFullColor, np.ones((480,640))*255):
                 return (None, None)
 
-            #got an image record the time stamp 
+            #got an image record the time stamp
             self.time_of_last_image[camera] = time.time()
             return (images, sn)
 
@@ -177,7 +177,7 @@ class DepthCameras:
             except:
                 logger.exception("Tried to access camera {}, but an error occured".format(cam))
                 continue
-        
+
         return online_cams
 
     def get_camera_coefs(self, camera, stream):
@@ -257,6 +257,20 @@ class DepthCameras:
             logger.exception("Unable to enable stream and get extrinsics")
             return None
         return extrinsics
+
+    def get_camera_index_by_serial(self, serial):
+        '''Returns the camera with the specified serial number'''
+        if self.context is None:
+            logger.warning("Tried to access online cams without connecting")
+            return None
+        for i in xrange(self.num_cameras):
+            cam = self.context.get_device(i)
+            if cam is None:
+                logger.error("Tried to get a camera that does not exist")
+            elif cam.get_info(rs.camera_info_serial_number) == serial:
+                return i
+        logger.error("Could not find camera with serial number {}".format(serial))
+        return None
 
 def test():
     import matplotlib.pyplot as plt

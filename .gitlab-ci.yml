@@ -27,7 +27,7 @@ python-unittest:
     stage: Test
     script:
     - pip install -q -r requirements.txt
-    - wget --quiet http://people.duke.edu/~mtd13/arc-2017/data.tgz && tar xf data.tgz && rm data.tgz
+    - cd data && ./setup && cd ..
     - python reactor test -c
 
 doxygen:

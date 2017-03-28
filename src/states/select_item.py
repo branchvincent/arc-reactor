@@ -15,7 +15,7 @@ class SelectItem(State):
 
         elif self.alg == 'stow':
             # XXX: copied from picking for testing purposes
-            self.chosenItem = 'dr_dobbs_bottle_brush'
+            self.chosenItem = self.itemList.keys()[0]
             #self.points =
             pass
 

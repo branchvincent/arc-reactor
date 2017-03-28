@@ -9,11 +9,13 @@ from time import time
 from PySide.QtGui import QMainWindow, QCheckBox
 from PySide.QtCore import QTimer
 
+from pensive.core import Store
+
 from master.pickfsm import PickStateMachine
 from master.stowfsm import StowStateMachine
 
 from .ui.front_panel import Ui_FrontPanel
-from .sync import AsyncUpdateMixin
+from .sync import AsyncUpdateHandler
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -25,7 +27,7 @@ def _call(target, *args, **kwargs):
         return target(*args, **kwargs)
     return _cb
 
-class FrontPanel(QMainWindow, AsyncUpdateMixin):
+class FrontPanel(QMainWindow):
     '''
     Main window for the front panel.
     '''
@@ -38,7 +40,18 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
 
         self.fsm = None
 
-        self.setup_async()
+        # setup database access
+        self.sync = AsyncUpdateHandler(self.update)
+        self.sync.request_many([
+            '/robot/run_mode',
+            '/robot/task',
+            '/checkpoint',
+            '/fault',
+            '/simulate',
+        ])
+
+        self.put = self.sync.put
+        self.multi_put = self.sync.multi_put
 
         # install run mode click handlers
         for mode in ['step_once', 'run_once', 'run_all']:
@@ -56,14 +69,6 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
         self.ui.mc_run.clicked.connect(_call(self._run_handler))
         self.ui.mc_reset.clicked.connect(_call(self._reset_handler))
 
-        self.requests = [
-            '/robot/run_mode',
-            '/robot/task',
-            '/checkpoint',
-            '/fault',
-            '/simulate',
-        ]
-
         self.hardware_map = {
             'hw_cam_bl': '/camera/shelf_bl',
             'hw_cam_br': '/camera/shelf_br',
@@ -79,7 +84,7 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
             'hw_vacuum': '/vacuum'
         }
         for (name, url) in self.hardware_map.iteritems():
-            self.requests.append(url + '/timestamp')
+            self.sync.request(url + '/timestamp')
 
         self.checkpoints = self._make_path_map([
             'select_item',
@@ -111,11 +116,11 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
         ])
         self._load_toggle_list('/simulate/', self.simulations, self.ui.simulationLayout)
 
-        self.update()
+        self.update(Store())
 
         # refresh timer
         self.timer = QTimer(self)
-        self.timer.timeout.connect(lambda: self.update())
+        self.timer.timeout.connect(lambda: self.update(None))
         self.timer.start(1000 / 30.0)
 
     def _make_path_map(self, paths):
@@ -176,11 +181,13 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
         self.fsm.setupTransitions()
         self.fsm.setCurrentState('si') #always start with SelectItem
 
-    def update(self):
+    def update(self, db=None):
         '''
         Main update handler for the UI.
         '''
 
+        if db:
+            self.db = db
         now = time()
 
         # style sheet for blinking foreground at 1 Hz
@@ -241,7 +248,7 @@ class FrontPanel(QMainWindow, AsyncUpdateMixin):
         self.ui.simulation_label.setStyleSheet(alert_style if alert else '')
 
     def _put_checkbox(self, key, checkbox):
-        self.put(key, checkbox.isChecked())
+        self.sync.put(key, checkbox.isChecked())
         checkbox.blockSignals(True)
         checkbox.setChecked(not checkbox.isChecked())
         checkbox.blockSignals(False)
@@ -260,4 +267,4 @@ if __name__ == '__main__':
     window.show()
 
     from .sync import exec_async
-    exec_async(app, [window])
+    exec_async(app)

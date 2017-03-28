@@ -126,9 +126,8 @@ elif args.command == 'log':
     LogServer(args.db_url, record_port=args.record_port, web_port=args.web_port).run()
 
 elif args.command == 'test':
-    # suppress warnings by default because they are
-    # very likely intentionally generated during tests
-    lf.add('', logging.ERROR)
+    # record all message during testing
+    lf.add('', logging.DEBUG)
 
     subargs = ['--cov=src', '--cov-report=html', '--cov-report=term']
 
@@ -217,7 +216,7 @@ elif args.command == 'dump':
     from pensive.client import json_encode
     if args.compress:
         from gzip import GzipFile
-        GzipFile(fileobj=sys.stdout).write(json_encode(obj))
+        GzipFile('', fileobj=sys.stdout).write(json_encode(obj))
     elif args.pretty:
         from pprint import pprint
         pprint(obj)
