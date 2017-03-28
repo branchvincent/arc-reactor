@@ -111,10 +111,10 @@ def pick_up(world,item,target_box,target_index):
 	#find a placement position if no goal position is given by the input
 	if target_box['drop position']:
 		drop_position=target_box['drop position']
-		print drop_position
+		# print drop_position
 		box_bottom_high=target_box['position'][2]
 	else:
-		print "here!!!!!!!!"
+		# print "here!!!!!!!!"
 		box_min,box_max=target_box["box_limit"]
 		origin_T=world.rigidObject(target_index).getTransform()
 		goal_T=[[],[]]
@@ -309,10 +309,10 @@ def stow(world,item,target_box,target_index):
 	#find a stowing position if no goal position is given by the input
 	if target_box['drop position']:
 		drop_position=target_box['drop position']
-		print drop_position
+		# print drop_position
 		box_bottom_high=target_box['position'][2]
 	else:
-		print "here!!!!!!!!"
+		# print "here!!!!!!!!"
 		box_min,box_max=target_box["box_limit"]
 		origin_T=world.rigidObject(target_index).getTransform()
 		goal_T=[[],[]]
