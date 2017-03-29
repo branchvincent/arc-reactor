@@ -127,7 +127,7 @@ class Perception:
                 #transform the points to the real world here
                 xformPC = []
                 for pts in pc:
-                    #TODO do we need to multiply the z by the camera depth scale here to get real world coordinates?
+                    #do we need to multiply the z by the camera depth scale here to get real world coordinates? No
                     fourArray = np.append(pts, 1)
                     fourArray = self.camera_variables[sn].world_xform.dot(fourArray)
                     xformPC.append(fourArray[0:3])
