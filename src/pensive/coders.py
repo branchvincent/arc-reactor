@@ -3,6 +3,7 @@ JSON encoders/decoders for specific complex types.
 '''
 
 from base64 import b64encode, b64decode
+import zlib
 
 from .client import JSON_DECODERS, JSON_ENCODERS
 
@@ -24,24 +25,43 @@ def register_numpy():
 
     # base encoder for ndarray and matrix
     def encode(obj):
-        # ref: http://stackoverflow.com/questions/3488934/simplejson-and-numpy-array
-        if obj.flags['C_CONTIGUOUS']:
-            data = obj.data
-        else:
-            data = numpy.ascontiguousarray(obj).data
-
-        return {
-            'data': b64encode(data).decode('ascii'),
+        out = {
             'dtype': str(obj.dtype),
-            'shape': obj.shape,
         }
+
+        if obj.size <= 16:
+            # encode in text form
+            out['list'] = obj.tolist()
+        else:
+            # encode in binary form
+            out['shape'] = obj.shape
+
+            # ref: http://stackoverflow.com/questions/3488934/simplejson-and-numpy-array
+            if obj.flags['C_CONTIGUOUS']:
+                data = obj.data
+            else:
+                data = numpy.ascontiguousarray(obj).data
+
+            if len(data) > 1024:
+                data = zlib.compress(data)
+                out['compress'] = True
+
+            out['data'] = b64encode(data).decode('ascii')
+
+        return out
 
     # install encoding handlers
     JSON_ENCODERS[numpy.ndarray] = lambda obj: {'__numpy.ndarray__': encode(obj)}
     JSON_ENCODERS[numpy.matrix] = lambda obj: {'__numpy.matrix__': encode(obj)}
 
     def decode_ndarray(obj):
-        return numpy.frombuffer(b64decode(obj['data']), obj['dtype']).reshape(obj['shape'])
+        if 'list' in obj:
+            return numpy.array(obj['list'], dtype=obj['dtype'])
+        else:
+            data = b64decode(obj['data'])
+            if obj.get('compress', False):
+                data = zlib.decompress(data)
+            return numpy.frombuffer(data, obj['dtype']).reshape(obj['shape'])
 
     # install decoding handlers
     JSON_DECODERS['__numpy.ndarray__'] = decode_ndarray

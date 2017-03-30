@@ -1,0 +1,16 @@
+#!/bin/bash
+
+OUT=data.tgz
+
+tar czvf ${OUT} --exclude='*.blend*' \
+    test/workcell_0326* \
+    robots/*.* \
+    robots/tx90l \
+    robots/gripper7 \
+    simulation \
+    objects/*.* \
+    terrains
+
+scp ${OUT} mtd13@login.oit.duke.edu:~/public_html/arc-2017/${OUT}
+
+rm ${OUT}

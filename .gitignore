@@ -275,3 +275,7 @@ ve/
 
 # CLion
 .idea
+
+#SWIG wrapper
+*_wrap.cxx
+data/objects/apc2017

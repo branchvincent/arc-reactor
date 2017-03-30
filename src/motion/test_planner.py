@@ -2,6 +2,7 @@
 
 import sys
 from klampt import *
+from klampt import vis
 from klampt.vis.glrobotprogram import *
 from klampt.model import ik,coordinates,config,cartesian_trajectory,trajectory
 from klampt.model.collide import WorldCollider
@@ -14,23 +15,23 @@ import time
 import json
 import planner
 
-box_vacuum_offset=[0.1,0,0.09]
-ee_local=[-0.015,-0.02,0.3]
-# ee_local=[0,0,0]
-box_release_offset=[0,0,0.06]
-idle_position=[0.6,0,1]
-approach_p1=[0.5,0.2,1]
-approach_p2=[0.5,-0.2,1]
-order_box_min=[0.36,0.65,0.5]
-order_box_max=[0.5278,0.904,0.5]
-angle_to_degree=57.296
+# box_vacuum_offset=[0.1,0,0.09]
+# ee_local=[-0.015,-0.02,0.3]
+# # ee_local=[0,0,0]
+# box_release_offset=[0,0,0.06]
+# idle_position=[0.6,0,1]
+# approach_p1=[0.5,0.2,1]
+# approach_p2=[0.5,-0.2,1]
+# order_box_min=[0.36,0.65,0.5]
+# order_box_max=[0.5278,0.904,0.5]
+# angle_to_degree=57.296
 ee_link=6
 
 
 
-class MyGLViewer(GLSimulationProgram):
+class MyGLViewer(GLSimulationPlugin):
     def __init__(self,world):
-        GLSimulationProgram.__init__(self,world,"My GL program")
+        GLSimulationPlugin.__init__(self,world)
         self.world = world
         self.robotController=self.sim.controller(0)
         self.score=0
@@ -43,15 +44,17 @@ class MyGLViewer(GLSimulationProgram):
         self.place_position=[]
         self.task='pick'
         self.last_end_time=0
-
+        self.in_box=[]
+        self.time_count=0
+        self.old_time=0
     def control_loop(self):
         if self.sim.getTime()-self.last_end_time>0.5:
             if self.trajectory:
                 if self.t<len(self.trajectory): 
                     robot=self.sim.world.robot(0)
                     old_T=robot.link(ee_link).getTransform()
-                    old_R,old_t=old_T 
-                    self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0])
+                    old_R,old_t=old_T
+                    self.robotController.setLinear(self.trajectory[self.t][1]['robot'],self.trajectory[self.t][0]-(self.sim.getTime()-self.old_time))
                     robot.setConfig(self.trajectory[self.t][1]['robot'])
                     obj=self.sim.world.rigidObject(self.target)
                     #get a SimBody object
@@ -79,11 +82,14 @@ class MyGLViewer(GLSimulationProgram):
                     # print 'goal config',self.trajectory[self.t][1]['robot']
                     # if  vectorops.distance(robot.getConfig(),self.trajectory[self.t][1]['robot'])<0.01:
                     #     print 'get there'
-                    self.t+=1
+                    if self.sim.getTime()-self.old_time>self.trajectory[self.t][0]:
+	                    self.t+=1
+	                    self.old_time=self.sim.getTime()
                     if self.t==len(self.trajectory):
                         self.last_end_time=self.sim.getTime()
                 else:
                     self.score+=1
+                    self.in_box.append(self.target)
                     if self.task=='pick':
                         self.target+=1
                     if self.target>=self.total_object:
@@ -93,37 +99,99 @@ class MyGLViewer(GLSimulationProgram):
                     print "one pick task is done!"
                     self.t=0
                     self.trajectory=[]
-                if self.score==2*self.total_object:
-                    print "all items are picked up!"
-                    exit()
+                    print 'score:',self.score
+                    time.sleep(1)
+                    if self.score==2*self.total_object:
+                        print "all items are picked up!"
+                        print self.sim.world.robot(0).getConfig()
+                        exit()
             else:
                 if self.score<self.total_object:
                     target_item={}
                     target_box={}
                     
-                    if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.05:
+                    if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.01:
                         print 'turning!'
                         return
                     target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
                     self.place_position.append(self.sim.world.rigidObject(self.target).getTransform()[1])
                     target_item["vacuum_offset"]=[0,0,0.1]
-                    target_item['drop offset']=0.15
-                    target_box["drop position"]=[0.2,0.95-0.06*self.target,0.6]
+                    target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
+                    target_item['drop offset']=[0,0,0.2]
+                    target_box["box_limit"]=[[-0.5,0.2,0.1],[-0.35,0.45,0.4]]
+                    # target_box["drop position"]=[-0.4,0.3,0.2]
+                    target_box["drop position"]=[]
                     target_box['position']=[0.2,0.8,0.15]
-                    self.trajectory=planner.pick_up(self.sim.world,target_item,target_box)
+                    old_config=self.sim.world.robot(0).getConfig()
+                    self.trajectory=planner.pick_up(self.sim.world,target_item,target_box,self.target)
+                    if self.trajectory==False:
+                        self.score+=1
+                        self.target+=1
+                        if self.score==self.total_object:
+                            self.task='stow'
+                            self.target-=1
+                    else:
+                    	self.old_time=self.sim.getTime()
+                    	self.time_count=0
+                        print "validing trajectory..."
+                        max_change_joint=0
+                        max_joint_speed=0
+                        for i in range(len(self.trajectory)):
+                            new_config=self.trajectory[i][1]['robot']
+                            d_config=max(max(vectorops.sub(new_config,old_config)),-min(vectorops.sub(new_config,old_config)))
+                            speed_config=d_config/self.trajectory[i][0]
+                            if d_config>max_change_joint:
+                                max_change_joint=d_config
+                            if speed_config>max_joint_speed:
+                                max_joint_speed=speed_config
+                            old_config=new_config
+                        print 'max joint change is :', max_change_joint/3.14159*180
+                        print 'max joint speed is:', max_joint_speed/3.14159*180
+
+
                 else:
                     target_item={}
                     target_box={}
-                    print self.sim.world.rigidObject(self.target).getVelocity()[0]
+                    # print self.sim.world.rigidObject(self.target).getVelocity()[0]
                     if max(self.sim.world.rigidObject(self.target).getVelocity()[0])>0.01:
                         print 'turning!'
                         return
                     target_item["position"]=self.sim.world.rigidObject(self.target).getTransform()[1]
                     target_item["vacuum_offset"]=[0,0,0.1]
-                    target_item['drop offset']=0.15
-                    target_box["drop position"]=self.place_position[self.target]
-                    target_box['position']=self.place_position[self.target]
-                    self.trajectory=planner.stow(self.sim.world,target_item,target_box)
+                    target_item['drop offset']=[0,0,0.15]
+                    target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
+                    # target_box["drop position"]=self.place_position[self.target]
+                    # target_box['position']=self.place_position[self.target]
+                    target_box["box_limit"]=[[-0.2,0.3,0.1],[0.6,0.5,0.4]]
+                    # print self.place_position[self.target]
+                    target_box["drop position"]=[]
+                    target_box['position']=[]
+                    old_config=self.sim.world.robot(0).getConfig()
+                    self.trajectory=planner.stow(self.sim.world,target_item,target_box,self.target)
+                    if self.trajectory==False:
+                        self.score+=1
+                        self.target-=1
+                        if self.score==2*self.total_object:
+                            print 'done!'
+                            exit()
+                    else:
+                    	self.old_time=self.sim.getTime()
+                    	self.time_count=0
+                        print "validing trajectory..."
+                        max_change_joint=0
+                        max_joint_speed=0
+                        for i in range(len(self.trajectory)):
+                            new_config=self.trajectory[i][1]['robot']
+                            d_config=max(max(vectorops.sub(new_config,old_config)),-min(vectorops.sub(new_config,old_config)))
+                            speed_config=d_config/self.trajectory[i][0]
+                            if d_config>max_change_joint:
+                                max_change_joint=d_config
+                            if speed_config>max_joint_speed:
+                                max_joint_speed=speed_config
+                            old_config=new_config
+                        print 'max joint change is :', max_change_joint/3.14159*180
+                        print 'max joint speed is:', max_joint_speed/3.14159*180
+
             
 
     
@@ -137,10 +205,10 @@ class MyGLViewer(GLSimulationProgram):
             if state==0:
                 print [o.getName() for o in self.click_world(x,y)]
                 return
-        GLRealtimeProgram.mousefunc(self,button,state,x,y)
+        GLPluginInterface.mousefunc(self,button,state,x,y)
 
     def print_help(self):
-        GLSimulationProgram.print_help(self)
+        GLSimulationPlugin.print_help(self)
         print 'Drive keys:',sorted(self.keymap.keys())
 
     def keyboardfunc(self,c,x,y):
@@ -165,7 +233,7 @@ class MyGLViewer(GLSimulationProgram):
         #     print 'target:',self.target
 
         # else:
-        GLSimulationProgram.keyboardfunc(self,c,x,y)
+        GLSimulationPlugin.keyboardfunc(self,c,x,y)
         self.refresh()
 
 
@@ -182,4 +250,4 @@ if __name__ == "__main__":
     
 
     viewer = MyGLViewer(world)
-    viewer.run()
+    vis.run(viewer)

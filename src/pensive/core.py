@@ -6,6 +6,8 @@ Core database components of Pensive.
 
 import re
 
+from copy import copy
+
 import logging
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -67,7 +69,7 @@ class Store(StoreInterface):
         if isinstance(key, basestring):
             key = [k for k in self._separator.split(key) if len(k)]
 
-        result = self._get(key, strict)
+        result = self._get(copy(key), strict)
         if result is None:
             return default
         else:
@@ -114,7 +116,7 @@ class Store(StoreInterface):
         if isinstance(key, basestring):
             key = [k for k in self._separator.split(key) if len(k)]
 
-        return self._put(key, value, strict)
+        return self._put(copy(key), value, strict)
 
     def _put(self, key, value, strict):
         if not key:
@@ -157,7 +159,7 @@ class Store(StoreInterface):
         '''
 
         logger.debug('index: "{}"'.format(key))
-        return self._index(key, depth)
+        return self._index(copy(key), depth)
 
     def _index(self, key, depth):
         if not key:

@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+
+import os
+import json
+import codecs
+from unidecode import unidecode
+
+extra = json.load(open('db/extra.json'))
+
+root = 'data/objects/apc2017'
+paths = [path for path in os.listdir(root)]
+
+db = {}
+
+for name in paths:
+    if not os.path.isdir(os.path.join(root, name)):
+        continue
+
+    data = codecs.open(os.path.join(root, name, name.lower() + '.json'), encoding='utf-8').read()
+
+    data = unidecode(data)
+
+    lines = data.split('\n')
+    for (i, line) in enumerate(lines):
+        if line.strip().startswith('"description":'):
+            lines[i] = ''
+            lines[i - 1] = lines[i - 1][:-1]
+
+    data = '\n'.join(lines)
+
+    obj = json.loads(data)
+
+    db[obj['name']] = {
+        'name': obj['name'],
+        'display_name': name.replace('_', ' '),
+
+        'mass': obj['weight'],
+        'bounds': [[0, 0, 0], obj['dimensions']],
+        'type': obj['type'],
+
+        'location': 'stow_tote',
+        'new_item': False,
+        'point_value': 10,
+        'properties': [],
+
+        'thumbnail': os.path.join(root, name, 'thumb.png')
+    }
+
+    if name in extra:
+        db[obj['name']].update(extra[obj['name']])
+
+print json.dumps(db, indent=4)

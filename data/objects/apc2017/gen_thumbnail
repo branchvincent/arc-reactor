@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+
+import os
+import cv2
+import numpy
+
+paths = [ path for path in os.listdir('.') if os.path.isdir(path)]
+
+for name in sorted(paths):
+    img = cv2.imread('{0}/{0}_Top_01.png'.format(name))
+
+    if img is None:
+        img = cv2.imread('{0}/{0}_top_01.png'.format(name))
+
+    if img is None:
+        continue
+
+    mask = img.astype(numpy.int).sum(axis=2) > 10
+    black = img.astype(numpy.int).sum(axis=2) == 0
+
+    contours, _ = cv2.findContours(mask.astype(numpy.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    bounding_contour = max(contours, key=lambda c: cv2.contourArea(c))
+
+    alpha = numpy.zeros(img.shape[:2])
+    cv2.drawContours(alpha, [bounding_contour], 0, (255), thickness=-1)
+    alpha[black] = 0
+
+    out = numpy.dstack((img, alpha))
+
+    y = bounding_contour[:, :, 0]
+    x = bounding_contour[:, :, 1]
+    out = out[x.min():x.max()+1, y.min():y.max()+1, :]
+
+    max_side = max(out.shape[0], out.shape[1])
+    scale = 64.0 / max_side
+
+    out = cv2.resize(out, dsize=(0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    cv2.imwrite('{0}/thumb.png'.format(name), out)
+
+    print name

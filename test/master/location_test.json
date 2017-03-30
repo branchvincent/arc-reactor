@@ -1,0 +1,23 @@
+{
+    "item": {
+        "tissue_box": {
+            "location": "stow tote"
+        },
+        "epsom_salts": {
+            "location": "stow tote"
+        },
+        "bath_sponge": {
+            "location": "stow tote"
+        },
+        "white_facecloth": {
+            "location": "stow tote"
+        },
+        "glue_sticks": {
+            "location": "stow tote"
+        },
+        "windex": {
+            "location": "stow tote"
+        }
+    }
+}
+

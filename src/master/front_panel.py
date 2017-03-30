@@ -9,17 +9,15 @@ from time import time
 from PySide.QtGui import QMainWindow, QCheckBox
 from PySide.QtCore import QTimer
 
-from tornado.ioloop import IOLoop, PeriodicCallback
-from tornado.gen import coroutine
-
 from pensive.core import Store
-from pensive.client_async import PensiveClientAsync
-
-from .ui.front_panel import Ui_FrontPanel
 
 from master.pickfsm import PickStateMachine
+from master.stowfsm import StowStateMachine
 
-logger = logging.getLogger(__name__)
+from .ui.front_panel import Ui_FrontPanel
+from .sync import AsyncUpdateHandler
+
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 RUN_MODES = ['step_once', 'run_once', 'run_all', 'full_auto']
 JOB_TYPES = ['pick', 'stow', 'final']
@@ -40,14 +38,25 @@ class FrontPanel(QMainWindow):
         self.ui = Ui_FrontPanel()
         self.ui.setupUi(self)
 
-        self.pick = None
+        self.fsm = None
 
-        self.view = Store()
+        # setup database access
+        self.sync = AsyncUpdateHandler(self.update)
+        self.sync.request_many([
+            '/robot/run_mode',
+            '/robot/task',
+            '/checkpoint',
+            '/fault',
+            '/simulate',
+        ])
+
+        self.put = self.sync.put
+        self.multi_put = self.sync.multi_put
 
         # install run mode click handlers
         for mode in ['step_once', 'run_once', 'run_all']:
-            self._ui('run_' + mode).clicked.connect(_call(self._put, '/robot/run_mode', mode))
-        self.ui.run_full_auto.clicked.connect(_call(self._multi_put, {
+            self._ui('run_' + mode).clicked.connect(_call(self.put, '/robot/run_mode', mode))
+        self.ui.run_full_auto.clicked.connect(_call(self.multi_put, {
             '/robot/run_mode': 'full_auto',
             '/checkpoint': None,
             '/fault': None,
@@ -55,18 +64,10 @@ class FrontPanel(QMainWindow):
         }))
 
         for mode in JOB_TYPES:
-            self._ui('job_' + mode).clicked.connect(_call(self._put, '/robot/task', mode))
+            self._ui('job_' + mode).clicked.connect(_call(self.put, '/robot/task', mode))
 
         self.ui.mc_run.clicked.connect(_call(self._run_handler))
         self.ui.mc_reset.clicked.connect(_call(self._reset_handler))
-
-        self.requests = [
-            '/robot/run_mode',
-            '/robot/task',
-            '/checkpoint',
-            '/fault',
-            '/simulate',
-        ]
 
         self.hardware_map = {
             'hw_cam_bl': '/camera/shelf_bl',
@@ -83,13 +84,11 @@ class FrontPanel(QMainWindow):
             'hw_vacuum': '/vacuum'
         }
         for (name, url) in self.hardware_map.iteritems():
-            self.requests.append(url + '/timestamp')
+            self.sync.request(url + '/timestamp')
 
         self.checkpoints = self._make_path_map([
             'select_item',
-            'motion_plan',
-            'plan_execution',
-
+            'plan_route',
         ])
         self._load_toggle_list('/checkpoint/', self.checkpoints, self.ui.checkpointsLayout)
 
@@ -112,15 +111,16 @@ class FrontPanel(QMainWindow):
         self.simulations = self._make_path_map([
             'robot_motion',
             'vacuum',
+            'cameras',
             'object_detection',
         ])
         self._load_toggle_list('/simulate/', self.simulations, self.ui.simulationLayout)
 
-        self.update()
+        self.update(Store())
 
         # refresh timer
         self.timer = QTimer(self)
-        self.timer.timeout.connect(lambda: self.update())
+        self.timer.timeout.connect(lambda: self.update(None))
         self.timer.start(1000 / 30.0)
 
     def _make_path_map(self, paths):
@@ -145,48 +145,52 @@ class FrontPanel(QMainWindow):
             checkbox.setEnabled(view.get('/robot/run_mode') != 'full_auto')
 
     def _run_handler(self):
-        if not self.pick:
+        if not self.fsm:
             self._reset_handler()
 
-        run_mode = self.view.get('/robot/run_mode')
+        run_mode = self.db.get('/robot/run_mode')
         logger.info('running in mode {}'.format(run_mode))
 
         if run_mode == 'step_once':
-            self.pick.runStep()
+            self.fsm.runStep()
         elif run_mode == 'run_once':
-            self.pick.runOrdered(self.pick.getCurrentState())
+            self.fsm.runOrdered(self.fsm.getCurrentState())
         elif run_mode in ['run_all', 'full_auto']:
-            while not self.pick.doneOrderFile():
-                self.pick.runOrdered(self.pick.getCurrentState())
+            while not self.fsm.isDone():
+                self.fsm.runOrdered(self.fsm.getCurrentState())
         else:
             logger.error('unimplemented run mode: "{}"'.format(run_mode))
 
     def _reset_handler(self):
         logger.info('reset state machine')
 
-        self.pick = PickStateMachine()
-        self.pick.loadStates()
-        self.pick.setupTransitions()
-        self.pick.setCurrentState('si') #always start with SelectItem
-
-        job_type = self.view.get('/robot/task')
+        job_type = self.db.get('/robot/task')
         if job_type == 'pick':
-            logger.info('load order file for pick task')
-            self.pick.loadOrderFile('test/master/order_test.json')
+            logger.info('initialize pick state machine')
+            self.fsm = PickStateMachine()
+            #self.fsm.loadBoxFile('data/test/box_sizes.json')
+            self.fsm.loadOrderFile('data/test/order_file.json')
+            self.fsm.loadLocationFile('data/test/item_location_file.json')
+        elif job_type == 'stow':
+            logger.info('initialize stow state machine')
+            self.fsm = StowStateMachine()
+            self.fsm.loadLocationFile('data/test/item_location_file.json')
         else:
             logger.error('unimplemented job type: "{}"'.format(job_type))
+            return
 
+        self.fsm.loadStates()
+        self.fsm.setupTransitions()
+        self.fsm.setCurrentState('si') #always start with SelectItem
 
-    def update(self, view=None):
+    def update(self, db=None):
         '''
         Main update handler for the UI.
         '''
 
+        if db:
+            self.db = db
         now = time()
-
-        if not view:
-            view = Store()
-        self.view = view
 
         # style sheet for blinking foreground at 1 Hz
         if now % 1 >= 0.5:
@@ -199,7 +203,7 @@ class FrontPanel(QMainWindow):
             alert_style = ''
 
         # update run mode UI
-        run_mode = view.get('/robot/run_mode')
+        run_mode = self.db.get('/robot/run_mode')
         if run_mode in RUN_MODES:
             self.ui.run_label.setStyleSheet('')
             for mode in RUN_MODES:
@@ -212,7 +216,7 @@ class FrontPanel(QMainWindow):
             self.ui.run_label.setStyleSheet(alarm_label_style)
 
         # update job type UI
-        job_type = view.get('/robot/task')
+        job_type = self.db.get('/robot/task')
         if job_type in JOB_TYPES:
             self.ui.job_label.setStyleSheet('')
             for mode in JOB_TYPES:
@@ -226,56 +230,30 @@ class FrontPanel(QMainWindow):
 
         # update hardware status UI
         for (name, url) in self.hardware_map.iteritems():
-            if view.get(url + '/timestamp', default=0) < now - 2:
+            if self.db.get(url + '/timestamp', default=0) < now - 2:
                 self._ui(name).setStyleSheet(alarm_button_style)
             else:
                 self._ui(name).setStyleSheet('color: #008000; font-weight: bold;')
 
         # update toggle UIs
-        self._update_toggle_list(view, self.checkpoints, '/checkpoint/')
-        self._update_toggle_list(view, self.faults, '/fault/')
-        self._update_toggle_list(view, self.simulations, '/simulate/')
+        self._update_toggle_list(self.db, self.checkpoints, '/checkpoint/')
+        self._update_toggle_list(self.db, self.faults, '/fault/')
+        self._update_toggle_list(self.db, self.simulations, '/simulate/')
 
-        alert = any([view.get('/checkpoint/{}'.format(k), 0) for k in self.checkpoints])
+        alert = any([self.db.get('/checkpoint/{}'.format(k), 0) for k in self.checkpoints])
         self.ui.checkpoints_label.setStyleSheet(alert_style if alert else '')
 
-        alert = any([view.get('/fault/{}'.format(k), 0) for k in self.faults])
+        alert = any([self.db.get('/fault/{}'.format(k), 0) for k in self.faults])
         self.ui.faults_label.setStyleSheet(alert_style if alert else '')
 
-        alert = any([view.get('/simulate/{}'.format(k), 0) for k in self.simulations])
+        alert = any([self.db.get('/simulate/{}'.format(k), 0) for k in self.simulations])
         self.ui.simulation_label.setStyleSheet(alert_style if alert else '')
 
     def _put_checkbox(self, key, checkbox):
-        self._put(key, checkbox.isChecked())
+        self.sync.put(key, checkbox.isChecked())
         checkbox.blockSignals(True)
         checkbox.setChecked(not checkbox.isChecked())
         checkbox.blockSignals(False)
-
-    def _put(self, key, value=None):
-        logger.info('set {} -> {}'.format(key, value))
-        IOLoop.current().add_callback(lambda: self._put_handler(key, value))
-
-    def _multi_put(self, keys):
-        logger.info('set {}'.format(keys))
-        IOLoop.current().add_callback(lambda: self._multi_put_handler(keys))
-
-    @coroutine
-    def _put_handler(self, key, value):
-        try:
-            store = yield PensiveClientAsync().default()
-            yield store.put(key, value)
-        except:
-            logger.exception('UI put failed: {} -> {}'.format(key, value))
-            # TODO: notify the user that the operation failed
-
-    @coroutine
-    def _multi_put_handler(self, keys):
-        try:
-            store = yield PensiveClientAsync().default()
-            yield store.multi_put(keys)
-        except:
-            logger.exception('UI multi put failed: {}'.format(keys))
-            # TODO: notify the user that the operation failed
 
     def _ui(self, name):
         return getattr(self.ui, name)
@@ -290,38 +268,5 @@ if __name__ == '__main__':
     window = FrontPanel()
     window.show()
 
-    # IOLoop handler for processing Qt events
-    def handle_events():
-        app.processEvents(10)
-        if not window.isVisible():
-            IOLoop.current().stop()
-
-    # IOLoop handler for asynchronously querying the database
-    @coroutine
-    def update_ui():
-        view = Store()
-
-        try:
-            # TODO: access the store once and cache it
-            store = yield PensiveClientAsync().default()
-            # query the database
-            result = yield store.multi_get(window.requests)
-        except:
-            logger.exception('UI update query failed')
-        else:
-            # build a local store of just the queried items so that
-            # the UI code can use the nice `Store` interfaces
-            for (key, value) in result.iteritems():
-                if value is not None:
-                    view.put(key, value)
-
-        # update the UI
-        window.update(view)
-
-    # process Qt events at 100 Hz
-    PeriodicCallback(handle_events, 10).start()
-    # update the UI at 10 Hz
-    PeriodicCallback(update_ui, 100).start()
-
-    # start servicing events
-    IOLoop.current().start()
+    from .sync import exec_async
+    exec_async(app)
