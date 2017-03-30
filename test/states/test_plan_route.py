@@ -17,7 +17,7 @@ class PlanRoute_Direct(DatabaseDependentTestCase):
             raise SkipTest('Klampt is not installed')
 
         self.store = self.client.default()
-        self.store.put('', json.loads(gzip.open('data/test/workcell_032617.json.gz').read()))
+        self.store.put('', json.loads(gzip.open('data/test/workcell_full_032717.json.gz').read()))
 
         self.pr = PlanRoute('pr1', store=self.store)
 

@@ -99,7 +99,7 @@ def runPickFSM():
     pick = PickStateMachine()
     pick.loadStates()
     pick.setupTransitions()
-    #with open('data/test/workcell_032617.json.gz') as data_file:
+    #with open('data/test/workcell_full_032717.json.gz') as data_file:
     #    initial_db = json.load(data_file)
     #pick.store.put('', initial_db)
     #pick.loadBoxFile('data/test/box_sizes.json')
@@ -110,9 +110,9 @@ def runPickFSM():
     #simulate for now
     pick.store.put('/simulate/robot_motion', True)
     pick.store.put('/simulate/object_detection', True)
-    
+
     pick.setCurrentState('si')
-   
+
     pick.runStep()
     while(not pick.isDone()): pick.runOrdered(pick.getCurrentState())
 
