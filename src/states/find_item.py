@@ -14,19 +14,19 @@ class FindItem(State):
         logger.info('finding item "{}" in "{}"'.format(selected_item, location))
 
         # location camera map
-        # /shelf/cameras/bins
+        # TODO: store map in database at /shelf/cameras/bins
         location_to_cameras = {
-            'binA': ['self1']
-            'binB': ['shelf0','shelf1']
-            'binC': ['shelf0']
-            'stow_tote': ['stow']
+            'binA': ['self1'],
+            'binB': ['shelf0','shelf1'],
+            'binC': ['shelf0'],
+            'stow_tote': ['stow'],
             'stow tote': ['stow']
         }
 
         # select cameras
         try:
             selected_cameras = location_to_cameras[location]
-        else:
+        except:
             raise RuntimeError('no camera available for {}'.format(location))
 
         # detect object
@@ -57,8 +57,7 @@ class FindItem(State):
                     color, aligned_color, point_cloud = self.acquire_image(cameras, camera, camera_serials)
                     colors.append(color)
                     aligned_color.append(aligned_color)
-
-                    # Point cloud in world coordinates
+                    # Convert point cloud to world coordinates
                     camera_pose = self.store.get(['camera', camera, 'pose'])
                     pc_world = point_cloud.dot(camera_pose[:3, :3].T) + camera_pose[:3, 3].T
                     point_clouds.append(camera_pose.dot(pc_world))
@@ -98,7 +97,6 @@ class FindItem(State):
 
             item_pose_reference = numpy.linalg.inv(reference_pose).dot((item_pose_world))
             logger.debug('object pose relative to {}\n{}'.format(location, item_pose_reference))
-
             self.store.put(['item', selected_item, 'pose'], item_pose_reference)
 
         else:
@@ -129,7 +127,6 @@ class FindItem(State):
 
     def acquire_image(self, cameras, camera_name, camera_serials):
         """Acquires an image from the specified camera"""
-
         # find desired camera's serial number
         try:
             serial_num = camera_serials[camera_name]
