@@ -23,14 +23,42 @@ def output_random_bin(times, output):
         random.shuffle(list_copy)
 
         outputdict['config_'+str(i)] = {}
-        outputdict['config_'+str(i)]['bin1'] = list_copy[0:14]
-        outputdict['config_'+str(i)]['bin2'] = list_copy[15:29]
+        outputdict['config_'+str(i)]['bin1'] = list_copy[0:10]
+        outputdict['config_'+str(i)]['bin2'] = list_copy[10:22]
+        outputdict['config_'+str(i)]['bin3'] = list_copy[22:32]
     with open(output, 'w') as f:    
         json.dump(outputdict, f)
 
+
+def showbins(file):
+    with open(file, 'r') as f:
+        x = json.load(f)
+
+    for i in range(200):
+        bin1 = x["config_" + str(i)]['bin1']
+        bin2 = x["config_" + str(i)]['bin2']
+        bin3 = x["config_" + str(i)]['bin3']
+        spacing = " "*30
+        print("Bin1" + spacing + "Bin2" + spacing + "Bin3")
+        print("-"*68)
+        for n in range(len(bin2)):
+            #always start at 35
+            if n < 10:
+                spacing = " "*(34-len(bin1[n]))
+                spacing2 = " "*(68-len(bin1[n])-len(bin2[n])-len(spacing))  
+                print(bin1[n] + spacing + bin2[n] + spacing2+ bin3[n])
+            else:
+                print(35*" " + bin2[n] )
+            
+        
+        print("")
+        print("")
+        input("press key for next order")
+        print("")
+
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print('Useage--->number of configs     output file')
-        return
-    else:
-        output_random_bin(int(sys.argv[1]), sys.argv[2])    
+    # if len(sys.argv) < 3:
+    #     print('Useage--->number of configs     output file')
+    # else:
+    # output_random_bin(int(sys.argv[1]), sys.argv[2])    
+    showbins(sys.argv[1])
