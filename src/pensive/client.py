@@ -369,7 +369,7 @@ class PensiveClient(JSONClientMixin):
         If `instance` already exists and not `force`, `ValueError` is raised.
         Otherwise, the existing instance is first deleted.
 
-        If `parent is PensiveClient.DEFAULT_STORE`, an empty instance is created. Otherwise,
+        If `parent is None`, an empty instance is created. Otherwise,
         the created instance is a fork of `parent`.
         '''
 
