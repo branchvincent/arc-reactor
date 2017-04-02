@@ -16,7 +16,7 @@ class FindItem(State):
         # location camera map
         # TODO: store map in database at /shelf/cameras/bins
         location_to_cameras = {
-            'binA': ['self1'],
+            'binA': ['shelf1'],
             'binB': ['shelf0','shelf1'],
             'binC': ['shelf0'],
             'stow_tote': ['stow'],
@@ -34,15 +34,36 @@ class FindItem(State):
             logger.warn('simulating object detection of "{}"'.format(selected_item))
 
             colors, aligned_colors, point_clouds = [],[],[]
+            pc, pc_color = numpy.array([[]]),numpy.array([[]])
 
             # get images
             if self.store.get('/simulate/cameras', False):
                 logger.warn('simulating cameras')
                 for camera in selected_cameras:
                     color, aligned_color, point_cloud = self.simulate_acquire_image(camera)
-                    colors.append(color)
-                    aligned_color.append(aligned_color)
-                    point_clouds.append(point_cloud)
+                    # colors.append(color)
+                    # aligned_colors.append(aligned_color)
+
+                    # Perform grab cut
+                    # mask = self.perform_grab_cut(aligned_color, point_cloud)
+                    # cv2.destroyAllWindows()
+                    # binaryMask = (mask.sum(axis=2) > 0)
+                    # mask = numpy.bitwise_and(binaryMask, point_cloud[:, :, 2] > 0)
+                    # obj_pc, obj_pc_color = point_cloud[mask], aligned_color[mask]
+
+                    # Perform grab cut
+                    obj_pc_color, obj_pc = self.perform_grab_cut(aligned_color, point_cloud)
+
+                    # Convert to world coorindates and update global point cloud
+                    camera_pose = self.store.get(['camera', camera, 'pose'])
+                    obj_pc_world = obj_pc.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
+                    if pc.size == 0:
+                        pc = obj_pc_world
+                        pc_color = obj_pc_color
+                    else:
+                        pc = numpy.concatenate((pc,obj_pc_world), axis=0)
+                        pc_color = numpy.concatenate((pc_color,obj_pc_color), axis=0)
+
             else:
                 from hardware.SR300 import DepthCameras
 
@@ -55,36 +76,47 @@ class FindItem(State):
                 camera_serials = self.store.get('/system/cameras')
                 for camera in selected_cameras:
                     color, aligned_color, point_cloud = self.acquire_image(cameras, camera, camera_serials)
-                    colors.append(color)
-                    aligned_color.append(aligned_color)
+                    # colors.append(color)
+                    # aligned_colors.append(aligned_color)
                     # Convert point cloud to world coordinates
+                    # point_clouds.append(pc_world)
+                    # point_clouds.append(camera_pose.dot(pc_world))
+                    # point_clouds.append(camera_pose.dot(point_cloud))
+
+                    # # Perform grab cut
+                    # mask = self.perform_grab_cut(aligned_color)
+                    # cv2.destroyAllWindows()
+                    # binaryMask = (mask.sum(axis=2) > 0)
+                    # mask = numpy.bitwise_and(binaryMask, point_cloud[:, :, 2] > 0)
+                    # obj_pc, obj_pc_color = point_cloud[mask], aligned_color[mask]
+
+                    # # Convert to world coorindates and update global point cloud
+                    # camera_pose = self.store.get(['camera', camera, 'pose'])
+                    # obj_pc_world = obj_pc.dot(camera_pose[:3, :3].T) + camera_pose[:3, 3].T
+                    # if cut_pc.size == 0:
+                    #     cut_pc = obj_pc_world
+                    #     cut_pc_color = obj_pc_color
+                    # else:
+                    #     cut_pc = numpy.concatenate((cut_pc,obj_pc_world), axis=0)
+                    #     cut_pc_color = numpy.concatenate((cut_pc_color,obj_pc_color), axis=0)
+
+                    # Perform grab cut
+                    obj_pc_color, obj_pc = self.perform_grab_cut(aligned_color, point_cloud)
+
+                    # Convert to world coorindates and update global point cloud
                     camera_pose = self.store.get(['camera', camera, 'pose'])
-                    pc_world = point_cloud.dot(camera_pose[:3, :3].T) + camera_pose[:3, 3].T
-                    point_clouds.append(camera_pose.dot(pc_world))
-
-            # Perform grab cut
-            cut_pc, cut_pc_color = [],[]
-            for color,aligned_color,point_cloud in zip(colors,aligned_colors,point_clouds):
-                mask = self.perform_grab_cut(aligned_color)
-                cv2.destroyAllWindows()
-                binaryMask = (mask.sum(axis=2) > 0)
-                mask = numpy.bitwise_and(binaryMask, point_cloud[:, :, 2] > 0)
-                obj_pc = point_cloud[mask]
-                # Update global point cloud
-                cut_pc = numpy.concatenate((cut_pc,obj_pc), axis=0)
-                cut_pc_color = numpy.concatenate((cut_pc_color,aligned_colors), axis=0)
-
-            # Update database
-            mean = cut_pc.mean(axis=0)
-            self.store.put(['item', selected_item, 'point_cloud'], cut_pc - mean)
-            self.store.put(['item', selected_item, 'point_cloud_color'], cut_pc_color)
-            self.store.put(['item', selected_item, 'timestamp'], time())
-
-            logger.debug('found {} object points'.format(cut_pc.shape[0]))
+                    obj_pc_world = obj_pc.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
+                    if pc.size == 0:
+                        pc = obj_pc_world
+                        pc_color = obj_pc_color
+                    else:
+                        pc = numpy.concatenate((pc,obj_pc_world), axis=0)
+                        pc_color = numpy.concatenate((pc_color,obj_pc_color), axis=0)
 
             #update pose as mean of point cloud
+            mean = pc.mean(axis=0)
             item_pose_world = numpy.eye(4)
-            item_pose_world[:3, 3] = mean
+            item_pose_world[:3,3] = mean
             logger.debug('object pose relative to world\n{}'.format(item_pose_world))
 
             reference_pose = numpy.eye(4)
@@ -95,9 +127,24 @@ class FindItem(State):
             else:
                 raise RuntimeError('unrecognized item location: {}'.format(selected_item))
 
-            item_pose_reference = numpy.linalg.inv(reference_pose).dot((item_pose_world))
+            item_pose_reference = numpy.linalg.inv(reference_pose).dot(item_pose_world)
             logger.debug('object pose relative to {}\n{}'.format(location, item_pose_reference))
             self.store.put(['item', selected_item, 'pose'], item_pose_reference)
+
+            # Update item point cloud
+            # reference_pose = self.store.get('/shelf/pose')
+            inv_pose_world = numpy.linalg.inv(item_pose_world)
+            # cut_pc = cut_pc.dot(inv_reference_pose[:3, :3].T) + inv_reference_pose[:3, 3].T
+            # cut_pc_color = cut_pc_color.dot(inv_reference_pose[:3, :3].T) + inv_reference_pose[:3, 3].T
+            # cut_pc_local = cut_pc.dot(item_pose_reference[:3, :3].T) + item_pose_reference[:3, 3].T
+            # mean_local = cut_pc_local.mean(axis=0)
+            pc_local = pc.dot(inv_pose_world[:3,:3].T) + inv_pose_world[:3,3].T
+            mean_local = pc_local.mean(axis=0)
+            self.store.put(['item', selected_item, 'point_cloud'], pc_local - mean_local)
+            self.store.put(['item', selected_item, 'point_cloud_color'], pc_color)
+            self.store.put(['item', selected_item, 'timestamp'], time())
+
+            logger.debug('found {} object points'.format(pc.shape[0]))
 
         else:
             # for all cameras available, do:
@@ -113,6 +160,7 @@ class FindItem(State):
     def simulate_acquire_image(self, camera_name):
         """Simulates acquiring an image from the specified camera"""
         # Load simulated image data
+        print "Camera name",camera_name
         color = cv2.imread('data/simulation/color-{}-0.png'.format(camera_name))[:, :, ::-1]
         aligned_color = cv2.imread('data/simulation/aligned-{}-0.png'.format(camera_name))[:, :, ::-1]
         point_cloud = numpy.load('data/simulation/pc-{}-0.npy'.format(camera_name))
@@ -155,8 +203,9 @@ class FindItem(State):
 
         return color, aligned_color, point_cloud
 
-    def perform_grab_cut(self, aligned_color):
+    def perform_grab_cut(self, aligned_color, point_cloud):
         """Perform grab cut selection on color-aligned-to-depth image"""
+        # Get mask
         if self.store.get('/test/skip_grabcut', False):
             logger.warn('skipped grabcut for testing')
             mask = aligned_color
@@ -164,7 +213,11 @@ class FindItem(State):
             from simulation.grabcut import GrabObject
             grab = GrabObject(aligned_color)
             mask = grab.run()
-        return mask
+        # Apply mask
+        cv2.destroyAllWindows()
+        binaryMask = (mask.sum(axis=2) > 0)
+        mask = numpy.bitwise_and(binaryMask, point_cloud[:, :, 2] > 0)
+        return aligned_color[mask], point_cloud[mask],
 
 if __name__ == '__main__':
     FindItem('fi').run()
