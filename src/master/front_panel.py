@@ -146,7 +146,11 @@ class FrontPanel(QMainWindow):
             checkbox.setEnabled(view.get('/robot/run_mode') != 'full_auto')
 
     def _back_handler(self):
-        pass
+        if not self.fsm:
+            self._reset_handler()
+        logger.info('going back one step')
+        
+        self.fsm.backStep()
 
     def _run_handler(self):
         if not self.fsm:
