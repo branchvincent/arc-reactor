@@ -27,7 +27,11 @@
 
 
   <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.65 0 0.2" rotateZ="0.0"> -->
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.11442071233740891 0.7424367833231837 0.12065000000000001" rotateZ="0.0">
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.61442071233740891 0.0424367833231837 0.22065000000000001" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.61442071233740891 0.4424367833231837 0.22065000000000001" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
