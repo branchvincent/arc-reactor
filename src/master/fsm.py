@@ -42,8 +42,15 @@ class StateMachine():
         self.transitions = {}
         self.finStates = {}
         self.pastEvents = []
+        self.pastStorage = []
         self.current = None
         self.store = store or PensiveClient().default()
+        self.removeHistory()
+
+    def removeHistory(self):
+        for i in PensiveClient().index():
+            if i is not None:
+                PensiveClient().delete(i)
 
     def setCurrentState(self, name):
         self.current = name.upper()
@@ -62,14 +69,16 @@ class StateMachine():
 
     def runCurrent(self):
         print "currently running ", self.getCurrentState()
-        logger.info("Current running the state: ", self.getCurrentState())
+        logger.info("Current running the state {} ".format(self.getCurrentState()))
+        self.pastStorage.append(PensiveClient().create("history"+self.getCurrentState(), parent=self.store.get_instance()))
         self.events[self.current].run()
         self.pastEvents.append(self.current)
-
+        
     def getLast(self):
         lastEvent = self.pastEvents.pop()
+        self.pastStore = self.pastStorage.pop()
         print "going back to ", lastEvent
-        logger.info("Going back one state to: ", lastEvent)
+        logger.info("Going back one state to {} ".format(lastEvent))
         return lastEvent
 
     def runAll(self):
@@ -117,6 +126,11 @@ class StateMachine():
         if not self.getCurrentState():
             raise RuntimeError("Not in a state. Cannot go back")
         self.setCurrentState(self.getLast())
+        print "rewriting db from ", self.pastStore.get_instance()
+        print "selected_item in this store is ", self.pastStore.get('/robot/selected_item')
+        print "overwriting the store ", self.store.get_instance()
+        self.store.put('', self.pastStore.get())
+        PensiveClient().delete(self.pastStore.get_instance())
 
     def isDone(self):
         raise NotImplementedError
