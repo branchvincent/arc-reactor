@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>730</width>
+    <width>738</width>
     <height>545</height>
    </rect>
   </property>
@@ -363,7 +363,7 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>125</width>
+               <width>127</width>
                <height>192</height>
               </rect>
              </property>
@@ -435,7 +435,7 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>125</width>
+               <width>127</width>
                <height>192</height>
               </rect>
              </property>
@@ -507,7 +507,7 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>125</width>
+               <width>127</width>
                <height>192</height>
               </rect>
              </property>
@@ -1087,7 +1087,7 @@ Pick</string>
           <item row="1" column="3">
            <widget class="QPushButton" name="mc_stop">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
@@ -1167,7 +1167,7 @@ Pick</string>
           <item row="1" column="1">
            <widget class="QPushButton" name="mc_back">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">

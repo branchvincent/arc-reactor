@@ -156,11 +156,16 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
 
     def __init__(self, host, instance=None, **kwargs):
         if instance is None:
+            self.instance = PensiveClient.DEFAULT_STORE
             base_url = '{}/d/'.format(host.rstrip('/'))
         else:
+            self.instance = instance
             base_url = '{}/i/{}/'.format(host.rstrip('/'), instance)
 
         super(StoreProxy, self).__init__(base_url, **kwargs)
+
+    def get_instance(self):
+        return self.instance
 
     def _concat_key(self, key):
         if key and not isinstance(key, basestring):
@@ -369,7 +374,7 @@ class PensiveClient(JSONClientMixin):
         If `instance` already exists and not `force`, `ValueError` is raised.
         Otherwise, the existing instance is first deleted.
 
-        If `parent is PensiveClient.DEFAULT_STORE`, an empty instance is created. Otherwise,
+        If `parent is None`, an empty instance is created. Otherwise,
         the created instance is a fork of `parent`.
         '''
 

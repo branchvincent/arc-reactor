@@ -68,6 +68,7 @@ class FrontPanel(QMainWindow):
 
         self.ui.mc_run.clicked.connect(_call(self._run_handler))
         self.ui.mc_reset.clicked.connect(_call(self._reset_handler))
+        self.ui.mc_back.clicked.connect(_call(self._back_handler))
 
         self.hardware_map = {
             'hw_cam_bl': '/camera/shelf_bl',
@@ -143,6 +144,13 @@ class FrontPanel(QMainWindow):
             checkbox.setChecked(view.get(prefix + name, default=False))
             checkbox.blockSignals(False)
             checkbox.setEnabled(view.get('/robot/run_mode') != 'full_auto')
+
+    def _back_handler(self):
+        if not self.fsm:
+            self._reset_handler()
+        logger.info('going back one step')
+        
+        self.fsm.backStep()
 
     def _run_handler(self):
         if not self.fsm:
