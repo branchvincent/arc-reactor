@@ -252,9 +252,10 @@ class Store(StoreInterface):
             for (k, child) in self._children.iteritems():
                 # prepend the path with the child key and skip over
                 # empty values if not strict
-                result.update({((k + self.SEPARATOR + p).strip('/'), v) \
+                d = [((k + self.SEPARATOR + p).strip('/'), v) \
                     for (p, v) in child.flatten(strict).iteritems() \
-                    if strict or v is not None})
+                    if strict or v is not None]
+                result.update(dict(d))
             return result
         else:
             return {'': self._value}
