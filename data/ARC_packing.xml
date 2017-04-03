@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<world>
+
+ 
+
+  <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
+  <terrain file="terrains/block.off" />
+
+
+  <terrain name="order_box" file="objects/box-1A5.off"  translation="0 0 0" >
+     <display color="1 1 00"/>
+  </terrain>
+  
+
+
+
+
+  <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.65 0 0.2" rotateZ="0.0"> -->
+  <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position=" 0 0 0.5" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="0.35 0.5 0.2" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="0.6 0.5 0.2" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+<!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.5 0.37" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
+  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.23 0.57" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject> 
+  
+  <rigidObject name="srimug2" file="objects/block_small.obj"  position="1.0 0.25 0.37" rotateZ="0.0">
+     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
+     <display color="1 1 0"/>
+  </rigidObject>  -->
+
+  <!-- <target position="-0.4 0 0.3" /> -->
+
+  <!-- <simulation>
+    <globals /> 
+    <object index="0">
+       <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
+    </object>
+    <object index="1">
+       <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
+    </object>
+    
+    <object index="2">
+       <geometry kFriction="0.5" kRestitution="0.7" padding="0.002"/>
+    </object>
+  
+  </simulation> -->
+</world>
