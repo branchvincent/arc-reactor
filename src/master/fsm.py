@@ -46,6 +46,7 @@ class StateMachine():
         self.current = None
         self.store = store or PensiveClient().default()
         self.removeHistory()
+        self.store.put('/robot/stop_flag', False)
 
     def removeHistory(self):
         for i in PensiveClient().index():
@@ -67,12 +68,23 @@ class StateMachine():
         if endState:
             self.finStates[name] = event
 
+    def setFinal(self, name):
+        self.finStates[name] = self.events[name]
+
+    def stop(self):
+        #self.store.put('/robot/stop_flag', True)
+        pass
+
     def runCurrent(self):
         print "currently running ", self.getCurrentState()
         logger.info("Current running the state {} ".format(self.getCurrentState()))
-        self.pastStorage.append(PensiveClient().create("history"+self.getCurrentState(), parent=self.store.get_instance()))
+        history_name = self.getCurrentState()+str(len(self.pastStorage))
+        if history_name in PensiveClient().index():
+            PensiveClient().delete(history_name)
+        histStore = PensiveClient().create(history_name, parent=self.store.get_instance())
         self.events[self.current].run()
         self.pastEvents.append(self.current)
+        self.pastStorage.append(histStore)
         
     def getLast(self):
         lastEvent = self.pastEvents.pop()
@@ -102,15 +114,13 @@ class StateMachine():
             raise RuntimeError("Need to define a final state")
 
         self.setCurrentState(nameInit)
-
+        self.removeHistory() #TODO change this for runAll application?
+        
         while self.current not in self.finStates:
-            self.runCurrent()
-            self.decideState = self.transitions[self.getCurrentState()].decideTransition()
-            self.setCurrentState(self.decideState)
+            self.runStep()
 
-        self.runCurrent()
-        self.decideState = self.transitions[self.getCurrentState()].decideTransition()
-        self.setCurrentState(self.decideState)
+        print "Running final state"
+        self.runStep()
 
     def runStep(self):
         if not self.getCurrentState():
@@ -126,9 +136,7 @@ class StateMachine():
         if not self.getCurrentState():
             raise RuntimeError("Not in a state. Cannot go back")
         self.setCurrentState(self.getLast())
-        print "rewriting db from ", self.pastStore.get_instance()
-        print "selected_item in this store is ", self.pastStore.get('/robot/selected_item')
-        print "overwriting the store ", self.store.get_instance()
+        logger.info("Re-writing the db from {}".format(self.pastStore.get_instance()))
         self.store.put('', self.pastStore.get())
         PensiveClient().delete(self.pastStore.get_instance())
 

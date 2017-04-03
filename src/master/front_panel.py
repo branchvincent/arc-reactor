@@ -69,6 +69,7 @@ class FrontPanel(QMainWindow):
         self.ui.mc_run.clicked.connect(_call(self._run_handler))
         self.ui.mc_reset.clicked.connect(_call(self._reset_handler))
         self.ui.mc_back.clicked.connect(_call(self._back_handler))
+        self.ui.mc_stop.clicked.connect(_call(self._stop_handler))
 
         self.hardware_map = {
             'hw_cam_bl': '/camera/shelf_bl',
@@ -152,6 +153,15 @@ class FrontPanel(QMainWindow):
         
         self.fsm.backStep()
 
+    def _stop_handler(self):
+        if not self.fsm:
+            self._reset_handler()
+        logger.info('stopping after state finishes')
+        
+        run_mode = self.db.get('/robot/run_mode')
+        if run_mode in ['run_once', 'run_all', 'full_auto']:
+            self.fsm.stop()
+
     def _run_handler(self):
         if not self.fsm:
             self._reset_handler()
@@ -164,7 +174,7 @@ class FrontPanel(QMainWindow):
         elif run_mode == 'run_once':
             self.fsm.runOrdered(self.fsm.getCurrentState())
         elif run_mode in ['run_all', 'full_auto']:
-            while not self.fsm.isDone():
+            while not self.fsm.isDone() or not self.db.get('/robot/stop_flag', False):
                 self.fsm.runOrdered(self.fsm.getCurrentState())
         else:
             logger.error('unimplemented run mode: "{}"'.format(run_mode))
