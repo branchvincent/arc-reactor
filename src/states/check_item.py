@@ -28,7 +28,7 @@ class CheckItem(State):
             self.number = self.store.get('/order/'+self.orderUp+'/number')
             if len(self.filled) < self.number:
                 self.notDone = self.store.get('/order/'+self.orderUp)
-                for i in self.notDone['items']:
+                for i in self.notDone['contents']:
                     if i not in self.filled:
                         self.points = (20 if self.store.get('/item/'+i+'/new_item') else 10)
                         self.points += 10/(self.number-len(self.filled))
