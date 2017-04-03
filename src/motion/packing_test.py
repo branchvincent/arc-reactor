@@ -149,6 +149,7 @@ class MyGLViewer(GLSimulationPlugin):
 		self.packing_mode=0
 		self.box_limit=box_limit['1A5']
 		self.score=[]
+		self.flag=0
 		# print self.world.terrain("order_box").geometry().getBB()
 		for i in range(world.numRigidObjects()):
 			self.sim.body(self.sim.world.rigidObject(i)).enable(False)
@@ -156,21 +157,21 @@ class MyGLViewer(GLSimulationPlugin):
 			# print self.world.rigidObject(i).getTransform()[1]
 		
 	def control_loop(self):
-		if self.packing_mode==0 and self.sim.getTime()>self.start_time+1+2*self.target:
+		if self.packing_mode==0 and self.sim.getTime()>self.start_time+1+1*self.target:
 			if self.target<self.world.numRigidObjects():
 				print "pacing the object!"
 				obj=self.sim.body(self.world.rigidObject(self.target))
 				obj.setObjectTransform(so3.identity(),[0,0,self.box_limit[1][2]+0.15])
 				print "set to:",[0,0,self.box_limit[1][2]+0.15]
 				print "is :",self.world.rigidObject(self.target).getTransform()[1]
-				obj.enable(True)
+				# obj.enable(True)
 				self.target+=1
 			else:
 				self.make_score()
 				print self.score
 				self.reset_items()
 				self.packing_mode=1
-		elif self.packing_mode==1 and self.sim.getTime()>self.start_time+1+2*self.target:
+		elif self.packing_mode==1 and self.sim.getTime()>self.start_time+1+1*self.target:
 			if self.target<self.world.numRigidObjects():
 				print "pacing the object!"
 				obj=self.sim.body(self.world.rigidObject(self.target))
@@ -185,7 +186,7 @@ class MyGLViewer(GLSimulationPlugin):
 				good_t[2]=max(0.2,good_t[2])
 				print check_placement(self.world,[R,good_t],self.target,self.box_limit)
 				obj.setObjectTransform(R,good_t)
-				obj.enable(True)
+				# obj.enable(True)
 				self.target+=1
 			else:
 				self.make_score()
@@ -194,11 +195,12 @@ class MyGLViewer(GLSimulationPlugin):
 				self.packing_mode=2
 		elif self.packing_mode==2:
 			print self.score
-			self.packing_mode=3
+			self.flag=1
 
 	def reset_items(self):
 		for i in range(world.numRigidObjects()):	
 			R,t=self.reset_T[i]
+			print t
 			obj=self.sim.body(self.world.rigidObject(i))
 			obj.setObjectTransform(R,t)
 			obj.enable(False)
@@ -265,6 +267,66 @@ class MyGLViewer(GLSimulationPlugin):
 		world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
 		return [origin_T[0],drop_position]
 
+	def idle(self):
+		#Put your idle loop handler here
+		#the current example simulates with the current time step self.dt
+		if self.flag:
+			world = WorldModel()
+			res = world.readFile("../../data/ARC_packing.xml")
+			with open("pick_task_generator.json") as json_file:
+				data=json.load(json_file)
+			box_fit_item=data['box_fit_item']
+			box_volume=data['box_volume']
+			item_dictionary=data['item_dictionary']
+			box_name=data['box_name']	
+			shelved=[]
+			order_box=2
+			n=3
+			order_list=generate_orders(n,order_box,box_fit_item,box_volume,item_dictionary,box_name,0.3)
+			name_index={}
+			for i in range(40):
+				name_index[box_fit_item[4][i]]=i
+			# print order_list
+			for i in range(n):
+					dataset=random.choice(objects.keys())
+					# index = random.randint(0,len(objects[dataset])-1)
+					index=name_index[order_list[i]]
+					# index=3
+					objname = objects[dataset][index]
+					# print dataset,objname
+					shelved.append((dataset,objname))
+
+			# test=[]
+			# test.append([-0.0468572843527858+1, 0.01388161073849592, 0.08110878087034991+1])
+			# test.append([0.1714684552570149+1, -0.00583098982142613, 0.08142222047427562+1])
+			# test.append([0.06898789824234802+1, 0.015579665412308652, 0.08918678112073716+1])
+			for index,element in enumerate(shelved):
+				objectset,objectname=element
+				obj=make_object(objectset,objectname,world)
+				bb1,bb2=obj.geometry().getBB()
+				obj.setTransform(so3.identity(),[-1+index*0.3,-1,0.3])
+
+			self.sim=SimpleSimulator(world)
+			self.flag=0
+			self.packing_mode=0
+			self.reset_T=[]
+			self.target=0
+			self.start_time=self.sim.getTime()
+			print self.sim.getTime()
+			for i in range(world.numRigidObjects()):	
+				self.sim.body(self.sim.world.rigidObject(i)).enable(False)
+				self.reset_T.append([so3.identity(),[-1+i*0.3,-1,0.3]])
+				
+				
+		if self.simulate:
+			#Handle screenshots
+			if self.sim.getTime() == 0:
+				self.sim.simulate(0)
+			self.control_loop()
+			self.sim.simulate(self.window.program.dt)
+			self.refresh()
+		return True
+
 	def mousefunc(self,button,state,x,y):
 		#Put your mouse handler here
 		#the current example prints out the list of objects clicked whenever
@@ -281,12 +343,7 @@ class MyGLViewer(GLSimulationPlugin):
 
 	def keyboardfunc(self,c,x,y):
 		if c=='a':
-			if self.target<self.world.numRigidObjects():
-				print "moving the object!"
-				obj=self.sim.body(self.world.rigidObject(self.target))
-				obj.setTransform(so3.identity(),[0,0,0.4])
-				obj.enable(True)
-				self.target+=1
+			self.flag=1
 			
 			# self.world.remove(self.world.rigidObject(self.world.numRigidObjects()-1))
 		GLSimulationPlugin.keyboardfunc(self,c,x,y)
@@ -313,7 +370,7 @@ if __name__ == "__main__":
 	shelved=[]
 	order_box=2
 	n=3
-	order_list=generate_orders(n,order_box,box_fit_item,box_volume,item_dictionary,box_name,0.5)
+	order_list=generate_orders(n,order_box,box_fit_item,box_volume,item_dictionary,box_name,0.3)
 	name_index={}
 	for i in range(40):
 		name_index[box_fit_item[4][i]]=i
