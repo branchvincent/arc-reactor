@@ -4,11 +4,20 @@ import sys
 import os
 import logging
 import cv2
+import json
 logger = logging.getLogger()
 class ManualSegmentationGUI(QtWidgets.QWidget):
     
     def __init__(self):
         super(ManualSegmentationGUI, self).__init__()
+        
+        #load in the json file 
+        with open('binrandom.txt', 'r') as f:
+            x = json.load(f)
+        self.jsonfile = x
+        self.image_num = -1
+        self.bin = 0            #bin is either left 0 or right 1
+
         self.initUI()
         self.show()
 
@@ -25,17 +34,27 @@ class ManualSegmentationGUI(QtWidgets.QWidget):
         self.save_button.setText("Save")
         self.save_button.pressed.connect(self.save_file)
         self.current_image_name = QtWidgets.QLabel(self)
+        self.left_radio = QtWidgets.QRadioButton(self)
+        self.left_radio.setText("Left/Mid")
+        self.left_radio.toggled.connect(self.bin_changedL)
+        self.right_radio = QtWidgets.QRadioButton(self)
+        self.right_radio.setText("Mid/Right")
+        self.right_radio.toggled.connect(self.bin_changedR)
         self.current_image_name.setText("No image loaded")
         self.horz_top.addStretch(1)
         self.horz_top.addWidget(self.load_button)
         self.horz_top.addSpacing(20)
         self.horz_top.addWidget(self.save_button)
         self.horz_top.addSpacing(20)
+        self.horz_top.addWidget(self.left_radio)
+        self.horz_top.addWidget(self.right_radio)
         self.horz_top.addWidget(self.current_image_name)
         self.horz_top.addStretch(1)
         self.load_button.show()
         self.save_button.show()
         self.current_image_name.show()
+        #set to left bin
+        self.left_radio.setChecked(True)
 
         self.setGeometry(200,200,800,600)
 
@@ -49,8 +68,8 @@ class ManualSegmentationGUI(QtWidgets.QWidget):
         self.left_vert_widget.addStretch(1)
         self.buttons = []
         for i in range(22):
-            self.buttons.append(QtWidgets.QPushButton(self))
-            self.buttons[i].setMaximumWidth(150)
+            self.buttons.append(QtWidgets.QRadioButton(self))
+            self.buttons[i].setMaximumWidth(200)
             self.buttons[i].setText("Item " + str(i))
             self.buttons[i].pressed.connect(self.button_pressed)
             self.left_vert_widget.addWidget(self.buttons[i])
@@ -71,17 +90,60 @@ class ManualSegmentationGUI(QtWidgets.QWidget):
         fname = QtWidgets.QFileDialog.getOpenFileName(self, 'Open Image', "","*.npy" )
         if fname[0] != "":
             image = np.load(fname[0])
+            #what directory is this image in will tell us what json entry to use
+            last_slash = fname[0].rfind('/',0, len(fname[0]))
+            second_last_slash = fname[0].rfind('/',0, last_slash)
+            directory = fname[0][second_last_slash+1:last_slash]
+            self.image_num = int(directory)
             self.image_visualization.set_image(image)
             self.current_image_name.setText(fname[0])
+            self.update_button_labels()
 
+
+    def update_button_labels(self):
+        #which data set are we looking at?
+        try:
+            dict = self.jsonfile["config_" + str(self.image_num)]
+        except:
+            return
+        #which side? left or right?
+        if self.bin == 0:
+            cnt = 0
+            for string in dict['bin1']:
+                self.buttons[cnt].setText(string)
+                cnt += 1
+            for string in dict['bin2']:
+                self.buttons[cnt].setText(string)
+                cnt += 1
+        else:
+            cnt = 0
+            for string in dict['bin2']:
+                self.buttons[cnt].setText(string)
+                cnt += 1
+            for string in dict['bin3']:
+                self.buttons[cnt].setText(string)
+                cnt += 1
     def save_file(self):
-        pass
+        fname = QtWidgets.QFileDialog.getSaveFileName(self, 'Save segmentation', "","*.npy" )
+        if fname[0] != "":
+            seg_data = np.array(self.image_visualization.segmented_points)
+            np.save(fname[0],seg_data)
+            print("Segmentation data saved to {}".format(fname[0]))
 
     def button_pressed(self):
         #which button was pressed?
-        #TODO
+        num = self.buttons.index(self.sender())
+        self.image_visualization.segment_index = num
 
-        self.image_visualization.segment_index = 0
+    def bin_changedL(self, ison):
+        if ison:
+            self.bin = 0
+            self.update_button_labels()
+
+    def bin_changedR(self, ison):
+        if ison:
+            self.bin = 1
+            self.update_button_labels()
 
     def keyPressEvent(self, event):
         modifiers = QtWidgets.QApplication.keyboardModifiers()
