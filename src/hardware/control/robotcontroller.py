@@ -4,11 +4,17 @@
 import logging; logger = logging.getLogger(__name__)
 from time import sleep
 from copy import deepcopy
-from math import degrees, radians, isnan, isinf
+from math import degrees, radians, isnan, isinf, ceil
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.vacuum import Vacuum
+
 from motion.checker import MotionPlanChecker
+from master.world import build_world
+from klampt.model.collide import WorldCollider
+from klampt.plan.robotcspace import RobotCSpace
+from klampt.math import vectorops
+import numpy as np
 
 # List of robot IP addresses
 dof = 6
@@ -205,22 +211,42 @@ class RobotController:
         q = convertConfigToDatabase(q)
         self.store.put(path, q)
 
+    def jogTo(self,qdes,type='degrees'):
+        """Jogs the robot to the specified configuration, in degrees"""
+        # Setup world and cspace
+        world = build_world(self.store)
+        robot = self.world.robot('tx90l')
+        collider = WorldCollider(world)
+        cspace = RobotCSpace(robot,collider=collider)
+
+        # Perform interpolation
+        dq_max, dv_max = 5.,60.
+        q0 = self.robot.getCurrentConfig()
+        distance = robot.distance(q0,qdes)
+        numMilestones = ceil(distance/dq_max)
+        dt = dq_max/dv_max
+        # if type == 'radians':
+        #     qdes = [degrees(qi) for qi in qdes]
+        # else if type != 'degrees':
+        #     raise Exception('Unrecognized option for type: {}. Please enter "degrees" or "radians"'.format(type))
+
+        # Create milestones
+        milestones = [robot.interpolate(q0,qdes,ui) for ui in np.arange(0,1,1/numMilestones)]
+        feasible = True
+        for qi in milestones:
+            if cspace.inJointLimits(qi) and not cspace.selfCollision(x=qi) and not cspace.envCollision(x=qi):
+                feasible = False
+
+        # Run path, if feasible
+        if feasible:
+            for mi in milestones:
+                self.robot.client.addMilestoneQuiet(dt,mi)
+        else:
+            logger.warn("Jogger could not find feasible path")
+
     # def updatePlannedTrajectory(self, path='robot/waypoints'):
     #     """Updates the robot's planned trajectory from the database"""
     #     self.trajectory = Trajectory(self.robot, self.store.get(path))
-
-# if __name__ == "__main__":
-    # store = PensiveClient(host='http://10.10.1.102:8888/').default()
-    # c = RobotController(store=store)
-    # sample_milestones = [
-    #        (2, {
-    #           'robot': [0, 0, 0, 0, 0, 0, 0],
-    #           'gripper': [0,0,0],
-    #           'vacuum': [0]
-    #         })
-    #     ]
-    # store.put('robot/waypoints', sample_milestones)
-    # c.run()
 
 # if __name__ == "__main__":
 #     c = RobotController()
