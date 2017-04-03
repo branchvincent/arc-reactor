@@ -34,55 +34,58 @@ class PickStateMachine(StateMachine):
         self.setTransition('ci', 'si', 'fi', '/status/item_picked')
 
     def loadBoxFile(self, boxFile_location):
-        with open(boxFile_location) as box_file:
-            self.box_db = json.load(box_file)
-        for i, n in self.box_db.items():
-            for k in n:
-                self.store.put('/box/box'+k['size_id'], k)
+        # with open(boxFile_location) as box_file:
+        #     self.box_db = json.load(box_file)
+        # for i, n in self.box_db.items():
+        #     for k in n:
+        #         self.store.put('/box/box'+k['size_id'], k)
+        pass
 
     def loadOrderFile(self, file_location):
-        #this is dumb
-        self.store.delete('/order')
+        # #this is dumb
+        # self.store.delete('/order')
 
-        with open(file_location) as data_file:
-            self.order_db = json.load(data_file)
+        # with open(file_location) as data_file:
+        #     self.order_db = json.load(data_file)
 
-        for i, n in self.order_db.items():
-            for k in n:
-                self.store.put('/order/order'+k['size_id'], k)
-                self.store.put('/order/order'+k['size_id']+'/number', len(k['contents']))
+        # for i, n in self.order_db.items():
+        #     for k in n:
+        #         self.store.put('/order/order'+k['size_id'], k)
+        #         self.store.put('/order/order'+k['size_id']+'/number', len(k['contents']))
 
-        self.order = self.store.get('/order/').items()
+        # self.order = self.store.get('/order/').items()
 
-        for i, n in self.order:
-            for k in n['contents']:
-                self.points = (20 if self.store.get('/item/'+k+'/new_item') else 10)
-                self.points += 10/n['number']
-                self.store.put('/item/'+k+'/point_value', self.points)
-                self.store.put('/item/'+k+'/order', i)
-                print "item ", k, " is valued at ", self.points, " for ", i
+        # for i, n in self.order:
+        #     for k in n['contents']:
+        #         self.points = (20 if self.store.get('/item/'+k+'/new_item') else 10)
+        #         self.points += 10/n['number']
+        #         self.store.put('/item/'+k+'/point_value', self.points)
+        #         self.store.put('/item/'+k+'/order', i)
+        #         print "item ", k, " is valued at ", self.points, " for ", i
 
-        #need to set all other items point values to 0 to ignore
-        self.items = self.store.get('/item/').items()
-        for i, n in self.items:
-            if 'order' not in n.keys():
-                self.store.put('/item/'+i+'/point_value', 0)
+        # #need to set all other items point values to 0 to ignore
+        # self.items = self.store.get('/item/').items()
+        # for i, n in self.items:
+        #     if 'order' not in n.keys():
+        #         self.store.put('/item/'+i+'/point_value', 0)
+        pass
 
 
     def loadLocationFile(self, file_location):
-        with open(file_location) as data_file:
-            self.loc_db = json.load(data_file)
-        #only get info. Putting info comes later
+        # with open(file_location) as data_file:
+        #     self.loc_db = json.load(data_file)
+        # #only get info. Putting info comes later
 
-        for i, k in self.loc_db.items():
-            if i == 'bins':
-                for n in k:
-                    self.store.put('/bins/bin'+n['bin_id'], n)
-                    for l in n['contents']:
-                        #we only have bins A-C
-                        if n['bin_id'] not in ['A', 'B', 'C']:
-                            n['bin_id'] = 'C'
-                        self.store.put('/item/'+l+'/location', 'bin'+n['bin_id'])
+        # for i, k in self.loc_db.items():
+        #     if i == 'bins':
+        #         for n in k:
+        #             self.store.put('/bins/bin'+n['bin_id'], n)
+        #             for l in n['contents']:
+        #                 #we only have bins A-C
+        #                 if n['bin_id'] not in ['A', 'B', 'C']:
+        #                     n['bin_id'] = 'C'
+        #                 self.store.put('/item/'+l+'/location', 'bin'+n['bin_id'])
+        pass
 
     def isDone(self):
         #if all items picked, all their point values are 0. Need to re-write
