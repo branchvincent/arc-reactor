@@ -120,7 +120,7 @@ class MyGLViewer(GLSimulationPlugin):
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
                     target_item['drop offset']=[0,0,0.2]
                     # target_box["box_limit"]=self.sim.world.terrain("order_box").geometry().getBB()
-                    target_box["box_limit"]=[[-0.2144207123374089, 0.45756321667681634, 0.02],[0.05442071233740891, 0.7024367833231837, 0.42065000000000001]]
+                    target_box["box_limit"]=[[-0.2144207123374089, 0.55756321667681634, 0.02],[0.05442071233740891, 0.7024367833231837, 0.42065000000000001]]
 
                     # target_box["box_limit"]=[[-0.5,0.2,0.1],[-0.35,0.45,0.4]]
                     # target_box["drop position"]=[-0.4,0.3,0.2]
@@ -166,7 +166,7 @@ class MyGLViewer(GLSimulationPlugin):
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
                     # target_box["drop position"]=self.place_position[self.target]
                     # target_box['position']=self.place_position[self.target]
-                    target_box["box_limit"]=[[-0.85,-0.5,0.02],[-0.6,0.5,0.4]]
+                    target_box["box_limit"]=[[-0.85,-0.5,0.02],[-0.6,0.5,0.3]]
 
                     # print "shelf BB:",target_box["box_limit"]
                     # print self.place_position[self.target]

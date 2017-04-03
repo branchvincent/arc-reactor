@@ -29,7 +29,7 @@ max_end_effector_v=0.15 # max end effector move speed
 max_change=200.0/180.0*3.14159 #the max change between raw milestones is 20 degree
 milestone_check_max_change=5.0/180.0*3.14159 #the max change between milestones is 5 degree
 milestone_check_max_speed=60/180.0*3.14159
-
+slow_down_factor=0.4 #should be (0,1). the speed for the robot is slowed down to (1-slow_down_factor) when holding an item
 
 def joint_space_rotate(motion_milestones,current_p,target_p,robot,vacuum_status):
 	theta1=math.atan2(current_p[1],current_p[0])
@@ -39,16 +39,18 @@ def joint_space_rotate(motion_milestones,current_p,target_p,robot,vacuum_status)
 		delta=delta-2*math.pi
 	elif delta<-math.pi:
 		delta=delta+2*math.pi
-	max_rotate_speed=0.5
+	max_rotate_speed=0.5*(1-slow_down_factor*vacuum_status)
 	t_step=0.01
+	motion_milestones.append(make_milestone(0.05,robot.getConfig(),vacuum_status,vacuum_status))
 	if delta>0:
 		#ccw rotate
 		total_t=delta/max_rotate_speed
+		steps=int(total_t/t_step)+1
 		t=0
 		old_q=0
 		new_q=0
-		while t<total_t:
-			x=t/total_t
+		while t<=steps:
+			x=t*1.0/steps
 			new_q=(10*math.pow(x,3)-15*math.pow(x,4)+6*math.pow(x,5))*delta
 			dq=new_q-old_q
 			q=robot.getConfig()
@@ -57,7 +59,7 @@ def joint_space_rotate(motion_milestones,current_p,target_p,robot,vacuum_status)
 			old_q=new_q
 			motion_milestones.append(make_milestone(t_step,q,vacuum_status,vacuum_status))
 			robot.setConfig(q)
-			t+=t_step
+			t+=1
 		# while delta>0:
 		# 	q=robot.getConfig()
 		# 	q[1]+=0.05
@@ -67,11 +69,12 @@ def joint_space_rotate(motion_milestones,current_p,target_p,robot,vacuum_status)
 		# 	delta-=0.05
 	else:
 		total_t=-delta/max_rotate_speed
+		steps=int(total_t/t_step)+1
 		t=0
 		old_q=0
 		new_q=0
-		while t<total_t:
-			x=t/total_t
+		while t<=steps:
+			x=t*1.0/steps
 			new_q=-(10*math.pow(x,3)-15*math.pow(x,4)+6*math.pow(x,5))*delta
 			dq=new_q-old_q
 			q=robot.getConfig()
@@ -80,7 +83,7 @@ def joint_space_rotate(motion_milestones,current_p,target_p,robot,vacuum_status)
 			old_q=new_q
 			motion_milestones.append(make_milestone(t_step,q,vacuum_status,vacuum_status))
 			robot.setConfig(q)
-			t+=t_step
+			t+=1
 		# while delta<0:
 		# 	q=robot.getConfig()
 		# 	q[1]-=0.05
@@ -161,7 +164,7 @@ def pick_up(world,item,target_box,target_index):
 			y=random.uniform(box_min[1],box_max[1])
 			z=random.uniform(box_min[2],box_max[2])
 			goal_T[1]=[x,y,z]
-			print goal_T[1]
+			# print goal_T[1]
 			# goal_T[1]=[1.10298067096586, 0.3038671358694375, 0.791611841275841]
 			if check_placement(world,goal_T,target_index):
 				flag=0
@@ -183,7 +186,7 @@ def pick_up(world,item,target_box,target_index):
 				drop_position=goal_T[1]
 				box_bottom_high=goal_T[1][2]
 				high_bound=new_z
-				print 'lower!!'
+				# print 'lower!!'
 			else:
 				low_bound=0.5*(low_bound+high_bound)
 			n+=1
@@ -307,11 +310,11 @@ def check_placement(world,T,target_index):
 			glist_object.append(g)
 	if any(collide.group_collision_iter(glist_target,glist_object)):
 	# if any(collide.self_collision_iter(glist_target+glist_object)):
-		print 'objects colliding!'
+		# print 'objects colliding!'
 		return False
 	if any(collide.group_collision_iter(glist_target,glist_terrain)):
 	# if any(collide.self_collision_iter(glist_target+glist_terrain)):
-		print 'terrain colliding!'
+		# print 'terrain colliding!'
 		return False
 	return True
 
@@ -375,7 +378,7 @@ def stow(world,item,target_box,target_index):
 			y=random.uniform(box_min[1],box_max[1])
 			z=random.uniform(box_min[2],box_max[2])
 			goal_T[1]=[x,y,z]
-			print goal_T[1]
+			# print goal_T[1]
 			# goal_T[1]=[1.10298067096586, 0.3038671358694375, 0.791611841275841]
 			if check_placement(world,goal_T,target_index):
 				flag=0
@@ -397,7 +400,7 @@ def stow(world,item,target_box,target_index):
 				drop_position=goal_T[1]
 				box_bottom_high=goal_T[1][2]
 				high_bound=new_z
-				print 'lower!!'
+				# print 'lower!!'
 			else:
 				low_bound=0.5*(low_bound+high_bound)
 			n+=1
@@ -542,14 +545,15 @@ def make_milestone(t,q,vacuum_status,simulation_status):
 
 
 def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vacuum_status,simulation_status,ik_indicator):
-	if t<0.3:
-		t=0.3
-	print t
-	steps=t*control_rate
+	if t<0.5:
+		t=0.5
+	t=t/(1-slow_down_factor*vacuum_status)
+	steps=int(t*control_rate)+1
 	t_step=1.0/control_rate
 	# print "start config",robot.getConfig()
 	i=0
 	start_q=robot.getConfig()
+	milestones.append(make_milestone(0.05,start_q,vacuum_status,simulation_status))
 	while i<=steps:
 		q_old=robot.getConfig()
 		x=i*1.0/steps
@@ -595,8 +599,8 @@ def add_milestones(test_cspace,robot,milestones,t,control_rate,start_T,end_T,vac
 			i+=1
 		else:
 			print 'no feasible solution can be found!!!!!'
-			print s
-			print flag
+			print 'ik solver:',s
+			print 'maximum change:',flag
 			return False
 	return milestones
 
