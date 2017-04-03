@@ -34,4 +34,6 @@ class CheckItem(State):
                         self.points += 10/(self.number-len(self.filled))
                         self.store.put('/item/'+i+'/point_value', self.points)
 
+if __name__ == '__main__':
+    CheckItem('ci').run()
 

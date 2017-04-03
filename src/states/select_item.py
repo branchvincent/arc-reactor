@@ -34,3 +34,7 @@ class SelectItem(State):
         self.store.put('/robot/selected_item', self.chosenItem)
         
         self.store.put('/status/selected_item', self.chosenItem is not None)
+
+
+if __name__ == '__main__':
+    SelectItem('si').run()

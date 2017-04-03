@@ -7,3 +7,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class CheckRoute(State):
     def run(self):
         motion_plan.run()
+
+
+if __name__ == '__main__':
+    CheckRoute('cr').run()

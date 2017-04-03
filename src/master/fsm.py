@@ -1,5 +1,7 @@
 from pensive.core import Store
 from pensive.client import PensiveClient
+from subprocess import Popen
+import inspect
 
 import logging; logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ class StateMachine():
         self.current = None
         self.store = store or PensiveClient().default()
         self.removeHistory()
-        self.store.put('/robot/stop_flag', False)
+        #self.store.put('/robot/stop_flag', False)
 
     def removeHistory(self):
         for i in PensiveClient().index():
@@ -75,6 +77,9 @@ class StateMachine():
         #self.store.put('/robot/stop_flag', True)
         pass
 
+    def runState(self):
+        self.events[self.current].run()
+
     def runCurrent(self):
         print "currently running ", self.getCurrentState()
         logger.info("Current running the state {} ".format(self.getCurrentState()))
@@ -82,7 +87,14 @@ class StateMachine():
         if history_name in PensiveClient().index():
             PensiveClient().delete(history_name)
         histStore = PensiveClient().create(history_name, parent=self.store.get_instance())
-        self.events[self.current].run()
+
+        whoiam = inspect.getmodule(self.events[self.current]).__name__
+        print "whoiam is ", whoiam
+        p = Popen(['./reactor', 'shell', '-m', whoiam])
+        #p.start()
+        #p.join()
+        #self.events[self.current].run()
+        
         self.pastEvents.append(self.current)
         self.pastStorage.append(histStore)
         

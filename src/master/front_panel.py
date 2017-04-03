@@ -278,7 +278,9 @@ class FrontPanel(QMainWindow):
 
 if __name__ == '__main__':
     from PySide.QtGui import QApplication, QStyleFactory
+#    from PySide import QtCore
 
+#    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
     app = QApplication([])
     app.setApplicationName('ARC Reactor')
     app.setStyle(QStyleFactory.create('fusion'))

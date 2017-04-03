@@ -10,3 +10,7 @@ class MoveShelf(State):
         
         #temp. pretend we got there
         self.store.put('/shelf/current_angle', goal)
+
+
+if __name__ == '__main__':
+    MoveShelf('ms').run()
