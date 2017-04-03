@@ -283,7 +283,7 @@ class RobotController:
         if feasible:
             milestones = createMilestoneMap(dt,qs,type='db',to='db')
             self.trajectory = Trajectory(robot=self.robot, milestones=milestones, speed=1)
-            # self.run()
+            self.run()
         else:
             logger.warn("Jogger could not find feasible path")
 
