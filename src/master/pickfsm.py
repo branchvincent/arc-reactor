@@ -33,60 +33,6 @@ class PickStateMachine(StateMachine):
         self.setTransition('ms', 'fi', 'fi', '/status/shelf_move')
         self.setTransition('ci', 'si', 'fi', '/status/item_picked')
 
-    def loadBoxFile(self, boxFile_location):
-        # with open(boxFile_location) as box_file:
-        #     self.box_db = json.load(box_file)
-        # for i, n in self.box_db.items():
-        #     for k in n:
-        #         self.store.put('/box/box'+k['size_id'], k)
-        pass
-
-    def loadOrderFile(self, file_location):
-        # #this is dumb
-        # self.store.delete('/order')
-
-        # with open(file_location) as data_file:
-        #     self.order_db = json.load(data_file)
-
-        # for i, n in self.order_db.items():
-        #     for k in n:
-        #         self.store.put('/order/order'+k['size_id'], k)
-        #         self.store.put('/order/order'+k['size_id']+'/number', len(k['contents']))
-
-        # self.order = self.store.get('/order/').items()
-
-        # for i, n in self.order:
-        #     for k in n['contents']:
-        #         self.points = (20 if self.store.get('/item/'+k+'/new_item') else 10)
-        #         self.points += 10/n['number']
-        #         self.store.put('/item/'+k+'/point_value', self.points)
-        #         self.store.put('/item/'+k+'/order', i)
-        #         print "item ", k, " is valued at ", self.points, " for ", i
-
-        # #need to set all other items point values to 0 to ignore
-        # self.items = self.store.get('/item/').items()
-        # for i, n in self.items:
-        #     if 'order' not in n.keys():
-        #         self.store.put('/item/'+i+'/point_value', 0)
-        pass
-
-
-    def loadLocationFile(self, file_location):
-        # with open(file_location) as data_file:
-        #     self.loc_db = json.load(data_file)
-        # #only get info. Putting info comes later
-
-        # for i, k in self.loc_db.items():
-        #     if i == 'bins':
-        #         for n in k:
-        #             self.store.put('/bins/bin'+n['bin_id'], n)
-        #             for l in n['contents']:
-        #                 #we only have bins A-C
-        #                 if n['bin_id'] not in ['A', 'B', 'C']:
-        #                     n['bin_id'] = 'C'
-        #                 self.store.put('/item/'+l+'/location', 'bin'+n['bin_id'])
-        pass
-
     def isDone(self):
         #if all items picked, all their point values are 0. Need to re-write
         self.value = 0
@@ -102,17 +48,20 @@ def runPickFSM():
     pick = PickStateMachine()
     pick.loadStates()
     pick.setupTransitions()
-    #with open('data/test/workcell_full_032717.json.gz') as data_file:
-    #    initial_db = json.load(data_file)
-    #pick.store.put('', initial_db)
-    #pick.loadBoxFile('data/test/box_sizes.json')
-    pick.store.delete('/order')
-    pick.loadOrderFile('data/test/order_file.json')
-    pick.loadLocationFile('data/test/item_location_file.json')
-    pick.store.put('/robot/task', 'pick')
+
+    # initialize workcell
+    from master import workcell
+    workcell.setup(
+        pick.store,
+        workcell='db/workcell_pick.json',
+        location='db/item_location_file_pick.json',
+        order='db/order_file.json'
+    )
+
     #simulate for now
     pick.store.put('/simulate/robot_motion', True)
     pick.store.put('/simulate/object_detection', True)
+    pick.store.put('/simulate/cameras', True)
 
     pick.setCurrentState('si')
 

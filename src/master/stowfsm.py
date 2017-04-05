@@ -34,16 +34,6 @@ class StowStateMachine(StateMachine):
         self.setTransition('ms', 'fi', 'fi', '/status/shelf_move')
         self.setTransition('ci', 'si', 'fi', '/status/item_picked')
 
-    def loadLocationFile(self, file_location):
-        #with open(file_location) as data_file:
-        #    self.location_db = json.load(data_file)
-
-        for k, v in self.store.get('/item/').items():
-            self.store.put('/item/'+k+'/location', 'stow_tote')
-            self.store.put('/item/'+k+'/point_value', 10)
-            v = self.store.get('/item/' + k)
-            print "item ", k, " is valued at ", v['point_value'], "in", v['location']
-
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write
         self.value = 0
@@ -58,14 +48,19 @@ def runStowFSM():
     stow = StowStateMachine()
     stow.loadStates()
     stow.setupTransitions()
-    with open('test/master/test_021317_2.json') as data_file:
-        initial_db = json.load(data_file)
-    stow.store.put('', initial_db)
-    stow.loadLocationFile('test/master/location_test.json')
-    stow.store.put('/robot/task', 'stow')
+
+    # initialize workcell
+    from master import workcell
+    workcell.setup(
+        stow.store,
+        workcell='db/workcell_stow.json',
+        location='db/item_location_file_stow.json'
+    )
+
     #simulate for now
     stow.store.put('/simulate/robot_motion', True)
     stow.store.put('/simulate/object_detection', True)
+    stow.store.put('/simulate/cameras', True)
 
     #number = 10
     #for _ in range(number): pick.runOrdered('si')
