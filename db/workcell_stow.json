@@ -186,6 +186,15 @@
         }
     }, 
     "/robot/task": "stow", 
+    "/robot/current_config": [
+        0, 
+        0, 
+        0, 
+        0, 
+        0, 
+        0, 
+        0
+    ], 
     "/tote/amnesty/pose": {
         "__numpy.matrix__": {
             "dtype": "float64", 
