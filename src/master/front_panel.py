@@ -13,6 +13,7 @@ from pensive.core import Store
 
 from master.pickfsm import PickStateMachine
 from master.stowfsm import StowStateMachine
+from master import workcell
 
 from .ui.front_panel import Ui_FrontPanel
 from .sync import AsyncUpdateHandler
@@ -172,13 +173,20 @@ class FrontPanel(QMainWindow):
         if job_type == 'pick':
             logger.info('initialize pick state machine')
             self.fsm = PickStateMachine()
-            #self.fsm.loadBoxFile('data/test/box_sizes.json')
-            self.fsm.loadOrderFile('data/test/order_file.json')
-            self.fsm.loadLocationFile('data/test/item_location_file.json')
+            workcell.setup(
+                self.fsm.store,
+                workcell='db/workcell_pick.json',
+                location='db/item_location_file_pick.json',
+                order='db/order_file.json'
+            )
         elif job_type == 'stow':
             logger.info('initialize stow state machine')
             self.fsm = StowStateMachine()
-            self.fsm.loadLocationFile('data/test/item_location_file.json')
+            workcell.setup(
+                self.fsm.store,
+                workcell='db/workcell_stow.json',
+                location='db/item_location_file_stow.json'
+            )
         else:
             logger.error('unimplemented job type: "{}"'.format(job_type))
             return
