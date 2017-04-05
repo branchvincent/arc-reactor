@@ -162,6 +162,20 @@ ORDER_SCHEMA = {
 }
 
 def setup(store, location, workcell, order=None):
+    # read data files
+    if isinstance(location, str):
+        logger.debug('reading location from "{}"'.format(location))
+        location = json.load(open(location))
+    if isinstance(workcell, str):
+        logger.debug('reading workcell from "{}"'.format(workcell))
+        workcell = json.load(open(workcell))
+    if order is not None:
+        if isinstance(order, str):
+            logger.debug('reading order from "{}"'.format(order))
+            order = json.load(open(order))
+
+    store.delete('')
+
     _load(store, 'db/items.json', '/item')
     _load(store, 'db/bins.json', '/shelf/bin')
 
@@ -310,16 +324,30 @@ def setup(store, location, workcell, order=None):
     if boxes:
         raise RuntimeError('too many boxes for spot assignment: {}'.format(', '.join(boxes)))
 
-if __name__ == '__main__':
+def main(argv):
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
     parser = ArgumentParser(description='system database initializer', formatter_class=ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
     parser.add_argument('-s', '--store', metavar='STORE', help='database store')
-    parser.add_argument('action', metavar='ACTION', choices=['clean', 'setup', 'dump_pick', 'dump_stow'], help='database action')
 
-    args = parser.parse_args()
+    subparsers = parser.add_subparsers(title='actions', dest='action')
+
+    clean_parser = subparsers.add_parser('clean', help='remove non-workcell keys', description='remove non-workcell keys', formatter_class=ArgumentDefaultsHelpFormatter)
+
+    setup_parser = subparsers.add_parser('setup', help='initialize workcell', description='initialize workcell', formatter_class=ArgumentDefaultsHelpFormatter)
+    setup_parser.add_argument('task', metavar='TASK', choices=['pick', 'stow'], help='task type')
+    setup_parser.add_argument('workcell', metavar='WORKCELL', help='workcell file path or name')
+    setup_parser.add_argument('location', metavar='LOCATION', help='item location file path')
+    setup_parser.add_argument('order', metavar='ORDER', nargs='?', help='pick order file path')
+
+    dump_parser = subparsers.add_parser('dump', help='build workcell file', description='build workcell file', formatter_class=ArgumentDefaultsHelpFormatter)
+    dump_parser.add_argument('task', metavar='TASK', choices=['pick', 'stow'], help='task type')
+
+    summary_parser = subparsers.add_parser('summary', help='print workcell summary', description='print workcell summary')
+
+    args = parser.parse_args(argv[1:])
 
     # connect to the database
     from pensive.client import PensiveClient
@@ -330,14 +358,44 @@ if __name__ == '__main__':
 
     if args.action == 'clean':
         clean(store)
+
     elif args.action == 'setup':
-        clean(store)
-        setup(store,
-            json.load(open('db/item_location_file_pick.json')),
-            json.load(open('db/workcell_pick.json')),
-            json.load(open('db/order_file.json'))
-        )
-    elif args.action == 'dump_pick':
+        if args.task == 'pick':
+            # require an order file
+            if not args.order:
+                raise RuntimeError('order file is required for pick task')
+
+            order = args.order
+
+        elif args.task == 'stow':
+            # disallow an order file
+            if args.order:
+                raise RuntimeError('order file is disallowed for stow task')
+
+            order = None
+
+        else:
+            raise RuntimeError('unrecognized task: {}'.format(args.task))
+
+        # assume default location for workcell if full path no provided
+        workcell = args.workcell
+        if not workcell.endswith('.json'):
+            workcell = 'db/{}_{}.json'.format(args.workcell, args.task)
+            logger.info('mapped workcell to "{}"'.format(workcell))
+
+        # build the workcell
+        setup(store, args.location, workcell, order)
+
+        # check that task matches
+        task = store.get('/robot/task')
+        if task != args.task:
+            raise RuntimeError('workcell task ({}) does not match requested task ({})'.format(task, args.task))
+
+    elif args.action == 'dump':
+        task = store.get('/robot/task')
+        if task != args.task:
+            raise RuntimeError('workcell task ({}) does not match requested task ({})'.format(task, args.task))
+
         urls = [
             '/robot/base_pose',
             '/shelf/pose'
@@ -345,28 +403,33 @@ if __name__ == '__main__':
 
         for c in store.get('camera').keys():
             urls.append('/camera/{}/pose'.format(c))
-        for s in store.get('/system/spot').keys():
-            urls.append('/system/spot/{}/pose'.format(s))
+
+        if args.task == 'pick':
+            # save box spots
+            for s in store.get('/system/spot').keys():
+                urls.append('/system/spot/{}/pose'.format(s))
+
+        elif args.task == 'stow':
+            # save tote poses
+            for t in store.get('/tote').keys():
+                urls.append('/tote/{}/pose'.format(t))
+
+        else:
+            raise RuntimeError('unrecognized task: {}'.format(args.task))
 
         cell = dict([(url, store.get(url)) for url in urls])
-        cell['/robot/task'] = 'pick'
+        cell.update({
+            '/robot/task': args.task,
+            '/robot/current_config': 7*[0]
+        })
 
         from pensive.client import json_encode
         print json_encode(cell, indent=4)
 
-    elif args.action == 'dump_stow':
-        urls = [
-            '/robot/base_pose',
-            '/shelf/pose'
-        ]
+if __name__ == '__main__':
+    import sys
 
-        for c in store.get('camera').keys():
-            urls.append('/camera/{}/pose'.format(c))
-        for t in store.get('/tote').keys():
-            urls.append('/tote/{}/pose'.format(t))
-
-        cell = dict([(url, store.get(url)) for url in urls])
-        cell['/robot/task'] = 'stow'
-
-        from pensive.client import json_encode
-        print json_encode(cell, indent=4)
+    try:
+        main(sys.argv)
+    except Exception:
+        logger.exception('command failed')
