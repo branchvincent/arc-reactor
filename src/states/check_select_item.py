@@ -40,7 +40,7 @@ class ItemSelector(QWidget):
         layout.addWidget(label, 0, 0, 1, width)
 
         for (i, item) in enumerate(sorted(items)):
-            parts = items[item]['name'].split(' ') + ['({})'.format(items[item]['location'])]
+            parts = items[item].get('display_name', items[item]['name']).split(' ') + ['({})'.format(items[item]['location'])]
             lines = ['']
             for part in parts:
                 if len(lines[-1]) > 10:
