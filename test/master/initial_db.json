@@ -73,6 +73,7 @@
         "kong_duck_dog_toy": {
             "name": "kong_duck_dog_toy",
             "display_name": "Kong Duck Dog Toy",
+            "order": "orderA1",
             "new_item": true,
             "point_value": 20,
             "location": "binA",
