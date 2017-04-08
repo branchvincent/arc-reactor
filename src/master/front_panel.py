@@ -173,19 +173,19 @@ class FrontPanel(QMainWindow):
         if job_type == 'pick':
             logger.info('initialize pick state machine')
             self.fsm = PickStateMachine()
-            workcell.setup(
+            workcell.setup_pick(
                 self.fsm.store,
-                workcell='db/workcell_pick.json',
                 location='db/item_location_file_pick.json',
-                order='db/order_file.json'
+                order='db/order_file.json',
+                keep=True
             )
         elif job_type == 'stow':
             logger.info('initialize stow state machine')
             self.fsm = StowStateMachine()
-            workcell.setup(
+            workcell.setup_stow(
                 self.fsm.store,
-                workcell='db/workcell_stow.json',
-                location='db/item_location_file_stow.json'
+                location='db/item_location_file_stow.json',
+                keep=True
             )
         else:
             logger.error('unimplemented job type: "{}"'.format(job_type))

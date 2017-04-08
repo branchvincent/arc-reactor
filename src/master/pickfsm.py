@@ -7,9 +7,6 @@ from states.check_item import CheckItem
 from states.check_route import CheckRoute
 from states.check_select_item import CheckSelectItem
 from states.move_shelf import MoveShelf
-import json
-import cv2
-import numpy
 
 class PickStateMachine(StateMachine):
 
@@ -51,9 +48,8 @@ def runPickFSM():
 
     # initialize workcell
     from master import workcell
-    workcell.setup(
+    workcell.setup_pick(
         pick.store,
-        workcell='db/workcell_pick.json',
         location='db/item_location_file_pick.json',
         order='db/order_file.json'
     )

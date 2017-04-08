@@ -1,10 +1,5 @@
 from unittest import SkipTest
 
-import numpy
-
-import json
-import gzip
-
 from test.pensive.helper import DatabaseDependentTestCase
 
 from master.pickfsm import PickStateMachine
@@ -20,11 +15,11 @@ class SimplePickFSM(DatabaseDependentTestCase):
             raise SkipTest('Klampt is not installed')
 
         self.store = self.client.default()
-        workcell.setup(
+        workcell.setup_pick(
             self.store,
-            workcell='db/workcell_pick.json',
             location='db/item_location_file_pick.json',
-            order='db/order_file.json'
+            order='db/order_file.json',
+            workcell='db/workcell.json'
         )
 
         # simulate for now

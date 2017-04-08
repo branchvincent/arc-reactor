@@ -7,9 +7,6 @@ from states.exec_route import ExecRoute
 from states.check_item import CheckItem
 from states.check_select_item import CheckSelectItem
 from states.check_route import CheckRoute
-import json
-import cv2
-import numpy
 
 class StowStateMachine(StateMachine):
 
@@ -51,9 +48,8 @@ def runStowFSM():
 
     # initialize workcell
     from master import workcell
-    workcell.setup(
+    workcell.setup_stow(
         stow.store,
-        workcell='db/workcell_stow.json',
         location='db/item_location_file_stow.json'
     )
 
