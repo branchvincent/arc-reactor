@@ -420,7 +420,7 @@ def main(argv):
     # assume default location for workcell if full path not provided
     workcell = getattr(args, 'workcell', None)
     if workcell is not None and not workcell.endswith('.json'):
-        workcell = 'db/{}_{}.json'.format(args.workcell, args.task)
+        workcell = 'db/{}.json'.format(args.workcell)
         logger.info('mapped workcell to "{}"'.format(workcell))
 
     if args.action == 'clean':
