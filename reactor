@@ -152,7 +152,7 @@ elif args.command == 'test':
 elif args.command == 'shell':
     if args.module:
         import runpy
-        sys.argv = [args.module] + other_args + args.args
+        sys.argv = [args.module] + args.args + other_args
         if args.help:
             sys.argv.insert(1, '-h')
 

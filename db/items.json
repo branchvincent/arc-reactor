@@ -1,8 +1,7 @@
 {
     "tissue_box": {
         "thumbnail": "data/objects/apc2017/Tissue_Box/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Tissue Box", 
         "name": "tissue_box", 
         "new_item": false, 
@@ -20,12 +19,11 @@
                 0.113
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "epsom_salts": {
         "thumbnail": "data/objects/apc2017/Epsom_Salts/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Epsom Salts", 
         "name": "epsom_salts", 
         "new_item": false, 
@@ -43,12 +41,11 @@
                 0.068
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "measuring_spoons": {
         "thumbnail": "data/objects/apc2017/Measuring_Spoons/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Measuring Spoons", 
         "name": "measuring_spoons", 
         "new_item": false, 
@@ -66,12 +63,11 @@
                 0.027
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "bath_sponge": {
         "thumbnail": "data/objects/apc2017/Bath_Sponge/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Bath Sponge", 
         "name": "bath_sponge", 
         "new_item": false, 
@@ -89,12 +85,11 @@
                 0.123
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "white_facecloth": {
         "thumbnail": "data/objects/apc2017/White_Facecloth/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "White Facecloth", 
         "name": "white_facecloth", 
         "new_item": false, 
@@ -112,12 +107,11 @@
                 0.039
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "glue_sticks": {
         "thumbnail": "data/objects/apc2017/Glue_Sticks/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Glue Sticks", 
         "name": "glue_sticks", 
         "new_item": false, 
@@ -135,12 +129,11 @@
                 0.022
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "windex": {
         "thumbnail": "data/objects/apc2017/Windex/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Windex", 
         "name": "windex", 
         "new_item": false, 
@@ -158,12 +151,11 @@
                 0.061
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "flashlight": {
         "thumbnail": "data/objects/apc2017/Flashlight/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Flashlight", 
         "name": "flashlight", 
         "new_item": false, 
@@ -181,12 +173,11 @@
                 0.03
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "black_fashion_gloves": {
         "thumbnail": "data/objects/apc2017/Black_Fashion_Gloves/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Black Fashion Gloves", 
         "name": "black_fashion_gloves", 
         "new_item": false, 
@@ -204,12 +195,11 @@
                 0.03
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "hinged_ruled_index_cards": {
         "thumbnail": "data/objects/apc2017/Hinged_Ruled_Index_Cards/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Hinged Ruled Index Cards", 
         "name": "hinged_ruled_index_cards", 
         "new_item": false, 
@@ -227,12 +217,11 @@
                 0.022
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "fiskars_scissors": {
         "thumbnail": "data/objects/apc2017/Fiskars_Scissors/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Fiskars Scissors", 
         "name": "fiskars_scissors", 
         "new_item": false, 
@@ -250,12 +239,11 @@
                 0.011
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "reynolds_wrap": {
         "thumbnail": "data/objects/apc2017/Reynolds_Wrap/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Reynolds Wrap", 
         "name": "reynolds_wrap", 
         "new_item": false, 
@@ -273,12 +261,11 @@
                 0.047
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "colgate_toothbrush_4pk": {
         "thumbnail": "data/objects/apc2017/Colgate_Toothbrush_4PK/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Colgate Toothbrush 4PK", 
         "name": "colgate_toothbrush_4pk", 
         "new_item": false, 
@@ -296,12 +283,11 @@
                 0.023
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "burts_bees_baby_wipes": {
         "thumbnail": "data/objects/apc2017/Burts_Bees_Baby_Wipes/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Burts Bees Baby Wipes", 
         "name": "burts_bees_baby_wipes", 
         "new_item": false, 
@@ -319,12 +305,11 @@
                 0.066
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "balloons": {
         "thumbnail": "data/objects/apc2017/Balloons/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Balloons", 
         "name": "balloons", 
         "new_item": false, 
@@ -342,12 +327,11 @@
                 0.03
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "mouse_traps": {
         "thumbnail": "data/objects/apc2017/Mouse_Traps/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Mouse Traps", 
         "name": "mouse_traps", 
         "new_item": false, 
@@ -365,12 +349,11 @@
                 0.036
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "avery_binder": {
         "thumbnail": "data/objects/apc2017/Avery_Binder/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Avery Binder", 
         "name": "avery_binder", 
         "new_item": false, 
@@ -388,12 +371,11 @@
                 0.041
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "scotch_sponges": {
         "thumbnail": "data/objects/apc2017/Scotch_Sponges/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Scotch Sponges", 
         "name": "scotch_sponges", 
         "new_item": false, 
@@ -411,12 +393,11 @@
                 0.072
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "crayons": {
         "thumbnail": "data/objects/apc2017/Crayons/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Crayons", 
         "name": "crayons", 
         "new_item": false, 
@@ -434,12 +415,11 @@
                 0.028
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "marbles": {
         "thumbnail": "data/objects/apc2017/Marbles/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Marbles", 
         "name": "marbles", 
         "new_item": false, 
@@ -457,12 +437,11 @@
                 0.085
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "duct_tape": {
         "thumbnail": "data/objects/apc2017/Duct_Tape/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Duct Tape", 
         "name": "duct_tape", 
         "new_item": false, 
@@ -480,12 +459,11 @@
                 0.049
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "plastic_wine_glass": {
         "thumbnail": "data/objects/apc2017/Plastic_Wine_Glass/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Plastic Wine Glass", 
         "name": "plastic_wine_glass", 
         "new_item": false, 
@@ -503,12 +481,11 @@
                 0.079
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "laugh_out_loud_jokes": {
         "thumbnail": "data/objects/apc2017/Laugh_Out_Loud_Jokes/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Laugh Out Loud Jokes", 
         "name": "laugh_out_loud_jokes", 
         "new_item": false, 
@@ -526,12 +503,11 @@
                 0.015
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "ice_cube_tray": {
         "thumbnail": "data/objects/apc2017/Ice_Cube_Tray/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Ice Cube Tray", 
         "name": "ice_cube_tray", 
         "new_item": false, 
@@ -549,12 +525,11 @@
                 0.043
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "irish_spring_soap": {
         "thumbnail": "data/objects/apc2017/Irish_Spring_Soap/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Irish Spring Soap", 
         "name": "irish_spring_soap", 
         "new_item": false, 
@@ -572,12 +547,11 @@
                 0.039
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "tennis_ball_container": {
         "thumbnail": "data/objects/apc2017/Tennis_Ball_Container/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Tennis Ball Container", 
         "name": "tennis_ball_container", 
         "new_item": false, 
@@ -595,12 +569,11 @@
                 0.077
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "pie_plates": {
         "thumbnail": "data/objects/apc2017/Pie_Plates/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Pie Plates", 
         "name": "pie_plates", 
         "new_item": false, 
@@ -618,12 +591,11 @@
                 0.05
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "toilet_brush": {
         "thumbnail": "data/objects/apc2017/Toilet_Brush/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Toilet Brush", 
         "name": "toilet_brush", 
         "new_item": false, 
@@ -641,12 +613,11 @@
                 0.085
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "composition_book": {
         "thumbnail": "data/objects/apc2017/Composition_Book/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Composition Book", 
         "name": "composition_book", 
         "new_item": false, 
@@ -664,12 +635,11 @@
                 0.011
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "robots_dvd": {
         "thumbnail": "data/objects/apc2017/Robots_DVD/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Robots DVD", 
         "name": "robots_dvd", 
         "new_item": false, 
@@ -687,12 +657,11 @@
                 0.016
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "ticonderoga_pencils": {
         "thumbnail": "data/objects/apc2017/Ticonderoga_Pencils/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Ticonderoga Pencils", 
         "name": "ticonderoga_pencils", 
         "new_item": false, 
@@ -710,12 +679,11 @@
                 0.012
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "band_aid_tape": {
         "thumbnail": "data/objects/apc2017/Band_Aid_Tape/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Band Aid Tape", 
         "name": "band_aid_tape", 
         "new_item": false, 
@@ -733,12 +701,11 @@
                 0.03
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "mesh_cup": {
         "thumbnail": "data/objects/apc2017/Mesh_Cup/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Mesh Cup", 
         "name": "mesh_cup", 
         "new_item": false, 
@@ -756,12 +723,11 @@
                 0.109
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "speed_stick": {
         "thumbnail": "data/objects/apc2017/Speed_Stick/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Speed Stick", 
         "name": "speed_stick", 
         "new_item": false, 
@@ -779,12 +745,11 @@
                 0.061
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "poland_spring_water": {
         "thumbnail": "data/objects/apc2017/Poland_Spring_Water/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Poland Spring Water", 
         "name": "poland_spring_water", 
         "new_item": false, 
@@ -802,12 +767,11 @@
                 0.065
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "expo_eraser": {
         "thumbnail": "data/objects/apc2017/Expo_Eraser/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Expo Eraser", 
         "name": "expo_eraser", 
         "new_item": false, 
@@ -825,12 +789,11 @@
                 0.037
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "robots_everywhere": {
         "thumbnail": "data/objects/apc2017/Robots_Everywhere/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Robots Everywhere", 
         "name": "robots_everywhere", 
         "new_item": false, 
@@ -848,12 +811,11 @@
                 0.006
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "table_cloth": {
         "thumbnail": "data/objects/apc2017/Table_Cloth/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Table Cloth", 
         "name": "table_cloth", 
         "new_item": false, 
@@ -871,12 +833,11 @@
                 0.023
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "hanes_socks": {
         "thumbnail": "data/objects/apc2017/Hanes_Socks/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Hanes Socks", 
         "name": "hanes_socks", 
         "new_item": false, 
@@ -894,12 +855,11 @@
                 0.072
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }, 
     "hand_weight": {
         "thumbnail": "data/objects/apc2017/Hand_Weight/thumb.png", 
-        "properties": [], 
-        "point_value": 10, 
+        "point_value": 0, 
         "display_name": "Hand Weight", 
         "name": "hand_weight", 
         "new_item": false, 
@@ -917,6 +877,6 @@
                 0.057
             ]
         ], 
-        "location": "stow_tote"
+        "properties": []
     }
 }
