@@ -167,7 +167,7 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
         _remove_rigid_object(world, 'stow_tote')
 
     # update boxes
-    for name in db.get('/box'):
+    for name in db.get('/box', []):
         if task in ['pick', 'final']:
             size = db.get('/box/{}/size_id'.format(name))
             if size:
