@@ -177,7 +177,7 @@ def _load_location(store, location):
                 raise RuntimeError('unrecognized item name: "{}"'.format(item_name))
 
             store.put(['item', item_name, 'location'], bin_name)
-            logger.info('{} in {}'.format(item_name, bin_name))
+            logger.debug('{} in {}'.format(item_name, bin_name))
 
     # find items in boxes
     boxes = store.get('/system/boxes').keys()
@@ -195,7 +195,7 @@ def _load_location(store, location):
                 raise RuntimeError('unrecognized item name: "{}"'.format(item_name))
 
             store.put(['item', item_name, 'location'], box_name)
-            logger.info('{} in {}'.format(item_name, box_name))
+            logger.debug('{} in {}'.format(item_name, box_name))
 
     # find items in tote
     for item_name in location['tote']['contents']:
@@ -204,13 +204,13 @@ def _load_location(store, location):
             raise RuntimeError('unrecognized item name: "{}"'.format(item_name))
 
         store.put(['item', item_name, 'location'], 'stow_tote')
-        logger.info('{} in {}'.format(item_name, 'stow_tote'))
+        logger.debug('{} in {}'.format(item_name, 'stow_tote'))
 
     # remove all items without locations
     for item_name in items:
         if not store.get(['item', item_name, 'location']):
             store.delete(['item', item_name])
-            logger.info('deleting {}'.format(item_name))
+            logger.debug('deleting {}'.format(item_name))
     # update the known items after deletions
     items = store.get('/item').keys()
 
@@ -263,7 +263,7 @@ def setup_workcell(store, workcell):
         store.put(['system', 'boxes', box_name], {
             'bounds': zip(*[(-d/2, d/2) for d in b['dimensions']])
         })
-        logger.info('recognized box size {}'.format(b['size_id']))
+        logger.debug('recognized box size {}'.format(b['size_id']))
 
         area = b['dimensions'][0] * b['dimensions'][1]
         areas.append((box_name, area))
