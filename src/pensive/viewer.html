@@ -51,6 +51,10 @@
             list-style: none;
         }
 
+        #value.dirty {
+            background-color: yellow;
+        }
+
     </style>
 
 </head>
@@ -85,7 +89,13 @@
             </div>
             <div class="col-xs-10">
                 <div><strong>Value</strong></div>
-                <div id="value"></div>
+                <div class="form">
+                    <textarea id="value" class="form-control"></textarea>
+                    <div class="form-group">
+                        <button id="save" class="btn btn-success btn-sm">Save</button>
+                        <button id="revert" class="btn btn-danger btn-sm">Revert</button>
+                    </div>
+                </div>
             </div>
         </div>
 

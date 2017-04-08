@@ -1,4 +1,5 @@
 var updating = false;
+var dirty = false;
 var request = null;
 
 var last_path = null;
@@ -41,7 +42,7 @@ var load = function(store, orig_path) {
             // update breadcrumbs
             $('#path').empty();
             var levels = path.split('/');
-            var subpath = '';
+            var subpath = '';last_path
             for(var i = 0; i < levels.length; i++) {
                 subpath = levels.slice(0, i + 1).join('/');
 
@@ -98,7 +99,13 @@ var load = function(store, orig_path) {
 
             // update the value view
             request = $.getJSON(url + path, function(response) {
-                $('#value').text(JSON.stringify(response.value, undefined, 4));
+                var value = JSON.stringify(response.value, undefined, 4);
+
+                if(dirty && $('#value').val() != value) {
+                } else {
+                    $('#value').val(value).removeClass('dirty');
+                    dirty = false;
+                }
             });
         }
 
@@ -154,6 +161,34 @@ var reload = function() {
 }
 
 var setup = function() {
+    $('#value').on('change keydown paste cut', function() {
+        dirty = true;
+        $('#value').addClass('dirty');
+    });
+
+    $('#revert').click(function() {
+        dirty = false;
+    });
+
+    $('#save').click(function() {
+        var url = '';
+        if(last_store) {
+            url += '/i/' + last_store;
+        } else {
+            url += '/d/';
+        }
+        url += last_path;
+
+        $.ajax({
+            type: 'PUT',
+            url: url,
+            data: '{"value": ' + $('#value').val() + '}',
+            processData: false
+        }).fail(function(xhr, status, error) {
+            alert('Updating "' + last_store + ':' + last_path + '" failed!\n\n' + status + ' ' + error);
+        });
+    });
+
     $('#reload').click(reload);
 }
 
