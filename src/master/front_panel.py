@@ -174,7 +174,7 @@ class FrontPanel(QMainWindow):
         elif run_mode == 'run_once':
             self.fsm.runOrdered(self.fsm.getCurrentState())
         elif run_mode in ['run_all', 'full_auto']:
-            while not self.fsm.isDone() or not self.db.get('/robot/stop_flag', False):
+            while not self.fsm.isDone() or not self.fsm.getFlag():
                 self.fsm.runOrdered(self.fsm.getCurrentState())
         else:
             logger.error('unimplemented run mode: "{}"'.format(run_mode))

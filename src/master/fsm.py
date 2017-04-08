@@ -48,7 +48,7 @@ class StateMachine():
         self.current = None
         self.store = store or PensiveClient().default()
         self.removeHistory()
-        #self.store.put('/robot/stop_flag', False)
+        self.flag = False
 
     def removeHistory(self):
         for i in PensiveClient().index():
@@ -74,8 +74,11 @@ class StateMachine():
         self.finStates[name] = self.events[name]
 
     def stop(self):
-        #self.store.put('/robot/stop_flag', True)
-        pass
+        self.flag = True
+        self.p.kill()
+
+    def getFlag(self):
+        return self.flag
 
     def runState(self):
         self.events[self.current].run()
@@ -90,10 +93,10 @@ class StateMachine():
 
         whoiam = inspect.getmodule(self.events[self.current]).__name__
         print "whoiam is ", whoiam
-        p = Popen(['./reactor', 'shell', '-m', whoiam])
-        #p.start()
-        #p.join()
+        self.p = Popen(['./reactor', 'shell', '-m', whoiam])
+       
         #self.events[self.current].run()
+        self.p.wait()
         
         self.pastEvents.append(self.current)
         self.pastStorage.append(histStore)
@@ -128,11 +131,12 @@ class StateMachine():
         self.setCurrentState(nameInit)
         self.removeHistory() #TODO change this for runAll application?
         
-        while self.current not in self.finStates:
+        while (self.current not in self.finStates) and (not self.flag):
             self.runStep()
 
-        print "Running final state"
-        self.runStep()
+        if (not self.flag):
+            print "Running final state"
+            self.runStep()
 
     def runStep(self):
         if not self.getCurrentState():
