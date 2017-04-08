@@ -9,7 +9,7 @@ from pensive.core import Store
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-INITIAL_URLS = [
+CLEAN_URLS = [
     r'^robot/base_pose',
     r'^robot/current_config',
 
@@ -17,34 +17,19 @@ INITIAL_URLS = [
     r'^shelf/bin/\w+/bounds',
     r'^shelf/bin/\w+/pose',
 
-    r'^tote/\w+/pose',
-    r'^tote/\w+/bounds',
+    #r'^tote/\w+/pose',
+    #r'^tote/\w+/bounds',
 
-    r'^box/\w+/pose',
-    r'^box/\w+/bounds',
-    r'^box/\w+/size_id',
+    #r'^box/\w+/pose',
+    #r'^box/\w+/bounds',
+    #r'^box/\w+/size_id',
 
     r'^camera/\w+/pose',
 
-    r'^item',
+    #r'^item',
 
     r'^system',
 ]
-
-def clean(store):
-    contents = Store(store.get()).flatten()
-    output = Store()
-
-    for (k, v) in contents.items():
-        for url in INITIAL_URLS:
-            if re.match(url, k):
-                output.put(k, v)
-
-    store.put('', output.get())
-
-def _load(store, src, dst=None):
-    logger.debug('{} -> {}'.format(src, dst))
-    store.put(dst, json.load(open(src)))
 
 BOXES_SCHEMA = {
     '$schema': 'http://json-schema.org/draft-04/schema#',
@@ -161,50 +146,16 @@ ORDER_SCHEMA = {
     'required': ['orders'],
 }
 
-def setup(store, location, workcell, order=None):
-    # read data files
+def _load(store, src, dst=None):
+    logger.debug('{} -> {}'.format(src, dst))
+    store.put(dst, json.load(open(src)))
+
+def _load_location(store, location):
     if isinstance(location, str):
         logger.debug('reading location from "{}"'.format(location))
         location = json.load(open(location))
-    if isinstance(workcell, str):
-        logger.debug('reading workcell from "{}"'.format(workcell))
-        workcell = json.load(open(workcell))
-    if order is not None:
-        if isinstance(order, str):
-            logger.debug('reading order from "{}"'.format(order))
-            order = json.load(open(order))
-
-    store.delete('')
 
     _load(store, 'db/items.json', '/item')
-    _load(store, 'db/bins.json', '/shelf/bin')
-
-    _load(store, 'db/cameras.json', '/system/cameras')
-    _load(store, 'db/viewpoints.json', '/system/viewpoints')
-
-    # load box data
-    boxes = json.load(open('db/boxes.json'))
-    jsonschema.validate(boxes, BOXES_SCHEMA)
-
-    areas = []
-    for b in boxes['boxes']:
-        box_name = b['size_id']
-
-        store.put(['system', 'boxes', box_name], {
-            'bounds': zip(*[(-d/2, d/2) for d in b['dimensions']])
-        })
-        logger.info('recognized box size {}'.format(b['size_id']))
-
-        area = b['dimensions'][0] * b['dimensions'][1]
-        areas.append((box_name, area))
-
-    # sort by area to assign spot priority
-    areas.sort(key=lambda x: x[1])
-    for (i, (size_id, _)) in enumerate(areas):
-        store.put(['system', 'boxes', size_id, 'priority'], i)
-
-    # load workcell
-    store.multi_put(workcell)
 
     # load location data
     jsonschema.validate(location, LOCATION_SCHEMA)
@@ -263,8 +214,91 @@ def setup(store, location, workcell, order=None):
     # update the known items after deletions
     items = store.get('/item').keys()
 
-    if not order:
-        return
+
+def clean(store):
+    '''
+    Delete all dynamics keys from the database. The preserved keys
+    match at least one of the regular expressions in `CLEAN_URLS`.
+    '''
+
+    logger.info('cleaning database')
+
+    contents = Store(store.get()).flatten()
+    output = Store()
+
+    for (k, v) in contents.items():
+        for url in CLEAN_URLS:
+            if re.match(url, k):
+                output.put(k, v)
+
+    store.put('', output.get())
+
+def setup_workcell(store, workcell):
+    '''
+    Populate the workcell, which is common to both pick and stow tasks.
+    '''
+
+    logger.info('initializing fresh workcell')
+
+    # start with a fresh database
+    store.delete('')
+
+    if isinstance(workcell, str):
+        logger.debug('reading workcell from "{}"'.format(workcell))
+        workcell = json.load(open(workcell))
+
+    _load(store, 'db/bins.json', '/shelf/bin')
+
+    _load(store, 'db/cameras.json', '/system/cameras')
+    _load(store, 'db/viewpoints.json', '/system/viewpoints')
+
+    # load box data
+    boxes = json.load(open('db/boxes.json'))
+    jsonschema.validate(boxes, BOXES_SCHEMA)
+
+    areas = []
+    for b in boxes['boxes']:
+        box_name = b['size_id']
+
+        store.put(['system', 'boxes', box_name], {
+            'bounds': zip(*[(-d/2, d/2) for d in b['dimensions']])
+        })
+        logger.info('recognized box size {}'.format(b['size_id']))
+
+        area = b['dimensions'][0] * b['dimensions'][1]
+        areas.append((box_name, area))
+
+    # sort by area to assign spot priority
+    areas.sort(key=lambda x: x[1])
+    for (i, (size_id, _)) in enumerate(areas):
+        store.put(['system', 'boxes', size_id, 'priority'], i)
+
+    # load workcell
+    store.multi_put(workcell)
+
+def setup_pick(store, location, order, workcell=None, keep=True):
+    '''
+    Initialize item locations and load the order file for a pick task.
+    All items which are not present in the location file are deleted.
+
+    If `workcell` is provided, the workcell is initialized as well.
+    Otherwise, if `not keep`, the database is cleaned before proceeding.
+    '''
+
+    if workcell:
+        setup_workcell(store, workcell)
+    elif not keep:
+        clean(store)
+
+    logger.info('initializing pick task')
+
+    if isinstance(order, str):
+        logger.debug('reading order from "{}"'.format(order))
+        order = json.load(open(order))
+
+    _load_location(store, location)
+
+    items = store.get('/item').keys()
 
     # validate order data
     jsonschema.validate(order, ORDER_SCHEMA)
@@ -324,6 +358,26 @@ def setup(store, location, workcell, order=None):
     if boxes:
         raise RuntimeError('too many boxes for spot assignment: {}'.format(', '.join(boxes)))
 
+    store.put('/robot/task', 'pick')
+
+def setup_stow(store, location, workcell=None, keep=False):
+    '''
+    Initialize item locations for a stow task.
+
+    If `workcell` is provided, the workcell is initialized as well.
+    Otherwise, if `not keep`, the database is cleaned before proceeding.
+    '''
+
+    if workcell:
+        setup_workcell(store, workcell)
+    elif not keep:
+        clean(store)
+
+    logger.info('initializing stow task')
+
+    _load_location(store, location)
+    store.put('/robot/task', 'stow')
+
 def main(argv):
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -337,13 +391,20 @@ def main(argv):
     clean_parser = subparsers.add_parser('clean', help='remove non-workcell keys', description='remove non-workcell keys', formatter_class=ArgumentDefaultsHelpFormatter)
 
     setup_parser = subparsers.add_parser('setup', help='initialize workcell', description='initialize workcell', formatter_class=ArgumentDefaultsHelpFormatter)
-    setup_parser.add_argument('task', metavar='TASK', choices=['pick', 'stow'], help='task type')
     setup_parser.add_argument('workcell', metavar='WORKCELL', help='workcell file path or name')
-    setup_parser.add_argument('location', metavar='LOCATION', help='item location file path')
-    setup_parser.add_argument('order', metavar='ORDER', nargs='?', help='pick order file path')
 
     dump_parser = subparsers.add_parser('dump', help='build workcell file', description='build workcell file', formatter_class=ArgumentDefaultsHelpFormatter)
-    dump_parser.add_argument('task', metavar='TASK', choices=['pick', 'stow'], help='task type')
+
+    pick_parser = subparsers.add_parser('pick', help='initialize pick task', description='initialize pick task', formatter_class=ArgumentDefaultsHelpFormatter)
+    pick_parser.add_argument('--workcell', metavar='WORKCELL', help='workcell file path or name')
+    pick_parser.add_argument('--clean', action='store_true', help='clean before initializing')
+    pick_parser.add_argument('location', metavar='LOCATION', help='item location file path')
+    pick_parser.add_argument('order', metavar='ORDER', help='pick order file path')
+
+    stow_parser = subparsers.add_parser('stow', help='initialize stow task', description='initialize stow task', formatter_class=ArgumentDefaultsHelpFormatter)
+    stow_parser.add_argument('--workcell', metavar='WORKCELL', help='workcell file path or name')
+    stow_parser.add_argument('--clean', action='store_true', help='clean before initializing')
+    stow_parser.add_argument('location', metavar='LOCATION', help='item location file path')
 
     summary_parser = subparsers.add_parser('summary', help='print workcell summary', description='print workcell summary')
 
@@ -356,46 +417,36 @@ def main(argv):
     # get the store
     store = client.store(args.store)
 
+    # assume default location for workcell if full path not provided
+    workcell = getattr(args, 'workcell', None)
+    if workcell is not None and not workcell.endswith('.json'):
+        workcell = 'db/{}_{}.json'.format(args.workcell, args.task)
+        logger.info('mapped workcell to "{}"'.format(workcell))
+
     if args.action == 'clean':
         clean(store)
 
     elif args.action == 'setup':
-        if args.task == 'pick':
-            # require an order file
-            if not args.order:
-                raise RuntimeError('order file is required for pick task')
+        setup_workcell(store, workcell)
 
-            order = args.order
+    elif args.action == 'pick':
+        setup_pick(
+            store,
+            location=args.location,
+            order=args.order,
+            workcell=workcell,
+            keep=not args.clean
+        )
 
-        elif args.task == 'stow':
-            # disallow an order file
-            if args.order:
-                raise RuntimeError('order file is disallowed for stow task')
-
-            order = None
-
-        else:
-            raise RuntimeError('unrecognized task: {}'.format(args.task))
-
-        # assume default location for workcell if full path no provided
-        workcell = args.workcell
-        if not workcell.endswith('.json'):
-            workcell = 'db/{}_{}.json'.format(args.workcell, args.task)
-            logger.info('mapped workcell to "{}"'.format(workcell))
-
-        # build the workcell
-        setup(store, args.location, workcell, order)
-
-        # check that task matches
-        task = store.get('/robot/task')
-        if task != args.task:
-            raise RuntimeError('workcell task ({}) does not match requested task ({})'.format(task, args.task))
+    elif args.action == 'stow':
+        setup_stow(
+            store,
+            location=args.location,
+            workcell=workcell,
+            keep=not args.clean
+        )
 
     elif args.action == 'dump':
-        task = store.get('/robot/task')
-        if task != args.task:
-            raise RuntimeError('workcell task ({}) does not match requested task ({})'.format(task, args.task))
-
         urls = [
             '/robot/base_pose',
             '/shelf/pose'
@@ -404,22 +455,14 @@ def main(argv):
         for c in store.get('camera').keys():
             urls.append('/camera/{}/pose'.format(c))
 
-        if args.task == 'pick':
-            # save box spots
-            for s in store.get('/system/spot').keys():
-                urls.append('/system/spot/{}/pose'.format(s))
+        for s in store.get('/system/spot').keys():
+            urls.append('/system/spot/{}/pose'.format(s))
 
-        elif args.task == 'stow':
-            # save tote poses
-            for t in store.get('/tote').keys():
-                urls.append('/tote/{}/pose'.format(t))
-
-        else:
-            raise RuntimeError('unrecognized task: {}'.format(args.task))
+        for t in store.get('/tote').keys():
+            urls.append('/tote/{}/pose'.format(t))
 
         cell = dict([(url, store.get(url)) for url in urls])
         cell.update({
-            '/robot/task': args.task,
             '/robot/current_config': 7*[0]
         })
 
