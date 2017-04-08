@@ -12,7 +12,7 @@ class SelectItem(State):
         elif self.alg == 'pick':
             #works under condition that loadOrder has been run. Implement check.
             self.chosenItem = max(self.itemList, key=lambda l: self.itemList[l]['point_value'])
-            self.store.put('/robot/selected_box', self.store.get('/item/'+self.chosenItem+'/order'))
+            self.store.put('/robot/selected_box', self.store.get('/item/'+self.chosenItem+'/order').replace('order', 'box'))
             self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
 
         elif self.alg == 'stow':
@@ -32,7 +32,7 @@ class SelectItem(State):
 
         logger.info("Chosen item is {} worth {} points".format(self.chosenItem, self.store.get('/item/'+self.chosenItem+'/point_value')))
         self.store.put('/robot/selected_item', self.chosenItem)
-        
+
         self.store.put('/status/selected_item', self.chosenItem is not None)
 
 

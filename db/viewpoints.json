@@ -1,0 +1,18 @@
+{
+    "binA": [
+        "shelf1"
+    ],
+    "binB": [
+        "shelf0",
+        "shelf1"
+    ],
+    "binC": [
+        "shelf0"
+    ],
+    "stow_tote": [
+        "stow"
+    ],
+    "amnesty_tote": [
+        "stow"
+    ]
+}

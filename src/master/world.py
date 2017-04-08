@@ -167,9 +167,9 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
         _remove_rigid_object(world, 'stow_tote')
 
     # update boxes
-    for name in db.get('/box'):
+    for name in db.get('/box', []):
         if task in ['pick', 'final']:
-            size = db.get('/box/{}/size'.format(name))
+            size = db.get('/box/{}/size_id'.format(name))
             if size:
                 box = _get_rigid_object(world, '{}_box'.format(name), 'data/objects/box-{}.off'.format(size))
                 _sync(db, '/box/{}/pose'.format(name), lambda p: box.setTransform(*numpy2klampt(p)))
