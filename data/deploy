@@ -4,6 +4,8 @@ OUT=data.tgz
 
 tar czvf ${OUT} --exclude='*.blend*' \
     test/workcell_full_0327* \
+    test/workcell_boxes_pick* \
+    test/workcell_totes_stow* \
     robots/*.* \
     robots/tx90l \
     robots/gripper7 \
