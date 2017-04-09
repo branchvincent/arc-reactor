@@ -169,6 +169,8 @@ class ImageGLWidget(QtOpenGL.QGLWidget):
 
         self.brushW = 5
 
+        self.lastX = 0
+        self.lastY = 0
 
     def set_image(self, image):
         self.gold_copy = image.copy()
@@ -206,6 +208,8 @@ class ImageGLWidget(QtOpenGL.QGLWidget):
         self.button = event.buttons()
         self.undo_list = []
         self.redo_list = []
+        self.lastX = event.pos().x()
+        self.lastY = event.pos().y()
 
     def mouseDoubleClickEvent(self, event):
         #flood fill
@@ -237,13 +241,15 @@ class ImageGLWidget(QtOpenGL.QGLWidget):
         y = event.pos().y()
         #remove points
         if self.button == QtCore.Qt.LeftButton:    
-            points = []
-            for n in range(x-self.brushW//2,x+self.brushW//2):
-                for m in range(y-self.brushW//2,y+self.brushW//2):
-                    if n >= 0 and n < 640 and m >= 0 and m < 480:
-                        points.append((n,m))
-
+            points = self.draw_line(self.lastX, self.lastY, x, y)
+            points_large = []
             for p in points:
+                for n in range(p[0]-self.brushW//2,p[0]+self.brushW//2):
+                    for m in range(p[1]-self.brushW//2,p[1]+self.brushW//2):
+                        if n >= 0 and n < 640 and m >= 0 and m < 480:
+                            points_large.append((n,m))
+
+            for p in points_large:
                 #add this point to the mask_points_removed
                 if self.mask_points_removed[p[1]][p[0]] == 0 and self.segment_index >= 0:
                     self.mask_points_removed[p[1]][p[0]] = 1
@@ -282,6 +288,27 @@ class ImageGLWidget(QtOpenGL.QGLWidget):
 
         self.lastX = event.pos().x()
         self.lastY = event.pos().y()
+
+    def draw_line(self, x1, y1, x2, y2):
+        dx = x2-x1
+        dy = y2-y1
+
+        if abs(dx) > abs(dy):
+            steps = int(abs(dx))
+        else:
+            steps = int(abs(dy))
+
+        xinc = dx / float(steps)
+        yinc = dy / float(steps)
+        x = x1
+        y = y1
+        points = []
+        for i in range(steps):
+            x = x + xinc
+            y = y + yinc
+            points.append([round(x),round(y)])
+
+        return points
 
     def undo(self):
         #remove all the points in the undo list and put then in the redo list
