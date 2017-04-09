@@ -104,7 +104,7 @@ var load = function(store, orig_path) {
             }
 
             // clear the value view
-            $('#value').empty();
+            $('#value').val('');
         } else {
             // keep the index view
 
@@ -114,7 +114,9 @@ var load = function(store, orig_path) {
 
                 if(dirty && $('#value').val() != value) {
                 } else {
-                    $('#value').val(value).removeClass('dirty');
+                    $('#value')
+                        .val(value)
+                        .removeClass('dirty');
                     dirty = false;
                 }
             });
@@ -139,6 +141,15 @@ var make_url = function(store, path) {
     url += path;
 
     return url;
+}
+
+var create_subkey = function(store, path) {
+    var name = prompt("What is the name of the new subkey?");
+    if(name == null) {
+        return;
+    }
+
+    set(store, path + '/' + name, 0);
 }
 
 var set = function(store, path, value) {
@@ -216,6 +227,10 @@ var setup = function() {
 
     $('#save').click(function() {
         set(last_store, last_path, $('#value').val());
+    });
+
+    $('#add').click(function() {
+        create_subkey(last_store, last_path);
     });
 
     $('#reload').click(reload);
