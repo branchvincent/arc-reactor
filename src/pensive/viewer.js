@@ -81,6 +81,31 @@ var load = function(store, orig_path) {
             for(var i = 0; i < subkeys.length; i++) {
                 $('<li>').append(
                     $('<a>')
+                        .append($('<span>').addClass('glyphicon glyphicon-remove red'))
+                        .attr('href', '#')
+                        .data('path', path + '/' + subkeys[i])
+                        .data('store', store)
+                        .click(function() {
+                            var url = '';
+                            if($(this).data('store')) {
+                                url += '/i/' + $(this).data('store');
+                            } else {
+                                url += '/d/';
+                            }
+                            url += $(this).data('path');
+
+                            $.ajax({
+                                type: 'DELETE',
+                                url: url,
+                                processData: false
+                            }).fail(function(xhr, status, error) {
+                                alert('Deleting "' + $(this).data('store') + ':' + $(this).data('path') + '" failed!\n\n' + status + ' ' + error);
+                            });
+                        })
+                ).append(
+                    '&nbsp;'
+                ).append(
+                    $('<a>')
                         .text(subkeys[i])
                         .attr('href', '#')
                         .data('path', path + '/' + subkeys[i])
