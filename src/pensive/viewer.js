@@ -86,21 +86,7 @@ var load = function(store, orig_path) {
                         .data('path', path + '/' + subkeys[i])
                         .data('store', store)
                         .click(function() {
-                            var url = '';
-                            if($(this).data('store')) {
-                                url += '/i/' + $(this).data('store');
-                            } else {
-                                url += '/d/';
-                            }
-                            url += $(this).data('path');
-
-                            $.ajax({
-                                type: 'DELETE',
-                                url: url,
-                                processData: false
-                            }).fail(function(xhr, status, error) {
-                                alert('Deleting "' + $(this).data('store') + ':' + $(this).data('path') + '" failed!\n\n' + status + ' ' + error);
-                            });
+                            del($(this).data('store'), $(this).data('path'));
                         })
                 ).append(
                     '&nbsp;'
@@ -141,6 +127,39 @@ var load = function(store, orig_path) {
     });
 
     return dfd;
+}
+
+var make_url = function(store, path) {
+    var url = '';
+    if(store) {
+        url += '/i/' + store;
+    } else {
+        url += '/d/';
+    }
+    url += path;
+
+    return url;
+}
+
+var set = function(store, path, value) {
+    $.ajax({
+        type: 'PUT',
+        url: make_url(store, path),
+        data: '{"value": ' + value + '}',
+        processData: false
+    }).fail(function(xhr, status, error) {
+        alert('Updating "' + store + ':' + path + '" failed!\n\n' + status + ': ' + error);
+    });
+}
+
+var del = function(store, path) {
+    $.ajax({
+        type: 'DELETE',
+        url: make_url(store, path),
+        processData: false
+    }).fail(function(xhr, status, error) {
+        alert('Deleting "' + store + ':' + path + '" failed!\n\n' + status + ': ' + error);
+    });
 }
 
 var clear = function() {
@@ -196,22 +215,7 @@ var setup = function() {
     });
 
     $('#save').click(function() {
-        var url = '';
-        if(last_store) {
-            url += '/i/' + last_store;
-        } else {
-            url += '/d/';
-        }
-        url += last_path;
-
-        $.ajax({
-            type: 'PUT',
-            url: url,
-            data: '{"value": ' + $('#value').val() + '}',
-            processData: false
-        }).fail(function(xhr, status, error) {
-            alert('Updating "' + last_store + ':' + last_path + '" failed!\n\n' + status + ' ' + error);
-        });
+        set(last_store, last_path, $('#value').val());
     });
 
     $('#reload').click(reload);
