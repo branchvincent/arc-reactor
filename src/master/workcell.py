@@ -273,6 +273,15 @@ def setup_workcell(store, workcell):
     for (i, (size_id, _)) in enumerate(areas):
         store.put(['system', 'boxes', size_id, 'priority'], i)
 
+    # load tote data
+    totes = json.load(open('db/totes.json'))
+    for (tote_name, data) in totes.items():
+        store.put(['system', 'totes', tote_name], {
+            'outer_bounds': zip(*[(-d/2, d/2) for d in data['outer_dimensions']]),
+            'inner_bounds': zip(*[(-d/2, d/2) for d in data['inner_dimensions']]),
+        })
+        logger.debug('recognized tote {}'.format(tote_name))
+
     # load workcell
     store.multi_put(workcell)
 
@@ -376,6 +385,16 @@ def setup_stow(store, location, workcell=None, keep=False):
     logger.info('initializing stow task')
 
     _load_location(store, location)
+
+    # assign tote bounds
+    for tote in store.get('/tote').keys():
+        bounds = store.get(['system', 'totes', tote, 'inner_bounds'])
+        if not bounds:
+            raise RuntimeError('unknown tote "{}"'.format(tote))
+
+        store.put(['tote', tote, 'bounds'], bounds)
+        logger.info('tote {} dimensioned'.format(tote))
+
     store.put('/robot/task', 'stow')
 
 def main(argv):
