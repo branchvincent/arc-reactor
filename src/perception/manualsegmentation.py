@@ -5,6 +5,7 @@ import os
 import logging
 import cv2
 import json
+import struct
 logger = logging.getLogger()
 class ManualSegmentationGUI(QtWidgets.QWidget):
     
@@ -129,6 +130,19 @@ class ManualSegmentationGUI(QtWidgets.QWidget):
             seg_data = np.array(self.image_visualization.segmented_points)
             np.save(fname[0],seg_data)
             print("Segmentation data saved to {}".format(fname[0]))
+            
+            #what directory is this in?
+            last_slash = fname[0].rfind('/',0, len(fname[0]))
+            directory = fname[0][0:last_slash+1]
+            
+            #save binary too
+            for i, x in enumerate(self.image_visualization.segmented_points):
+                if len(x) != 0:
+                    with open(directory + 'ans_'+str(i) + '.bin','wb') as f:
+                        f.write(struct.pack('i', len(x)))
+                        for pt in x:
+                            f.write(struct.pack('i', pt[0]))
+                            f.write(struct.pack('i', pt[1]))
 
     def button_pressed(self):
         #which button was pressed?
