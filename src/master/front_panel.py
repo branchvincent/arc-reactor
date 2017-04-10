@@ -18,6 +18,9 @@ from master import workcell
 from .ui.front_panel import Ui_FrontPanel
 from .sync import AsyncUpdateHandler
 
+from multiprocessing import Process
+from threading import Thread
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 RUN_MODES = ['step_once', 'run_once', 'run_all', 'full_auto']
@@ -162,18 +165,25 @@ class FrontPanel(QMainWindow):
         run_mode = self.db.get('/robot/run_mode')
         if run_mode in ['run_once', 'run_all', 'full_auto']:
             self.fsm.stop()
-
+            #if self.t is not None: self.t.terminate()
+    
     def _run_handler(self):
         if not self.fsm:
             self._reset_handler()
 
         run_mode = self.db.get('/robot/run_mode')
         logger.info('running in mode {}'.format(run_mode))
+        self.fsm.store.put('/robot/stop_flag', False)
 
         if run_mode == 'step_once':
             self.fsm.runStep()
         elif run_mode == 'run_once':
-            self.fsm.runOrdered(self.fsm.getCurrentState())
+            #self.p = Process(target=self.fsm.runOrdered, args=(self.fsm.getCurrentState(),))
+            #self.p.start()
+            self.t = Thread(target=self.fsm.runOrdered, args=(self.fsm.getCurrentState(),))
+            self.t.daemon = True
+            self.t.start()
+            #self.fsm.runOrdered(self.fsm.getCurrentState())
         elif run_mode in ['run_all', 'full_auto']:
             while not self.fsm.isDone() or not self.fsm.getFlag():
                 self.fsm.runOrdered(self.fsm.getCurrentState())
@@ -207,7 +217,9 @@ class FrontPanel(QMainWindow):
 
         self.fsm.loadStates()
         self.fsm.setupTransitions()
+        self.fsm.removeHistory()
         self.fsm.setCurrentState('si') #always start with SelectItem
+        self.db.put('/robot/stop_flag', False)
 
     def update(self, db=None):
         '''

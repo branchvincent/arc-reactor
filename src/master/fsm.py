@@ -2,6 +2,9 @@ from pensive.core import Store
 from pensive.client import PensiveClient
 from subprocess import Popen
 import inspect
+from tornado.ioloop import IOLoop
+from tornado import gen
+import time
 
 import logging; logger = logging.getLogger(__name__)
 
@@ -38,17 +41,23 @@ class Transition():
             return (self.toState if self.store.get(self.condition) else self.altState)
 
 class StateMachine():
-    def __init__(self, events=None, callbacks=None, finStates=None, store=None):
+    def __init__(self, events=None, transitions=None, finStates=None, pastEvents=None, pastStorage=None, currentState=None, store=None):
         self.events = {}
-        self.callbacks = {}
         self.transitions = {}
         self.finStates = {}
         self.pastEvents = []
         self.pastStorage = []
-        self.current = None
+        self.current = currentState
         self.store = store or PensiveClient().default()
-        self.removeHistory()
-        self.flag = False
+        #self.removeHistory()
+        self.setupFlag()
+        self.p = None
+
+    def getStore(self):
+        return self.store
+
+    def setupFlag(self):
+        self.store.put('/robot/stop_flag', False)
 
     def removeHistory(self):
         for i in PensiveClient().index():
@@ -64,6 +73,21 @@ class StateMachine():
     def getCurrentState(self):
         return self.current
 
+    def getFinalStates(self):
+        return self.finStates
+
+    def getTransitions(self):
+        return self.transitions
+
+    def getEvents(self):
+        return self.events
+
+    def getPastEvents(self):
+        return self.pastEvents
+
+    def getPastStorage(self):
+        return self.pastStorage
+
     def add(self, name, event, endState=0):
         name = name.upper()
         self.events[name] = event
@@ -74,14 +98,14 @@ class StateMachine():
         self.finStates[name] = self.events[name]
 
     def stop(self):
-        self.flag = True
-        self.p.kill()
+        #self.setCurrentState(self.getCurrentState())
+        self.backStep()
+        self.store.put('/robot/stop_flag', True)
+        if(self.p is not None):
+            self.p.kill()
 
-    def getFlag(self):
-        return self.flag
-
-    def runState(self):
-        self.events[self.current].run()
+    def isStateDone(self):
+        return not (self.p.poll() is None)
 
     def runCurrent(self):
         print "currently running ", self.getCurrentState()
@@ -92,12 +116,9 @@ class StateMachine():
         histStore = PensiveClient().create(history_name, parent=self.store.get_instance())
 
         whoiam = inspect.getmodule(self.events[self.current]).__name__
-        print "whoiam is ", whoiam
         self.p = Popen(['./reactor', 'shell', '-m', whoiam])
-       
-        #self.events[self.current].run()
         self.p.wait()
-        
+
         self.pastEvents.append(self.current)
         self.pastStorage.append(histStore)
         
@@ -129,13 +150,12 @@ class StateMachine():
             raise RuntimeError("Need to define a final state")
 
         self.setCurrentState(nameInit)
-        self.removeHistory() #TODO change this for runAll application?
+        #self.removeHistory() #TODO change this for runAll application?
         
-        while (self.current not in self.finStates) and (not self.flag):
+        while (self.current not in self.finStates) and (not self.store.get('/robot/stop_flag', False)):
             self.runStep()
 
-        if (not self.flag):
-            print "Running final state"
+        if (not self.store.get('/robot/stop_flag', False)):
             self.runStep()
 
     def runStep(self):
@@ -143,8 +163,8 @@ class StateMachine():
             raise RuntimeError("Need to define initial state")
         if not self.finStates:
             raise RuntimeError("Need to define a final state")
-
         self.runCurrent()
+
         self.decideState = self.transitions[self.getCurrentState()].decideTransition()
         self.setCurrentState(self.decideState)  
 
@@ -153,7 +173,7 @@ class StateMachine():
             raise RuntimeError("Not in a state. Cannot go back")
         self.setCurrentState(self.getLast())
         logger.info("Re-writing the db from {}".format(self.pastStore.get_instance()))
-        self.store.put('', self.pastStore.get())
+        self.store.put('', self.pastStore.get()) #aha!
         PensiveClient().delete(self.pastStore.get_instance())
 
     def isDone(self):
