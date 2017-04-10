@@ -31,21 +31,20 @@ def _generate_pick_tests():
         # give the item a fake point cloud at its local origin
         self.store.put(['item', item_name, 'point_cloud'], numpy.array([[0, 0, 0]]))
 
-        shelf_pose = self.store.get(['shelf', 'pose'])
-
-        # move the object around in the bin
-        bin_name = self.store.get(['shelf', 'bin']).keys()[bin_index]
         # get the bin bounding box
-        bin_pose_local = self.store.get(['shelf', 'bin', bin_name, 'pose'])
+        bin_name = self.store.get(['shelf', 'bin']).keys()[bin_index]
         bin_bounds_local = numpy.array(self.store.get(['shelf', 'bin', bin_name, 'bounds']))
 
         # generate list of start points
         points = numpy.meshgrid(*[numpy.linspace(bin_bounds_local[0][i], bin_bounds_local[1][i], density + 2) for i in range(3)])
         points = numpy.hstack([p[1:-1, 1:-1, 1:-1].reshape((-1, 1)) for p in points])
 
-        # plan routes for all of these points
-        point = points[point_index]
-        self.store.put(['item', item_name, 'pose'], xyz(*list(point.flat)))
+        point_local = points[point_index]
+        bin_pose_shelf = self.store.get(['shelf', 'bin', bin_name, 'pose'])
+        point_shelf = bin_pose_shelf[:3, :3].dot(point_local.T) + bin_pose_shelf[:3, 3].T
+
+        # move the object around in the bin
+        self.store.put(['item', item_name, 'pose'], xyz(*list(point_shelf.flat)))
 
         # use each box as an endpoint
         box_name = self.store.get(['box']).keys()[box_index]
@@ -56,7 +55,6 @@ def _generate_pick_tests():
         PlanRoute('pr', store=self.store).run()
         self.assertTrue(self.store.get('/status/route_plan'))
 
-
     methods = {
         'setUp': setUp,
     }
@@ -66,7 +64,7 @@ def _generate_pick_tests():
     for bin_index in range(3):
         for point_index in range(density**3):
             for box_index in range(3):
-                methods['test_pick_{}{}{}'.format(bin_index, point_index, box_index)] = _call_with_self(handle_test, bin_index, density, point_index, box_index)
+                methods['test_pick_{:03d}_{:03d}_{:03d}'.format(bin_index, point_index, box_index)] = _call_with_self(handle_test, bin_index, density, point_index, box_index)
 
     return type('PickTransportTest', (DatabaseDependentTestCase,), methods)
 
