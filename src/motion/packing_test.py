@@ -59,10 +59,11 @@ else:
 	object_geom_file_patterns = {
 		'apc2017':['../../data/objects/apc2017_cube/%s/BB.stl']
 	}
-#default mass for objects whose masses are not specified, in kg
-default_object_mass = 0.5
+#mass for objects, in kg
+with open("item_mass.json") as json_file:
+				mass_data=json.load(json_file)
 object_masses = {
-	'apc2017':dict(),
+	'apc2017':mass_data,
 }
 
 
@@ -115,7 +116,7 @@ def make_object(object_set,objectname,world):
 	and places it in a default location (x,y)=(0,0) and resting on plane."""
 	for pattern in object_geom_file_patterns[object_set]:
 		objfile = pattern%(objectname,)
-		objmass = object_masses[object_set].get('mass',default_object_mass)
+		objmass = object_masses[object_set][objectname.lower()]
 		f = open(object_template_fn,'r')
 		pattern = ''.join(f.readlines())
 		f.close()
