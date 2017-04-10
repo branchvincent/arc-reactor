@@ -214,6 +214,11 @@ def _load_location(store, location):
     # update the known items after deletions
     items = store.get('/item').keys()
 
+def _dims2bb(dims):
+    return [
+        [-dims[0]/2, -dims[1]/2, 0],
+        [+dims[0]/2, +dims[1]/2, dims[2]]
+    ]
 
 def clean(store):
     '''
@@ -261,7 +266,7 @@ def setup_workcell(store, workcell):
         box_name = b['size_id']
 
         store.put(['system', 'boxes', box_name], {
-            'bounds': zip(*[(-d/2, d/2) for d in b['dimensions']])
+            'bounds': _dims2bb(b['dimensions'])
         })
         logger.debug('recognized box size {}'.format(b['size_id']))
 
@@ -277,8 +282,8 @@ def setup_workcell(store, workcell):
     totes = json.load(open('db/totes.json'))
     for (tote_name, data) in totes.items():
         store.put(['system', 'totes', tote_name], {
-            'outer_bounds': zip(*[(-d/2, d/2) for d in data['outer_dimensions']]),
-            'inner_bounds': zip(*[(-d/2, d/2) for d in data['inner_dimensions']]),
+            'outer_bounds': _dims2bb(data['outer_dimensions']),
+            'inner_bounds': _dims2bb(data['inner_dimensions']),
         })
         logger.debug('recognized tote {}'.format(tote_name))
 
