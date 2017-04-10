@@ -176,7 +176,7 @@ class FindItem(State):
         cv2.destroyAllWindows()
         binaryMask = (mask.sum(axis=2) > 0)
         mask = numpy.bitwise_and(binaryMask, point_cloud[:, :, 2] > 0)
-        return aligned_color[mask], point_cloud[mask],
+        return aligned_color[mask], point_cloud[mask]
 
 if __name__ == '__main__':
     FindItem('fi').run()
