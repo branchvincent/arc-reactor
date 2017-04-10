@@ -1,4 +1,5 @@
 var updating = false;
+var dirty = false;
 var request = null;
 
 var last_path = null;
@@ -41,7 +42,7 @@ var load = function(store, orig_path) {
             // update breadcrumbs
             $('#path').empty();
             var levels = path.split('/');
-            var subpath = '';
+            var subpath = '';last_path
             for(var i = 0; i < levels.length; i++) {
                 subpath = levels.slice(0, i + 1).join('/');
 
@@ -80,6 +81,17 @@ var load = function(store, orig_path) {
             for(var i = 0; i < subkeys.length; i++) {
                 $('<li>').append(
                     $('<a>')
+                        .append($('<span>').addClass('glyphicon glyphicon-remove red'))
+                        .attr('href', '#')
+                        .data('path', path + '/' + subkeys[i])
+                        .data('store', store)
+                        .click(function() {
+                            del($(this).data('store'), $(this).data('path'));
+                        })
+                ).append(
+                    '&nbsp;'
+                ).append(
+                    $('<a>')
                         .text(subkeys[i])
                         .attr('href', '#')
                         .data('path', path + '/' + subkeys[i])
@@ -92,13 +104,21 @@ var load = function(store, orig_path) {
             }
 
             // clear the value view
-            $('#value').empty();
+            $('#value').val('');
         } else {
             // keep the index view
 
             // update the value view
             request = $.getJSON(url + path, function(response) {
-                $('#value').text(JSON.stringify(response.value, undefined, 4));
+                var value = JSON.stringify(response.value, undefined, 4);
+
+                if(dirty && $('#value').val() != value) {
+                } else {
+                    $('#value')
+                        .val(value)
+                        .removeClass('dirty');
+                    dirty = false;
+                }
             });
         }
 
@@ -109,6 +129,48 @@ var load = function(store, orig_path) {
     });
 
     return dfd;
+}
+
+var make_url = function(store, path) {
+    var url = '';
+    if(store) {
+        url += '/i/' + store;
+    } else {
+        url += '/d/';
+    }
+    url += path;
+
+    return url;
+}
+
+var create_subkey = function(store, path) {
+    var name = prompt("What is the name of the new subkey?");
+    if(name == null) {
+        return;
+    }
+
+    set(store, path + '/' + name, 0);
+}
+
+var set = function(store, path, value) {
+    $.ajax({
+        type: 'PUT',
+        url: make_url(store, path),
+        data: '{"value": ' + value + '}',
+        processData: false
+    }).fail(function(xhr, status, error) {
+        alert('Updating "' + store + ':' + path + '" failed!\n\n' + status + ': ' + error);
+    });
+}
+
+var del = function(store, path) {
+    $.ajax({
+        type: 'DELETE',
+        url: make_url(store, path),
+        processData: false
+    }).fail(function(xhr, status, error) {
+        alert('Deleting "' + store + ':' + path + '" failed!\n\n' + status + ': ' + error);
+    });
 }
 
 var clear = function() {
@@ -154,6 +216,23 @@ var reload = function() {
 }
 
 var setup = function() {
+    $('#value').on('change keydown paste cut', function() {
+        dirty = true;
+        $('#value').addClass('dirty');
+    });
+
+    $('#revert').click(function() {
+        dirty = false;
+    });
+
+    $('#save').click(function() {
+        set(last_store, last_path, $('#value').val());
+    });
+
+    $('#add').click(function() {
+        create_subkey(last_store, last_path);
+    });
+
     $('#reload').click(reload);
 }
 

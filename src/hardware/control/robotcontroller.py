@@ -31,6 +31,35 @@ def Assert(condition, message):
         logger.error(message)
         raise Exception(message)
 
+def createMilestoneMap(dt,qs,type='db',to='robot'): #degs=False,
+    Assert(type in ['robot','db'], 'Unrecognized option: "{}"'.format(type))
+    Assert(to in ['robot','db'], 'Unrecognized option: "{}"'.format(to))
+    if type == 'db' and to == 'robot':
+        qs = [[degrees(qi) for qi in q] for q in qs]
+        qs = [q[1:] for q in qs]
+        for q in qs:
+            q[2] *= -1
+            q[4] *= -1
+    elif type =='robot' and to == 'db':
+        qs = [[radians(qi) for qi in q] for q in qs]
+        qs = [[0] + q for q in qs]
+        for q in qs:
+            q[3] *= -1
+            q[5] *= -1
+    elif type == to:
+        pass
+    # if type == 'db':
+    #     if degs:
+    #         qs = [[radians(qi) for qi in q] for q in qs]
+    #     if len(qs) > 0 and len(qs[0]) == dof:
+    #         qs = [[0] + q for q in qs]
+    # elif type == 'robot':
+    #     if not degs:
+    #         qs = [[degrees(qi) for qi in q] for q in qs]
+    #     if len(qs) > 0 and len(qs[0]) == dof + 1:
+    #         qs = [q[1:] for q in qs]
+    return [[dt,{'robot': qi}] for qi in qs]
+
 def convertConfigToRobot(q_old, speed):
     """Converts database-style configuration to robot-stye configuration"""
     # Check for errors
@@ -211,36 +240,50 @@ class RobotController:
         q = convertConfigToDatabase(q)
         self.store.put(path, q)
 
-    def jogTo(self,qdes,type='degrees'):
-        """Jogs the robot to the specified configuration, in degrees"""
+    def jogTo(self,qdes,rads=True):
+        """Jogs the robot to the specified configuration, in radians"""
         # Setup world and cspace
         world = build_world(self.store)
-        robot = self.world.robot('tx90l')
+        robotSim = world.robot('tx90l')
         collider = WorldCollider(world)
-        cspace = RobotCSpace(robot,collider=collider)
+        cspace = RobotCSpace(robotSim,collider=collider)
 
-        # Perform interpolation
-        dq_max, dv_max = 5.,60.
-        q0 = self.robot.getCurrentConfig()
-        distance = robot.distance(q0,qdes)
-        numMilestones = ceil(distance/dq_max)
-        dt = dq_max/dv_max
-        # if type == 'radians':
-        #     qdes = [degrees(qi) for qi in qdes]
-        # else if type != 'degrees':
-        #     raise Exception('Unrecognized option for type: {}. Please enter "degrees" or "radians"'.format(type))
+        # Convert configuration
+        if not rads:
+            qdes = [radians(qi) for qi in qdes]
+        q0_robot = self.robot.getCurrentConfig()
+        q0 = [0] + [radians(qi) for qi in q0_robot]
+        q0[3] *= -1; q0[5] *= -1
 
-        # Create milestones
-        milestones = [robot.interpolate(q0,qdes,ui) for ui in np.arange(0,1,1/numMilestones)]
+        # Determine discretization
+        dq_max, dv_max = radians(5.), radians(60.)
+        distance = robotSim.distance(q0,qdes)
+        numMilestones = 1 + ceil(distance/dq_max)
+        dt = 1.5 * dq_max/dv_max
+        logger.info("Jogging from {} to {}, with {} milestones".format(q0,qdes,numMilestones))
+
+        # Create milestones, checking for feasibility
+        qs = [robotSim.interpolate(q0,qdes,ui) for ui in np.linspace(0,1,numMilestones)]
         feasible = True
-        for qi in milestones:
-            if cspace.inJointLimits(qi) and not cspace.selfCollision(x=qi) and not cspace.envCollision(x=qi):
+        for qi in qs:
+            if not cspace.inJointLimits(qi):
+                logger.warn("Configuration not in joint limits")
                 feasible = False
+                break
+            elif cspace.selfCollision(x=qi):
+                logger.warn("Configuration colliding with self")
+                feasible = False
+                break
+            elif cspace.envCollision(x=qi):
+                logger.warn("Configuration colliding with environment")
+                feasible = False
+                break
 
         # Run path, if feasible
         if feasible:
-            for mi in milestones:
-                self.robot.client.addMilestoneQuiet(dt,mi)
+            milestones = createMilestoneMap(dt,qs,type='db',to='db')
+            self.trajectory = Trajectory(robot=self.robot, milestones=milestones, speed=1)
+            self.run()
         else:
             logger.warn("Jogger could not find feasible path")
 
