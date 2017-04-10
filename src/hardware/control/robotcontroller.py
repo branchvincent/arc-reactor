@@ -10,11 +10,12 @@ from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.vacuum import Vacuum
 
 from motion.checker import MotionPlanChecker
-from master.world import build_world
+from master.world import build_world, klampt2numpy
 from klampt.model.collide import WorldCollider
 from klampt.plan.robotcspace import RobotCSpace
 from klampt.math import vectorops
 import numpy as np
+from time import time
 
 # List of robot IP addresses
 dof = 6
@@ -223,6 +224,10 @@ class RobotController:
         if self.trajectory:
             self.trajectory.start()
             self.loop()
+            # build the world and update tool pose
+            world = build_world(self.store)
+            robot = world.robot('tx90l')
+            self.store.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
         else:
             logger.warning('No trajectory found')
 
@@ -259,7 +264,7 @@ class RobotController:
         dq_max, dv_max = radians(5.), radians(60.)
         distance = robotSim.distance(q0,qdes)
         numMilestones = 1 + ceil(distance/dq_max)
-        dt = 1.5 * dq_max/dv_max
+        dt = 3 * dq_max/dv_max
         logger.info("Jogging from {} to {}, with {} milestones".format(q0,qdes,numMilestones))
 
         # Create milestones, checking for feasibility
@@ -283,7 +288,11 @@ class RobotController:
         if feasible:
             milestones = createMilestoneMap(dt,qs,type='db',to='db')
             self.trajectory = Trajectory(robot=self.robot, milestones=milestones, speed=1)
+            self.store.put('/robot/waypoints', milestones)
+            self.store.put('/status/route_plan', True)
+            self.store.put('/robot/timestamp', time())
             self.run()
+            self.store.put('robot/jogto', qdes)
         else:
             logger.warn("Jogger could not find feasible path")
 
@@ -291,6 +300,9 @@ class RobotController:
     #     """Updates the robot's planned trajectory from the database"""
     #     self.trajectory = Trajectory(self.robot, self.store.get(path))
 
-# if __name__ == "__main__":
-#     c = RobotController()
-#     c.updateCurrentConfig()
+if __name__ == "__main__":
+    s = PensiveClient().default()
+    milestones = s.get('robot/waypoints')
+    # c = RobotController(milestones=milestones)
+    # c.run()
+    # c.updateCurrentConfig()

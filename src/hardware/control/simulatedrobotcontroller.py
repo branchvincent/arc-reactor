@@ -11,7 +11,7 @@ from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.vacuum import Vacuum
 import numpy as np
 
-from master.world import build_world
+from master.world import build_world, klampt2numpy
 from klampt.model.collide import WorldCollider
 from klampt.plan.robotcspace import RobotCSpace
 
@@ -153,6 +153,10 @@ class SimulatedRobotController:
         self.trajectory.start()
         self.startTime = time()
         self.loop()
+        # build the world and update tool pose
+        world = build_world(self.store)
+        robot = world.robot('tx90l')
+        self.store.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
 
     def loop(self):
         """Executed at the given frequency"""
@@ -186,16 +190,27 @@ class SimulatedRobotController:
         dq_max, dv_max = radians(5.), radians(60.)
         distance = robotSim.distance(q0,qdes)
         numMilestones = 1 + ceil(distance/dq_max)
-        dt = 1.5 * dq_max/dv_max
+        dt = 3 * dq_max/dv_max
         logger.info("Jogging from {} to {}, with {} milestones".format(q0,qdes,numMilestones))
 
         # Create milestones, checking for feasibility
         qs = [robotSim.interpolate(q0,qdes,ui) for ui in np.linspace(0,1,numMilestones)]
         feasible = True
+
+        # for i,b in enumerate(zip(cspace.bound)):
+        #     l,u = b[0][0], b[0][1]
+        #     print "Joint {}: {} --> {}".format(i,degrees(l), degrees(u))
+
         for qi in qs:
+            # if False:
+                # pass
             if not cspace.inJointLimits(qi):
                 logger.warn("Configuration not in joint limits")
                 feasible = False
+                # for i,(q,b) in enumerate(zip(qi, cspace.bound)):
+                #     if not (b[0] <= q <= b[1]):
+                #         print "Joint: ", i
+                #         print "\tBound: {} <= {} <= {} is false".format(b[0], q, b[1])
                 break
             elif cspace.selfCollision(x=qi):
                 logger.warn("Configuration colliding with self")
@@ -209,14 +224,17 @@ class SimulatedRobotController:
         # Run path, if feasible
         if feasible:
             milestones = createMilestoneMap(dt,qs,type='db',to='db')
+            self.store.put('robot/waypoints', milestones)
+            self.store.put('/status/route_plan', True)
+            self.store.put('/robot/timestamp', time())
             self.trajectory = SimulatedTrajectory(milestones=milestones)
             self.run()
+            self.store.put('robot/jogto', qdes)
         else:
             logger.warn("Jogger could not find feasible path")
 
 
 if __name__ == "__main__":
     store = PensiveClient().default()
-    c = SimulatedRobotController(store=store)
-    m = [0]*7
-    c.jogTo(m)
+    # c = SimulatedRobotController(store=store)
+    # c.jogTo([0]*7)
