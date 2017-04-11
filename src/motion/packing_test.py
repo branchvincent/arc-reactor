@@ -15,7 +15,7 @@ import time
 import json
 import planner
 import math
-
+import numpy as np
 order_box_name=['A1','1AD','1A5','1B2','K3']
 number_of_item=[2,2,3,3,5]
 
@@ -195,6 +195,7 @@ class MyGLViewer(GLSimulationPlugin):
 		self.volume_rate=[]
 		self.placement0=[]
 		self.placement1=[]
+		self.packing_order=[]
 		# print self.world.terrain("order_box").geometry().getBB()
 		for i in range(self.world.numRigidObjects()):
 			self.sim.body(self.sim.world.rigidObject(i)).enable(False)
@@ -203,7 +204,9 @@ class MyGLViewer(GLSimulationPlugin):
 		
 	def control_loop(self):
 		#run n tests for each box, until self.count>n. Here n=3
-		if self.count>3:
+		if self.count>49:
+			print '---------------'
+			print self.order_box_index
 			if self.order_box_index<4:
 				output_name='test_results_'+order_box_name[self.order_box_index]+'.json'
 				with open(output_name,"w") as outfile:
@@ -246,13 +249,42 @@ class MyGLViewer(GLSimulationPlugin):
 		if self.packing_mode==0 and self.sim.getTime()>self.start_time+1+1.5*self.target:
 			if self.target<self.world.numRigidObjects():
 				print "pacing the object!"
-				obj=self.sim.body(self.world.rigidObject(self.target))
-				self.world.rigidObject(self.target).setTransform(so3.identity(),[0,0,0.4])
-				bmin,bmax = self.world.rigidObject(self.target).geometry().getBB()
-				obj.setObjectTransform(so3.identity(),[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25])
-				self.placement0.append([so3.identity(),[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25]])
-				# print "set to:",[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.15]
-				# print "is :",self.world.rigidObject(self.target).getTransform()[1]
+				temp_target=self.packing_order[self.world.numRigidObjects()-1-self.target]
+				self.world.rigidObject(temp_target).setTransform(so3.identity(),[0,0,0.4])
+				bmin,bmax = self.world.rigidObject(temp_target).geometry().getBB()
+				com=vectorops.div(vectorops.add(bmin,bmax),2.0)
+				obj=self.sim.body(self.world.rigidObject(temp_target))
+				good_t=[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25]
+				good_R=so3.identity()
+				for theta in range(4):
+					self.world.rigidObject(temp_target).setTransform(so3.rotation((0,0,1),math.radians(90*theta)),[0,0,0.5])
+					bmin,bmax = self.world.rigidObject(temp_target).geometry().getBB()
+					self.world.rigidObject(temp_target).setTransform(so3.rotation((0,0,1),math.radians(90*theta)),[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25])
+					com_temp=vectorops.div(vectorops.add(bmin,bmax),2.0)
+					offset=vectorops.sub([0,0,0.5],com_temp)
+					for i in range(50):
+						R,t=self.random_feasible_packing(temp_target,offset)
+						self.world.rigidObject(temp_target).setTransform(R,t)
+						bmin,bmax = self.world.rigidObject(temp_target).geometry().getBB()
+						com_temp=vectorops.div(vectorops.add(bmin,bmax),2.0)
+						if com_temp[2]<com[2]:
+							# print "better position!"
+							com=com_temp
+							good_t=t
+							good_R=R
+						elif com_temp[2]<com[2]+0.001 and com_temp[0]<com[0]:
+							com=com_temp
+							good_t=t
+							good_R=R
+				# self.world.rigidObject(self.target).setTransform(R,good_t)
+				# print good_t
+				good_t[2]+=0.25
+				good_t[2]=min(good_t[2],self.box_limit[1][2]+0.25)
+				self.placement1.append([good_R,good_t])
+				# print check_placement(self.world,[R,good_t],self.target,self.box_limit)
+				# print good_R
+				# print good_t
+				obj.setObjectTransform(good_R,good_t)
 				obj.enable(True)
 				self.target+=1
 			else:
@@ -262,22 +294,31 @@ class MyGLViewer(GLSimulationPlugin):
 		elif self.packing_mode==1 and self.sim.getTime()>self.start_time+1+1.5*self.target:
 			if self.target<self.world.numRigidObjects():
 				print "pacing the object!"
-				self.world.rigidObject(self.target).setTransform(so3.identity(),[0,0,0.4])
-				bmin,bmax = self.world.rigidObject(self.target).geometry().getBB()
-				obj=self.sim.body(self.world.rigidObject(self.target))
+				temp_target=self.packing_order[self.target]
+				self.world.rigidObject(temp_target).setTransform(so3.identity(),[0,0,0.4])
+				bmin,bmax = self.world.rigidObject(temp_target).geometry().getBB()
+				com=vectorops.div(vectorops.add(bmin,bmax),2.0)
+				obj=self.sim.body(self.world.rigidObject(temp_target))
 				good_t=[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25]
 				good_R=so3.identity()
 				for theta in range(4):
-					self.world.rigidObject(self.target).setTransform(so3.rotation((0,0,1),math.radians(90*theta)),[0,0,0.5])
-					bmin,bmax = self.world.rigidObject(self.target).geometry().getBB()
-					self.world.rigidObject(self.target).setTransform(so3.rotation((0,0,1),math.radians(90*theta)),[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25])
-					for i in range(100):
-						R,t=self.random_feasible_packing()
-						if t[2]<good_t[2]:
+					self.world.rigidObject(temp_target).setTransform(so3.rotation((0,0,1),math.radians(90*theta)),[0,0,0.5])
+					bmin,bmax = self.world.rigidObject(temp_target).geometry().getBB()
+					self.world.rigidObject(temp_target).setTransform(so3.rotation((0,0,1),math.radians(90*theta)),[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25])
+					com_temp=vectorops.div(vectorops.add(bmin,bmax),2.0)
+					offset=vectorops.sub([0,0,0.5],com_temp)
+					for i in range(50):
+						R,t=self.random_feasible_packing(temp_target,offset)
+						self.world.rigidObject(temp_target).setTransform(R,t)
+						bmin,bmax = self.world.rigidObject(temp_target).geometry().getBB()
+						com_temp=vectorops.div(vectorops.add(bmin,bmax),2.0)
+						if com_temp[2]<com[2]:
 							# print "better position!"
+							com=com_temp
 							good_t=t
 							good_R=R
-						elif t[2]<good_t[2]+0.02 and t[0]<good_t[0]:
+						elif com_temp[2]<com[2]+0.001 and com_temp[0]<com[0]:
+							com=com_temp
 							good_t=t
 							good_R=R
 				# self.world.rigidObject(self.target).setTransform(R,good_t)
@@ -300,7 +341,7 @@ class MyGLViewer(GLSimulationPlugin):
 			# print self.h0
 			# print self.score1
 			# print self.h1
-			print self.count,'/100'
+			print self.count,'/50'
 			self.flag=1
 
 	def reset_items(self):
@@ -339,9 +380,10 @@ class MyGLViewer(GLSimulationPlugin):
 		elif self.packing_mode==1:
 			self.score1.append(score)
 			self.h1.append(highest)
-	def random_feasible_packing(self):
+	def random_feasible_packing(self,target_index,offset):
 		box_min,box_max=self.box_limit
-		target_index=self.target
+		box_min=vectorops.add(box_min,offset)
+		box_max=vectorops.add(box_max,offset)
 		origin_T=self.world.rigidObject(target_index).getTransform()
 		goal_T=[[],[]]
 		goal_T[0]=origin_T[0]
@@ -448,7 +490,7 @@ class MyGLViewer(GLSimulationPlugin):
 					dataset=random.choice(objects.keys())
 					# index = random.randint(0,len(objects[dataset])-1)
 					index=name_index[order_list[i]]
-					print index
+					# print index
 					# index=3
 					objname = objects[dataset][index]
 
@@ -459,7 +501,7 @@ class MyGLViewer(GLSimulationPlugin):
 			# test.append([-0.0468572843527858+1, 0.01388161073849592, 0.08110878087034991+1])
 			# test.append([0.1714684552570149+1, -0.00583098982142613, 0.08142222047427562+1])
 			# test.append([0.06898789824234802+1, 0.015579665412308652, 0.08918678112073716+1])
-			print shelved
+			# print shelved
 			for index,element in enumerate(shelved):
 				objectset,objectname=element
 				obj=make_object(objectset,objectname,self.world)
@@ -473,11 +515,17 @@ class MyGLViewer(GLSimulationPlugin):
 			self.target=0
 			self.start_time=self.sim.getTime()
 			self.count+=1
+			smallest_dimension=[]
 			for i in range(self.world.numRigidObjects()):	
 				self.sim.body(self.sim.world.rigidObject(i)).enable(False)
 				self.reset_T.append([so3.identity(),[-1+i*0.3,-1,0.3]])
-				
-				
+				bb1,bb2=self.world.rigidObject(i).geometry().getBB()
+				smallest_dimension.append(min(bb2[0]-bb1[0],bb2[1]-bb1[1],bb2[2]-bb1[2]))
+			x=np.array(smallest_dimension)
+			sorted_x=np.argsort(x)
+			self.packing_order=[]
+			for i in range(self.world.numRigidObjects()):
+				self.packing_order.append(sorted_x[self.world.numRigidObjects()-1-i])
 		if self.simulate:
 			#Handle screenshots
 			if self.sim.getTime() == 0:

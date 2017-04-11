@@ -16,7 +16,7 @@
 
 
   <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.65 0 0.2" rotateZ="0.0"> -->
-  <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position=" 0 0 0.5" rotateZ="0.0">
+<!--   <rigidObject name="srimug" file="objects/block_small.obj"  position=" 0 0 0.5" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject>  -->

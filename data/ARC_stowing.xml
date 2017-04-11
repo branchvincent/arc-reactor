@@ -5,23 +5,14 @@
 
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
   <terrain file="terrains/block.off" />
-  <robot name="ARC" file="robots/tx90l.rob" translation="2 0 0.29"  config="7  0 0 0 0 0 0 0">
-    <sensors>
-      <JointPositionSensor name="encoders" />
-      <JointVelocitySensor name="dencoders" />
-      <ContactSensor name="contact" link="6" Tsensor="1 0 0  0 1 0  0 0 1  0 0 0.03" patchMin="-0.01 -0.01" patchMax="0.01 0.01" patchTolerance="0.005" hasForce="0 0 1"/>
-      <ForceTorqueSensor name="f/t" link="6" hasForce="1 1 1" hasTorque="1 1 1"/>
-      <Accelerometer name="accelerometer" link="6" hasAxis="1 1 1"/>
-      <IMUSensor name="imu" link="6" hasAxis="1 1 1" hasAngAccel="1" hasAngVel="1"/>
-      <LaserRangeSensor name="lidar" link="6" Tsensor="0 1 0  -1 0 0  0 0 1   0 0 0"  depthMaximum="4.0" depthMinimum="0.1" depthResolution="0.01" depthVarianceLinear="0.0001" />
-      <CameraSensor name="rgbd_camera" link="6" Tsensor="0 1 0  -1 0 0  0 0 1   0 0.1 0"  xres="256" yres="128" xfov="0.6"  zmin="0.4" zresolution="0.01" zvarianceLinear="0.00001" /> 
-    </sensors>
-  </robot>
 
-  <terrain name="order_box" file="objects/box-K3.off"  translation="0 0 0" >
+
+  <terrain name="order_box" file="terrains/LinearShelf.stl" scale="0.001 0.001 0.001" translation="-0.5 0 0" >
      <display color="1 1 00"/>
   </terrain>
-  
+  <terrain file="terrains/cube.off" scale="0.01 1.05 0.3" translation="0.55 0.3 0.0" rotateZ="1.57"> 
+     <display color="0.8 0.7 0.2"/>
+  </terrain>
 
 
 
