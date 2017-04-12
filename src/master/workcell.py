@@ -335,9 +335,11 @@ def setup_pick(store, location, order, workcell=None, keep=True):
             # validate item name
             if item_name not in items:
                 raise RuntimeError('unrecognized item for order {}: {}'.format(order_name, item_name))
-
+            points = (20 if store.get('/item/'+item_name+'/new_item') else 10)
+            points += 10/len(o['contents'])
+            print "adding item ", item_name, " worth ", points, " points."
             store.put(['item', item_name, 'order'], order_name)
-            store.put(['item', item_name, 'point_value'], 10)
+            store.put(['item', item_name, 'point_value'], points)
 
         store.put(['order', order_name], {
             'number': len(o['contents']),

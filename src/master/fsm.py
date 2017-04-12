@@ -28,17 +28,17 @@ class Transition():
         self.store = store or PensiveClient().default()
 
     def decideTransition(self):
+        if self.condition is None:
+            raise RuntimeError("No pass/fail in state specified. Cannot proceed.")
+       
+        if not self.store.get(self.condition):
+            return self.altState
         if self.checkpoint is not None:
             if self.store.get(self.checkpoint):
                 print "got checkpoint"
                 return self.checkState.upper()
-            else:
-                pass
-        if self.condition == None:
-            print "no condition"
+        else: 
             return self.toState
-        else:
-            return (self.toState if self.store.get(self.condition) else self.altState)
 
 class StateMachine():
     def __init__(self, events=None, transitions=None, finStates=None, pastEvents=None, pastStorage=None, currentState=None, store=None):

@@ -175,7 +175,9 @@ class FrontPanel(QMainWindow):
         self.fsm.store.put('/robot/stop_flag', False)
 
         if run_mode == 'step_once':
-            self.fsm.runStep()
+            self.t = Thread(target=self.fsm.runStep)
+            self.t.daemon = True
+            self.t.start()
         elif run_mode == 'run_once':
             self.t = Thread(target=self.fsm.runOrdered, args=(self.fsm.getCurrentState(),))
             self.t.daemon = True
