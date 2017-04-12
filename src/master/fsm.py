@@ -98,7 +98,6 @@ class StateMachine():
         self.finStates[name] = self.events[name]
 
     def stop(self):
-        #self.setCurrentState(self.getCurrentState())
         self.backStep()
         self.store.put('/robot/stop_flag', True)
         if(self.p is not None):
@@ -173,7 +172,7 @@ class StateMachine():
             raise RuntimeError("Not in a state. Cannot go back")
         self.setCurrentState(self.getLast())
         logger.info("Re-writing the db from {}".format(self.pastStore.get_instance()))
-        self.store.put('', self.pastStore.get()) #aha!
+        self.store.put('', self.pastStore.get())
         PensiveClient().delete(self.pastStore.get_instance())
 
     def isDone(self):

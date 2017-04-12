@@ -165,7 +165,6 @@ class FrontPanel(QMainWindow):
         run_mode = self.db.get('/robot/run_mode')
         if run_mode in ['run_once', 'run_all', 'full_auto']:
             self.fsm.stop()
-            #if self.t is not None: self.t.terminate()
     
     def _run_handler(self):
         if not self.fsm:
@@ -178,12 +177,9 @@ class FrontPanel(QMainWindow):
         if run_mode == 'step_once':
             self.fsm.runStep()
         elif run_mode == 'run_once':
-            #self.p = Process(target=self.fsm.runOrdered, args=(self.fsm.getCurrentState(),))
-            #self.p.start()
             self.t = Thread(target=self.fsm.runOrdered, args=(self.fsm.getCurrentState(),))
             self.t.daemon = True
             self.t.start()
-            #self.fsm.runOrdered(self.fsm.getCurrentState())
         elif run_mode in ['run_all', 'full_auto']:
             while not self.fsm.isDone() or not self.fsm.getFlag():
                 self.fsm.runOrdered(self.fsm.getCurrentState())
@@ -298,9 +294,7 @@ class FrontPanel(QMainWindow):
 
 if __name__ == '__main__':
     from PySide.QtGui import QApplication, QStyleFactory
-#    from PySide import QtCore
 
-#    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
     app = QApplication([])
     app.setApplicationName('ARC Reactor')
     app.setStyle(QStyleFactory.create('fusion'))
