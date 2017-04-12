@@ -1,24 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <world>
-  <robot name="ARC" file="robots/tx90l.rob" translation="0 0 0.29"  config="7  0.0 -0.1782669034720337 -0.1156759396675328 1.529368466340817 -4.334907193026182e-06 0.8965048532707963 2.9633533665702125 "/>
+
  
 
   <!-- <robot name="ARC" file="robots/ARC.rob" translation="0 0 0" rotateZ="-3"/>  -->
   <terrain file="terrains/block.off" />
-<!-- The table -->
-  <terrain name="shelf" file="terrains/LinearShelf.stl" scale="0.001 0.001 0.001" translation="-0.55 -0.5 0.0" rotateZ="1.57">
-     <display color="0.8 0.7 0.2"/>
-  </terrain>
-  <terrain file="terrains/cube.off" scale="0.01 1.05 0.3" translation="-0.85 -0.5 0.0"> 
-     <display color="0.8 0.7 0.2"/>
-  </terrain>
 
-<terrain file="terrains/obstacles.stl"  translation="0 0 0" >
-     <display color="0.8 0.7 0.2"/>
-  </terrain>
-  
 
-  <terrain name="order_box" file="objects/box-1AD.off"  translation="-0.1 0.65 0" >
+  <terrain name="order_box" file="objects/box-1A5.off"  translation="0 0 0" >
      <display color="1 1 00"/>
   </terrain>
   
@@ -27,14 +16,10 @@
 
 
   <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.65 0 0.2" rotateZ="0.0"> -->
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.61442071233740891 0.0424367833231837 0.22065000000000001" rotateZ="0.0">
+  <!-- <rigidObject name="srimug" file="objects/block_small.obj"  position=" 0 0 0.5" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
-  </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="-0.61442071233740891 0.4424367833231837 0.22065000000000001" rotateZ="0.0">
-     <graspGenerator type="GraspIt" file="objects/solution2.txt" />
-     <display color="1 1 0"/>
-  </rigidObject> 
+  </rigidObject>  -->
 <!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="0.35 0.5 0.2" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>

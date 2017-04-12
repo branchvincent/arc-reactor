@@ -285,8 +285,14 @@ class WorldViewerWindow(QtGLWindow):
             self._update_item(name)
 
         # update shelf bin bounding boxes
-        for name in self.db.get('shelf/bin', {}):
-            self._update_bounding_box(name + '_bb', ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
+        for name in self.db.get('/shelf/bin', {}):
+            self._update_bounding_box('shelf_{}_bb'.format(name), ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
+        # update box bounding boxes
+        for name in self.db.get('/box', {}):
+            self._update_bounding_box('box_{}_bb'.format(name), [['box', name, 'pose']], ['box', name, 'bounds'])
+        # update tote bounding boxes
+        for name in self.db.get('/tote', {}):
+            self._update_bounding_box('tote_{}_bb'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
 
         self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
 

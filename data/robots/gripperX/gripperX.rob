@@ -1,0 +1,25 @@
+parents     -1   0      1    0     3   
+Tparent	1 0 0	0 1 0	0 0 1	0 0 0 \
+1 0 0	0 1 0	0 0 1	0.078287 0.021 0.012011 \
+1 0 0	0 1 0	0 0 1	0.062744 0.026213 0.009 \
+1 0 -0	0 -1 7.34641e-06	0 -7.34641e-06 -1	0.078287 -0.019 0.012011 \
+1 0 0	0 1 0	0 0 1	0.062791 0.026101 -0.009
+
+axis	1 0 0	0 0 1	0 0 1	0 0 -1	0 0 -1	
+q	0 0 0 0 0
+qmin	0 -1.57 -1.57 -1.57 -1.57 
+qmax	0 1.57 1.57 1.57 1.57   
+velmax	0 0 0 0 0 
+accmax	0 100 100 100 100 
+torquemax	0 0 0 0 0
+geometry	"gripperX/base_link.tri" "gripperX/left_link.tri" "gripperX/left_gripper.tri" "gripperX/right_link.tri" "gripperX/right_gripper.tri" 
+
+mass	0.5932 0.0080238 0.057015 0.0080238 0.057015 
+
+servoP	100 100 100 100 
+servoI	0 0 0 0 
+servoD	10 10 10 10 
+
+dryFriction	0.3 0.3 0.3 0.3 
+viscousFriction	0.3 0.3 0.3 0.3 
+

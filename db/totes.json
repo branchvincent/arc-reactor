@@ -1,0 +1,26 @@
+{
+    "amnesty": {
+        "outer_dimensions": [
+            0.6096,
+            0.3556,
+            0.2032
+        ],
+        "inner_dimensions": [
+            0.4572,
+            0.2794,
+            0.1778
+        ]
+    },
+    "stow": {
+        "outer_dimensions": [
+            0.6096,
+            0.3556,
+            0.2032
+        ],
+        "inner_dimensions": [
+            0.4572,
+            0.2794,
+            0.1778
+        ]
+    }
+}

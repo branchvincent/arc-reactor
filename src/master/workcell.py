@@ -214,6 +214,11 @@ def _load_location(store, location):
     # update the known items after deletions
     items = store.get('/item').keys()
 
+def _dims2bb(dims):
+    return [
+        [-dims[0]/2, -dims[1]/2, 0],
+        [+dims[0]/2, +dims[1]/2, dims[2]]
+    ]
 
 def clean(store):
     '''
@@ -261,7 +266,7 @@ def setup_workcell(store, workcell):
         box_name = b['size_id']
 
         store.put(['system', 'boxes', box_name], {
-            'bounds': zip(*[(-d/2, d/2) for d in b['dimensions']])
+            'bounds': _dims2bb(b['dimensions'])
         })
         logger.debug('recognized box size {}'.format(b['size_id']))
 
@@ -272,6 +277,15 @@ def setup_workcell(store, workcell):
     areas.sort(key=lambda x: x[1])
     for (i, (size_id, _)) in enumerate(areas):
         store.put(['system', 'boxes', size_id, 'priority'], i)
+
+    # load tote data
+    totes = json.load(open('db/totes.json'))
+    for (tote_name, data) in totes.items():
+        store.put(['system', 'totes', tote_name], {
+            'outer_bounds': _dims2bb(data['outer_dimensions']),
+            'inner_bounds': _dims2bb(data['inner_dimensions']),
+        })
+        logger.debug('recognized tote {}'.format(tote_name))
 
     # load workcell
     store.multi_put(workcell)
@@ -376,6 +390,16 @@ def setup_stow(store, location, workcell=None, keep=False):
     logger.info('initializing stow task')
 
     _load_location(store, location)
+
+    # assign tote bounds
+    for tote in store.get('/tote').keys():
+        bounds = store.get(['system', 'totes', tote, 'inner_bounds'])
+        if not bounds:
+            raise RuntimeError('unknown tote "{}"'.format(tote))
+
+        store.put(['tote', tote, 'bounds'], bounds)
+        logger.info('tote {} dimensioned'.format(tote))
+
     store.put('/robot/task', 'stow')
 
 def main(argv):

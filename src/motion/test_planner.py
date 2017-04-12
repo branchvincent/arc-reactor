@@ -4,6 +4,7 @@ import sys
 from klampt import *
 from klampt import vis
 from klampt.vis.glrobotprogram import *
+from klampt.vis import gldraw
 from klampt.model import ik,coordinates,config,cartesian_trajectory,trajectory
 from klampt.model.collide import WorldCollider
 from klampt.plan import cspace
@@ -118,7 +119,10 @@ class MyGLViewer(GLSimulationPlugin):
                     target_item["vacuum_offset"]=[0,0,0.1]
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
                     target_item['drop offset']=[0,0,0.2]
-                    target_box["box_limit"]=[[-0.5,0.2,0.1],[-0.35,0.45,0.4]]
+                    # target_box["box_limit"]=self.sim.world.terrain("order_box").geometry().getBB()
+                    target_box["box_limit"]=[[-0.2144207123374089, 0.55756321667681634, 0.02],[0.05442071233740891, 0.7024367833231837, 0.42065000000000001]]
+
+                    # target_box["box_limit"]=[[-0.5,0.2,0.1],[-0.35,0.45,0.4]]
                     # target_box["drop position"]=[-0.4,0.3,0.2]
                     target_box["drop position"]=[]
                     target_box['position']=[0.2,0.8,0.15]
@@ -162,7 +166,9 @@ class MyGLViewer(GLSimulationPlugin):
                     target_item["bbox"]=self.sim.world.rigidObject(self.target).geometry().getBB()
                     # target_box["drop position"]=self.place_position[self.target]
                     # target_box['position']=self.place_position[self.target]
-                    target_box["box_limit"]=[[-0.2,0.3,0.1],[0.6,0.5,0.4]]
+                    target_box["box_limit"]=[[-0.85,-0.5,0.02],[-0.6,0.5,0.3]]
+
+                    # print "shelf BB:",target_box["box_limit"]
                     # print self.place_position[self.target]
                     target_box["drop position"]=[]
                     target_box['position']=[]
