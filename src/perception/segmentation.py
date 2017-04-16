@@ -70,16 +70,8 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
     #convert to LAB
     labcolor = cv2.cvtColor(fcolor, cv2.COLOR_RGB2LAB)
 
-    # #remove anything red
-    # red = np.array([20,152,145])
-    # for y in range(imageH):
-    #     for x in range(imageW):
-    #         c = labcolor[y,x,:]
-    #         if np.linalg.norm(red - c) < 30:
-    #             labcolor[y,x,0:3] = [0,0,0] 
-
     #mean shift filter to remove texture
-    # labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
+    labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
     return_values['lab_filter'] = labcolor.copy()
 
     #make the depth image a 4D matrix so we can transform it
@@ -96,16 +88,10 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
     color_depth_image = np.zeros((imageH, imageW, 4))
     #fill the first three channels with the LAB image
     color_depth_image[:,:,0:3] = labcolor
-    color_depth_image[:,:,3] = depth
-    # #loop over the depth image converted to color space and put pixels in their new place
-    # for y in range(imageH):
-    #     for x in range(imageW):
-    #         #get the new coordinates
-    #         newx, newy = depth_t_color[y,x,0:2]
-    #         if int(round(newx)) >= 0 and int(round(newx)) < imageW and int(round(newy)) >= 0 and int(round(newy)) < imageH:
-    #             #put the old coordinates to the new place
-    #             color_depth_image[int(round(newy)), int(round(newx)), 3] = depth[y,x]
-    # return_values['depth_filter'] = color_depth_image[:,:,3].copy()
+    xmap = depth_t_color[:,:,0].astype('float32')
+    ymap = depth_t_color[:,:,1].astype('float32')
+    ndepth = cv2.remap(depth, xmap, ymap, cv2.INTER_CUBIC)
+    color_depth_image[:,:,3] = ndepth
 
     #create rectangle to remove any unwatned points
     mask = np.zeros((imageH,imageW))
@@ -138,7 +124,7 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
     outp = np.where(outp == 0, 255, outp)
     return_values['segmented_image'] = outp.copy()
     
- 
+    segments = []
 
     #create a copy of the full color image we can draw rectangles on
     fcolor_rects = fcolor.copy()
@@ -149,8 +135,12 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
     #ref : http://stackoverflow.com/questions/37177811/crop-rectangle-returned-by-minarearect-opencv-python
     for i in range(numObj):
         #find element in outp == i
-        indices = np.array((outp == i).nonzero()).astype('float32')
-        indices = np.transpose(indices)
+        indices = np.array((outp == i).nonzero())
+        if indices.shape[1] > 0:
+            segments.append(np.transpose(indices.astype('int32')))
+        else:
+            continue
+        indices = np.transpose(indices.astype('float32'))
         
         #min area rectangle
         rect = cv2.minAreaRect(indices)
@@ -169,6 +159,7 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
 
         # crop
         img_crop = img_rot[pts[1][1]:pts[0][1], pts[1][0]:pts[2][0]]
+        
 
         #make image for deep learning
         if (img_crop.shape[0] > 256 or img_crop.shape[1] > 256) and (img_crop.shape[0] < 512 and img_crop.shape[1] < 512):
@@ -181,7 +172,7 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
                 startX = 0
             if startY < 0:
                 startY = 0
-            bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
+            bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = 255-img_crop
             imagesForDL.append(bg)
             box = np.int0(box)
             newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
@@ -196,7 +187,7 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
                 startX = 0
             if startY < 0:
                 startY = 0
-            bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
+            bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = 255-img_crop
             imagesForDL.append(bg)
             box = np.int0(box)
             newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
@@ -206,11 +197,10 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
             logger.warn("Segment was larger than 512x512. This is probably a mistake, not adding to identification set")
      
     return_values['boxes_image'] = fcolor_rects
- 
-    #these images are stored in BGR deep learning expects RGB!
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
     return_values['segments'] = tinyColorImgs
+    return_values['pixel_locations'] = segments
     return return_values
 
 
@@ -374,7 +364,7 @@ class SegmentationGUI(QtWidgets.QWidget):
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[3].setPixmap(pix.scaled(320, 240))
 
-        zeroImg = np.zeros((480,640,3))
+        zeroImg = ret['DL_images'][1]
         image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1]*3, QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[4].setPixmap(pix.scaled(320, 240))
