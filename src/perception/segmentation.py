@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 import scipy.signal
 import numpy as np
 import cv2
-from skimage import measure
-from skimage import morphology
 import sys
 sys.path.append('../hardware/SR300/')
 sys.path.append('..')
@@ -25,218 +23,194 @@ console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
 
-class DepthSegmentationParams():
+class GraphSegmentationParams():
     def __init__(self):
-        self.maxDepth = 7500
-        self.minDepth = 5000
+
+        #parameters for the graph cut segmentation
+        self.minSize = 500
+        self.k = 300
+        self.sigma = 0.5
+        
+        #filtering parameter for the depth image
         self.medianFilterW = 7
-        self.gradientThreshold = 10
-        self.morphW = 3
-        self.minNumCC = 500
-        self.maxNumCC = 2000
+
+        #filtering parameters for the mean shift filtering
+        self.sp_rad = 3     #spatial window radius
+        self.c_rad = 3     #color window radius
+        
         self.topLeft = (70, 55)
         self.topRight = (549, 83)
         self.botLeft = (41, 337)
         self.botRight = (550, 366)
 
-def depthSegmentation(depthImage, fcolor, extrinsics=None, params=DepthSegmentationParams(), debug=False):
+def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegmentationParams(), debug=False):
     '''
-    Takes in a depth image plus full color image and returns a list of images
-    that can be fed into deep learning to figure out what they are. also returns
-    list of depth images that can be used to determine where objects are in the world
-    extrinsics is an rs.extrinsics object that transforms points from depth image to
+    Takes in a depth image and full color image and returns a list of images
+    that can be fed into deep learning to figure out what they are.
+    extrinsics is a matrix made from an rs.extrinsics object that transforms points from depth image to
     the fullcolor image
     '''
-
+    imageW = fcolor.shape[1]
+    imageH = fcolor.shape[0]
     #return dictionary
     return_values = {}
 
-    #parameters
-    maxDepth = params.maxDepth
-    minDepth = params.minDepth
-    medianFileterW = params.medianFilterW
-    gradientThreshold = params.gradientThreshold
-    morphW = params.morphW
-    minNumCC = params.minNumCC
-    maxNumCC = params.maxNumCC
-    topLeft = params.topLeft
-    topRight = params.topRight
-    botLeft = params.botLeft
-    botRight = params.botRight
+    #filter depth image
+    depth = scipy.signal.medfilt(depthImage, params.medianFilterW)
+    dmin = np.min(depth[np.nonzero(depth)])
+    depth = (depth-dmin) / (depth.max()-dmin)
+    depth = depth*255
+    depth = np.where(depth > 0, depth, 0)
+    depth = depth.astype('uint8')
+    return_values['depth_filter'] = depth.copy()
 
-    #get rid of any points outside the rectangle
-    mask = np.zeros((480,640))
-    a = np.array(topLeft)
-    b = np.array(topRight)
-    c = np.array(botRight)
+    
+    #create a 4D array of full color in lab space and the last channel is the depth image alligned to the full color
+    
+    #convert to LAB
+    labcolor = cv2.cvtColor(fcolor, cv2.COLOR_RGB2LAB)
+
+    # #remove anything red
+    # red = np.array([20,152,145])
+    # for y in range(imageH):
+    #     for x in range(imageW):
+    #         c = labcolor[y,x,:]
+    #         if np.linalg.norm(red - c) < 30:
+    #             labcolor[y,x,0:3] = [0,0,0] 
+
+    #mean shift filter to remove texture
+    # labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
+    return_values['lab_filter'] = labcolor.copy()
+
+    #make the depth image a 4D matrix so we can transform it
+    depth4D = np.zeros((imageH,imageW,4))
+    [xs, ys] = np.meshgrid(range(imageW), range(imageH))
+    depth4D[:,:,0] = xs
+    depth4D[:,:,1] = ys
+    depth4D[:,:,2] = 0
+    depth4D[:,:,3] = 1
+    #transform all points in depth image to full color
+    #ref: http://stackoverflow.com/questions/28255351/numpy-dot-product-and-matrix-product
+    depth_t_color = np.einsum('...jk,...k->...j', extrinsics , depth4D)
+
+    color_depth_image = np.zeros((imageH, imageW, 4))
+    #fill the first three channels with the LAB image
+    color_depth_image[:,:,0:3] = labcolor
+    color_depth_image[:,:,3] = depth
+    # #loop over the depth image converted to color space and put pixels in their new place
+    # for y in range(imageH):
+    #     for x in range(imageW):
+    #         #get the new coordinates
+    #         newx, newy = depth_t_color[y,x,0:2]
+    #         if int(round(newx)) >= 0 and int(round(newx)) < imageW and int(round(newy)) >= 0 and int(round(newy)) < imageH:
+    #             #put the old coordinates to the new place
+    #             color_depth_image[int(round(newy)), int(round(newx)), 3] = depth[y,x]
+    # return_values['depth_filter'] = color_depth_image[:,:,3].copy()
+
+    #create rectangle to remove any unwatned points
+    mask = np.zeros((imageH,imageW))
+    a = np.array(params.topLeft)
+    b = np.array(params.topRight)
+    c = np.array(params.botRight)
     AB = b-a
     BC = c-b
-    [xs, ys] = np.meshgrid(range(640), range(480))
-    c = np.zeros((480,640,2))
+    [xs, ys] = np.meshgrid(range(imageW), range(imageH))
+    c = np.zeros((imageH,imageW,2))
     c[:,:,0] = xs
     c[:,:,1] = ys
     c = c-a
     mask = np.logical_and(np.logical_and(c.dot(AB) > 0, c.dot(AB) < AB.dot(AB)), np.logical_and(c.dot(BC) > 0, c.dot(BC) < BC.dot(BC)))
 
-    depth = depthImage  
-    depth = np.where(mask==1, depth, 0)
-    #make a copy of the color image to return
-    fullcolor = fcolor.copy()  
+    #remove any points outside the desired rectangle
+    for i in range(4):
+        color_depth_image[:,:,i] = np.where(mask == 1, color_depth_image[:,:,i], 0)
 
-    #remove anything above certain depth
-    depth = np.where(depth < maxDepth, depth, 0)
-    depth = np.where(depth > minDepth, depth, 0)
 
-    #filter
-    depth = scipy.signal.medfilt(depth, medianFileterW)
-    return_values['median_filter'] = depth.copy()
 
+    #perform the graph segmentation
+    gs = cv2.ximgproc.segmentation.createGraphSegmentation()
+    gs.setSigma(params.sigma)
+    gs.setK(params.k)
+    gs.setMinSize(int(params.minSize))
+    outp = gs.processImage(color_depth_image)
+    numObj = outp.max()
+    logger.info("Found {} segments in the image".format(outp.max()))
+    outp = np.where(outp == 0, 255, outp)
+    return_values['segmented_image'] = outp.copy()
     
-    dmin = np.min(depth[np.nonzero(depth)])
-    fcolor = (depth-dmin) / (depth.max()-dmin)
-    fcolor = fcolor*255
-    fcolor = np.where(fcolor > 0, fcolor, 0)
-    fcolor = fcolor.astype('uint8')
-    return_values['median_filter'] = fcolor.copy()
-    if debug:
-        plt.imshow(fcolor)
-        plt.show()
+ 
 
-    
-    #gradient
-    threshdepth = cv2.Laplacian(depth.astype('float32'), cv2.CV_32F, ksize=1)
-    return_values['gradient_filter'] = threshdepth.copy()
-    if debug:
-        plt.imshow(threshdepth)
-        plt.show()
+    #create a copy of the full color image we can draw rectangles on
+    fcolor_rects = fcolor.copy()
 
-    #threshold
-    ret, threshdepth = cv2.threshold(threshdepth, gradientThreshold, 1, cv2.THRESH_BINARY_INV)
-    threshdepth = np.where(mask==1, threshdepth, 0)
-    threshdepth = np.where(depth == 0, 0, threshdepth)
-    return_values['threshold'] = threshdepth.copy()
-    if debug:
-        plt.imshow(threshdepth)
-        plt.show()
-
-
-    all_labels, num_labels = measure.label(threshdepth, neighbors=8, background=0, return_num=True)
-    for i in range(1, num_labels):
-        ind = np.where(all_labels == i)
-        if len(ind[0]) < minNumCC:
-            threshdepth[ind] = 0
-
-    #erode
-    threshdepth = morphology.erosion(threshdepth, selem=np.ones((morphW, morphW)))
-    return_values['morph'] = threshdepth.copy()
-    # threshdepth = morphology.dilation(threshdepth, selem=np.ones((morphW, morphW)))
-
-    #connected components
-    all_labels, num_labels = measure.label(threshdepth, neighbors=8, background=0, return_num=True)
-    #find cc that are greater than X
-    numObj = 0
-    out_labels = np.zeros(all_labels.shape)
-    for i in range(1, num_labels):
-        ind = np.where(all_labels == i)
-        if len(ind[0]) < minNumCC or len(ind[0]) > maxNumCC:
-            all_labels[ind] = 0
-        else:
-            out_labels[ind] = numObj+1
-            numObj = numObj + 1
-
-    #where obj labels is non zero that is an object
-    return_values['cc'] = out_labels.copy()
-
-    #for each of the objects get the bounding square
-    rects = []
-    for i in range(1, numObj+1):
-        #find element in out_labels == i
-        indices = np.array((out_labels == i).nonzero()).astype('float32')
+    #extract the sub image for each label based on the minimum bounding rectangle
+    tinyColorImgs = []
+    imagesForDL = []
+    #ref : http://stackoverflow.com/questions/37177811/crop-rectangle-returned-by-minarearect-opencv-python
+    for i in range(numObj):
+        #find element in outp == i
+        indices = np.array((outp == i).nonzero()).astype('float32')
         indices = np.transpose(indices)
-        # y,x,h,w = cv2.boundingRect(indices)
-        # cv2.rectangle(fullcolor,(x,y),(x+w,y+h),(0,255,0),2)
-        # rects.append([y,y+h, x, x+w])
-
+        
         #min area rectangle
         rect = cv2.minAreaRect(indices)
+
+        angle = rect[2]
+        rows = imageH
+        cols = imageW
+        M = cv2.getRotationMatrix2D((cols/2,rows/2),angle,1)
+        img_rot = cv2.warpAffine(fcolor,M,(cols,rows))
+
+        # rotate bounding box
+        rect0 = (rect[0], rect[1], 0.0)
         box = cv2.boxPoints(rect)
-        box = np.int0(box)
-        rects.append(box)
-        newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
-        cv2.drawContours(fullcolor, [newbox], 0 , (0,255,255), 2)  
+        pts = np.int0(cv2.transform(np.array([box]), M))[0]    
+        pts[pts < 0] = 0
 
-    if debug:
-        plt.imshow(fullcolor)
-        plt.show()
+        # crop
+        img_crop = img_rot[pts[1][1]:pts[0][1], pts[1][0]:pts[2][0]]
 
-    #take the coordinates from rect and get those images in the full color image
-    tinyColorImgs = []
-    tinyDepthImgs = []
-    # for i in range(len(rects)):
-    #     startY = rects[i][0]
-    #     endY = rects[i][1]
-    #     startX = rects[i][2]
-    #     endX = rects[i][3]
-    #     colorStartX = startX
-    #     colorStartY = startY
-    #     colorEndX = endX
-    #     colorEndY = endY
-    #     #get from depth to color coordinates if we have extrinsics
-    #     if not extrinsics is None:
-    #         point = rs.float3()
-    #         #transform start
-    #         point.x = startX
-    #         point.y = startY
-    #         point.z = 0
-    #         newpt = extrinsics.transform(point)
-    #         colorStartX = int(newpt.x)
-    #         colorStartY = int(newpt.y)
-    #         #transform end
-    #         point.x = endX
-    #         point.y = endY
-    #         point.z = 0
-    #         newpt = extrinsics.transform(point)
-    #         colorEndX = int(newpt.x)
-    #         colorEndY = int(newpt.y)
-
-    #     #dont use the image with the rectangles drawn on it
-    #     img = fcolor[colorStartY:colorEndY, colorStartX:colorEndX]
-    #     tinyColorImgs.append(img)
-    #     img = np.zeros(depthImage.shape)
-    #     img[startY:endY, startX:endX] = depthImage[startY:endY, startX:endX]
-    #     tinyDepthImgs.append(img)
-
-    imagesForDL = []
-    # for i in range(len(tinyColorImgs)):
-    #     #create zero image
-    #     if tinyColorImgs[i].shape[0] > 256 or tinyColorImgs[i].shape[1] > 256:
-    #         #large image, put it in 512, 512
-    #         bg = np.zeros((512,512, 3)) #TODO assumes 512x512, but isnt always the case
-    #         startY = int(bg.shape[0]/2 - tinyColorImgs[i].shape[0]/2)
-    #         startX = int(bg.shape[1]/2 - tinyColorImgs[i].shape[1]/2)
-    #         if startX < 0:
-    #             startX = 0
-    #         if startY < 0:
-    #             startY = 0
-    #         bg[startY:startY +tinyColorImgs[i].shape[0], startX:startX+tinyColorImgs[i].shape[1]] = tinyColorImgs[i]
-    #         imagesForDL.append(bg)
-    #     else:
-    #         #small image put it in 256, 256
-    #         bg = np.zeros((256,256, 3))
-    #         startY = int(bg.shape[0]/2 - tinyColorImgs[i].shape[0]/2)
-    #         startX = int(bg.shape[1]/2 - tinyColorImgs[i].shape[1]/2)
-    #         if startX < 0:
-    #             startX = 0
-    #         if startY < 0:
-    #             startY = 0
-    #         bg[startY:startY +tinyColorImgs[i].shape[0], startX:startX+tinyColorImgs[i].shape[1]] = tinyColorImgs[i]
-    #         imagesForDL.append(bg)
-            
+        #make image for deep learning
+        if (img_crop.shape[0] > 256 or img_crop.shape[1] > 256) and (img_crop.shape[0] < 512 and img_crop.shape[1] < 512):
+            #large image, put it in 512, 512
+            tinyColorImgs.append(img_crop)
+            bg = np.zeros((512,512, 3))
+            startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
+            startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
+            if startX < 0:
+                startX = 0
+            if startY < 0:
+                startY = 0
+            bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
+            imagesForDL.append(bg)
+            box = np.int0(box)
+            newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
+            cv2.drawContours(fcolor_rects, [newbox], 0 , (0,255,255), 2)
+        elif img_crop.shape[0] <= 256 and img_crop.shape[1] <= 256:
+            #small image put it in 256, 256
+            tinyColorImgs.append(img_crop)
+            bg = np.zeros((256,256, 3))
+            startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
+            startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
+            if startX < 0:
+                startX = 0
+            if startY < 0:
+                startY = 0
+            bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
+            imagesForDL.append(bg)
+            box = np.int0(box)
+            newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
+            cv2.drawContours(fcolor_rects, [newbox], 0 , (0,255,255), 2)
+        else:
+            #image was really big and is probably the entire image or some mistake, so we are not adding it
+            logger.warn("Segment was larger than 512x512. This is probably a mistake, not adding to identification set")
+     
+    return_values['boxes_image'] = fcolor_rects
+ 
     #these images are stored in BGR deep learning expects RGB!
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
-    return_values['depth_images'] = tinyColorImgs
-    return_values['boxed_color'] = fullcolor
+    return_values['segments'] = tinyColorImgs
     return return_values
 
 
@@ -248,7 +222,7 @@ class SegmentationGUI(QtWidgets.QWidget):
         self.initUI()
         self.depth_image = None
         self.color_image = None
-        self.params = DepthSegmentationParams()
+        self.params = GraphSegmentationParams()
     def initUI(self):
         
         #add a vertical layout
@@ -277,8 +251,8 @@ class SegmentationGUI(QtWidgets.QWidget):
 
         #mid
         self.grid_layout_mid = QtWidgets.QGridLayout()
-        self.param_locations = ['Med filter width', "Max CC", "Max depth", "Threshold", "Morph width", "Min number CC"]
-        param_initialvals = [7, 2000, 7000, 20, 3, 500]
+        self.param_locations = ['Med filter width', "k", "sigma", "Min number", "Spatial Radius", "Color radius"]
+        param_initialvals = [3, 250, 0.5, 200, 3, 3]
         self.param_spinboxes = []
         for i in range(len(self.param_locations)):
             #create layout
@@ -303,7 +277,7 @@ class SegmentationGUI(QtWidgets.QWidget):
         
         #bot
         self.grid_layout_bot = QtWidgets.QGridLayout()
-        self.seg_steps = ['Input', 'Median filter', 'Gradient filter', 'Threshold', 'Connected Components', 'Output']
+        self.seg_steps = ['Input', 'Median filter', 'Mean shift', 'Graph Cut', 'Blank', 'Output']
         self.seg_step_displays = []
         for i in range(len(self.seg_steps)):
             #create layout
@@ -356,65 +330,56 @@ class SegmentationGUI(QtWidgets.QWidget):
 
     def run_segmentation(self):
         #collect parameters
-        # ['Med filter width', "Min depth", "Max depth", "Threshold", "Morph width", "Min number CC"]
+        # ['Med filter width', "k", "sigma", "Min number", "Spatial Radius", "Color radius"]
         self.params.medianFilterW = int(self.param_spinboxes[0].value())
-        self.params.maxNumCC = self.param_spinboxes[1].value()
-        self.params.maxDepth = self.param_spinboxes[2].value()
-        self.params.gradientThreshold = self.param_spinboxes[3].value()
-        self.params.morphW = int(self.param_spinboxes[4].value())
-        self.params.minNumCC = int(self.param_spinboxes[5].value())
+        self.params.k = self.param_spinboxes[1].value()
+        self.params.sigma = self.param_spinboxes[2].value()
+        self.params.minSize = self.param_spinboxes[3].value()
+        self.params.sp_rad = int(self.param_spinboxes[4].value())
+        self.params.c_rad = int(self.param_spinboxes[5].value())
 
-        logger.debug("Params Med filter = {} Min depth = {} Max depth = {} Threshold = {} Morph width = {} Min CC = {}".format(self.params.medianFilterW, self.params.minDepth, self.params.maxDepth, self.params.gradientThreshold, self.params.morphW, self.params.minNumCC))
+        logger.debug("Params Med filter = {} K = {} Sigma = {} Min Size = {} SP Rad {} Color Rad = {}".format(self.params.medianFilterW, self.params.k, self.params.sigma, self.params.minSize, self.params.sp_rad, self.params.c_rad))
 
         if self.depth_image is None:
             logger.warn("No image has been loaded")
             return
         #segment
-        ret = depthSegmentation(self.depth_image, self.color_image,None, self.params)
+        testmat = np.array([[ 0.99999267,  0.00340036, -0.00176075, -0.02570188],
+       [-0.00339687,  0.99999225,  0.00198321, -0.00134699],
+       [ 0.00176748, -0.00197721,  0.99999648, -0.00356173],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
+
+        ret = graphSegmentation(self.depth_image, self.color_image, testmat, self.params)
 
         #update the images 
         # ['Input', 'Median filter', 'Gradient filter', 'Threshold', 'Connected Components', 'Output']
-        zeroImg = self.depth_image
-        zeroImg = (zeroImg - zeroImg.min()) / (zeroImg.max()-zeroImg.min())
-        zeroImg *= 255
-        zeroImg = zeroImg.astype('uint8')
-        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1], QtGui.QImage.Format_Grayscale8)
+        zeroImg = self.color_image
+        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1]*3, QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[0].setPixmap(pix.scaled(320, 240))
 
-        zeroImg = ret['median_filter']
+        zeroImg = ret['depth_filter']
         #scale from zero to 255
-        zeroImg = (zeroImg - zeroImg.min()) / (zeroImg.max()-zeroImg.min())
-        zeroImg *= 255
-        zeroImg = zeroImg.astype('uint8')
         image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1],QtGui.QImage.Format_Grayscale8)
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[1].setPixmap(pix.scaled(320, 240))
 
-        zeroImg = ret['gradient_filter']
-        zeroImg = (zeroImg - zeroImg.min()) / (zeroImg.max()-zeroImg.min())
-        zeroImg *= 255
-        zeroImg = zeroImg.astype('uint8')
-        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1],QtGui.QImage.Format_Grayscale8)
+        zeroImg = ret['lab_filter']
+        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1]*3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[2].setPixmap(pix.scaled(320, 240))
 
-        zeroImg = ret['morph']
-        zeroImg = (zeroImg - zeroImg.min()) / (zeroImg.max()-zeroImg.min())
-        zeroImg *= 255
-        zeroImg = zeroImg.astype('uint8')
+        zeroImg = ret['segmented_image'].astype('uint8')
         image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1],QtGui.QImage.Format_Grayscale8)
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[3].setPixmap(pix.scaled(320, 240))
 
-        zeroImg = ret['cc']
-        zeroImg = zeroImg.astype('uint8')
-        zeroImg[np.where(zeroImg)] = 255
-        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1], QtGui.QImage.Format_Grayscale8)
+        zeroImg = np.zeros((480,640,3))
+        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1]*3, QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[4].setPixmap(pix.scaled(320, 240))
 
-        zeroImg = ret['boxed_color']
+        zeroImg = ret['boxes_image']
         image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1] * 3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[5].setPixmap(pix.scaled(320, 240))
@@ -425,8 +390,4 @@ if __name__ == "__main__":
     sg = SegmentationGUI()
     sg.show()
     sys.exit(app.exec_())
-
-    # d = np.load('/home/bk/Documents/arc_images/competition_images/cluttered_test/3_depth.npy')
-    # c = np.load('/home/bk/Documents/arc_images/competition_images/cluttered_test/3.npy')
-    # depthSegmentation(d, c, debug=True)
 
