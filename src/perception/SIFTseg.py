@@ -13,6 +13,10 @@ import matplotlib.patches as patches
 from sklearn.cluster import DBSCAN
 sift = cv2.xfeatures2d.SIFT_create()
 
+# default imread.
+def myImread(path, ch_ind):
+    img = cv2.imread(path)
+    return img[:,:,ch_ind]
 
 class channel:
     def __init__(self, kps=(), dists=(), angs=(), 
@@ -206,7 +210,7 @@ class siftSegment:
         #matching
         chs2 = []
         for i in range(self.Nchannels):
-            ch = self.sift_detect(imgTest[:,:,i], -1, test)
+            ch = self.sift_detect(imgTest[:,:,i], -1)
             chs2.append(ch)
         ch_matched, _ = self.match(self.chs_tr, chs2)
         objs = []
@@ -267,12 +271,12 @@ class siftSegment:
         angs = angs
         return [dists, angs]
     
-    def sift_detect(self, img, ind, source):
+    def sift_detect(self, img, ind):
         sift = cv2.xfeatures2d.SIFT_create()
         kp, de = sift.detectAndCompute(img,None)
         dist, ang = self.computeVector(kp, img)
         label = [ind] * len(kp) # label for test_img is -1.
-        return channel(kps=kp, dists=dist, angs=ang, des=de, labels=label, sources=source)
+        return channel(kps=kp, dists=dist, angs=ang, des=de, labels=label, sources='None')
     
     def flannMatch(self, des1, des2):
         # FLANN parameters
@@ -316,9 +320,7 @@ class siftSegment:
             ch_matched.merge(ch)
         return ch_matched, matched
 
-def myImread(path, ch_ind):
-    img = cv2.imread(path)
-    return img[:,:,ch_ind]
+
 
 if __name__ == "__main__":
     root = '../data/items_300/'
