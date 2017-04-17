@@ -9,7 +9,6 @@ from matplotlib import pyplot as plt
 from matplotlib.path import Path
 import matplotlib.patches as patches
 
-%matplotlib inline
 
 from sklearn.cluster import DBSCAN
 sift = cv2.xfeatures2d.SIFT_create()
