@@ -192,12 +192,15 @@ class siftSegment:
         self.chs_tr = [];
         self.classes = []
         return
-    def train(self, root):
+    def train(self, root, cls=list()):
         for i in range(self.Nchannels):
             ch, classes = self.trainOnChannel(root, i)
             self.chs_tr.append(ch)
             self.classes.append(classes)
-        self.classes = [cls for i, cls in enumerate(self.classes)if cls not in self.classes[:i]][0]
+        if len(cls) is 0:
+            self.classes = [cls for i, cls in enumerate(self.classes)if cls not in self.classes[:i]][0]
+        else:
+            self.classes = [cls]
         return
     
     def predict(self, imgTest, eps=50, min_samples=5):
@@ -297,7 +300,8 @@ class siftSegment:
         ch_matched = channel()
         for ch1, ch2 in zip(chs1, chs2):
             matched = self.flannMatch(ch1.des, ch2.des)
-
+            if len(matched) is 0:
+                return channel(), np.array([])
             kps = tuple([ch2.kps[ind] for ind in matched[:,0]])
             kps_ref = tuple([ch1.kps[ind] for ind in matched[:,1]])        
 
