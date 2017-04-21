@@ -2,7 +2,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-import matplotlib.pyplot as plt
 import skimage.transform
 import pickle
 import os
@@ -79,9 +78,9 @@ class ObjectRecognizer:
         # Resize so smallest dim = 256, preserving aspect ratio
         h, w, _ = im.shape
         if h < w:
-            im = skimage.transform.resize(im, (256, w * 256 / h), preserve_range=True)
+            im = skimage.transform.resize(im, (256, w * 256 // h), preserve_range=True)
         else:
-            im = skimage.transform.resize(im, (h * 256 / w, 256), preserve_range=True)
+            im = skimage.transform.resize(im, (h * 256 // w, 256), preserve_range=True)
         # Central crop to 224x224
         h, w, _ = im.shape
         im = im[h // 2 - 112:h // 2 + 112, w // 2 - 112:w // 2 + 112]
