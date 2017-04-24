@@ -13,20 +13,9 @@ class FindItem(State):
         location = self.store.get(['item', selected_item, 'location'])
         logger.info('finding item "{}" in "{}"'.format(selected_item, location))
 
-        # location camera map
-        # TODO: store map in database at /shelf/cameras/bins
-        location_to_cameras = {
-            'binA': ['shelf1'],
-            'binB': ['shelf0','shelf1'],
-            'binC': ['shelf0'],
-            'stow_tote': ['stow'],
-            'stow tote': ['stow']
-        }
-
         # select cameras
-        try:
-            selected_cameras = location_to_cameras[location]
-        except:
+        selected_cameras = self.store.get(['system', 'viewpoints', location], None)
+        if selected_cameras is None:
             raise RuntimeError('no camera available for {}'.format(location))
 
         # detect object
