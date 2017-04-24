@@ -156,7 +156,12 @@ class SimulatedRobotController:
         # build the world and update tool pose
         world = build_world(self.store)
         robot = world.robot('tx90l')
-        self.store.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
+        T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
+        self.store.put('/robot/tcp_pose', T_tcp)
+        # update tool camera pose
+        T_cam = self.store.get('camera/tcp/local_pose')
+        T = T_tcp.dot(T_cam)
+        self.store.put('camera/tcp/pose', T)
 
     def loop(self):
         """Executed at the given frequency"""
@@ -229,7 +234,7 @@ class SimulatedRobotController:
             self.store.put('/robot/timestamp', time())
             self.trajectory = SimulatedTrajectory(milestones=milestones)
             self.run()
-            self.store.put('robot/jogto', qdes)
+            self.store.put('robot/jog_config', qdes)
         else:
             logger.warn("Jogger could not find feasible path")
 

@@ -159,13 +159,15 @@ class Trajectory:
     def start(self):
         """Sets the current milestone to the first in the list"""
         logger.info('Starting trajectory')
-        # self.check()
+        self.check()
         self.curr_index = 0
         self.curr_milestone = self.milestones['robot'][self.curr_index]
         # Check initial config is current config
-        if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):
-            self.curr_milestone[0] = 3
-            logger.warning('Initial configuration is not current configuration.')
+        # if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):
+        #     self.curr_milestone[0] = 3
+        #     logger.warning('Initial configuration is not current configuration.')
+        # HACK: Delay first milestone to create sufficient buffering
+        self.curr_milestone[0] = 5
         # Send first milestones
         for m in self.milestones['robot'][:bufferSize]:
             self.robot.sendMilestone(m)
@@ -227,7 +229,12 @@ class RobotController:
             # build the world and update tool pose
             world = build_world(self.store)
             robot = world.robot('tx90l')
-            self.store.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
+            T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
+            self.store.put('/robot/tcp_pose', T_tcp)
+            # update tool camera pose
+            T_cam = self.store.get('camera/tcp/local_pose')
+            T = T_tcp.dot(T_cam)
+            self.store.put('camera/tcp/pose', T)
         else:
             logger.warning('No trajectory found')
 
@@ -292,7 +299,7 @@ class RobotController:
             self.store.put('/status/route_plan', True)
             self.store.put('/robot/timestamp', time())
             self.run()
-            self.store.put('robot/jogto', qdes)
+            self.store.put('robot/jog_config', qdes)
         else:
             logger.warn("Jogger could not find feasible path")
 
