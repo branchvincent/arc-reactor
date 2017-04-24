@@ -40,7 +40,7 @@ def joint_space_rotate(motion_milestones,current_p,target_p,robot,vacuum_status)
 	elif delta<-math.pi:
 		delta=delta+2*math.pi
 	max_rotate_speed=0.5*(1-slow_down_factor*vacuum_status)
-	t_step=0.01
+	t_step=1.0/control_rate
 	motion_milestones.append(make_milestone(0.05,robot.getConfig(),vacuum_status,vacuum_status))
 	if delta>0:
 		#ccw rotate
