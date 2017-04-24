@@ -52,7 +52,7 @@ class PlanRoute(State):
             'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
             'drop offset': [0, 0, 0.1],
-        }
+        } #TODO make sure this info is in db, not stored locally here
 
         self.store.put('/robot/target_bounding_box', bounding_box)
 

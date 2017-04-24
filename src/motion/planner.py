@@ -15,6 +15,8 @@ import os
 import time
 import json
 import copy
+
+#TODO put all constants in databse. Notate in wiki which ones should be tuned later.
 ee_local=[0.0,0.0,0.4]
 # ee_local=[0,0,0]
 box_release_offset=[0,0,0.06]
@@ -122,7 +124,7 @@ def pick_up(world,item,target_box,target_index):
 		check_points for the motion plan:
 			-- a list of transform matrixs for the end-effector at key points for the plan
 	"""
-
+#TODO break out placement finding into separate function/state
 	#init
 	robot=world.robot(0)
 
@@ -359,6 +361,7 @@ def stow(world,item,target_box,target_index):
 
 
 
+#TODO break out stowing position finding into separate function/state
 
 	#find a stowing position if no goal position is given by the input
 	if target_box['drop position']:
@@ -498,6 +501,7 @@ def stow(world,item,target_box,target_index):
 	fix_milestones(motion_milestones)
 	return motion_milestones
 
+#TODO is this function still necessary? if so why?
 def fix_milestones(motion_milestones):
 	old_config=motion_milestones[0][1]['robot']
 	i=1
@@ -534,6 +538,8 @@ def interpolate(start_T,end_T,u,flag):
 		ik_world=[t,vectorops.add(t,[R[6]/100.0,R[7]/100.0,R[8]/100.0])]
 	return [ik_local,ik_world]
 
+
+#TODO make Milestone class
 def make_milestone(t,q,vacuum_status,simulation_status):
 	milestone=(t, {
 			  'robot': q,
@@ -618,7 +624,7 @@ class TestCSpace(CSpace):
 		CSpace.__init__(self)
 		self.globals = globals
 		self.robot = globals.robot
-		#initial whole-body configuratoin
+		#initial whole-body configuration
 		self.q0 = self.robot.getConfig()
 		#setup CSpace sampling range
 		qlimits = zip(*self.robot.getJointLimits())
@@ -650,5 +656,6 @@ class TestCSpace(CSpace):
 			return False
 		return True
 
+#TODO remove this
 def test_function():
 	return True
