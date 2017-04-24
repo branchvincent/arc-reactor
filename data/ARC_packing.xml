@@ -12,9 +12,9 @@
       <ContactSensor name="contact" link="6" Tsensor="1 0 0  0 1 0  0 0 1  0 0 0.03" patchMin="-0.01 -0.01" patchMax="0.01 0.01" patchTolerance="0.005" hasForce="0 0 1"/>
       <ForceTorqueSensor name="f/t" link="6" hasForce="1 1 1" hasTorque="1 1 1"/>
       <Accelerometer name="accelerometer" link="6" hasAxis="1 1 1"/>
-      <IMUSensor name="imu" link="6" hasAxis="1 1 1" hasAngAccel="1" hasAngVel="1"/>
+      <IMUSensor name="imu" link="6" hasAxis="1 1 1" hasAngAccel="1" hasAngVel="1"/>d
       <LaserRangeSensor name="lidar" link="6" Tsensor="0 1 0  -1 0 0  0 0 1   0 0 0"  depthMaximum="4.0" depthMinimum="0.1" depthResolution="0.01" depthVarianceLinear="0.0001" />
-      <CameraSensor name="rgbd_camera" link="6" Tsensor="0 1 0  -1 0 0  0 0 1   0 0.1 0"  xres="256" yres="128" xfov="0.6"  zmin="0.4" zresolution="0.01" zvarianceLinear="0.00001" /> 
+      <CameraSensor name="rgbd_camera" link="-1" Tsensor="0 1 0  -1 0 0  0 0 1   0 0.1 0"  xres="256" yres="128" xfov="0.7"  zmin="0.4" zresolution="0.01" zvarianceLinear="0.00001" /> 
     </sensors>
   </robot>
 
@@ -42,8 +42,8 @@
 <!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="1.1 0.5 0.37" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
-  </rigidObject> 
-  <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.23 0.57" rotateZ="0.0">
+  </rigidObject>  -->
+<!--   <rigidObject name="srimug" file="objects/block_small.obj"  position="1.0 0.23 0.57" rotateZ="0.0">
      <graspGenerator type="GraspIt" file="objects/solution2.txt" />
      <display color="1 1 0"/>
   </rigidObject> 
