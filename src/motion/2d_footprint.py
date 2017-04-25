@@ -26,6 +26,7 @@ except ImportError:
 	HAVE_PYPLOT = False
 	print "**** Matplotlib not available, can't plot color/depth images ***"
 
+plot_flag=1
 
 order_box_name=['A1','1AD','1A5','1B2','K3']
 number_of_item=[2,2,3,3,5]
@@ -48,7 +49,7 @@ box_limit['K3']=[[-0.2275,-0.145,0.03],[0.2375,0.145,0.159]]
 #load related files for objects 
 object_template_fn = '../../data/objects/object_template.obj'
 objects = {}
-real_item=1
+real_item=0
 
 if real_item:
 	objects['apc2017'] = [f for f in sorted(os.listdir('../../data/objects/apc2017'))]
@@ -56,7 +57,8 @@ if real_item:
 		objects['apc2017'].remove("gen_thumbnail")
 	if 'convert_psd' in objects['apc2017']:
 		objects['apc2017'].remove("convert_psd")
-
+	if 'Composition_Book' in objects['apc2017']:
+		objects['apc2017'].remove("Composition_Book")
 	object_geom_file_patterns = {
 		'apc2017':['../../data/objects/apc2017/%s/mesh.ply']
 	}
@@ -69,6 +71,9 @@ else:
 		objects['apc2017'].remove("convert_psd")
 	if 'Composition_Book' in objects['apc2017']:
 		objects['apc2017'].remove("Composition_Book")
+	# if 'Avery_Binder' in objects['apc2017']:
+	# 	objects['apc2017'].remove("Avery_Binder")
+		
 
 	object_geom_file_patterns = {
 		'apc2017':['../../data/objects/apc2017_cube/%s/BB.stl']
@@ -282,7 +287,7 @@ class MyGLViewer(GLSimulationPlugin):
 			bmin,bmax = self.world.rigidObject(self.target).geometry().getBB()
 			dx=bmax[0]-bmin[0]
 			dy=bmax[1]-bmin[1]
-			mask=np.ones((int(dy/0.3*128),int(dx/0.6*256)))
+			mask=np.ones((int(dy/0.35*128),int(dx/0.7*256)))
 			result=signal.convolve2d(self.box_depth,mask,mode='same')
 			temp_data=np.array(result)
 			print np.argmax(temp_data)
@@ -296,22 +301,6 @@ class MyGLViewer(GLSimulationPlugin):
 	def control_loop(self):
 		#run n tests for each box, until self.count>n. Here n=3
 		if self.packing_mode==0 and self.sim.getTime()>self.start_time+1+1.5*self.target:
-			if self.target<self.world.numRigidObjects():
-				print "pacing the object!"
-				obj=self.sim.body(self.world.rigidObject(self.target))
-				self.world.rigidObject(self.target).setTransform(so3.identity(),[0,0,0.4])
-				bmin,bmax = self.world.rigidObject(self.target).geometry().getBB()
-				obj.setObjectTransform(so3.identity(),[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25])
-				self.placement0.append([so3.identity(),[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.25]])
-				# print "set to:",[-(bmin[0]+bmax[0])*0.5,-(bmin[1]+bmax[1])*0.5,self.box_limit[1][2]+0.15]
-				# print "is :",self.world.rigidObject(self.target).getTransform()[1]
-				obj.enable(True)
-				self.target+=1
-			else:
-				self.make_score()
-				self.reset_items()
-				self.packing_mode=1
-		elif self.packing_mode==1 and self.sim.getTime()>self.start_time+1+1.5*self.target:
 			if self.target<self.world.numRigidObjects():
 				print "pacing the object!"
 				self.world.rigidObject(self.target).setTransform(so3.identity(),[0,0,0.4])
@@ -341,15 +330,15 @@ class MyGLViewer(GLSimulationPlugin):
 							good_R=R
 				print 'final choice'
 				print good_t
-				self.placement1.append([good_R,good_t])
+				self.placement0.append([good_R,good_t])
 				obj.setObjectTransform(good_R,good_t)
 				# obj.enable(True)
 				self.target+=1
 			else:
 				self.make_score()
 				self.reset_items()
-				self.packing_mode=2
-		elif self.packing_mode==2 and self.sim.getTime()>self.start_time+1+1.5*self.target:
+				self.packing_mode=1
+		elif self.packing_mode==1 and self.sim.getTime()>self.start_time+1+1.5*self.target:
 			if self.target<self.world.numRigidObjects():
 				print "pacing the object!"
 				self.world.rigidObject(self.target).setTransform(so3.identity(),[0,0,0.4])
@@ -365,8 +354,13 @@ class MyGLViewer(GLSimulationPlugin):
 					offset=vectorops.sub([0,0,0.5],com_temp)
 					# print 'offset',offset
 					# print com_temp
-					for i in range(5):
-						R,t=self.footprint_feasible_packing(offset)
+					convolve_result=self.do_convolve()
+					for i in range(10):
+						if i==0 and theta==0:
+							plot_flag=1
+						else:
+							plot_flag=0
+						R,t=self.footprint_feasible_packing(offset,convolve_result)
 						self.world.rigidObject(self.target).setTransform(R,t)
 						bmin,bmax = self.world.rigidObject(self.target).geometry().getBB()
 						com_temp=vectorops.div(vectorops.add(bmin,bmax),2.0)
@@ -388,14 +382,13 @@ class MyGLViewer(GLSimulationPlugin):
 			else:
 				self.make_score()
 				# self.reset_items()
-				self.packing_mode=3
-		elif self.packing_mode==3:
-			obj=self.sim.body(self.world.rigidObject(0))
+				self.packing_mode=2
+		elif self.packing_mode==2:
+			# obj=self.sim.body(self.world.rigidObject(0))
 
 			# obj.enable(True)
-			# print self.score0
-			# print self.h0
-			# print self.score1
+			print 'score0:',self.score0,'score1:',self.score1
+			print 'h0:',self.h0,'h1:',self.h1
 			# print self.h1
 			pass
 
@@ -420,7 +413,7 @@ class MyGLViewer(GLSimulationPlugin):
 		# bb=self.world.terrain("order_box").geometry().getBB()
 		# bb=box_limit['K3']
 		box(bb[0],bb[1],filled=False)
-		self.draw_box(self.temp_plot)
+		# self.draw_box(self.temp_plot)
 
         #draw points on the robot
         # lh = Hand('l')
@@ -483,8 +476,11 @@ class MyGLViewer(GLSimulationPlugin):
 		result=signal.convolve2d(self.box_depth,mask,mode='same')
 		temp_data=np.array(result)
 		temp_data=np.reshape(temp_data,-1)
-		temp_data=np.subtract(temp_data,np.min(temp_data))
+		temp_data=np.divide(temp_data,np.max(temp_data))
+		temp_data[temp_data<0.99]=0
+		# print max(temp_data)
 		temp_p=np.divide(temp_data,np.sum(temp_data)*1.0)
+		# print min(temp_data)
 		temp_w=x2-x1+1
 		temp_h=y1-y2+1
 		output={}
@@ -493,6 +489,7 @@ class MyGLViewer(GLSimulationPlugin):
 		output['temp_p']=temp_p
 		output['x1']=x1
 		output['y2']=y2
+		output['result']=result
 		return output
 
 	def footprint_helper(self,convolve_result,box_max):
@@ -501,6 +498,7 @@ class MyGLViewer(GLSimulationPlugin):
 		temp_p=convolve_result['temp_p']
 		x1=convolve_result['x1']
 		y2=convolve_result['y2']
+		result=convolve_result['result']
 		# max_index=np.argmax(temp_data)
 		max_index=np.random.choice(len(temp_p),p=temp_p)
 		# print 'temp_w',temp_w,'temp_h',temp_h
@@ -509,16 +507,17 @@ class MyGLViewer(GLSimulationPlugin):
 		temp_x=int(max_index-temp_y*temp_w)
 		# print 'temp_x',temp_x
 		# print "temp_y",temp_y
-		# plt.imshow(result)
-		# plt.plot(temp_x,temp_y,'b*')
-		# plt.show()
+		if plot_flag and self.target>3 and self.target<6:
+			plt.imshow(result)
+			plt.plot(temp_x,temp_y,'b*')
+			plt.show()
 		
 		x=temp_x+x1
 		y=temp_y+y2
 		# print 'x',x,'y',y	
 		real_x,real_y=image_to_world(self.sensor,self.robot,[x,y])
 		return [real_x,real_y,box_max[2]]
-	def footprint_feasible_packing(self,offset):
+	def footprint_feasible_packing(self,offset,convolve_result):
 		box_min,box_max=self.box_limit
 		box_min=vectorops.add(box_min,offset)
 		box_max=vectorops.add(box_max,offset)
@@ -528,9 +527,9 @@ class MyGLViewer(GLSimulationPlugin):
 		goal_T[0]=origin_T[0]
 		flag=1
 		n=0
-		covolve_result=self.do_convolve()
+		
 		while (flag and n<3):
-			x,y,z=self.footprint_helper(covolve_result,box_max)
+			x,y,z=self.footprint_helper(convolve_result,box_max)
 			# print x,y,z
 			# self.temp_plot=[x,y,z]
 			goal_T[1]=vectorops.add([x,y,z],offset)
@@ -591,7 +590,7 @@ class MyGLViewer(GLSimulationPlugin):
 				low_bound=0.5*(low_bound+high_bound)
 			n+=1
 		self.world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
-		print 'the lowest positin is',drop_position
+		# print 'the lowest positin is',drop_position
 		return [origin_T[0],drop_position]
 	def random_feasible_packing(self,offset):
 		box_min,box_max=self.box_limit
@@ -709,7 +708,17 @@ if __name__ == "__main__":
 	# box_volume=data['box_volume']
 	# item_dictionary=data['item_dictionary']
 	# box_name=data['box_name']	
-
+	n=8
+	order_box=1
+	with open("pick_task_generator.json") as json_file:
+		data=json.load(json_file)
+		box_fit_item=data['box_fit_item']
+		box_volume=data['box_volume']
+		item_dictionary=data['item_dictionary']
+		box_name=data['box_name']	
+		shelved=[]
+		order_list,v_rate=generate_orders(n,order_box,box_fit_item,box_volume,item_dictionary,box_name,0.3)
+		print order_list
 	shelved=[]
 	# order_box=2
 	# n=5
@@ -719,27 +728,57 @@ if __name__ == "__main__":
 	# 	name_index[box_fit_item[4][i]]=i
 	# # print order_list
 	# order_list=['duct_tape','crayons','burts_bees_baby_wipes','ice_cube_tray','tissue_box']
-	for i in range(3):
+	name_index={}
+			# for i in range(len(box_fit_item[4])):
+			# 	name_index[box_fit_item[4][i]]=i
+	for i in range(len(objects['apc2017'])):
+		name_index[objects['apc2017'][i].lower()]=i
+	# print name_index
+	for i in range(n):
 			dataset=random.choice(objects.keys())
-			index = random.randint(0,len(objects[dataset])-1)
+			# index = random.randint(0,len(objects[dataset])-1)
+			index=name_index[order_list[i]]
+			# print index
 			# index=3
-			# while index==7:
-			# 	index = random.randint(0,len(objects[dataset])-1)
-			# index=i+3
 			objname = objects[dataset][index]
-			print objname
+
 			# print dataset,objname
 			shelved.append((dataset,objname))
 
-	# # test=[]
-	# # test.append([-0.0468572843527858+1, 0.01388161073849592, 0.08110878087034991+1])
-	# # test.append([0.1714684552570149+1, -0.00583098982142613, 0.08142222047427562+1])
-	# # test.append([0.06898789824234802+1, 0.015579665412308652, 0.08918678112073716+1])
 	for index,element in enumerate(shelved):
 		objectset,objectname=element
 		obj=make_object(objectset,objectname,world)
 		bb1,bb2=obj.geometry().getBB()
-		obj.setTransform(so3.rotation((0,0,1),math.radians(0)),[-1+index*0.3,-1,0.3])
+		obj.setTransform(so3.identity(),[-1+index*0.5,-1,0.3])
+
+
+
+
+
+
+
+
+	# for i in range(5):
+	# 		dataset=random.choice(objects.keys())
+	# 		index = random.randint(0,len(objects[dataset])-1)
+	# 		# index=3
+	# 		# while index==7:
+	# 		# 	index = random.randint(0,len(objects[dataset])-1)
+	# 		# index=i+3
+	# 		objname = objects[dataset][index]
+	# 		print objname
+	# 		# print dataset,objname
+	# 		shelved.append((dataset,objname))
+
+	# # # test=[]
+	# # # test.append([-0.0468572843527858+1, 0.01388161073849592, 0.08110878087034991+1])
+	# # # test.append([0.1714684552570149+1, -0.00583098982142613, 0.08142222047427562+1])
+	# # # test.append([0.06898789824234802+1, 0.015579665412308652, 0.08918678112073716+1])
+	# for index,element in enumerate(shelved):
+	# 	objectset,objectname=element
+	# 	obj=make_object(objectset,objectname,world)
+	# 	bb1,bb2=obj.geometry().getBB()
+	# 	obj.setTransform(so3.rotation((0,0,1),math.radians(0)),[-1+index*0.3,-1,0.3])
 		# obj.setTransform(so3.identity(),test[index])
 		# obj.setTransform(so3.identity(),[0,0,0.4])
 		# print check_placement(world,obj.getTransform(),0)
