@@ -1,7 +1,8 @@
 """Checks motion plan"""
 
-import logging; logger = logging.getLogger(__name__)
 from pensive.client import PensiveClient
+from motion.milestone import Milestone
+import logging; logger = logging.getLogger(__name__)
 
 # Checker settings
 
@@ -27,9 +28,9 @@ class MotionPlanChecker:
         logger.info('Checking motion plan')
         #Check
         for i in range(len(self.milestones)-1):
-            m0 = self.milestones[i][1]['robot']
-            m1 = self.milestones[i+1][1]['robot']
-            dt = self.milestones[i+1][0]
+            m0 = self.milestones[i].get_robot()
+            m1 = self.milestones[i+1].get_robot()
+            dt = self.milestones[i+1].get_t()
             self.checkMilestone(m0,m1,dt,i+1)
         #Log pass/fail
         if self.failedMilestones:
@@ -56,6 +57,7 @@ class MotionPlanChecker:
 
 if __name__ == "__main__":
     plan = PensiveClient().default().get('robot/waypoints')
-    c = MotionPlanChecker(plan)
+    milestones = [Milestone(map=p) for p in plan]
+    c = MotionPlanChecker(milestones)
     for error in c.check():
         print error
