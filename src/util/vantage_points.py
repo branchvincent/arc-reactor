@@ -16,7 +16,7 @@ import logging; logger = logging.getLogger(__name__)
 # Global store
 store = PensiveClient().default()
 
-def find_vantage(bin):
+def find_vantage(bin, store=store):
     """Calculates and stores camera vantage point for each bin"""
     # Find point above center of bounding box
     bounds = store.get(['shelf', 'bin', bin, 'bounds'])
@@ -29,7 +29,7 @@ def find_vantage(bin):
     store.put(['shelf', 'bin', bin, 'vantage'], T)
     # print "Found transform", T
 
-def plan_vantage(bin):
+def plan_vantage(bin, store=store):
     """Plans desired configuration to reach the specified bin's vantage point"""
     if bin not in ['binA', 'binB', 'binC']:
         raise Exception('Bin "{}" not reconigzed'.format(bin))
@@ -65,13 +65,13 @@ def plan_vantage(bin):
     else:
         raise Exception('Could not find feasible configuration')
 
-    # Jogto configuration
+    # Jog to configuration
     controller = SimulatedRobotController(store=store)
     controller.jogTo(qdes)
     sync(store)
     return qdes
 
-def get_point_cloud(bin, order= 0, camera='tcp'):
+def get_point_cloud(bin, order= 0, camera='tcp', store=store):
     # Connect cameras
     cameras = DepthCameras()
     if not cameras.connect():
@@ -87,11 +87,9 @@ def get_point_cloud(bin, order= 0, camera='tcp'):
     # Convert to world coorindates and update global point cloud
     # sync(store)
     T_ee = store.get('robot/tcp_pose')
-    T = xyz(-0.045, 0.022, 0.079) * rpy(0,-math.radians(17),0) * rpy(0,0,1.57)
+    T = xyz(-0.045, 0.022, 0.079) * rpy(0,-math.radians(17),0) * rpy(0,0,1.57) #hacked tcp camera local pose
     store.put(['camera', camera, 'pose'], np.eye(4))
     T = T_ee * T
-    # print "pc", point_cloud.shape
-    # print "T", T
     point_cloud = point_cloud.reshape((-1,3))
     pc_world = point_cloud.dot(T[:3,:3].T) + T[:3,3].T
     point_cloud = point_cloud.reshape((480, 640, 3))
@@ -100,7 +98,7 @@ def get_point_cloud(bin, order= 0, camera='tcp'):
     store.put(['camera', camera, 'timestamp'], time())
     np.save('order{}_{}'.format(order,bin), pc_world)
 
-def acquire_image(cameras, camera_serial):
+def acquire_image(cameras, camera_serial, store=store):
     """Acquires an image from the specified camera"""
     # Acquire desired camera by serial number
     desired_cam_index = cameras.get_camera_index_by_serial(camera_serial)
