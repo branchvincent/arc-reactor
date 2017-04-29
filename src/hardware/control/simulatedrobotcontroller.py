@@ -15,7 +15,7 @@ from klampt.model.collide import WorldCollider
 from klampt.plan.robotcspace import RobotCSpace
 
 # List of robot IP addresses
-dof = 6
+# dof = 6
 bufferSize = 100
 robots = {  'left': '10.10.1.202',
             'right': '10.10.1.203',

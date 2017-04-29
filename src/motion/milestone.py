@@ -1,6 +1,6 @@
 import math
 
-dof = { 'db': 7
+dof = { 'db': 7,
         'robot': 6
 }
 
@@ -73,7 +73,7 @@ class Milestone:
     def scale_t(self, scale):
         # Check scale
         if not (0 < speed <= 1):
-            raise RuntimeError('Speed scale "{}" is not in (0,1]'.format(scale)))
+            raise RuntimeError('Speed scale "{}" is not in (0,1]'.format(scale))
         # Apply scale
         self.t /= float(scale)
 

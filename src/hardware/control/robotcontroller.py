@@ -20,78 +20,18 @@ from math import degrees, radians, isnan, isinf, ceil
 import logging; logger = logging.getLogger(__name__)
 
 # List of robot IP addresses
-dof = 6
+# dof = 6
 bufferSize = 100
 robots = {  'left':  '10.10.1.202',
             'right': '10.10.1.203',
             'local': 'localhost'    }
 
 # Helper functions
-
 def Assert(condition, message):
     """Raises and logs an exception if the condition is false"""
     if not condition:
         logger.error(message)
         raise Exception(message)
-
-# def createMilestoneMap(dt,qs,type='db',to='robot'): #degs=False,
-#     Assert(type in ['robot','db'], 'Unrecognized option: "{}"'.format(type))
-#     Assert(to in ['robot','db'], 'Unrecognized option: "{}"'.format(to))
-#     if type == 'db' and to == 'robot':
-#         qs = [[degrees(qi) for qi in q] for q in qs]
-#         qs = [q[1:] for q in qs]
-#         for q in qs:
-#             q[2] *= -1
-#             q[4] *= -1
-#     elif type =='robot' and to == 'db':
-#         qs = [[radians(qi) for qi in q] for q in qs]
-#         qs = [[0] + q for q in qs]
-#         for q in qs:
-#             q[3] *= -1
-#             q[5] *= -1
-#     elif type == to:
-#         pass
-#     # if type == 'db':
-#     #     if degs:
-#     #         qs = [[radians(qi) for qi in q] for q in qs]
-#     #     if len(qs) > 0 and len(qs[0]) == dof:
-#     #         qs = [[0] + q for q in qs]
-#     # elif type == 'robot':
-#     #     if not degs:
-#     #         qs = [[degrees(qi) for qi in q] for q in qs]
-#     #     if len(qs) > 0 and len(qs[0]) == dof + 1:
-#     #         qs = [q[1:] for q in qs]
-#     return [[dt,{'robot': qi}] for qi in qs]
-
-# def convertConfigToRobot(q_old, speed):
-#     """Converts database-style configuration to robot-stye configuration"""
-#     # Check for errors
-#     Assert(len(q_old[1]['robot']) == dof + 1, 'Configuration {} is of improper size'.format(q_old[1]['robot']))
-#     Assert(0 < speed <= 1, 'Speed {} is not in (0,1]'.format(speed))
-#     for qi in q_old[1]['robot']:
-#         Assert(not isinf(qi) and not isnan(qi), 'Invalid configuration {}'.format(qi))
-#     # Convert to robot
-#     q = list(deepcopy(q_old))
-#     q[0] /= float(speed)
-#     q[1]['robot'] = [degrees(qi) for qi in q[1]['robot']]
-#     q[1]['robot'][3] *= -1
-#     q[1]['robot'][5] *= -1
-#     del q[1]['robot'][0]
-#     return q
-#
-# def convertConfigToDatabase(q_old):
-#     """Converts robot-style configuration to database-stye configuration"""
-#     # Check for errors
-#     Assert(len(q_old) == dof, 'Configuration {} is of improper size'.format(q_old))
-#     for qi in q_old:
-#         Assert(not isinf(qi) and not isnan(qi), 'Invalid configuration {}'.format(qi))
-#     # Convert to database
-#     q = list(deepcopy(q_old))
-#     q = [radians(qi) for qi in q]
-#     q.insert(0,0)
-#     q[3] *= -1
-#     q[5] *= -1
-#     return q
 
 
 class RobotController:
@@ -141,61 +81,6 @@ class RobotController:
         T_cam = self.store.get('/robot/camera_xform')
         T = T_tcp.dot(T_cam)
         self.store.put('camera/tcp/pose', T)
-
-    # def jogTo(self,qdes,rads=True):
-    #     """Jogs the robot to the specified configuration, in radians"""
-    #     # NOTE: mimics PlanRoute state for now, by generating a motion plan...
-    #
-    #     # Setup world and cspace
-    #     world = build_world(self.store)
-    #     robotSim = world.robot('tx90l')
-    #     collider = WorldCollider(world)
-    #     cspace = RobotCSpace(robotSim,collider=collider)
-    #
-    #     # Convert configuration
-    #     if not rads:
-    #         qdes = [radians(qi) for qi in qdes]
-    #     q0_robot = self.robot.getCurrentConfig()
-    #     q0 = [0] + [radians(qi) for qi in q0_robot]
-    #     q0[3] *= -1; q0[5] *= -1
-    #
-    #     # Determine discretization
-    #     dq_max, dv_max = radians(5.), radians(60.)
-    #     distance = robotSim.distance(q0,qdes)
-    #     numMilestones = 1 + ceil(distance/dq_max)
-    #     dt = 3 * dq_max/dv_max
-    #     logger.info("Jogging from {} to {}, with {} milestones".format(q0,qdes,numMilestones))
-    #
-    #     # Create milestones, checking for feasibility
-    #     qs = [robotSim.interpolate(q0,qdes,ui) for ui in np.linspace(0,1,numMilestones)]
-    #     feasible = True
-    #     for qi in qs:
-    #         if not cspace.inJointLimits(qi):
-    #             logger.warn("Configuration not in joint limits")
-    #             feasible = False
-    #             break
-    #         elif cspace.selfCollision(x=qi):
-    #             logger.warn("Configuration colliding with self")
-    #             feasible = False
-    #             break
-    #         elif cspace.envCollision(x=qi):
-    #             logger.warn("Configuration colliding with environment")
-    #             feasible = False
-    #             break
-    #
-    #     # Run path, if feasible
-    #     if feasible:
-    #         milestones = createMilestoneMap(dt,qs,type='db',to='db')
-    #         self.store.put('/robot/waypoints', milestones)
-    #         self.store.put('/status/route_plan', True)
-    #         self.store.put('/robot/timestamp', time())
-    #         # self.trajectory = Trajectory(robot=self.robot, milestones=milestones, speed=1)
-    #         # self.run()
-    #         # self.store.put('robot/jog_config', qdes)
-    #     else:
-    #         self.store.put('/status/route_plan', False)
-    #         logger.warn("Jogger could not find feasible path")
-    #     return feasible
 
     # def updatePlannedTrajectory(self, path='robot/waypoints'):
     #     """Updates the robot's planned trajectory from the database"""
