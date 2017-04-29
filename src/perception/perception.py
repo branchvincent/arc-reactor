@@ -113,7 +113,7 @@ class Perception:
         '''
 
         if list_of_serial_nums is None:
-            serial_nums_to_update = self.camera_variables.keys()
+            list_of_serial_nums = self.camera_variables.keys()
 
         #loop though all the cameras
         for i,sn in enumerate(list_of_serial_nums):
