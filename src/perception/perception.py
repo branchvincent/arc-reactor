@@ -468,6 +468,38 @@ class CameraVariables:
 
 
 if __name__ == "__main__":
-    t = Perception()
-    t.acquire_images()
-    t.segment_plus_detect(['617205003983'],['binA'])
+    #command line parsing of arguments
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'acquire':
+            t = Perception()
+            cameras = []
+            for cmdarg in sys.argv[2:]:
+                try:
+                    cnum = int(cmdarg[0])
+                    cameras.append(cmdarg)
+                except:
+                    pass
+            if cameras == []:
+                cameras = None
+            t.acquire_images(cameras)
+        elif sys.argv[1] == 'segment':
+            t = Perception()
+            cameras = []
+            bins = []
+            for cmdarg in sys.argv[2:]:
+                try:
+                    cnum = int(cmdarg[0])
+                    cameras.append(cmdarg)
+                except:
+                    bins.append(cmdarg)
+            if cameras == []:
+                cameras = None
+            if bins == []:
+                bins = None
+            t.segment_plus_detect(cameras, bins)
+        else:
+            print('Unrecognized option {}'.format(sys.argv[1]))
+        
+    else:
+        print('Usage: [acquire/segment] [camera SN] [locations]')
+    
