@@ -1,6 +1,5 @@
-# For executing trajectories
+"""Controller for simulating sending trajectories to the TX90"""
 
-# import sys; sys.path.append('../..')
 import logging; logger = logging.getLogger(__name__)
 from time import sleep, time
 from copy import deepcopy
@@ -180,6 +179,8 @@ class SimulatedRobotController:
 
     def jogTo(self,qdes,rads=True):
         """Jogs the robot to the specified configuration, in radians"""
+        # NOTE: mimics PlanRoute state for now, by generating a motion plan...
+
         # Setup world and cspace
         world = build_world(self.store)
         robotSim = world.robot('tx90l')
@@ -232,12 +233,13 @@ class SimulatedRobotController:
             self.store.put('robot/waypoints', milestones)
             self.store.put('/status/route_plan', True)
             self.store.put('/robot/timestamp', time())
-            self.trajectory = SimulatedTrajectory(milestones=milestones)
-            self.run()
-            self.store.put('robot/jog_config', qdes)
+            # self.trajectory = SimulatedTrajectory(milestones=milestones)
+            # self.run()
+            # self.store.put('robot/jog_config', qdes)
         else:
+            self.store.put('/status/route_plan', False)
             logger.warn("Jogger could not find feasible path")
-
+        return feasible
 
 if __name__ == "__main__":
     store = PensiveClient().default()

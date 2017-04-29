@@ -1,6 +1,5 @@
 """Controller for sending trajectories to the TX90"""
 
-# import sys; sys.path.append('../..')
 import logging; logger = logging.getLogger(__name__)
 from time import sleep
 from copy import deepcopy
@@ -254,6 +253,8 @@ class RobotController:
 
     def jogTo(self,qdes,rads=True):
         """Jogs the robot to the specified configuration, in radians"""
+        # NOTE: mimics PlanRoute state for now, by generating a motion plan...
+
         # Setup world and cspace
         world = build_world(self.store)
         robotSim = world.robot('tx90l')
@@ -294,14 +295,16 @@ class RobotController:
         # Run path, if feasible
         if feasible:
             milestones = createMilestoneMap(dt,qs,type='db',to='db')
-            self.trajectory = Trajectory(robot=self.robot, milestones=milestones, speed=1)
             self.store.put('/robot/waypoints', milestones)
             self.store.put('/status/route_plan', True)
             self.store.put('/robot/timestamp', time())
-            self.run()
-            self.store.put('robot/jog_config', qdes)
+            # self.trajectory = Trajectory(robot=self.robot, milestones=milestones, speed=1)
+            # self.run()
+            # self.store.put('robot/jog_config', qdes)
         else:
+            self.store.put('/status/route_plan', False)
             logger.warn("Jogger could not find feasible path")
+        return feasible
 
     # def updatePlannedTrajectory(self, path='robot/waypoints'):
     #     """Updates the robot's planned trajectory from the database"""
