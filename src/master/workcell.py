@@ -431,14 +431,18 @@ def setup_stow(store, location, workcell=None, keep=False):
 
     _load_location(store, location)
 
-    # assign tote bounds
-    for tote in store.get('/tote').keys():
+    # assign tote poses and bounds
+    for tote in store.get('/system/totes').keys():
         bounds = store.get(['system', 'totes', tote, 'inner_bounds'])
-        if not bounds:
+        pose = store.get(['system', 'totes', tote, 'pose'])
+
+        if bounds is None or pose is None:
             raise RuntimeError('unknown tote "{}"'.format(tote))
 
         store.put(['tote', tote, 'bounds'], bounds)
-        logger.info('tote {} dimensioned'.format(tote))
+        store.put(['tote', tote, 'pose'], pose)
+
+        logger.info('tote {} posed and dimensioned'.format(tote))
 
     # initialize vantage points
     _load_vantage(store)

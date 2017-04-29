@@ -123,7 +123,7 @@
             ]
         }
     },
-    "/tote/stow/pose": {
+    "/system/totes/stow/pose": {
         "__numpy.matrix__": {
             "dtype": "float64",
             "list": [
@@ -256,7 +256,7 @@
             ]
         }
     },
-    "/tote/amnesty/pose": {
+    "/system/totes/amnesty/pose": {
         "__numpy.matrix__": {
             "dtype": "float64",
             "list": [
