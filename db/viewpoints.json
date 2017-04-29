@@ -1,0 +1,23 @@
+{
+    "binA": [
+        "shelf1",
+        "tcp"
+    ],
+    "binB": [
+        "shelf0",
+        "shelf1",
+        "tcp"
+    ],
+    "binC": [
+        "shelf0",
+        "tcp"
+    ],
+    "stow_tote": [
+        "stow",
+        "tcp"
+    ],
+    "amnesty_tote": [
+        "stow",
+        "tcp"
+    ]
+}
