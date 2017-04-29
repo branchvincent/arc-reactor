@@ -8,6 +8,7 @@ import realsense as rs
 import segmentation
 import deepLearning as dl
 import cv2
+import os
 import scipy.misc
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
@@ -26,17 +27,17 @@ class Perception:
         self.depthCamera = depthCamera.DepthCameras()
 
         #create a deepLearning object ObjectRecognizer
-        self.objectRecognizer = dl.ObjectRecognizer('vgg_finetuned_ARC2017_1.pkl',39)
+        self.objectRecognizer = dl.ObjectRecognizer('vgg_finetuned_ARC2017.pkl',40)
 
         #try to connect to the database
         self.store = None
-        # try:
-        #     self.db_client = PensiveClient(host='http://10.10.1.102:8888')
-        #     self.store = self.db_client.default()
-        #     register_numpy()
-        # except:
-        #     logger.warn("Could not connect to the database on {}".format('10.10.1.102:8888'))
-        #     self.store = None
+        try:
+            self.db_client = PensiveClient(host='http://10.10.1.60:8888')
+            self.store = self.db_client.default()
+            register_numpy()
+        except:
+            logger.warn("Could not connect to the database on {}".format('10.10.1.60:8888'))
+            self.store = None
         
 
         #try to connect to the depth camera
@@ -58,14 +59,21 @@ class Perception:
             self.load_camera_xforms()
 
         #list of object names of the items. TODO read this in from database or file
-        self.object_names = ['ashland_decorative_fillers', 'band_aid_paper_tape', 'bathery_sponge', 'black_gloves', 'burts_baby_bees', 'clorox_toilet_brush', 'cloth_duct_tape', 'colgate_toothbrush', 'crayola_crayons', 'dr_teals_epsom_salt', 'elmers_glue_sticks', 'expo_eraser', 'greener_clean_sponges', 'hanes_cushion_crew_socks', 'ice_cube_tray', 'irish_spring_soap', 'kleenex', 'lol_joke_book', 'measuring_spoons', 'pink_scissors', 'pink_tablecloth', 'poland_springs_water', 'reynolds_pie_pans', 'reynolds_wrap', 'robots_dvd', 'robots_everywhere_book', 'rolodex_pencil_cup', 'ruled_index_cards', 'speed_stick', 'spritz_balloons', 'tennis_balls', 'ticonderoga_pencil', 'tomcat_mouse_trap', 'two_lb_hand_weight', 'wash_cloth', 'white_three_ring_binder', 'wide_ruled_notebook', 'windex', 'wine_glass']
+        #names = self.store.get('/item/item_list')
+        names = os.listdir('/home/bk/Documents/arc_images/Training items/')
+        names.sort()
+        self.object_names = names
 
-    def acquire_images(self):
+    def acquire_images(self, list_of_serial_nums=None):
         '''
-        Checks what cameras are connected and gets new images from the cameras
-        Pushes results to the database
+        Update camera images only.  Takes in one or more camera serial numbers as a list. If list_of_serial_nums is
+        empty all cameras are queried.
+        Point clouds, aligned images, and color images are updated and pushed to the database
         '''
-        for sn in self.camera_variables.keys():
+        if list_of_serial_nums is None:
+            list_of_serial_nums = self.camera_variables.keys()
+
+        for sn in list_of_serial_nums:
            
            #check if the camera is connected
            if self.camera_variables[sn].connected:
@@ -76,7 +84,7 @@ class Perception:
                 images, serialNum = picSnTuple
             
                 self.camera_variables[sn].aligned_color_image = images[1]
-                self.camera_variables[sn].depth_image = images[3]
+                self.camera_variables[sn].depth_image = images[4]
                 self.camera_variables[sn].full_color_image = images[0]
                 self.camera_variables[sn].point_cloud = images[5]
 
@@ -96,13 +104,195 @@ class Perception:
             else:
                 #mark that camera as disconnected
                 self.camera_variables[sn].connected = False
+        
+
+    def segment_objects(self, list_of_serial_nums=None, list_of_bins=None):
+        '''
+        Performs segmentation on images from camera serial numbers in the list
+        If a bin is specified for the camera, the image is cropped to only that bin
+        '''
+
+        if list_of_serial_nums is None:
+            serial_nums_to_update = self.camera_variables.keys()
+
+        #loop though all the cameras
+        for i,sn in enumerate(list_of_serial_nums):
+
+            d_image = self.camera_variables[sn].depth_image
+            c_image = self.camera_variables[sn].full_color_image
+
+            seg_params = segmentation.GraphSegmentationParams()
+            #crop the image for desired bin 
+            if not list_of_bins is None:
+                if i < len(list_of_bins):
+                    #top directory is either shelf, box, or tote
+                    if 'box' in list_of_bins[i]:
+                        topdir = '/box/'
+                    elif 'bin' in list_of_bins[i]:
+                        topdir = '/shelf/bin'
+                    elif 'tote' in list_of_bins[i]:
+                        topdir = '/tote/'
+                    else:
+                        logger.warn("Bad location passed to segmentation {}".format(list_of_bins[i]))
+                        topdir = "noooooooooothing"
+                    bin_bounds = self.store.get(topdir + list_of_bins[i] + '/bounds')
+                    pixel_bounds = []
+                    if not bin_bounds is None:
+                        #get camera world location
+                        cam_pose_world = self.camera_variables[sn].world_xform
+
+                        #get bin relative to shelf local location (two points that are at opposite corners of the bounding box)
+                        bin_bounds_world = self.store.get(topdir + list_of_bins[i] + "/bounds")
+
+                        #get all 8 points
+                        sorted(bin_bounds_world, key=lambda k: [k[0],k[1],k[2]])
+                        smallestX = pixel_bounds[0][0]
+                        largestX = pixel_bounds[1][0]
+                        sorted(pixel_bounds, key=lambda k: [k[1],k[0],k[2]])
+                        smallestY = pixel_bounds[0][1]
+                        largestY = pixel_bounds[1][1]
+                        sorted(pixel_bounds, key=lambda k: [k[2],k[0],k[1]])
+                        smallestZ = pixel_bounds[0][2]
+                        largestZ = pixel_bounds[1][2]
+
+                        bin_bounds_world.append([smallestX,smallestY,smallestZ])
+                        bin_bounds_world.append([smallestX,smallestY,largestZ])
+                        bin_bounds_world.append([smallestX,largestY,smallestZ])
+                        bin_bounds_world.append([smallestX,largestY,largestZ])
+
+                        bin_bounds_world.append([largestX,smallestY,smallestZ])
+                        bin_bounds_world.append([largestX,smallestY,largestZ])
+                        bin_bounds_world.append([largestX,largestY,smallestZ])
+                        bin_bounds_world.append([largestX,largestY,largestZ])
+
+                        origin_2_shelf = self.store.get(topdir + list_of_bins[i] + "/pose")
+                        #convert all these points to world coordinates
+                        for i in range(len(bin_bounds_world)):
+                            pt = np.array(bin_bounds_world[i] + [1])
+                            bin_bounds_world[i] = origin_2_shelf.dot(pt)
+
+                        #get the bin in camera local coordinates
+                        bin_in_camera_local = []
+                        for point in bin_bounds_world:
+                            bin_in_camera_local.append(np.lingalg.inv(cam_pose_world).dot(point))
+
+                        #get camera intrinsics to project 3d point on to color image
+                        cam_intrins = self.camera_variables[sn].color_intrinsics
+
+                        for point in bin_in_camera_local:
+                            #project 3d point on to 2d point
+                            pt = rs.float3()
+                            pt.x = point[0]
+                            pt.y = point[1]
+                            pt.z = point[2]
+                            pixel_coord = cam_intrins.project(pt)
+                            pixel_bounds.append([pixel_coord.x, pixel_coord.y])
+                    
+                    if len(pixel_bounds) > 0:
+                        #find smallest x and smallest y
+                        sorted(pixel_bounds, key=lambda k: [k[0],k[1]])
+                        smallestX = pixel_bounds[0][0]
+                        largestX = pixel_bounds[7][0]
+                        sorted(pixel_bounds, key=lambda k: [k[1],k[0]])
+                        smallestY = pixel_bounds[0][1]
+                        largestY = pixel_bounds[7][1]
+
+                        seg_params.topLeft = (smallestX, largestY)
+                        seg_params.topRight = (largestX, largestY)
+                        seg_params.botRight = (largestX, smallestY)
+
+            #TODO location away segmentation parameters
+            seg_params.k = 250
+            seg_params.medianFilterW = 5
+            seg_params.minSize = 600
+            seg_params.c_rad = 33
+            seg_params.sigma = 1.5
+            seg_params.sp_rad = 3
+
+            #segment the image
+            ret = segmentation.graphSegmentation(d_image, c_image, seg_params)
+            color_images = ret['DL_images']
+            sift_images = ret['small_images']
+            boxed_color = ret['boxes_image']
+            self.camera_variables[sn].segmented_image = boxed_color
+            self.camera_variables[sn].dl_images = color_images
+            self.camera_variables[sn].sift_images = sift_images
+            self.camera_variables[sn].segments = ret['pixel_locations']
+
+    def infer_objects(self, list_of_serial_nums=None):
+        '''
+        Runs deep learning inference on all segmented images from cameras in the list of serial numbers
+        '''
+        if list_of_serial_nums is None:
+            list_of_serial_nums = self.camera_variables.keys()
+           
+        for sn in list_of_serial_nums:
+            #reset the guess and confidences
+            self.camera_variables[sn].item_guesses = ['']*len(self.camera_variables[sn].dl_images)
+            self.camera_variables[sn].item_confidences = [0]*len(self.camera_variables[sn].dl_images)
+
+            for num, im in enumerate(self.camera_variables[sn].dl_images):
+                
+                #infer
+                confidences, _ = self.objectRecognizer.guessObject(im)
+
+                #restrict the guesses to the items this camera can see
+                if self.camera_variables[sn].visible_items != []:
+                    vis_item_conf = []
+                    vis_item_ind = []
+                    for item in self.camera_variables[sn].visible_items:
+                        #find the index of this item
+                        ind = self.object_names.index(item)
+                        vis_item_ind.append(ind)
+                        vis_item_conf.append(confidences[ind])
+                    vis_item_conf = np.array(vis_item_conf)
+                    #what is the maximum confidence value of the visible_items?
+                    index_of_best_guess_in_subset = vis_item_conf.argmax(-1)
+                    object_name = self.object_names[vis_item_ind[index_of_best_guess_in_subset]]
+                    object_confidence = vis_item_conf[index_of_best_guess_in_subset]
+                    self.camera_variables[sn].item_guesses[num] = object_name
+                    self.camera_variables[sn].item_confidences[num] = object_confidence
+                    logger.info("Camera {} found object {} with confidence of {}".format(sn, object_name, object_confidence))
+                else:
+                    index_of_best_guess = confidences.argmax(-1)
+                    object_name = self.object_names[index_of_best_guess]
+                    object_confidence = confidences[index_of_best_guess]
+                    self.camera_variables[sn].item_guesses[num] = object_name
+                    self.camera_variables[sn].item_confidences[num] = object_confidence
+                    logger.info("Camera {} found object {} with confidence of {}".format(sn, object_name, object_confidence))
+
+                #send confidence and point cloud to the database
+                self.store.put('/item/'+ object_name + '/id_confidence',object_confidence)
+                pc_indices = self.camera_variables[sn].segments[num]
+                pc = []
+                for point in pc_indices:
+                    pc.append(self.camera_variables[sn].point_cloud[point[0],point[1]])
+                self.store.put('/item/' + object_name + "/point_cloud", np.array(pc))
+
+    def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
+        self.segment_objects(list_of_serial_nums, list_of_bins)
+        self.infer_objects(list_of_serial_nums)
+
+    def combine_objects(self):
+        '''
+        Method to combine point clouds of like objects seen from different cameras
+        '''
+        #TODO
+        pass
+
+    def compute_xform_of_objects(self):
+        '''
+        Find the transform in world coordinates of all of the objects seen by all cameras
+        '''
+        #TODO
+        pass
+
 
     def create_world_view(self):
         '''
         create an array that has xyz points with RGB colors of the world based on
         what each camera currently sees   
         returns a tuple of numpy arrays. one for the vertices and one for the color 
-        Returns a tuple of points and colors if cameras are connected
         '''
         total_pts = []
         total_color = []
@@ -149,87 +339,6 @@ class Perception:
             res_c = np.concatenate((res_c, total_color[i]))
 
         return (res_pc, res_c)
-
-    def segment_objects(self):
-        '''
-        Performs segmentation on images from all cameras
-        '''
-        #loop though all the cameras
-        for sn in self.camera_variables.keys():
-           
-           #check if the camera is connected
-            if self.camera_variables[sn].connected:
-                d_image = self.camera_variables[sn].depth_image
-                c_image = self.camera_variables[sn].full_color_image
-                extrin = self.camera_variables[sn].depth2color_extrinsics
-                #segment the image
-                ret = segmentation.depthSegmentation(d_image, c_image, extrin)
-                color_images = ret['DL_images']
-                depth_images = ret['depth_images']
-                boxed_color = ret['boxed_color']
-                self.camera_variables[sn].segmented_image = boxed_color
-                self.camera_variables[sn].dl_images = color_images
-                self.camera_variables[sn].depth_object_images = depth_images
-
-    def infer_objects(self):
-        '''
-        Runs deep learning inference on all segmented images from all cameras and stores the results
-        '''
-        for sn in self.camera_variables.keys():
-           
-           #check if the camera is connected
-            if self.camera_variables[sn].connected:
-
-                #reset the guess and confidences
-                self.camera_variables[sn].item_guesses = ['']*len(self.camera_variables[sn].dl_images)
-                self.camera_variables[sn].item_confidences = [0]*len(self.camera_variables[sn].dl_images)
-
-                for num, im in enumerate(self.camera_variables[sn].dl_images):
-                    
-                    #convert the image from BGR to RGB
-                    rgb_image = np.array(scipy.misc.toimage(im))
-                    #infer
-                    confidences, _ = self.objectRecognizer.guessObject(rgb_image)
-
-                    #restrict the guesses to the items this camera can see
-                    if self.camera_variables[sn].visible_items != []:
-                        vis_item_conf = []
-                        vis_item_ind = []
-                        for item in self.camera_variables[sn].visible_items:
-                            #find the index of this item
-                            ind = self.object_names.index(item)
-                            vis_item_ind.append(ind)
-                            vis_item_conf.append(confidences[ind])
-                        vis_item_conf = np.array(vis_item_conf)
-                        #what is the maximum confidence value of the visible_items?
-                        index_of_best_guess_in_subset = vis_item_conf.argmax(-1)
-                        object_name = self.object_names[vis_item_ind[index_of_best_guess_in_subset]]
-                        object_confidence = vis_item_conf[index_of_best_guess_in_subset]
-                        self.camera_variables[sn].item_guesses[num] = object_name
-                        self.camera_variables[sn].item_confidences[num] = object_confidence
-                        logger.info("Camera {} found object {} with confidence of {}".format(sn, object_name, object_confidence))
-                    else:
-                        index_of_best_guess = confidences.argmax(-1)
-                        object_name = self.object_names[index_of_best_guess]
-                        object_confidence = confidences[index_of_best_guess]
-                        self.camera_variables[sn].item_guesses[num] = object_name
-                        self.camera_variables[sn].item_confidences[num] = object_confidence
-                        logger.info("Camera {} found object {} with confidence of {}".format(sn, object_name, object_confidence))
-
-    def combine_objects(self):
-        '''
-        Method to combine point clouds of like objects seen from different cameras
-        '''
-        #TODO
-        pass
-
-    def compute_xform_of_objects(self):
-        '''
-        Find the transform in world coordinates of all of the objects seen by all cameras
-        '''
-        #TODO
-        pass
-
 
     def get_camera_intrinsics(self):
         '''
@@ -292,7 +401,7 @@ class Perception:
         '''
         for sn in self.camera_variables.keys():
             try:
-                xform = np.load(str(sn) + "_xform.npy")
+                xform = self.store.get('/camera/' + sn + '/pose')
             except:
                 logger.warning("No camera transform provided. Setting to identity matrix")
                 xform = np.zeros((4,4))
@@ -320,7 +429,8 @@ class CameraVariables:
 
         #information about the objects this camera sees
         self.dl_images = None                           #list of color images to pass to deep learning 
-        self.depth_object_images = None                 #list of depth images we can use to find this object in space
+        self.segments = None                            #list of segments used to get the point cloud of objects
+        self.sift_images = None                         #list of images that we can use in the sift guesser
         self.item_guesses = None                        #list of the best guess as to what the object in corresponding index of dl_images is
         self.item_confidences = None                    #how confident the guess is
         self.visible_items = []                         #what items can this camera see? What item(s) are in the bin(s) this camera can see?
@@ -341,7 +451,4 @@ class CameraVariables:
 if __name__ == "__main__":
     t = Perception()
     t.acquire_images()
-    t.segment_objects()
-    t.infer_objects()
-    t.combine_objects()
-    t.compute_xform_of_obejcts()
+    t.segment_plus_detect(['617205003983'],['binA'])
