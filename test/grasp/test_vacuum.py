@@ -9,10 +9,15 @@ from grasp import vacuum
 class PlaneDetectionTest(TestCase):
 
     def setUp(self):
-        self.pc = numpy.load('data/simulation/pc-stow-0.npy')
+        pass
 
     def test_detection(self):
-        grasps = vacuum.compute(self.pc)
+        data = numpy.load('data/test/test_vacuum0.npz')
+
+        full_cloud = data['full']
+        object_clouds = [data[x] for x in data.keys() if x.startswith('arr')]
+
+        grasps = vacuum.compute(full_cloud, object_clouds)
 
         self.assertIsNotNone(grasps)
         self.assertEqual(len(grasps), 3)

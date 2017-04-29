@@ -1,6 +1,7 @@
 import os
 import sys
 from shutil import rmtree
+from tempfile import mkdtemp
 
 from subprocess import check_call
 import runpy
@@ -10,38 +11,32 @@ import logging
 
 import numpy
 
+from util import pcd
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+def compute(full_cloud, object_clouds, store=None, clean=True):
+    # make a workspace
+    tmp_path = mkdtemp(prefix='vacuum_')
+    segment_path = os.path.join(tmp_path, 'segments')
+    target_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'evaluate.py')
 
-def _clean():
-    # clean up inputs and outputs
-    for name in ['pointcloud.pcd', 'pointcloud_downsampled.pcd', 'planes.txt']:
-        try:
-            os.remove(os.path.join(BASE_PATH, name))
-        except OSError:
-            pass
+    logger.debug('working in {}'.format(tmp_path))
 
-    # clean up intermediate files
-    rmtree(os.path.join(BASE_PATH, 'segments'), ignore_errors=True)
+    # write each object point cloud to disk in PCD format
+    os.mkdir(segment_path)
+    for (i, cloud) in enumerate(object_clouds):
+        pcd.write(cloud, os.path.join(segment_path, '{}.pcd'.format(i)))
 
-def compute(cloud, store=None):
-    _clean()
-
-    # write point cloud to disk in PCD format
-    numpy.save(os.path.join(BASE_PATH, 'pc.npy'), cloud)
-    check_call([sys.executable, 'np2pcd.py'], cwd=BASE_PATH)
-
-    # invoke segmentation
-    os.mkdir(os.path.join(BASE_PATH, 'segments'))
-    check_call([os.path.join(BASE_PATH, 'region_growing_segmentation')], cwd=BASE_PATH)
+    # write the full point cloud to disk in NumPy format
+    numpy.save(os.path.join(tmp_path, 'pc.npy'), full_cloud)
 
     # invoke evaluation
-    check_call([sys.executable, 'rate-plane.py'], cwd=BASE_PATH)
+    check_call([sys.executable, target_path], cwd=tmp_path)
 
     # load the results
     grasps = []
-    for result in json.load(open(os.path.join(BASE_PATH, 'planes.txt'))):
+    for result in json.load(open(os.path.join(tmp_path, 'planes.txt'))):
         grasps.append((
             result['score'],
             result['center'],
@@ -52,6 +47,8 @@ def compute(cloud, store=None):
     if store:
         store.put('/debug/grasps', grasps)
 
-    _clean()
+    if clean:
+        # clean up
+        rmtree(tmp_path)
 
     return grasps

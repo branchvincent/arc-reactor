@@ -21,6 +21,10 @@ def pcd2image(plane):
 
     """
     global plane_image,plane_map,lengthPerPixel
+
+    #remove all the (0,0,0) readings from the plane segments
+    mask = np.all(plane == 0, axis=1)
+    plane = plane[~mask]
     x_min=np.amin(plane[:,0])
     x_max=np.amax(plane[:,0])
     y_min=np.amin(plane[:,1])
@@ -142,11 +146,12 @@ def mapPlane_pixel2Pointcloud_pixel(edgepoints):
         pixels=plane_map[point[1]][point[0]]
         if len(pixels)>0:
             edge_Depths.append(plane[pixels[0]])
+    #print edge_Depths
 
     #find the catersian coordinates of the edge points in the original point cloud
 
     for coordinate in edge_Depths:
-        indice = np.where(np.all(pointcloud == coordinate, axis=-1))
+        indice = np.where(np.all(abs(pointcloud - coordinate) < 1e-6, axis=-1))
 
         try:
             pixel_in_pointcloud.append([int(indice[1]),int(indice[0])])
@@ -266,10 +271,20 @@ def check_surroundings(contour):
 
         if abs(x_diff)>abs(y_diff):
             for i in range(10):
-                surrounding_pixels[index].append((int(x+sign_x*(1+i)),int(y+sign_y*(1+i)*abs(y_diff)/abs(x_diff))))
+                surrounding_x=int(edge_pixel[0]+sign_x*(1+i))
+                surrounding_y=int(edge_pixel[1]+sign_y*(1+i)*abs(y_diff)/abs(x_diff))
+                x_withinFrame=surrounding_x>=0 and surrounding_x<pointcloud.shape[1]
+                y_withinFrame=surrounding_y>=0 and surrounding_y<pointcloud.shape[0]
+                if x_withinFrame and y_withinFrame:
+                    surrounding_pixels[index].append((surrounding_x,surrounding_y))
         else:
             for i in range(10):
-                surrounding_pixels[index].append((int(x+sign_x*(1+i)*abs(x_diff)/abs(y_diff)),int(y+sign_y*(1+i))))
+                surrounding_x=int(edge_pixel[0]+sign_x*(1+i)*abs(x_diff)/abs(y_diff))
+                surrounding_y=int(edge_pixel[1]+sign_y*(1+i))
+                x_withinFrame=surrounding_x>=0 and surrounding_x<pointcloud.shape[1]
+                y_withinFrame=surrounding_y>=0 and surrounding_y<pointcloud.shape[0]
+                if x_withinFrame and y_withinFrame:
+                    surrounding_pixels[index].append((surrounding_x,surrounding_y))
 
     edge_gap=0
     edge_above=0
@@ -289,7 +304,7 @@ def check_surroundings(contour):
             continue
         else:
             for pixel in pixels:
-                gap=pointcloud[pixel[1]][pixel[0]][2]-pointcloud[contour[index][1]][contour[index][0]][2]
+                gap=pointcloud[contour[index][1]][contour[index][0]][2]-pointcloud[pixel[1]][pixel[0]][2]
                 if pointcloud[pixel[1]][pixel[0]][2]==0:
                     missing_points+=1
 
@@ -311,25 +326,27 @@ def check_surroundings(contour):
             edge_inconclusive+=1
         else:
             edge_close+=1
-
-    gap_percentage=float(edge_gap)/(edge_gap+edge_above+edge_inconclusive+edge_close)
-    coverage_percentage=float(edge_above)/(edge_gap+edge_above+edge_inconclusive+edge_close)
-    missing_percentage=float(edge_inconclusive)/(edge_gap+edge_above+edge_inconclusive+edge_close)
-    close_percentage=float(edge_close)/(edge_gap+edge_above+edge_inconclusive+edge_close)
-
     try:
-        ave_gap=edge_gap_Depth/edge_gap
+        gap_percentage=float(edge_gap)/(edge_gap+edge_above+edge_inconclusive+edge_close)
+        coverage_percentage=float(edge_above)/(edge_gap+edge_above+edge_inconclusive+edge_close)
+        missing_percentage=float(edge_inconclusive)/(edge_gap+edge_above+edge_inconclusive+edge_close)
+        close_percentage=float(edge_close)/(edge_gap+edge_above+edge_inconclusive+edge_close)
+        try:
+            ave_gap=edge_gap_Depth/edge_gap
+        except:
+            ave_gap=0
+
+        try:
+
+            ave_height=edge_above_height/edge_above
+        except:
+            ave_height=0
+
+
+        return (gap_percentage, coverage_percentage, missing_percentage,close_percentage, ave_gap, ave_height)
     except:
-        ave_gap=0
-
-    try:
-
-        ave_height=edge_above_height/edge_above
-    except:
-        ave_height=0
-
-
-    return (gap_percentage, coverage_percentage, missing_percentage,close_percentage, ave_gap, ave_height)
+        #if no readings are available, return the plane as 100% covered and with a height of 1m
+        return (0,1,0,0,0,1)
 
 
 def check_flatness(segment):
@@ -365,7 +382,9 @@ def check_flatness(segment):
 print " "
 print "################################################################### RUNNING PLANE CHECKING #######################################################################################"
 print " "
+
 pointcloud=np.load("pc.npy")
+
 try:
     uv=np.load("uv.npy")
     img = cv2.imread("bin.png")
@@ -378,10 +397,19 @@ Plane_info=[]
 for filename in glob.iglob('segments/*.pcd'):
      deductions = {'Orientation': 0, 'top_Coverage': 0, 'Side_coverage':0, 'side_height':0, 'size':0}
      seg_pcd=pcl.load('%s' % filename)
+
+     #extract out the plannar part of the segment for plane evaluation
      global plane_equation
      plane_percentage,plane_equation,plane_pcd=check_flatness(seg_pcd)
 
+     #convert the plane and segment from pcd file to numpy arries
+     segment=np.asarray(seg_pcd)
      plane = np.asarray(plane_pcd)
+
+
+
+
+
      image,plane_map = pcd2image(plane)
 
 
