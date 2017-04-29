@@ -520,6 +520,8 @@ def main(argv):
     elif args.action == 'dump':
         urls = [
             '/robot/base_pose',
+            '/robot/inspect_pose',
+            '/camera/tcp/local_pose',
             '/shelf/pose'
         ]
 
@@ -529,10 +531,8 @@ def main(argv):
         for s in store.get('/system/spot').keys():
             urls.append('/system/spot/{}/pose'.format(s))
 
-        for t in store.get('/tote').keys():
+        for t in store.get('/system/totes').keys():
             urls.append('/system/totes/{}/pose'.format(t))
-
-        urls.append('/camera/tcp/local_pose'.format(c))
 
         cell = dict([(url, store.get(url)) for url in urls])
         cell.update({
