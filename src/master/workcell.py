@@ -521,7 +521,7 @@ def main(argv):
         urls = [
             '/robot/base_pose',
             '/robot/inspect_pose',
-            '/camera/tcp/local_pose',
+            '/robot/camera_xform',
             '/shelf/pose'
         ]
 

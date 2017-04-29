@@ -231,7 +231,7 @@ class RobotController:
             T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
             self.store.put('/robot/tcp_pose', T_tcp)
             # update tool camera pose
-            T_cam = self.store.get('camera/tcp/local_pose')
+            T_cam = self.store.get('/robot/camera_xform')
             T = T_tcp.dot(T_cam)
             self.store.put('camera/tcp/pose', T)
         else:
