@@ -63,7 +63,7 @@ class GraphSegmentationParams():
         self.botLeft = (41, 337)
         self.botRight = (550, 366)
 
-def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegmentationParams()):
+def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     '''
     Takes in a depth image and full color image and returns a list of images
     that can be fed into deep learning to figure out what they are.
@@ -130,7 +130,6 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
     #extract the sub image for each label based on the minimum bounding rectangle
     tinyColorImgs = []
     imagesForDL = []
-    #ref : http://stackoverflow.com/questions/37177811/crop-rectangle-returned-by-minarearect-opencv-python
     for i in range(numObj):
         #find element in outp == i
         indices = np.array((outp == i).nonzero())
@@ -156,6 +155,10 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
         endX = axisrect[1] + axisrect[3]
         img_crop = maskeditem[startY:endY, startX:endX]
         img_crop_lab = maskeditemlab[startY:endY, startX:endX]
+
+
+
+        #code to remove the red tote
         cnt = 0
         cntnonzero = 0
         #remove the red tote
@@ -205,7 +208,7 @@ def graphSegmentation(depthImage, fcolor, extrinsics=np.eye(4), params=GraphSegm
     
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
-    return_values['segments'] = tinyColorImgs
+    return_values['small_images'] = tinyColorImgs
     return_values['pixel_locations'] = segments
 
 
