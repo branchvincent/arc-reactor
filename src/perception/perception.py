@@ -496,6 +496,7 @@ if __name__ == "__main__":
                 cameras = None
             if bins == []:
                 bins = None
+            t.acquire_images(cameras)
             t.segment_plus_detect(cameras, bins)
         else:
             print('Unrecognized option {}'.format(sys.argv[1]))
