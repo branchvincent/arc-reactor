@@ -129,7 +129,7 @@ class Perception:
                     if 'box' in list_of_bins[i]:
                         topdir = '/box/'
                     elif 'bin' in list_of_bins[i]:
-                        topdir = '/shelf/bin'
+                        topdir = '/shelf/bin/'
                     elif 'tote' in list_of_bins[i]:
                         topdir = '/tote/'
                     else:
@@ -142,18 +142,18 @@ class Perception:
                         cam_pose_world = self.camera_variables[sn].world_xform
 
                         #get bin relative to shelf local location (two points that are at opposite corners of the bounding box)
-                        bin_bounds_world = self.store.get(topdir + list_of_bins[i] + "/bounds")
+                        bin_bounds_world = []
 
                         #get all 8 points
-                        sorted(bin_bounds_world, key=lambda k: [k[0],k[1],k[2]])
-                        smallestX = pixel_bounds[0][0]
-                        largestX = pixel_bounds[1][0]
-                        sorted(pixel_bounds, key=lambda k: [k[1],k[0],k[2]])
-                        smallestY = pixel_bounds[0][1]
-                        largestY = pixel_bounds[1][1]
-                        sorted(pixel_bounds, key=lambda k: [k[2],k[0],k[1]])
-                        smallestZ = pixel_bounds[0][2]
-                        largestZ = pixel_bounds[1][2]
+                        bin_bounds = sorted(bin_bounds, key=lambda k: k[0])
+                        smallestX = bin_bounds[0][0]
+                        largestX = bin_bounds[1][0]
+                        bin_bounds = sorted(bin_bounds, key=lambda k: k[1])
+                        smallestY = bin_bounds[0][1]
+                        largestY = bin_bounds[1][1]
+                        bin_bounds = sorted(bin_bounds, key=lambda k: k[2])
+                        smallestZ = bin_bounds[0][2]
+                        largestZ = bin_bounds[1][2]
 
                         bin_bounds_world.append([smallestX,smallestY,smallestZ])
                         bin_bounds_world.append([smallestX,smallestY,largestZ])
@@ -164,17 +164,21 @@ class Perception:
                         bin_bounds_world.append([largestX,smallestY,largestZ])
                         bin_bounds_world.append([largestX,largestY,smallestZ])
                         bin_bounds_world.append([largestX,largestY,largestZ])
-
-                        origin_2_shelf = self.store.get(topdir + list_of_bins[i] + "/pose")
+                        
+                        if 'bin' in list_of_bins[i]:
+                            #its a bin doesnt have a pose. Use the shelf's
+                            origin_2_ref = self.store.get("/shelf/pose")
+                        else:
+                            origin_2_ref = self.store.get(topdir + list_of_bins[i] + "/pose")
                         #convert all these points to world coordinates
                         for i in range(len(bin_bounds_world)):
                             pt = np.array(bin_bounds_world[i] + [1])
-                            bin_bounds_world[i] = origin_2_shelf.dot(pt)
+                            bin_bounds_world[i] = origin_2_ref.dot(pt)
 
                         #get the bin in camera local coordinates
                         bin_in_camera_local = []
                         for point in bin_bounds_world:
-                            bin_in_camera_local.append(np.lingalg.inv(cam_pose_world).dot(point))
+                            bin_in_camera_local.append(np.linalg.inv(cam_pose_world).dot(point.transpose()))
 
                         #get camera intrinsics to project 3d point on to color image
                         cam_intrins = self.camera_variables[sn].color_intrinsics
@@ -182,24 +186,25 @@ class Perception:
                         for point in bin_in_camera_local:
                             #project 3d point on to 2d point
                             pt = rs.float3()
-                            pt.x = point[0]
-                            pt.y = point[1]
-                            pt.z = point[2]
+                            pt.x = point.astype('float32').tolist()[0][0]
+                            pt.y = point.astype('float32').tolist()[1][0]
+                            pt.z = point.astype('float32').tolist()[2][0]
                             pixel_coord = cam_intrins.project(pt)
                             pixel_bounds.append([pixel_coord.x, pixel_coord.y])
                     
                     if len(pixel_bounds) > 0:
                         #find smallest x and smallest y
-                        sorted(pixel_bounds, key=lambda k: [k[0],k[1]])
+                        pixel_bounds = sorted(pixel_bounds, key=lambda k: k[0])
                         smallestX = pixel_bounds[0][0]
                         largestX = pixel_bounds[7][0]
-                        sorted(pixel_bounds, key=lambda k: [k[1],k[0]])
+                        pixel_bounds = sorted(pixel_bounds, key=lambda k: k[1])
                         smallestY = pixel_bounds[0][1]
                         largestY = pixel_bounds[7][1]
 
                         seg_params.topLeft = (smallestX, largestY)
                         seg_params.topRight = (largestX, largestY)
                         seg_params.botRight = (largestX, smallestY)
+
 
             #TODO location away segmentation parameters
             seg_params.k = 250
@@ -211,12 +216,11 @@ class Perception:
 
             #segment the image
             ret = segmentation.graphSegmentation(d_image, c_image, seg_params)
-            color_images = ret['DL_images']
-            sift_images = ret['small_images']
-            boxed_color = ret['boxes_image']
-            self.camera_variables[sn].segmented_image = boxed_color
-            self.camera_variables[sn].dl_images = color_images
-            self.camera_variables[sn].sift_images = sift_images
+
+            self.camera_variables[sn].segmented_image = ret['segmented_image']
+            self.camera_variables[sn].box_image = ret['boxes_image']
+            self.camera_variables[sn].dl_images = ret['DL_images']
+            self.camera_variables[sn].sift_images = ret['small_images']
             self.camera_variables[sn].segments = ret['pixel_locations']
 
     def infer_objects(self, list_of_serial_nums=None):
@@ -399,10 +403,16 @@ class Perception:
         is the transform from the robot base to the camera. If no file name is given sets all transforms
         to be the identity matrix
         '''
+
+        #get the dictionary from the server of camera names to serial numbers
+        cams_2_serial_nums = self.store.get('/system/cameras')
+        serial_nums_2_cams = {}
+        for key, item in cams_2_serial_nums.items():
+            serial_nums_2_cams[item] = key
+
         for sn in self.camera_variables.keys():
-            try:
-                xform = self.store.get('/camera/' + sn + '/pose')
-            except:
+            xform = self.store.get('/camera/' + serial_nums_2_cams[sn] + '/pose')
+            if xform is None:
                 logger.warning("No camera transform provided. Setting to identity matrix")
                 xform = np.zeros((4,4))
                 xform[0,0] = 1
@@ -423,7 +433,8 @@ class CameraVariables:
         #images
         self.aligned_color_image = None                 #color image aligned to depth image. black where there is no depth reading
         self.full_color_image = None                    #full color image 640x480 RGB
-        self.segmented_image = None                     #full color image with boxes drawn around what we think are objects
+        self.box_image = None                           #full color image with boxes drawn around what we think are objects
+        self.segmented_image = None                     #bw image that is output from graph cut
         self.depth_image = None                         #depth image. 0 means no reading/invalid is a float
         self.point_cloud = None                         #xyz point cloud
 
