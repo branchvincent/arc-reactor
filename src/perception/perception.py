@@ -13,6 +13,8 @@ import scipy.misc
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
 import logging
+import json
+import time
 logger = logging.getLogger(__name__)
 
 class Perception:
@@ -58,9 +60,13 @@ class Perception:
             #load in the world location for all cameras
             self.load_camera_xforms()
 
-        #list of object names of the items. TODO read this in from database or file
-        #names = self.store.get('/item/item_list')
-        names = os.listdir('/home/bk/Documents/arc_images/Training items/')
+        #list of object names of the items. 
+        names = []
+        #load in the items.json file
+        with open('../../db/items.json') as data_file:    
+            jsonnames = json.load(data_file)
+        for key,value in jsonnames.items():
+            names.append(key)
         names.sort()
         self.object_names = names
 
@@ -272,6 +278,8 @@ class Perception:
                 for point in pc_indices:
                     pc.append(self.camera_variables[sn].point_cloud[point[0],point[1]])
                 self.store.put('/item/' + object_name + "/point_cloud", np.array(pc))
+                #update the timestamp as well
+                self.store.put('/item/' + object_name + "/timestamp",time.time())
 
     def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
         self.segment_objects(list_of_serial_nums, list_of_bins)
