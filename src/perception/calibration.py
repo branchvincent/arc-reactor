@@ -56,7 +56,6 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.last_x_poses = []              #stores the last 10 poses of the camera charuco
         self.db_client = PensiveClient(host='http://10.10.1.60:8888')
         self.store = self.db_client.default()
-        self.store = None
         register_numpy()
     def initUI(self):
 
