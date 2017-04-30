@@ -287,17 +287,35 @@ class Perception:
 
                 #send confidence and point cloud to the database
                 self.store.put('/item/'+ object_name + '/id_confidence',object_confidence)
+                
+                #transform point cloud to local coordinates
                 pc_indices = self.camera_variables[sn].segments[num]
                 pc = []
                 for point in pc_indices:
-                    pc.append(self.camera_variables[sn].point_cloud[point[0],point[1]])
+                    point_in_camera_local = self.camera_variables[sn].point_cloud[point[0],point[1]] + [1]
+                    point_in_world = self.camera_variables[sn].world_xform.dot(np.array(point_in_camera_local))
+                    if not location is None:
+                        if 'bin' in location:
+                            #its a bin doesnt have a pose. Use the shelf's
+                            origin_2_ref = self.store.get("/shelf/pose")
+                        elif 'box' in location:
+                            origin_2_ref = self.store.get('/box/' + location + "/pose")
+                        elif 'tote' in location:
+                            origin_2_ref = self.store.get('/tote/' + location + "/pose")
+                        else:
+                            logger.error('Unrecognized location {}'.format(location))
+                        #get the point in reference local coordinates
+                        point_in_ref_local = np.linalg.inv(origin_2_ref).dot(point_in_world.transpose())
+
+
+                    pc.append(point_in_ref_local)
                 self.store.put('/item/' + object_name + "/point_cloud", np.array(pc))
                 #update the timestamp as well
                 self.store.put('/item/' + object_name + "/timestamp",time.time())
 
     def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
         self.segment_objects(list_of_serial_nums, list_of_bins)
-        self.infer_objects(list_of_serial_nums)
+        self.infer_objects(list_of_serial_nums, list_of_bins)
 
     def combine_objects(self):
         '''
