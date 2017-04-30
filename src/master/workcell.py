@@ -5,7 +5,11 @@ import re
 import json
 import jsonschema
 
+from math import pi
+
 from pensive.core import Store
+
+from master.world import xyz, rpy
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -214,6 +218,37 @@ def _load_location(store, location):
     # update the known items after deletions
     items = store.get('/item').keys()
 
+def _load_vantage(store):
+    # compute the bin vantage points
+    for bin_name in store.get(['shelf', 'bin']).keys():
+        bounds = store.get(['shelf', 'bin', bin_name, 'bounds'])
+
+        # bin vantage reference is top of bin (Y up in local coordinates)
+        xmed = (bounds[0][0] + bounds[1][0])/2.0
+        ymax = max(bounds[0][1], bounds[1][1])
+        zmed = (bounds[0][2] + bounds[1][2])/2.0
+
+        # calculate transform
+        T = xyz(xmed, ymax + 0.45, zmed - 0.025) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, pi/6, 0) * rpy(0, -0.2, 0)
+        store.put(['shelf', 'bin', bin_name, 'vantage'], T)
+
+    # compute the order box and tote vantage points
+    for entity in ['box', 'tote']:
+        for name in store.get([entity], {}).keys():
+            bounds = store.get([entity, name, 'bounds'])
+
+            if not bounds:
+                continue
+
+            # bin vantage reference is top of box (Z up in local coordinates)
+            xmed = (bounds[0][0] + bounds[1][0])/2.0
+            ymed = (bounds[0][1] + bounds[1][1])/2.0
+            zmax = max(bounds[0][2], bounds[1][2])
+
+            # calculate transform
+            T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, -pi/15 - pi, 0) * rpy(0, 0, pi)
+            store.put([entity, name, 'vantage'], T)
+
 def _dims2bb(dims):
     return [
         [-dims[0]/2, -dims[1]/2, 0],
@@ -374,6 +409,9 @@ def setup_pick(store, location, order, workcell=None, keep=True):
     if boxes:
         raise RuntimeError('too many boxes for spot assignment: {}'.format(', '.join(boxes)))
 
+    # initialize vantage points
+    _load_vantage(store)
+
     store.put('/robot/task', 'pick')
 
 def setup_stow(store, location, workcell=None, keep=False):
@@ -393,14 +431,21 @@ def setup_stow(store, location, workcell=None, keep=False):
 
     _load_location(store, location)
 
-    # assign tote bounds
-    for tote in store.get('/tote').keys():
+    # assign tote poses and bounds
+    for tote in store.get('/system/totes').keys():
         bounds = store.get(['system', 'totes', tote, 'inner_bounds'])
-        if not bounds:
+        pose = store.get(['system', 'totes', tote, 'pose'])
+
+        if bounds is None or pose is None:
             raise RuntimeError('unknown tote "{}"'.format(tote))
 
         store.put(['tote', tote, 'bounds'], bounds)
-        logger.info('tote {} dimensioned'.format(tote))
+        store.put(['tote', tote, 'pose'], pose)
+
+        logger.info('tote {} posed and dimensioned'.format(tote))
+
+    # initialize vantage points
+    _load_vantage(store)
 
     store.put('/robot/task', 'stow')
 
@@ -475,6 +520,8 @@ def main(argv):
     elif args.action == 'dump':
         urls = [
             '/robot/base_pose',
+            '/robot/inspect_pose',
+            '/robot/camera_xform',
             '/shelf/pose'
         ]
 
@@ -484,12 +531,12 @@ def main(argv):
         for s in store.get('/system/spot').keys():
             urls.append('/system/spot/{}/pose'.format(s))
 
-        for t in store.get('/tote').keys():
-            urls.append('/tote/{}/pose'.format(t))
+        for t in store.get('/system/totes').keys():
+            urls.append('/system/totes/{}/pose'.format(t))
 
         cell = dict([(url, store.get(url)) for url in urls])
         cell.update({
-            '/robot/current_config': 7*[0]
+            '/robot/current_config': [0, 0, -0.5, 1, 0, 1, 0]
         })
 
         from pensive.client import json_encode

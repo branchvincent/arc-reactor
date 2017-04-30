@@ -19,7 +19,7 @@ from klampt.math import se3
 from pensive.core import Store
 
 from .sync import AsyncUpdateHandler
-from .world import update_world
+from .world import update_world, numpy2klampt
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -198,6 +198,7 @@ class WorldViewer(GLRealtimeProgram):
 
         self.pre_drawables = []
         self.post_drawables = []
+        self.extra_poses = []
 
     def display(self):
         for drawable in self.pre_drawables:
@@ -209,7 +210,7 @@ class WorldViewer(GLRealtimeProgram):
             drawable.draw()
 
         # draw poses for all robots and boxes
-        poses = [se3.identity()]
+        poses = [se3.identity()] + self.extra_poses
 
         for i in range(self.world.numRobots()):
             robot = self.world.robot(i)
@@ -220,7 +221,11 @@ class WorldViewer(GLRealtimeProgram):
             poses.append(self.world.rigidObject(i).getTransform())
 
         for pose in poses:
-            gldraw.xform_widget(pose, 0.1, 0.01, fancy=True)
+            if pose is not None:
+                if len(pose) != 2:
+                    pose = numpy2klampt(pose)
+
+                gldraw.xform_widget(pose, 0.1, 0.01, fancy=True)
 
     def mousefunc(self,button,state,x,y):
         return GLRealtimeProgram.mousefunc(self,button,state,x,y)
@@ -248,6 +253,7 @@ class WorldViewerWindow(QtGLWindow):
             (3, '/item'),
             (3, '/box'),
             (3, '/tote'),
+            (3, '/debug'),
         ])
 
         self.timestamps = {}
@@ -255,6 +261,7 @@ class WorldViewerWindow(QtGLWindow):
         self.point_clouds = {}
         self.bounding_boxes = {}
         self.traces = {}
+        self.pose = {}
 
         self.options = {}
 
@@ -284,15 +291,26 @@ class WorldViewerWindow(QtGLWindow):
         for name in self.db.get('item', {}):
             self._update_item(name)
 
+        self.program.extra_poses = []
+
         # update shelf bin bounding boxes
         for name in self.db.get('/shelf/bin', {}):
             self._update_bounding_box('shelf_{}_bb'.format(name), ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
+            self.program.extra_poses.append(self._build_pose([['shelf', 'pose'], ['shelf', 'bin', name, 'vantage']]))
+
         # update box bounding boxes
         for name in self.db.get('/box', {}):
             self._update_bounding_box('box_{}_bb'.format(name), [['box', name, 'pose']], ['box', name, 'bounds'])
+            self.program.extra_poses.append(self._build_pose([['box', name, 'pose'], ['box', name, 'vantage']]))
+
         # update tote bounding boxes
         for name in self.db.get('/tote', {}):
             self._update_bounding_box('tote_{}_bb'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
+            self.program.extra_poses.append(self._build_pose([['tote', name, 'pose'], ['tote', name, 'vantage']]))
+
+        for grasp in self.db.get('/debug/grasps', []):
+            self.program.extra_poses.append(se3.from_translation(grasp[1]))
+        self.program.extra_poses.append(self.db.get('/robot/inspect_pose'))
 
         self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
 

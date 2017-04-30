@@ -1,6 +1,5 @@
 """Controller for sending trajectories to the TX90"""
 
-# import sys; sys.path.append('../..')
 import logging; logger = logging.getLogger(__name__)
 from time import sleep
 from copy import deepcopy
@@ -159,13 +158,15 @@ class Trajectory:
     def start(self):
         """Sets the current milestone to the first in the list"""
         logger.info('Starting trajectory')
-        # self.check()
+        self.check()
         self.curr_index = 0
         self.curr_milestone = self.milestones['robot'][self.curr_index]
         # Check initial config is current config
-        if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):
-            self.curr_milestone[0] = 3
-            logger.warning('Initial configuration is not current configuration.')
+        # if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):
+        #     self.curr_milestone[0] = 3
+        #     logger.warning('Initial configuration is not current configuration.')
+        # HACK: Delay first milestone to create sufficient buffering
+        self.curr_milestone[0] = 5
         # Send first milestones
         for m in self.milestones['robot'][:bufferSize]:
             self.robot.sendMilestone(m)
@@ -227,7 +228,12 @@ class RobotController:
             # build the world and update tool pose
             world = build_world(self.store)
             robot = world.robot('tx90l')
-            self.store.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
+            T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
+            self.store.put('/robot/tcp_pose', T_tcp)
+            # update tool camera pose
+            T_cam = self.store.get('/robot/camera_xform')
+            T = T_tcp.dot(T_cam)
+            self.store.put('camera/tcp/pose', T)
         else:
             logger.warning('No trajectory found')
 
@@ -247,6 +253,8 @@ class RobotController:
 
     def jogTo(self,qdes,rads=True):
         """Jogs the robot to the specified configuration, in radians"""
+        # NOTE: mimics PlanRoute state for now, by generating a motion plan...
+
         # Setup world and cspace
         world = build_world(self.store)
         robotSim = world.robot('tx90l')
@@ -287,14 +295,16 @@ class RobotController:
         # Run path, if feasible
         if feasible:
             milestones = createMilestoneMap(dt,qs,type='db',to='db')
-            self.trajectory = Trajectory(robot=self.robot, milestones=milestones, speed=1)
             self.store.put('/robot/waypoints', milestones)
             self.store.put('/status/route_plan', True)
             self.store.put('/robot/timestamp', time())
-            self.run()
-            self.store.put('robot/jogto', qdes)
+            # self.trajectory = Trajectory(robot=self.robot, milestones=milestones, speed=1)
+            # self.run()
+            # self.store.put('robot/jog_config', qdes)
         else:
+            self.store.put('/status/route_plan', False)
             logger.warn("Jogger could not find feasible path")
+        return feasible
 
     # def updatePlannedTrajectory(self, path='robot/waypoints'):
     #     """Updates the robot's planned trajectory from the database"""

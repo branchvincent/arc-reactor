@@ -1,6 +1,5 @@
-# For executing trajectories
+"""Controller for simulating sending trajectories to the TX90"""
 
-# import sys; sys.path.append('../..')
 import logging; logger = logging.getLogger(__name__)
 from time import sleep, time
 from copy import deepcopy
@@ -156,7 +155,12 @@ class SimulatedRobotController:
         # build the world and update tool pose
         world = build_world(self.store)
         robot = world.robot('tx90l')
-        self.store.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
+        T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
+        self.store.put('/robot/tcp_pose', T_tcp)
+        # update tool camera pose
+        T_cam = self.store.get('/robot/camera_xform')
+        T = T_tcp.dot(T_cam)
+        self.store.put('camera/tcp/pose', T)
 
     def loop(self):
         """Executed at the given frequency"""
@@ -175,6 +179,8 @@ class SimulatedRobotController:
 
     def jogTo(self,qdes,rads=True):
         """Jogs the robot to the specified configuration, in radians"""
+        # NOTE: mimics PlanRoute state for now, by generating a motion plan...
+
         # Setup world and cspace
         world = build_world(self.store)
         robotSim = world.robot('tx90l')
@@ -227,12 +233,13 @@ class SimulatedRobotController:
             self.store.put('robot/waypoints', milestones)
             self.store.put('/status/route_plan', True)
             self.store.put('/robot/timestamp', time())
-            self.trajectory = SimulatedTrajectory(milestones=milestones)
-            self.run()
-            self.store.put('robot/jogto', qdes)
+            # self.trajectory = SimulatedTrajectory(milestones=milestones)
+            # self.run()
+            # self.store.put('robot/jog_config', qdes)
         else:
+            self.store.put('/status/route_plan', False)
             logger.warn("Jogger could not find feasible path")
-
+        return feasible
 
 if __name__ == "__main__":
     store = PensiveClient().default()

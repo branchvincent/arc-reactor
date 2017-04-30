@@ -9,6 +9,8 @@ from master.world import build_world
 
 from motion import planner
 
+from grasp import vacuum
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanRoute(State):
@@ -43,13 +45,26 @@ class PlanRoute(State):
             [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
             [item_pc_world[:, 0].max(), item_pc_world[:, 1].max(), item_pc_world[:, 2].max()]
         ]
-        logger.debug('item bounding box: {}'.format(bounding_box))
+        # logger.debug('item bounding box: {}'.format(bounding_box))
         # item_position = [item_pc_world[:, 0].mean(), item_pc_world[:, 1].mean(), item_pc_world[:, 2].max()]
         # logger.info('item center top: {}'.format(item_position))
 
+        # XXX: always use the stow camera full cloud for now...
+        camera = 'stow'
+
+        pose = self.store.get(['camera', camera, 'pose'])
+        pose = numpy.asarray(pose)
+
+        point_cloud = self.store.get(['camera', camera, 'point_cloud'])
+        point_cloud = (point_cloud.reshape((-1, 3)).dot(pose[:3, :3].T) + pose[:3, 3].T).reshape(point_cloud.shape)
+
+        grasp = vacuum.compute(point_cloud, [item_pc_world])[0]
+        logger.info('item grasp: {}'.format(grasp))
+        item_position = grasp[1]
+
         target_item = {
-            # 'bbox': [item_position, item_position],
-            'bbox': bounding_box,
+            'bbox': [item_position, item_position],
+            # 'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
             'drop offset': [0, 0, 0.1],
         }
