@@ -253,6 +253,7 @@ class WorldViewerWindow(QtGLWindow):
             (3, '/item'),
             (3, '/box'),
             (3, '/tote'),
+            (3, '/debug'),
         ])
 
         self.timestamps = {}
@@ -260,6 +261,7 @@ class WorldViewerWindow(QtGLWindow):
         self.point_clouds = {}
         self.bounding_boxes = {}
         self.traces = {}
+        self.pose = {}
 
         self.options = {}
 
@@ -305,6 +307,10 @@ class WorldViewerWindow(QtGLWindow):
         for name in self.db.get('/tote', {}):
             self._update_bounding_box('tote_{}_bb'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
             self.program.extra_poses.append(self._build_pose([['tote', name, 'pose'], ['tote', name, 'vantage']]))
+
+        for grasp in self.db.get('/debug/grasps', []):
+            self.program.extra_poses.append(se3.from_translation(grasp[1]))
+        self.program.extra_poses.append(self.db.get('/robot/inspect_pose'))
 
         self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
 
