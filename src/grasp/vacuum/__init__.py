@@ -26,7 +26,7 @@ def compute(full_cloud, object_clouds, store=None, clean=True):
     # write each object point cloud to disk in PCD format
     os.mkdir(segment_path)
     for (i, cloud) in enumerate(object_clouds):
-        pcd.write(cloud, os.path.join(segment_path, '{}.pcd'.format(i)))
+        pcd.write(numpy.array(cloud), os.path.join(segment_path, '{}.pcd'.format(i)))
 
     # write the full point cloud to disk in NumPy format
     numpy.save(os.path.join(tmp_path, 'pc.npy'), full_cloud)
