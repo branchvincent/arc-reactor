@@ -5,6 +5,8 @@ import numpy
 
 from time import time
 
+from subprocess import check_call
+
 import logging; logger = logging.getLogger(__name__)
 
 class FindItem(State):
@@ -66,44 +68,63 @@ class FindItem(State):
                     else:
                         pc = numpy.concatenate((pc,obj_pc_world), axis=0)
                         pc_color = numpy.concatenate((pc_color,obj_pc_color), axis=0)
-
-            # Update pose as mean of point cloud
-            mean = pc.mean(axis=0)
-            item_pose_world = numpy.eye(4)
-            item_pose_world[:3,3] = mean
-            logger.debug('object pose relative to world\n{}'.format(item_pose_world))
-
-            reference_pose = numpy.eye(4)
-            if location.startswith('bin'):
-                reference_pose = self.store.get('/shelf/pose')
-            elif location in ['stow_tote', 'stow tote']:
-                reference_pose = self.store.get('/tote/stow/pose')
-            else:
-                raise RuntimeError('unrecognized item location: {}'.format(selected_item))
-
-            item_pose_reference = numpy.linalg.inv(reference_pose).dot(item_pose_world)
-            logger.debug('object pose relative to {}\n{}'.format(location, item_pose_reference))
-            self.store.put(['item', selected_item, 'pose'], item_pose_reference)
-
-            # Update item point cloud in local coordinates
-            inv_pose_world = numpy.linalg.inv(item_pose_world)
-            pc_local = pc.dot(inv_pose_world[:3,:3].T) + inv_pose_world[:3,3].T
-            mean_local = pc_local.mean(axis=0)
-            self.store.put(['item', selected_item, 'point_cloud'], pc_local - mean_local)
-            self.store.put(['item', selected_item, 'point_cloud_color'], pc_color)
-            self.store.put(['item', selected_item, 'timestamp'], time())
-
-            logger.debug('found {} object points'.format(pc.shape[0]))
         else:
-            # for all cameras available, do:
-            pass
-        #etc
-        #take camera pic
-        #ID shelf, location, etc
-        #get point cloud
+            BASE_PATH = '/home/motion/Desktop/reactor-perception/src/perception/'
+
+            # XXX: right now we can only properly handle a single camera
+            selected_cameras = selected_cameras[:1]
+            name2serial = self.store.get('/system/cameras')
+            serials  = [name2serial[n] for n in selected_cameras]
+
+            # get images
+            if self.store.get('/simulate/cameras', False):
+                for camera in selected_cameras:
+                    self.simulate_acquire_image(camera)
+            else:
+                # XXX: the segmenter acquires images anyways so skip it here
+                # check_call(['python3', BASE_PATH + 'perception.py', 'acquire'] + serials, cwd=BASE_PATH)
+                pass
+
+            # run the segmenter
+            check_call(['python3', BASE_PATH + 'perception.py', 'segment'] + serials + [location], cwd=BASE_PATH)
+
+            # retrieve the resultant point cloud which is in camera coordinates
+            obj_pc_local = self.store.get(['item', selected_item, 'point_cloud'])
+            # XXX: right now we can only properly handle a single camera
+            camera_pose = self.store.get(['camera', selected_cameras[0], 'pose'])
+            pc = obj_pc_local.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
+            # XXX: no color image yet either
+            pc_color = None
+
+        # Update pose as mean of point cloud
+        mean = pc.mean(axis=0)
+        item_pose_world = numpy.eye(4)
+        item_pose_world[:3,3] = mean
+        logger.debug('object pose relative to world\n{}'.format(item_pose_world))
+
+        reference_pose = numpy.eye(4)
+        if location.startswith('bin'):
+            reference_pose = self.store.get('/shelf/pose')
+        elif location in ['stow_tote', 'stow tote']:
+            reference_pose = self.store.get('/tote/stow/pose')
+        else:
+            raise RuntimeError('unrecognized item location: {}'.format(selected_item))
+
+        item_pose_reference = numpy.linalg.inv(reference_pose).dot(item_pose_world)
+        logger.debug('object pose relative to {}\n{}'.format(location, item_pose_reference))
+        self.store.put(['item', selected_item, 'pose'], item_pose_reference)
+
+        # Update item point cloud in local coordinates
+        inv_pose_world = numpy.linalg.inv(item_pose_world)
+        pc_local = pc.dot(inv_pose_world[:3,:3].T) + inv_pose_world[:3,3].T
+        mean_local = pc_local.mean(axis=0)
+        self.store.put(['item', selected_item, 'point_cloud'], pc_local - mean_local)
+        self.store.put(['item', selected_item, 'point_cloud_color'], pc_color)
+        self.store.put(['item', selected_item, 'timestamp'], time())
+
+        logger.debug('found {} object points'.format(pc.shape[0]))
 
         self.store.put('/status/selected_item_location', True)
-        #etc
 
     def simulate_acquire_image(self, camera_name):
         """Simulates acquiring an image from the specified camera"""
