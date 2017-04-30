@@ -28,6 +28,9 @@ class Perception:
         #get the depth camera object                        
         self.depthCamera = depthCamera.DepthCameras()
 
+        #dictionary that converts serial numbers to names for cameras
+        self.serial_nums_2_cams = {}
+
         #create a deepLearning object ObjectRecognizer
         self.objectRecognizer = dl.ObjectRecognizer('vgg_finetuned_ARC2017.pkl',40)
 
@@ -96,16 +99,16 @@ class Perception:
 
                 if not self.store is None:
                     #write stuff out to the database
-                    key = 'camera/' + serialNum + "/full_color"
+                    key = 'camera/' + self.serial_nums_2_cams[serialNum] + "/full_color"
                     self.store.put(key=key,value=images[0])
                     
-                    key = 'camera/' + serialNum + "/aligned_color"
+                    key = 'camera/' + self.serial_nums_2_cams[serialNum] + "/aligned_color"
                     self.store.put(key=key,value=self.camera_variables[sn].aligned_color_image)
 
-                    key = 'camera/' + serialNum + "/aligned_depth"
+                    key = 'camera/' + self.serial_nums_2_cams[serialNum] + "/aligned_depth"
                     self.store.put(key=key,value=self.camera_variables[sn].depth_image)
 
-                    key = 'camera/' + serialNum + "/point_cloud"
+                    key = 'camera/' + self.serial_nums_2_cams[serialNum] + "/point_cloud"
                     self.store.put(key=key,value=self.camera_variables[sn].point_cloud)
             else:
                 #mark that camera as disconnected
@@ -414,7 +417,7 @@ class Perception:
 
         #get the dictionary from the server of camera names to serial numbers
         cams_2_serial_nums = self.store.get('/system/cameras')
-        serial_nums_2_cams = {}
+        
         for key, item in cams_2_serial_nums.items():
             serial_nums_2_cams[item] = key
 
