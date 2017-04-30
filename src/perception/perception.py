@@ -63,6 +63,9 @@ class Perception:
             #load in the world location for all cameras
             self.load_camera_xforms()
 
+        #query the database to find which objects each camera can see
+        self.update_items_cameras_see()
+
         #list of object names of the items. 
         names = []
         #load in the items.json file
@@ -232,17 +235,24 @@ class Perception:
             self.camera_variables[sn].sift_images = ret['small_images']
             self.camera_variables[sn].segments = ret['pixel_locations']
 
-    def infer_objects(self, list_of_serial_nums=None):
+    def infer_objects(self, list_of_serial_nums=None, list_of_locations=None):
         '''
         Runs deep learning inference on all segmented images from cameras in the list of serial numbers
         '''
         if list_of_serial_nums is None:
             list_of_serial_nums = self.camera_variables.keys()
            
-        for sn in list_of_serial_nums:
+        for num, sn in list_of_serial_nums:
             #reset the guess and confidences
             self.camera_variables[sn].item_guesses = ['']*len(self.camera_variables[sn].dl_images)
             self.camera_variables[sn].item_confidences = [0]*len(self.camera_variables[sn].dl_images)
+            if not list_of_locations is None:
+                if num >= len(list_of_locations):
+                    location = list_of_locations[num]
+                else:
+                    location = None
+            else:
+                location = None
 
             for num, im in enumerate(self.camera_variables[sn].dl_images):
                 
@@ -253,12 +263,13 @@ class Perception:
                 if self.camera_variables[sn].visible_items != []:
                     vis_item_conf = []
                     vis_item_ind = []
-                    for item in self.camera_variables[sn].visible_items:
+                    for item, loc in self.camera_variables[sn].visible_items:
                         #find the index of this item
                         ind = self.object_names.index(item)
-                        vis_item_ind.append(ind)
-                        vis_item_conf.append(confidences[ind])
-                    vis_item_conf = np.array(vis_item_conf)
+                        if loc == location: #only add this item if it is in the correct location
+                            vis_item_ind.append(ind)
+                            vis_item_conf.append(confidences[ind])
+                            vis_item_conf = np.array(vis_item_conf)
                     #what is the maximum confidence value of the visible_items?
                     index_of_best_guess_in_subset = vis_item_conf.argmax(-1)
                     object_name = self.object_names[vis_item_ind[index_of_best_guess_in_subset]]
@@ -433,6 +444,40 @@ class Perception:
                 
             self.camera_variables[sn].world_xform = xform
 
+
+    def update_items_cameras_see(self):
+        '''
+        Goes through all items in the database and puts each item in the cameras visible_items list
+        '''
+        items = self.store.get('/item/')
+        for item in items:
+            #where is this item? binA/B/C, tote, or box
+            location = item['location']
+            #shelf0 can see C and B, shelf1 can see B and A
+            if 'bin' in location:
+                if location[3] == 'A':
+                    #shelf1
+                    sn = self.store.get('/system/cameras/shelf1')
+                    self.camera_variables[sn].visible_items.append((item['name'], 'binA'))
+                elif location[3] == 'B':
+                    #shelf1 and 0
+                    sn = self.store.get('/system/cameras/shelf1')
+                    self.camera_variables[sn].visible_items.append((item['name'], 'binB'))
+
+                    sn = self.store.get('/system/cameras/shelf0')
+                    self.camera_variables[sn].visible_items.append((item['name'], 'binB'))
+                elif location[3] == 'C':
+                    #shelf0
+                    sn = self.store.get('/system/cameras/shelf0')
+                    self.camera_variables[sn].visible_items.append((item['name'], 'binC'))
+                else:
+                    logger.warning("Invalid bin ({}) for item {}.".format(location, item['name']))
+            elif 'tote' in location:
+                #tote cam?
+                sn = self.store.get('/system/cameras/tote')
+                self.camera_variables[sn].visible_items.append((item['name'], 'tote'))
+            elif 'box' in location:
+                logger.warning("Unimplemented")
 
 class CameraVariables:
 
