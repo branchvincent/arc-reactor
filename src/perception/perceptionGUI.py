@@ -25,7 +25,7 @@ formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t
 from rainbow_logging_handler import RainbowLoggingHandler
 console_handler = RainbowLoggingHandler(sys.stderr)
 console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+# logger.addHandler(console_handler)
 
 
 class PerceptionGUI(QtWidgets.QWidget):
@@ -50,14 +50,10 @@ class PerceptionGUI(QtWidgets.QWidget):
         self.run_button = QtWidgets.QPushButton("Run", self)
         self.run_button.show()
         self.run_button.clicked.connect(self.run_perception_pipeline)
-        
-        self.continuous_check_box = QtWidgets.QCheckBox("Continuous?", self)
-        self.continuous_check_box.show()
 
         self.horzTop.addStretch(1)
         self.horzTop.addWidget(self.run_button)
         self.horzTop.addSpacing(5)
-        self.horzTop.addWidget(self.continuous_check_box)
         self.horzTop.addStretch(1)
 
         #one for the top and one for the bottom
@@ -68,6 +64,7 @@ class PerceptionGUI(QtWidgets.QWidget):
         self.glWidget = GLWidget(self)
         self.gridLayout = QtWidgets.QGridLayout()
         self.horzBot.addWidget(self.glWidget)
+        self.horzTop.addSpacing(5)
         self.horzBot.addItem(self.gridLayout)
 
         #tuples of combo boxes and qlabels for images
@@ -135,14 +132,15 @@ class PerceptionGUI(QtWidgets.QWidget):
     def run_perception_pipeline(self):
         #run all methods in perce
         self.perception_obj.acquire_images()
-        self.perception_obj.segment_objects()
+        #self.perception_obj.segment_objects()
         #self.perception_obj.infer_objects()
+        self.perception_obj.segment_plus_detect(['617205003983'],['binC'])
         self.perception_obj.combine_objects()
         self.perception_obj.compute_xform_of_objects()
 
         #update views
         self.change_display_images()
-        self.update_world_view()
+        # self.update_world_view()
 
     #updates the pictures for all the cameras 
     def change_display_images(self):
@@ -157,10 +155,14 @@ class PerceptionGUI(QtWidgets.QWidget):
                 cam_img = self.perception_obj.camera_variables[sn].full_color_image
             elif self.camera_views[i][0].currentIndex() == 1:
                 #make rgb image from depth image
-                cam_img = self.make_rgb_from_depth(self.perception_obj.camera_variables[sn].depth_image)
+                cam_img[:,:,0] = self.perception_obj.camera_variables[sn].depth_image
+                cam_img[:,:,1] = self.perception_obj.camera_variables[sn].depth_image
+                cam_img[:,:,2] = self.perception_obj.camera_variables[sn].depth_image
             else:
                 #annotated
-                cam_img = self.perception_obj.camera_variables[sn].segmented_image
+                cam_img[:,:,0] = self.perception_obj.camera_variables[sn].segmented_image
+                cam_img[:,:,1] = self.perception_obj.camera_variables[sn].segmented_image
+                cam_img[:,:,2] = self.perception_obj.camera_variables[sn].segmented_image
         
        
             image = QtGui.QImage(cam_img, cam_img.shape[1], cam_img.shape[0], cam_img.shape[1] * 3,QtGui.QImage.Format_RGB888)
