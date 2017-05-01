@@ -242,12 +242,12 @@ class Perception:
         if list_of_serial_nums is None:
             list_of_serial_nums = self.camera_variables.keys()
            
-        for num, sn in list_of_serial_nums:
+        for num, sn in enumerate(list_of_serial_nums):
             #reset the guess and confidences
             self.camera_variables[sn].item_guesses = ['']*len(self.camera_variables[sn].dl_images)
             self.camera_variables[sn].item_confidences = [0]*len(self.camera_variables[sn].dl_images)
             if not list_of_locations is None:
-                if num >= len(list_of_locations):
+                if num < len(list_of_locations):
                     location = list_of_locations[num]
                 else:
                     location = None
@@ -260,7 +260,7 @@ class Perception:
                 confidences, _ = self.objectRecognizer.guessObject(im)
 
                 #restrict the guesses to the items this camera can see
-                if self.camera_variables[sn].visible_items != []:
+                if self.camera_variables[sn].visible_items != [] and not location is None:
                     vis_item_conf = []
                     vis_item_ind = []
                     for item, loc in self.camera_variables[sn].visible_items:
@@ -269,7 +269,7 @@ class Perception:
                         if loc == location: #only add this item if it is in the correct location
                             vis_item_ind.append(ind)
                             vis_item_conf.append(confidences[ind])
-                            vis_item_conf = np.array(vis_item_conf)
+                    vis_item_conf = np.array(vis_item_conf)
                     #what is the maximum confidence value of the visible_items?
                     index_of_best_guess_in_subset = vis_item_conf.argmax(-1)
                     object_name = self.object_names[vis_item_ind[index_of_best_guess_in_subset]]
@@ -291,24 +291,30 @@ class Perception:
                 #transform point cloud to local coordinates
                 pc_indices = self.camera_variables[sn].segments[num]
                 pc = []
+                if not location is None:
+                    if 'bin' in location:
+                        #its a bin doesnt have a pose. Use the shelf's
+                        origin_2_ref = self.store.get("/shelf/pose")
+                    elif 'box' in location:
+                        origin_2_ref = self.store.get('/box/' + location + "/pose")
+                    elif 'tote' in location:
+                        origin_2_ref = self.store.get('/tote/' + location + "/pose")
+                    else:
+                        origin_2_ref = np.eye(4)
+                        logger.error('Unrecognized location {}. Pushing point cloud in world coordinates'.format(location))
+                else:
+                    origin_2_ref = np.eye(4)
+                    logger.error('No location provided. Pushing point cloud in world coordinates'.format(location))
+
+
+
                 for point in pc_indices:
-                    point_in_camera_local = self.camera_variables[sn].point_cloud[point[0],point[1]] + [1]
+                    point_in_camera_local = np.append(self.camera_variables[sn].point_cloud[point[0],point[1]], 1)
                     point_in_world = self.camera_variables[sn].world_xform.dot(np.array(point_in_camera_local))
-                    if not location is None:
-                        if 'bin' in location:
-                            #its a bin doesnt have a pose. Use the shelf's
-                            origin_2_ref = self.store.get("/shelf/pose")
-                        elif 'box' in location:
-                            origin_2_ref = self.store.get('/box/' + location + "/pose")
-                        elif 'tote' in location:
-                            origin_2_ref = self.store.get('/tote/' + location + "/pose")
-                        else:
-                            logger.error('Unrecognized location {}'.format(location))
-                        #get the point in reference local coordinates
-                        point_in_ref_local = np.linalg.inv(origin_2_ref).dot(point_in_world.transpose())
+                    #get the point in reference local coordinates
+                    point_in_ref_local = np.linalg.inv(origin_2_ref).dot(point_in_world.transpose())
+                    pc.append(point_in_ref_local[0:3])
 
-
-                    pc.append(point_in_ref_local)
                 self.store.put('/item/' + object_name + "/point_cloud", np.array(pc))
                 #update the timestamp as well
                 self.store.put('/item/' + object_name + "/timestamp",time.time())
@@ -448,10 +454,10 @@ class Perception:
         cams_2_serial_nums = self.store.get('/system/cameras')
         
         for key, item in cams_2_serial_nums.items():
-            serial_nums_2_cams[item] = key
+            self.serial_nums_2_cams[item] = key
 
         for sn in self.camera_variables.keys():
-            xform = self.store.get('/camera/' + serial_nums_2_cams[sn] + '/pose')
+            xform = self.store.get('/camera/' + self.serial_nums_2_cams[sn] + '/pose')
             if xform is None:
                 logger.warning("No camera transform provided. Setting to identity matrix")
                 xform = np.zeros((4,4))
@@ -468,32 +474,32 @@ class Perception:
         Goes through all items in the database and puts each item in the cameras visible_items list
         '''
         items = self.store.get('/item/')
-        for item in items:
+        for key, value in items.items():
             #where is this item? binA/B/C, tote, or box
-            location = item['location']
+            location = value['location']
             #shelf0 can see C and B, shelf1 can see B and A
             if 'bin' in location:
                 if location[3] == 'A':
                     #shelf1
                     sn = self.store.get('/system/cameras/shelf1')
-                    self.camera_variables[sn].visible_items.append((item['name'], 'binA'))
+                    self.camera_variables[sn].visible_items.append((value['name'], 'binA'))
                 elif location[3] == 'B':
                     #shelf1 and 0
                     sn = self.store.get('/system/cameras/shelf1')
-                    self.camera_variables[sn].visible_items.append((item['name'], 'binB'))
+                    self.camera_variables[sn].visible_items.append((value['name'], 'binB'))
 
                     sn = self.store.get('/system/cameras/shelf0')
-                    self.camera_variables[sn].visible_items.append((item['name'], 'binB'))
+                    self.camera_variables[sn].visible_items.append((value['name'], 'binB'))
                 elif location[3] == 'C':
                     #shelf0
                     sn = self.store.get('/system/cameras/shelf0')
-                    self.camera_variables[sn].visible_items.append((item['name'], 'binC'))
+                    self.camera_variables[sn].visible_items.append((value['name'], 'binC'))
                 else:
-                    logger.warning("Invalid bin ({}) for item {}.".format(location, item['name']))
+                    logger.warning("Invalid bin ({}) for item {}.".format(location, value['name']))
             elif 'tote' in location:
                 #tote cam?
-                sn = self.store.get('/system/cameras/tote')
-                self.camera_variables[sn].visible_items.append((item['name'], 'tote'))
+                sn = self.store.get('/system/cameras/stow')
+                self.camera_variables[sn].visible_items.append((value['name'], 'tote'))
             elif 'box' in location:
                 logger.warning("Unimplemented")
 
