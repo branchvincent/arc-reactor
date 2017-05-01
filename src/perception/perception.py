@@ -113,6 +113,10 @@ class Perception:
 
                     key = 'camera/' + self.serial_nums_2_cams[serialNum] + "/point_cloud"
                     self.store.put(key=key,value=self.camera_variables[sn].point_cloud)
+
+                    key = '/camera/' + self.serial_nums_2_cams[serialNum] + "/time_stamp"
+                    self.store.put(key, time.time())
+
             else:
                 #mark that camera as disconnected
                 self.camera_variables[sn].connected = False
@@ -291,6 +295,7 @@ class Perception:
                 #transform point cloud to local coordinates
                 pc_indices = self.camera_variables[sn].segments[num]
                 pc = []
+                pc_color = []
                 if not location is None:
                     if 'bin' in location:
                         #its a bin doesnt have a pose. Use the shelf's
@@ -298,7 +303,10 @@ class Perception:
                     elif 'box' in location:
                         origin_2_ref = self.store.get('/box/' + location + "/pose")
                     elif 'tote' in location:
-                        origin_2_ref = self.store.get('/tote/' + location + "/pose")
+                        if 'amnesty' in location:
+                            origin_2_ref = self.store.get('/tote/amnesty/pose')
+                        elif 'stow' in location:
+                            origin_2_ref = self.store.get('/tote/stow/pose')
                     else:
                         origin_2_ref = np.eye(4)
                         logger.error('Unrecognized location {}. Pushing point cloud in world coordinates'.format(location))
@@ -313,11 +321,20 @@ class Perception:
                     point_in_world = self.camera_variables[sn].world_xform.dot(np.array(point_in_camera_local))
                     #get the point in reference local coordinates
                     point_in_ref_local = np.linalg.inv(origin_2_ref).dot(point_in_world.transpose())
-                    pc.append(point_in_ref_local[0:3])
+                    pc.append(np.squeeze(np.array(point_in_ref_local[0:3])))
+                    pc_color.append(self.camera_variables[sn].aligned_color_image[point[0],point[1]])
 
-                self.store.put('/item/' + object_name + "/point_cloud", np.array(pc))
-                #update the timestamp as well
+                #TODO update if we ever get pose information
+                mean_of_pc = np.array(pc).mean(axis=0)
+                pc_pose = np.eye(4)
+                pc_pose[:3,3] = mean_of_pc
+                self.store.put('/item/' + object_name + "/pose", pc_pose)
+                #update the point cloud
+                self.store.put('/item/' + object_name + "/point_cloud", np.array(pc)- mean_of_pc)
+                #update timestamp as well
                 self.store.put('/item/' + object_name + "/timestamp",time.time())
+                #update the color
+                self.store.put('/item/' + object_name + '/point_cloud_color', np.array(pc_color))
 
     def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
         self.segment_objects(list_of_serial_nums, list_of_bins)
@@ -497,9 +514,13 @@ class Perception:
                 else:
                     logger.warning("Invalid bin ({}) for item {}.".format(location, value['name']))
             elif 'tote' in location:
-                #tote cam?
-                sn = self.store.get('/system/cameras/stow')
-                self.camera_variables[sn].visible_items.append((value['name'], 'tote'))
+                #tote cam
+                if 'amnesty' in location:
+                    sn = self.store.get('/system/cameras/amnesty')
+                    self.camera_variables[sn].visible_items.append((value['name'], 'amnesty_tote'))
+                elif 'stow' in location:
+                    sn = self.store.get('/system/cameras/stow')
+                    self.camera_variables[sn].visible_items.append((value['name'], 'stow_tote'))
             elif 'box' in location:
                 logger.warning("Unimplemented")
 

@@ -211,15 +211,15 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     return_values['small_images'] = tinyColorImgs
     return_values['pixel_locations'] = segments
 
-
-    sizes = [x.size for x in segments]
-    ind = np.argsort(sizes)[::-1]
-    for i in range(9):
-        rect = cv2.minAreaRect(segments[ind[i]].astype('float32'))
-        box = cv2.boxPoints(rect)
-        box = np.int0(box)
-        newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
-        cv2.drawContours(fcolor_rects, [newbox], 0 , (0,255,255), 2)
+    #gets the largest items, but isn't working right now 4/29/2017
+    # sizes = [x.size for x in segments]
+    # ind = np.argsort(sizes)[::-1]
+    # for i in range(len(ind)):
+    #     rect = cv2.minAreaRect(segments[ind[i]].astype('float32'))
+    #     box = cv2.boxPoints(rect)
+    #     box = np.int0(box)
+    #     newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
+    #     cv2.drawContours(fcolor_rects, [newbox], 0 , (0,255,255), 2)
 
 
     return_values['boxes_image'] = fcolor_rects
