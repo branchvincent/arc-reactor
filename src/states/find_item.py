@@ -7,6 +7,8 @@ from time import time
 
 from subprocess import check_call
 
+from util.math import transform
+
 import logging; logger = logging.getLogger(__name__)
 
 class FindItem(State):
@@ -36,7 +38,7 @@ class FindItem(State):
 
                     # Convert to world coorindates and update global point cloud
                     camera_pose = self.store.get(['camera', camera, 'pose'])
-                    obj_pc_world = obj_pc.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
+                    obj_pc_world = transform(camera_pose, obj_pc)
                     if pc.size == 0:
                         pc = obj_pc_world
                         pc_color = obj_pc_color
@@ -61,7 +63,7 @@ class FindItem(State):
 
                     # Convert to world coorindates and update global point cloud
                     camera_pose = self.store.get(['camera', camera, 'pose'])
-                    obj_pc_world = obj_pc.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
+                    obj_pc_world = transform(camera_pose, obj_pc)
                     if pc.size == 0:
                         pc = obj_pc_world
                         pc_color = obj_pc_color
@@ -92,7 +94,7 @@ class FindItem(State):
             obj_pc_local = self.store.get(['item', selected_item, 'point_cloud'])
             # XXX: right now we can only properly handle a single camera
             camera_pose = self.store.get(['camera', selected_cameras[0], 'pose'])
-            pc = obj_pc_local.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
+            pc = transform(camera_pose, obj_pc_local)
             # XXX: no color image yet either
             pc_color = None
 
@@ -116,7 +118,7 @@ class FindItem(State):
 
         # Update item point cloud in local coordinates
         inv_pose_world = numpy.linalg.inv(item_pose_world)
-        pc_local = pc.dot(inv_pose_world[:3,:3].T) + inv_pose_world[:3,3].T
+        pc_local = transform(inv_pose_world, pc)
         mean_local = pc_local.mean(axis=0)
         self.store.put(['item', selected_item, 'point_cloud'], pc_local - mean_local)
         self.store.put(['item', selected_item, 'point_cloud_color'], pc_color)
