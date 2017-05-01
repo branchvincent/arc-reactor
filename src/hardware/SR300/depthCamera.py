@@ -72,13 +72,17 @@ class DepthCameras:
             #start the camera
             try:
                 cam.start()
-                 #wait for a single frame
-                cam.wait_for_frames()
             except:
                 logger.exception("Unable to start the camera")
                 return (None, None)
-           
-
+           try:
+                for i in range(5):
+                #wait for multiple frames
+                    cam.wait_for_frames()
+            except:
+                #wait for frame failed
+                logger.exception("Wait for frame failed on the camera")
+                return (None, None)
             #get all the images at once
             try:
                 imageFullColor = cam.get_frame_data_u8(rs.stream_color)
