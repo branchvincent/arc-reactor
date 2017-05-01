@@ -39,9 +39,9 @@ def transform(pose, array, row=None):
             row = (array.shape[1] == 3)
 
         if row:
-            array = array.dot(pose[:3, :3].T) + pose[:3, 3].T
+            return array.dot(pose[:3, :3].T) + pose[:3, 3].T
         else:
-            array = pose[:3, :3].dot(array) + pose[:3, 3]
+            return pose[:3, :3].dot(array) + pose[:3, 3]
 
     else:
         raise RuntimeError('array must have at least 2 dimensions for transform: {}'.format(array.shape))
