@@ -331,10 +331,10 @@ class Perception:
                 self.store.put('/item/' + object_name + "/pose", pc_pose)
                 #update the point cloud
                 self.store.put('/item/' + object_name + "/point_cloud", np.array(pc)- mean_of_pc)
-                #update timestamp as well
-                self.store.put('/item/' + object_name + "/timestamp",time.time())
                 #update the color
                 self.store.put('/item/' + object_name + '/point_cloud_color', np.array(pc_color))
+                #update timestamp as well
+                self.store.put('/item/' + object_name + "/timestamp",time.time())
 
     def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
         self.segment_objects(list_of_serial_nums, list_of_bins)
