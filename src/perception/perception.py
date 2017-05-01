@@ -227,7 +227,7 @@ class Perception:
             seg_params.medianFilterW = 5
             seg_params.minSize = 600
             seg_params.c_rad = 33
-            seg_params.sigma = 1.5
+            seg_params.sigma = 0.5
             seg_params.sp_rad = 3
 
             #segment the image
