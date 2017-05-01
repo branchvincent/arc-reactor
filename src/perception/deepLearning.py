@@ -64,7 +64,7 @@ class ObjectRecognizer:
         return net
 
     def loadWeights(self,filename):
-        logger.info("Loading weigts")
+        logger.info("Loading weights")
         # Load model weights and metadata
         d = pickle.load(open(filename, 'rb'),encoding='latin-1')
         logger.info("Weights loaded from file {}".format(filename))
