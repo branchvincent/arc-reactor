@@ -58,10 +58,10 @@ class GraphSegmentationParams():
         
         self.max_elements = 100000  #maximum number of elements a single object can have
 
-        self.topLeft = (70, 55)
-        self.topRight = (549, 83)
+        self.topLeft = (78, 423)
+        self.topRight = (666, 423)
         self.botLeft = (41, 337)
-        self.botRight = (550, 366)
+        self.botRight = (666, 92)
 
 def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     '''
@@ -120,7 +120,13 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     numObj = outp.max()
     logger.info("Found {} segments in the image".format(outp.max()))
     outp = np.where(outp == 0, 255, outp)
-    return_values['segmented_image'] = outp.copy()
+
+    display_segment_img = outp.copy().astype('float32')
+    display_segment_img = (display_segment_img - display_segment_img.min()) / (display_segment_img.max() - display_segment_img.min())
+    display_segment_img = plt.cm.jet(display_segment_img)
+    display_segment_img = (255*display_segment_img).astype('uint8')
+    display_segment_img
+    return_values['segmented_image'] = np.array(display_segment_img[:,:,0:3])
     
     segments = []
 
@@ -359,13 +365,8 @@ class SegmentationGUI(QtWidgets.QWidget):
         if self.depth_image is None:
             logger.warn("No image has been loaded")
             return
-        #segment
-        testmat = np.array([[ 0.99999267,  0.00340036, -0.00176075, -0.02570188],
-       [-0.00339687,  0.99999225,  0.00198321, -0.00134699],
-       [ 0.00176748, -0.00197721,  0.99999648, -0.00356173],
-       [ 0.        ,  0.        ,  0.        ,  1.        ]])
 
-        self.segret = graphSegmentation(self.depth_image, self.color_image, testmat, self.params)
+        self.segret = graphSegmentation(self.depth_image, self.color_image, self.params)
 
         #update the images 
         # ['Input', 'Median filter', 'Gradient filter', 'Threshold', 'Connected Components', 'Output']
@@ -385,8 +386,8 @@ class SegmentationGUI(QtWidgets.QWidget):
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[2].setPixmap(pix.scaled(320, 240))
 
-        zeroImg = self.segret['segmented_image'].astype('uint8')
-        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1],QtGui.QImage.Format_Grayscale8)
+        zeroImg = self.segret['segmented_image']
+        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1]*3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(image)
         self.seg_step_displays[3].setPixmap(pix.scaled(320, 240))
 
@@ -411,7 +412,7 @@ class SegmentationGUI(QtWidgets.QWidget):
             indices = self.segret['pixel_locations'][val].astype('float32')
                     
             #min area rectangle
-            rect = cv2.minAreaRect(indices.transpose())
+            rect = cv2.minAreaRect(indices)
             box = cv2.boxPoints(rect)
             box = np.int0(box)
             newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])

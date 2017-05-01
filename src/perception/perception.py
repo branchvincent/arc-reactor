@@ -144,14 +144,20 @@ class Perception:
                     #top directory is either shelf, box, or tote
                     if 'box' in list_of_bins[i]:
                         topdir = '/box/'
+                        refname = list_of_bins[i]
                     elif 'bin' in list_of_bins[i]:
                         topdir = '/shelf/bin/'
+                        refname = list_of_bins[i]
                     elif 'tote' in list_of_bins[i]:
                         topdir = '/tote/'
+                        if 'stow' in list_of_bins[i]:
+                            refname = 'stow'
+                        elif 'amnesty' in list_of_bins[i]:
+                            refname = 'amnesty'
                     else:
                         logger.warn("Bad location passed to segmentation {}".format(list_of_bins[i]))
                         topdir = "noooooooooothing"
-                    bin_bounds = self.store.get(topdir + list_of_bins[i] + '/bounds')
+                    bin_bounds = self.store.get(topdir + refname + '/bounds')
                     pixel_bounds = []
                     if not bin_bounds is None:
                         #get camera world location
@@ -185,7 +191,7 @@ class Perception:
                             #its a bin doesnt have a pose. Use the shelf's
                             origin_2_ref = self.store.get("/shelf/pose")
                         else:
-                            origin_2_ref = self.store.get(topdir + list_of_bins[i] + "/pose")
+                            origin_2_ref = self.store.get(topdir + refname + "/pose")
                         #convert all these points to world coordinates
                         for i in range(len(bin_bounds_world)):
                             pt = np.array(bin_bounds_world[i] + [1])
@@ -221,7 +227,10 @@ class Perception:
                         seg_params.topRight = (largestX, largestY)
                         seg_params.botRight = (largestX, smallestY)
 
-
+                    else:
+                        logger.warning("No bounds found for reference {}. ".format(list_of_bins[i]))
+            else:
+                logger.warning("No bounds found for reference {}. Database was empty".format(list_of_bins[i]))
             #TODO location away segmentation parameters
             seg_params.k = 250
             seg_params.medianFilterW = 5
@@ -324,17 +333,27 @@ class Perception:
                     pc.append(np.squeeze(np.array(point_in_ref_local[0:3])))
                     pc_color.append(self.camera_variables[sn].aligned_color_image[point[0],point[1]])
 
-                #TODO update if we ever get pose information
-                mean_of_pc = np.array(pc).mean(axis=0)
-                pc_pose = np.eye(4)
-                pc_pose[:3,3] = mean_of_pc
-                self.store.put('/item/' + object_name + "/pose", pc_pose)
-                #update the point cloud
-                self.store.put('/item/' + object_name + "/point_cloud", np.array(pc)- mean_of_pc)
-                #update the color
-                self.store.put('/item/' + object_name + '/point_cloud_color', np.array(pc_color))
-                #update timestamp as well
-                self.store.put('/item/' + object_name + "/timestamp",time.time())
+                #HACK for demo. only send out point clouds if they are large
+                currentpc = self.store.get('/item/' + object_name + "/point_cloud")
+                send = False
+                if currentpc is None:
+                    #send it
+                    send = True
+                else:
+                    if np.array(pc).shape[0] > currentpc.shape[0]:
+                        send = True
+                if send:
+                    #TODO update if we ever get pose information
+                    mean_of_pc = np.array(pc).mean(axis=0)
+                    pc_pose = np.eye(4)
+                    pc_pose[:3,3] = mean_of_pc
+                    self.store.put('/item/' + object_name + "/pose", pc_pose)
+                    #update the point cloud
+                    self.store.put('/item/' + object_name + "/point_cloud", np.array(pc)- mean_of_pc)
+                    #update the color
+                    self.store.put('/item/' + object_name + '/point_cloud_color', np.array(pc_color))
+                    #update timestamp as well
+                    self.store.put('/item/' + object_name + "/timestamp",time.time())
 
     def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
         self.segment_objects(list_of_serial_nums, list_of_bins)
