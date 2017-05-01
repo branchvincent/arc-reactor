@@ -84,11 +84,15 @@ class FindItem(State):
                     self.simulate_acquire_image(camera)
             else:
                 # XXX: the segmenter acquires images anyways so skip it here
-                # check_call(['python3', BASE_PATH + 'perception.py', 'acquire'] + serials, cwd=BASE_PATH)
+                # args = ['python3', BASE_PATH + 'perception.py', 'acquire'] + serials
+                # logger.debug('invoking perception: {}'.format(args))
+                # check_call(args, cwd=BASE_PATH)
                 pass
 
             # run the segmenter
-            check_call(['python3', BASE_PATH + 'perception.py', 'segment'] + serials + [location], cwd=BASE_PATH)
+            args = ['python3', BASE_PATH + 'perception.py', 'segment'] + serials + [location]
+            logger.debug('invoking perception: {}'.format(args))
+            check_call(args, cwd=BASE_PATH)
 
             # retrieve the resultant point cloud which is in camera coordinates
             obj_pc_local = self.store.get(['item', selected_item, 'point_cloud'])
