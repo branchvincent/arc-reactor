@@ -298,17 +298,17 @@ class WorldViewerWindow(QtGLWindow):
         # update shelf bin bounding boxes
         for name in self.db.get('/shelf/bin', {}):
             self._update_bounding_box('shelf_{}_bb'.format(name), ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
-            self.program.extra_poses.append(build_pose(self.db, [['shelf', 'pose'], ['shelf', 'bin', name, 'vantage']]))
+            self.program.extra_poses.append(build_pose(self.db, [['shelf', 'pose'], ['shelf', 'bin', name, 'vantage']], strict=False))
 
         # update box bounding boxes
         for name in self.db.get('/box', {}):
             self._update_bounding_box('box_{}_bb'.format(name), [['box', name, 'pose']], ['box', name, 'bounds'])
-            self.program.extra_poses.append(build_pose(self.db, [['box', name, 'pose'], ['box', name, 'vantage']]))
+            self.program.extra_poses.append(build_pose(self.db, [['box', name, 'pose'], ['box', name, 'vantage']], strict=False))
 
         # update tote bounding boxes
         for name in self.db.get('/tote', {}):
             self._update_bounding_box('tote_{}_bb'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
-            self.program.extra_poses.append(build_pose(self.db, [['tote', name, 'pose'], ['tote', name, 'vantage']]))
+            self.program.extra_poses.append(build_pose(self.db, [['tote', name, 'pose'], ['tote', name, 'vantage']], strict=False))
 
         for grasp in self.db.get('/debug/grasps', []):
             self.program.extra_poses.append(se3.from_translation(grasp[1]))
@@ -362,7 +362,6 @@ class WorldViewerWindow(QtGLWindow):
         logger.debug('updating {} point cloud'.format(name))
 
         location = self.db.get(['item', name, 'location'])
-        print name, location
         if location.startswith('bin'):
             reference = ['shelf', 'pose']
         elif location in ['stow_tote', 'stow tote']:
@@ -411,7 +410,7 @@ class WorldViewerWindow(QtGLWindow):
 
         options = self.options.get(bb, {})
 
-        bb.update(pose=build_pose(self.db, pose_urls), bounds=self.db.get(bounds_url), **options)
+        bb.update(pose=build_pose(self.db, pose_urls, strict=False), bounds=self.db.get(bounds_url), **options)
 
     def _update_point_cloud(self, name, pose_urls, xyz_url, rgb_url=None):
         cloud = self.point_clouds.get(name)
@@ -462,7 +461,7 @@ class WorldViewerWindow(QtGLWindow):
                 cloud_rgb = numpy.full(cloud_xyz.shape[:-1] + (len(color),), color)
 
         # perform the update
-        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=build_pose(self.db, pose_urls))
+        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=build_pose(self.db, pose_urls, strict=False))
 
         # clear the point cloud for next update
         if xyz_url:
