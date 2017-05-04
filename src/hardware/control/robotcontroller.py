@@ -40,6 +40,7 @@ class RobotController:
     def run(self):
         """Runs the current trajectory in the database"""
         if self.trajectory:
+            self.trajectory.check()
             self.trajectory.start()
             self.loop()
             self.updateDatabase()
@@ -90,8 +91,6 @@ class Trajectory:
         for m in self.milestones:
             m.set_type('robot')
             m.scale_t(speed)
-        # Validate
-        self.check()
         self.reset()
 
     def reset(self):
