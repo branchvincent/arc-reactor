@@ -9,7 +9,10 @@ from grasp import vacuum
 class PlaneDetectionTest(TestCase):
 
     def setUp(self):
-        pass
+        try:
+            import pcl
+        except ImportError:
+            self.skipTest('pcl is not installed')
 
     def test_detection(self):
         data = numpy.load('data/test/test_vacuum0.npz')

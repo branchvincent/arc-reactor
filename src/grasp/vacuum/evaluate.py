@@ -434,7 +434,8 @@ for filename in glob.iglob('segments/*.pcd'):
      #save a copy of image after contour, we will later use to obtain all points enclosed in the contour
 
      frame=edged.copy()
-     cnts, hierarchy = cv2.findContours(frame, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+     result = cv2.findContours(frame, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+     cnts, hierarchy = result[-2:]
 
      #obtain the outmost contour for the plane
      cnt=max(cnts,key=cv2.contourArea)

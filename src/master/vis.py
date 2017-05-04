@@ -18,6 +18,8 @@ from klampt.math import se3
 
 from pensive.core import Store
 
+from util.math import build_pose, transform
+
 from .sync import AsyncUpdateHandler
 from .world import update_world, numpy2klampt
 
@@ -283,9 +285,9 @@ class WorldViewerWindow(QtGLWindow):
 
         self._update_bounding_box('target_bb', [], ['robot', 'target_bounding_box'])
 
-        # update camera point clouds
-        for name in self.db.get('/system/cameras', []):
-            self._update_camera(name)
+        # # update camera point clouds
+        # for name in self.db.get('/system/cameras', []):
+        #     self._update_camera(name)
 
         # update item point clouds
         for name in self.db.get('item', {}):
@@ -296,17 +298,17 @@ class WorldViewerWindow(QtGLWindow):
         # update shelf bin bounding boxes
         for name in self.db.get('/shelf/bin', {}):
             self._update_bounding_box('shelf_{}_bb'.format(name), ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
-            self.program.extra_poses.append(self._build_pose([['shelf', 'pose'], ['shelf', 'bin', name, 'vantage']]))
+            self.program.extra_poses.append(build_pose(self.db, [['shelf', 'pose'], ['shelf', 'bin', name, 'vantage']], strict=False))
 
         # update box bounding boxes
         for name in self.db.get('/box', {}):
             self._update_bounding_box('box_{}_bb'.format(name), [['box', name, 'pose']], ['box', name, 'bounds'])
-            self.program.extra_poses.append(self._build_pose([['box', name, 'pose'], ['box', name, 'vantage']]))
+            self.program.extra_poses.append(build_pose(self.db, [['box', name, 'pose'], ['box', name, 'vantage']], strict=False))
 
         # update tote bounding boxes
         for name in self.db.get('/tote', {}):
             self._update_bounding_box('tote_{}_bb'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
-            self.program.extra_poses.append(self._build_pose([['tote', name, 'pose'], ['tote', name, 'vantage']]))
+            self.program.extra_poses.append(build_pose(self.db, [['tote', name, 'pose'], ['tote', name, 'vantage']], strict=False))
 
         for grasp in self.db.get('/debug/grasps', []):
             self.program.extra_poses.append(se3.from_translation(grasp[1]))
@@ -408,7 +410,7 @@ class WorldViewerWindow(QtGLWindow):
 
         options = self.options.get(bb, {})
 
-        bb.update(pose=self._build_pose(pose_urls), bounds=self.db.get(bounds_url), **options)
+        bb.update(pose=build_pose(self.db, pose_urls, strict=False), bounds=self.db.get(bounds_url), **options)
 
     def _update_point_cloud(self, name, pose_urls, xyz_url, rgb_url=None):
         cloud = self.point_clouds.get(name)
@@ -459,24 +461,13 @@ class WorldViewerWindow(QtGLWindow):
                 cloud_rgb = numpy.full(cloud_xyz.shape[:-1] + (len(color),), color)
 
         # perform the update
-        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=self._build_pose(pose_urls))
+        cloud.update(xyz=cloud_xyz, rgb=cloud_rgb, pose=build_pose(self.db, pose_urls, strict=False))
 
         # clear the point cloud for next update
         if xyz_url:
             self.db.put(xyz_url, None)
         if rgb_url:
             self.db.put(rgb_url, None)
-
-    def _build_pose(self, urls):
-        full_pose = numpy.eye(4)
-        for url in urls:
-            pose = self.db.get(url)
-            if pose is None:
-                return None
-            else:
-                full_pose = full_pose.dot(pose)
-
-        return full_pose
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication

@@ -7,6 +7,8 @@ from time import time
 
 from subprocess import check_call
 
+from util.math import transform
+
 import logging; logger = logging.getLogger(__name__)
 
 class FindItem(State):
@@ -36,7 +38,7 @@ class FindItem(State):
 
                     # Convert to world coorindates and update global point cloud
                     camera_pose = self.store.get(['camera', camera, 'pose'])
-                    obj_pc_world = obj_pc.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
+                    obj_pc_world = transform(camera_pose, obj_pc)
                     if pc.size == 0:
                         pc = obj_pc_world
                         pc_color = obj_pc_color
@@ -61,13 +63,43 @@ class FindItem(State):
 
                     # Convert to world coorindates and update global point cloud
                     camera_pose = self.store.get(['camera', camera, 'pose'])
-                    obj_pc_world = obj_pc.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
+                    obj_pc_world = transform(camera_pose, obj_pc)
                     if pc.size == 0:
                         pc = obj_pc_world
                         pc_color = obj_pc_color
                     else:
                         pc = numpy.concatenate((pc,obj_pc_world), axis=0)
                         pc_color = numpy.concatenate((pc_color,obj_pc_color), axis=0)
+
+
+            # Update pose as mean of point cloud
+            mean = pc.mean(axis=0)
+            item_pose_world = numpy.eye(4)
+            item_pose_world[:3,3] = mean
+            logger.debug('object pose relative to world\n{}'.format(item_pose_world))
+
+            reference_pose = numpy.eye(4)
+            if location.startswith('bin'):
+                reference_pose = self.store.get('/shelf/pose')
+            elif location in ['stow_tote', 'stow tote']:
+                reference_pose = self.store.get('/tote/stow/pose')
+            else:
+                raise RuntimeError('unrecognized item location: {}'.format(selected_item))
+
+            item_pose_reference = numpy.linalg.inv(reference_pose).dot(item_pose_world)
+            logger.debug('object pose relative to {}\n{}'.format(location, item_pose_reference))
+            self.store.put(['item', selected_item, 'pose'], item_pose_reference)
+
+            # Update item point cloud in local coordinates
+            inv_pose_world = numpy.linalg.inv(item_pose_world)
+            pc_local = transform(inv_pose_world, pc)
+            mean_local = pc_local.mean(axis=0)
+            self.store.put(['item', selected_item, 'point_cloud'], pc_local - mean_local)
+            self.store.put(['item', selected_item, 'point_cloud_color'], pc_color)
+            self.store.put(['item', selected_item, 'timestamp'], time())
+
+            logger.debug('found {} object points'.format(pc.shape[0]))
+
         else:
             BASE_PATH = '/home/motion/Desktop/reactor-perception/src/perception/'
 
@@ -82,47 +114,23 @@ class FindItem(State):
                     self.simulate_acquire_image(camera)
             else:
                 # XXX: the segmenter acquires images anyways so skip it here
-                # check_call(['python3', BASE_PATH + 'perception.py', 'acquire'] + serials, cwd=BASE_PATH)
+                # args = ['python3', BASE_PATH + 'perception.py', 'acquire'] + serials
+                # logger.debug('invoking perception: {}'.format(args))
+                # check_call(args, cwd=BASE_PATH)
                 pass
 
             # run the segmenter
-            check_call(['python3', BASE_PATH + 'perception.py', 'segment'] + serials + [location], cwd=BASE_PATH)
+            args = ['python3', BASE_PATH + 'perception.py', 'segment'] + serials + [location]
+            logger.debug('invoking perception: {}'.format(args))
+            check_call(args, cwd=BASE_PATH)
 
-            # retrieve the resultant point cloud which is in camera coordinates
-            obj_pc_local = self.store.get(['item', selected_item, 'point_cloud'])
-            # XXX: right now we can only properly handle a single camera
-            camera_pose = self.store.get(['camera', selected_cameras[0], 'pose'])
-            pc = obj_pc_local.dot(camera_pose[:3,:3].T) + camera_pose[:3,3].T
-            # XXX: no color image yet either
-            pc_color = None
-
-        # Update pose as mean of point cloud
-        mean = pc.mean(axis=0)
-        item_pose_world = numpy.eye(4)
-        item_pose_world[:3,3] = mean
-        logger.debug('object pose relative to world\n{}'.format(item_pose_world))
-
-        reference_pose = numpy.eye(4)
-        if location.startswith('bin'):
-            reference_pose = self.store.get('/shelf/pose')
-        elif location in ['stow_tote', 'stow tote']:
-            reference_pose = self.store.get('/tote/stow/pose')
-        else:
-            raise RuntimeError('unrecognized item location: {}'.format(selected_item))
-
-        item_pose_reference = numpy.linalg.inv(reference_pose).dot(item_pose_world)
-        logger.debug('object pose relative to {}\n{}'.format(location, item_pose_reference))
-        self.store.put(['item', selected_item, 'pose'], item_pose_reference)
-
-        # Update item point cloud in local coordinates
-        inv_pose_world = numpy.linalg.inv(item_pose_world)
-        pc_local = pc.dot(inv_pose_world[:3,:3].T) + inv_pose_world[:3,3].T
-        mean_local = pc_local.mean(axis=0)
-        self.store.put(['item', selected_item, 'point_cloud'], pc_local - mean_local)
-        self.store.put(['item', selected_item, 'point_cloud_color'], pc_color)
-        self.store.put(['item', selected_item, 'timestamp'], time())
-
-        logger.debug('found {} object points'.format(pc.shape[0]))
+            # # retrieve the resultant point cloud which is in camera coordinates
+            # obj_pc_local = self.store.get(['item', selected_item, 'point_cloud'])
+            # # XXX: right now we can only properly handle a single camera
+            # camera_pose = self.store.get(['camera', selected_cameras[0], 'pose'])
+            # pc = transform(camera_pose, obj_pc_local)
+            # # XXX: no color image yet either
+            # pc_color = None
 
         self.store.put('/status/selected_item_location', True)
 

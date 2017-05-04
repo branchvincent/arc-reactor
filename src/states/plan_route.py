@@ -7,6 +7,8 @@ from time import time
 from master.fsm import State
 from master.world import build_world
 
+from util.math import transform
+
 from motion import planner
 
 from grasp import vacuum
@@ -39,7 +41,7 @@ class PlanRoute(State):
             raise RuntimeError('unrecognized item location: "{}"'.format(location))
 
         item_pose_world = reference_pose.dot(item_pose_local)
-        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
+        item_pc_world = transform(item_pose_world, item_pc_local)
 
         bounding_box = [
             [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
@@ -53,10 +55,8 @@ class PlanRoute(State):
         camera = 'stow'
 
         pose = self.store.get(['camera', camera, 'pose'])
-        pose = numpy.asarray(pose)
-
         point_cloud = self.store.get(['camera', camera, 'point_cloud'])
-        point_cloud = (point_cloud.reshape((-1, 3)).dot(pose[:3, :3].T) + pose[:3, 3].T).reshape(point_cloud.shape)
+        point_cloud = transform(pose, point_cloud)
 
         grasp = vacuum.compute(point_cloud, [item_pc_world])[0]
         logger.info('item grasp: {}'.format(grasp))
@@ -101,13 +101,13 @@ class PlanRoute(State):
                 bin_pose_local = self.store.get(['shelf', 'bin', target_bin, 'pose'])
                 bin_pose_world = shelf_pose.dot(bin_pose_local)
 
-                bin_bounds_local = numpy.array(self.store.get(['shelf', 'bin', target_bin, 'bounds'])).T
-                bin_bounds_world = bin_pose_world[:3,:3].dot(bin_bounds_local) + bin_pose_world[:3, 3]
-                bin_target_world = numpy.matrix([bin_bounds_world[0].mean(), bin_bounds_world[1].mean(), bin_bounds_world[2].max()]).T
+                bin_bounds_local = self.store.get(['shelf', 'bin', target_bin, 'bounds'])
+                bin_bounds_world = transform(bin_pose_world, bin_bounds_local)
+                bin_target_world = [bin_bounds_world[:, 0].mean(), bin_bounds_world[:, 1].mean(), bin_bounds_world[:, 2].max()]
 
                 target_box = {
-                    'position': list(bin_target_world.flat),
-                    'drop position': list(bin_target_world.flat)
+                    'position': bin_target_world,
+                    'drop position': bin_target_world
                 }
 
                 logger.info('requesting stow motion plan')
