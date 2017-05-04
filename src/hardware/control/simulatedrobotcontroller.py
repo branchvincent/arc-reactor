@@ -18,37 +18,42 @@ import logging; logger = logging.getLogger(__name__)
 
 class SimulatedRobotController:
     """Trajectory execution for TX90"""
-    def __init__(self, robot='left', store=None):
+    def __init__(self, store=None):
         self.store = store or PensiveClient().default()
         # Milestones
         self.trajectory = SimulatedTrajectory(store=self.store)
         if self.trajectory.milestones is not None:
-            self.freq = self.trajectory.milestones[0].get_t()
+            self.freq = 1/self.trajectory.milestones[0].get_t()
         else:
             self.freq = 60
-        self.startTime = None
+        # self.startTime = None
 
     def run(self):
         """Runs the current trajectory in the database"""
-        self.startTime = time()
+        # self.startTime = time()
         self.trajectory.start()
         self.loop()
         self.updateDatabase()
 
     def loop(self):
         """Executed at the given frequency"""
+        # t_prev, t_step = time(), self.trajectory.curr_milestone.get_t()
         while not self.trajectory.complete:
             self.updateCurrentConfig()
-            elapsedTime = time() - self.startTime
-            self.trajectory.update(int(elapsedTime*self.freq))
-            sleep(1/(3*self.freq))
+            sleep(self.trajectory.curr_milestone.get_t())
+            self.trajectory.update(self.trajectory.curr_index + 1)
+            # self.updateCurrentConfig(tdes=t_prev+t_step)
+            # t_prev,t_step = time(), self.trajectory.curr_milestone.get_t()
+            # sleep(t_step)
+            # self.trajectory.update(self.trajectory.curr_index + 1)
         logger.info('Trajectory completed')
 
-    def updateCurrentConfig(self):
+    def updateCurrentConfig(self, tdes=None):
         """Updates the database with the robot's current configuration."""
         m = self.trajectory.curr_milestone
         m.set_type('db')
         self.store.put('/robot/current_config', m.get_robot())
+        # logger.info('Time lag {}: update'.format(time() - tdes))
 
     def updateDatabase(self):
         # Update tool pose
@@ -74,7 +79,6 @@ class SimulatedTrajectory:
         self.milestones = []
         for map in milestoneMaps:
             m = Milestone(map=map)
-            m.set_type('robot')
             m.scale_t(speed)
             self.milestones.append(m)
         # Validate
@@ -98,9 +102,9 @@ class SimulatedTrajectory:
         self.curr_index = 0
         self.curr_milestone = self.milestones[self.curr_index]
         logger.info('Starting trajectory')
-        # dt = self.curr_milestone.get_t()
-        # q = [round(qi,1) for qi in self.curr_milestone.get_robot()]
-        # logger.info('Moving to milestone {}: {}'.format(self.curr_index, (round(dt,3),q)))
+        dt = self.curr_milestone.get_t()
+        q = [round(qi,1) for qi in self.curr_milestone.get_robot()]
+        logger.info('Moving to milestone {}: {}'.format(self.curr_index, (round(dt,3),q)))
 
     def update(self, index):
         """Checks the current milestone in progress and updates, if necessary"""
@@ -112,10 +116,10 @@ class SimulatedTrajectory:
         self.curr_index = index
         if self.curr_index < len(self.milestones):
             self.curr_milestone = self.milestones[self.curr_index]
-            self.vacuum.change(self.curr_milestone.get_vacuum())
-            # dt = self.curr_milestone.get_t()
-            # qf = [round(qi,1) for qi in self.curr_milestone[1]['robot']]
-            # logger.info('Moving to milestone {}: {}'.format(self.curr_index, (round(dt,3),qf)))
+            self.vacuum.change(bool(self.curr_milestone.get_vacuum()[0]))
+            dt = self.curr_milestone.get_t()
+            qf = [round(qi,1) for qi in self.curr_milestone.get_robot()]
+            logger.info('Moving to milestone {}: {}'.format(self.curr_index, (round(dt,3),qf)))
         else:
             self.reset()
             self.complete = True

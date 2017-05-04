@@ -10,7 +10,6 @@ DQ_MAX = 5  # max change in qi / milestone (deg)
 DV_MAX = 60 # max change in velocity / sec (deg/s)
 
 # Helper functions
-
 def Assert(condition, message):
     """Raises and logs an exception if the condition is false"""
     if not condition:
@@ -19,19 +18,24 @@ def Assert(condition, message):
 
 
 class MotionPlanChecker:
-    def __init__(self, milestones):
+    def __init__(self, milestones, q0=None):
         self.milestones = milestones
         self.failedMilestones = []
+        # Add current confiq
+        if q0 is not None:
+            type = self.milestones[0].type
+            m0 = Milestone(t=0,q=q0, type=type)
+            self.milestones.insert(0, m0)
 
     def check(self):
         """Checks the motion plan"""
         logger.info('Checking motion plan')
         #Check
         for i in range(len(self.milestones)-1):
-            m0 = self.milestones[i].get_robot()
-            m1 = self.milestones[i+1].get_robot()
+            q0 = self.milestones[i].get_robot()
+            q1 = self.milestones[i+1].get_robot()
             dt = self.milestones[i+1].get_t()
-            self.checkMilestone(m0,m1,dt,i+1)
+            self.checkMilestone(q0,q1,dt,i+1)
         #Log pass/fail
         if self.failedMilestones:
             logger.info('Motion plan failed to pass checker')

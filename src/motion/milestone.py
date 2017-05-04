@@ -1,4 +1,5 @@
 import math
+import logging; logger = logging.getLogger(__name__)
 
 dof = { 'db': 7,
         'robot': 6  }
@@ -42,8 +43,12 @@ class Milestone:
         self.gripper = milestone[1]['gripper']
         self.vacuum = milestone[1]['vacuum']
 
+    def get_type(self):
+        return self.type
+
     def set_type(self, newType):
         # Check type
+        logger.info('From {} to {}'.format(self.type, newType))
         newType = newType.lower()
         if newType not in ['robot', 'db']:
             raise Exception('Unrecognized option: "{}"'.format(type))
@@ -59,10 +64,11 @@ class Milestone:
             self.robot[2] *= -1
             self.robot[4] *= -1
             # To radians, adding extraneous q0
-            qs = [0] + [math.radians(qi) for qi in self.robot]
+            self.robot = [0] + [math.radians(qi) for qi in self.robot]
         elif self.type == newType:
             pass
         self.type = newType
+        self.check()
 
     #def set_milestone(self, milestone):
     #    self.milestone = milestone

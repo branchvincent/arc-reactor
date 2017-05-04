@@ -33,13 +33,8 @@ class RobotController:
     """Trajectory execution for TX90"""
     def __init__(self, robot='left', store=None):
         self.store = store or PensiveClient().default()
-        # Robot
         self.robot = Robot(robot=robot, store=self.store)
-        # Milestones
-        if self.milestones:
-            self.trajectory = Trajectory(robot=self.robot, store=self.store)
-        else:
-            self.trajectory = None
+        self.trajectory = Trajectory(robot=self.robot, store=self.store)
         self.freq = 10.
 
     def run(self):
@@ -62,7 +57,7 @@ class RobotController:
     def updateCurrentConfig(self):
         """Updates the database with the robot's current configuration."""
         q = self.robot.getCurrentConfig()
-        m = Milestone(dt=0, q=q, type='robot')
+        m = Milestone(q=q, type='robot')
         m.set_type('db')
         self.store.put('/robot/current_config', m.get_robot())
 
@@ -91,12 +86,10 @@ class Trajectory:
         milestoneMaps = self.store.get('/robot/waypoints')
         speed = self.store.get('/robot/speed_scale', 1.)
         # Create milestones
-        self.milestones = []
-        for map in milestoneMaps:
-            m = Milestone(map=map)
+        self.milestones = [Milestone(map=map) for map in milestoneMaps]
+        for m in self.milestones:
             m.set_type('robot')
             m.scale_t(speed)
-            self.milestones.append(m)
         # Validate
         self.check()
         self.reset()
@@ -108,7 +101,10 @@ class Trajectory:
 
     def check(self):
         """Sends milestones to motion plan checker"""
-        c = MotionPlanChecker(self.milestones)
+        q0 = self.robot.getCurrentConfig()
+        # m0 = Milestone(q=q0,type='robot')
+        # c = MotionPlanChecker([m0] + self.milestones)
+        c = MotionPlanChecker(self.milestones, q0=q0)
         failures = c.check()
         if failures:
             raise RuntimeError('Motion plan failed to pass checker')
@@ -118,10 +114,6 @@ class Trajectory:
         logger.info('Starting trajectory')
         self.curr_index = 0
         self.curr_milestone = self.milestones[self.curr_index]
-        # Check initial config is current config
-        # if (self.robot.getCurrentConfig() != self.curr_milestone[1]['robot']):
-        #     self.curr_milestone[0] = 3
-        #     logger.warning('Initial configuration is not current configuration.')
         # HACK: Delay first milestone to create sufficient buffering
         self.curr_milestone.set_t(5)
         # Send first milestones
@@ -142,7 +134,7 @@ class Trajectory:
         # Update milestone
         if self.curr_index < len(self.milestones):
             self.curr_milestone = self.milestones[self.curr_index]
-            self.robot.vacuum.change(self.curr_milestone.get_vacuum())
+            self.robot.vacuum.change(bool(self.curr_milestone.get_vacuum()))
             logger.info('Moving to milestone {}'.format(self.robot.getCurrentIndexAbs()))
             # Add new milestone
             if len(self.robot.receivedMilestones) < len(self.milestones):
@@ -164,18 +156,18 @@ class Robot:
         # self.name = self.client.name
         self.store = store or PensiveClient().default()
         self.receivedMilestones = []
-        # Vacuum
         self.vacuum = Vacuum(store=self.store)
-        # Queue
         self.startIndex = None
 
     def sendMilestone(self, milestone):
         """Sends a milestone to the robot"""
         Assert(isinstance(milestone, Milestone), 'Milestone must be instance of "Milestone"')
+        Assert(milestone.get_type() == 'robot', 'Milestone must be of type "robot"')
         dt = milestone.get_t()
         q = milestone.get_robot()
         # Add milestone and update start index, if first milestone
         if self.startIndex == None:
+            self.startIndex = 0
             self.startIndex = self.client.addMilestone(dt,q)
             Assert(self.startIndex != None, 'Could not add milestone {}'.format((dt,q)))
             logger.debug('Motion plan starting at index {}'.format(self.startIndex))
