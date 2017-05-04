@@ -4,6 +4,7 @@ import math
 import numpy as np
 import os
 import logging
+from scipy import optimize
 from multiprocessing import Lock
 import sys
 sys.path.append('../hardware/SR300/')
@@ -341,6 +342,253 @@ class RealsenseCalibration(QtWidgets.QWidget):
 
             np.save(self.objectName + "_xform", objectmat)
 
+
+class RobotCamCalibration(QtWidgets.QWidget):
+    def __init__(self):
+        super(RobotCamCalibration, self).__init__()
+        self.initUI()
+        self.ctx = rs.context()
+        
+        #what cameras are connected?
+        self.connected_cams = self.ctx.get_device_count()
+        self.cam_serial_nums = []
+        for i in range(self.connected_cams):
+            cam = self.ctx.get_device(i)
+            #return the serial num of the camera too
+            sn = cam.get_info(rs.camera_info_serial_number)
+            self.cam_serial_nums.append(sn)
+        
+        #fill in the combo box with the cameras attached
+        self.camera_selector_combo.addItems(self.cam_serial_nums)
+        self.camera_selector_combo.currentIndexChanged.connect(self.change_camera)
+        self.change_camera(0)
+
+        self.cameraXform = np.identity(4)
+        self.cameraName = 'ee_cam'
+        # self.db_client = PensiveClient(host='http://10.10.1.60:8888')
+        # self.store = self.db_client.default()
+        # register_numpy()
+
+        self.last_images = []                      #last camera image
+        self.last_img_cnt = 0                       #index of last image
+        self.robot_xforms = []
+        self.cam_to_target_xforms = []
+
+    def initUI(self):
+
+        #make the layout vertical
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
+
+        #add places to enter/show the 4x4 matrix of the current postion of the robot
+        self.horzMid = QtWidgets.QHBoxLayout()
+        self.gridCamera = QtWidgets.QGridLayout()
+        self.horzMid.addStretch(1)
+        self.horzMid.addItem(self.gridCamera)
+        self.horzMid.addStretch(1)
+        self.offset_guesses = []
+        for row in range(3):
+            self.offset_guesses.append([])
+            for col in range(2):
+                tbox = QtWidgets.QLineEdit(self)
+                self.offset_guesses[row].append(tbox)
+                self.gridCamera.addWidget(self.offset_guesses[row][col], row, col)
+
+        for row in range(3):
+            for col in range(2):
+                self.offset_guesses[row][col].setText('0')
+
+
+        label = QtWidgets.QLabel("Base to target guess",self)
+        self.gridCamera.addWidget(label, 5, 0)
+        label.show()
+        label = QtWidgets.QLabel("EE to camera guess",self)
+        self.gridCamera.addWidget(label, 5, 1)
+        label.show()
+        
+        #add a push button at the top
+        self.horzTop = QtWidgets.QHBoxLayout()
+        self.horzTop.addStretch(1)
+        self.store_pair_button = QtWidgets.QPushButton("Store calibration pair", self)
+        self.calibrate_button = QtWidgets.QPushButton("Calibrate camera", self)
+        self.start_camera_button = QtWidgets.QPushButton("Start camera", self)
+
+
+        self.horzTop.addWidget(self.store_pair_button)
+        self.horzTop.addSpacing(5)
+        self.horzTop.addWidget(self.calibrate_button)
+        self.horzTop.addSpacing(5)
+        self.horzTop.addWidget(self.start_camera_button)
+        self.horzTop.addSpacing(5)
+        self.camera_selector_combo = QtWidgets.QComboBox(self)
+        self.horzTop.addWidget(self.camera_selector_combo)
+
+        self.horzTop.addStretch(1)
+        self.calibrate_button.clicked.connect(self.calibrate_camera)
+        self.store_pair_button.clicked.connect(self.store_calib_pair)
+        self.start_camera_button.clicked.connect(self.start_stop_camera)
+
+        #add widget to show what the camera sees
+        self.camera_display = QtWidgets.QLabel(self)
+        zeroImg = np.zeros((480,640,3),dtype='uint8')
+        image = QtGui.QImage(zeroImg, zeroImg.shape[1], zeroImg.shape[0], zeroImg.shape[1] * 3,QtGui.QImage.Format_RGB888)
+        pix = QtGui.QPixmap(image)
+        self.camera_display.setPixmap(pix)
+        self.horzBot = QtWidgets.QHBoxLayout()
+        self.horzBot.addStretch(1)
+        self.horzBot.addWidget(self.camera_display)
+        self.horzBot.addStretch(1)
+
+        #add everthing to the layout
+        self.layout.addItem(self.horzTop)
+        self.layout.addItem(self.horzMid)
+        self.layout.addItem(self.horzBot)
+
+
+        self.calibrate_button.show()
+        self.store_pair_button.show()
+        self.start_camera_button.show()
+
+
+    def change_camera(self, cam_num):
+        logger.info("Camera changed to {}".format(self.cam_serial_nums[cam_num]))
+        self.thread = VideoThread(self.ctx, cam_num)
+        self.thread.signal.connect(self.updateView)
+        cameramat, cameracoeff = self.thread.getIntrinsics()
+        self.extrinsics = self.thread.getExtrinsics()
+        if cameramat is None:
+            logger.warning("Unable to get camera coefficients for camera. Setting to zeros...")
+            cameramat = np.array([[1,0,0],[0,1,0],[0,0,1]])
+            cameracoeff = np.zeros((5))
+
+        self.camera_matrix = cameramat
+        self.camera_coeff = cameracoeff
+    
+    def calibrate_camera(self):
+        logger.info("Optimizing to find end effector to camera xform")
+        global camera2targetpts
+        global base2eepts
+
+        base2eepts = self.robot_xforms
+        camera2targetpts = self.cam_to_target_xforms
+
+        if len(base2eepts) == 0:
+            logger.warning("Tried to calibrate with zero points")
+            return
+
+        ee2camera_guess = np.eye(4)
+        base2target_guess = np.eye(4)
+
+        ee2camera_guess[0,3] = float(self.offset_guesses[0][0].text())
+        ee2camera_guess[1,3] = float(self.offset_guesses[1][0].text())
+        ee2camera_guess[2,3] = float(self.offset_guesses[2][0].text())
+
+        base2target_guess[0,3] = float(self.offset_guesses[0][1].text())
+        base2target_guess[1,3] = float(self.offset_guesses[1][1].text())
+        base2target_guess[2,3] = float(self.offset_guesses[2][1].text())
+
+        logger.info("EE to camera guess {}, {}, {}".format(ee2camera_guess[0,3],ee2camera_guess[1,3],ee2camera_guess[2,3]))
+        logger.info("Base to target guess {}, {}, {}".format(base2target_guess[0,3],base2target_guess[1,3],base2target_guess[2,3]))
+
+        
+        guess = (ee2camera_guess, base2target_guess)
+        res = optimize.minimize(function_to_min, guess, method='BFGS', tol=0.0001)
+        print("Total RMS {}. {}".format(res.fun, res.message))
+
+        #TODO make this correct
+        self.store.put('/camera/ee_cam/pose', res.x)
+
+    def store_calib_pair(self):
+        logger.info("Storing calibration point...")
+        #set the dictionary
+        dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
+
+        #need to measure out a target
+        board = cv2.aruco.GridBoard_create(4, 6, .021, 0.003, dictionary)
+
+        #look through the last x images and average the pose for images where the camera saw the target
+        last_x_poses = []
+        for image in self.last_images:
+            #get the camera transform
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            res = cv2.aruco.detectMarkers(gray,dictionary)
+            if len(res[0])>0:
+                pose = cv2.aruco.estimatePoseBoard(res[0], res[1], board, self.camera_matrix, self.camera_coeff)
+                rotMat = cv2.Rodrigues(pose[1]) #returns rotation vector and translation vector
+                rotMat = rotMat[0]              #returns rotation matrix and jacobian
+                xform = np.zeros((4,4))
+                xform[0:3, 0:3] = rotMat
+                xform[0:3, 3] = pose[2].flatten()
+                xform[3, 3] = 1    
+                last_x_poses.append(xform)
+                logger.info("Found charuco!")
+            else:
+                logger.warning("Could not see Charuco in image. Skipping...")
+        #average the poses last X poses
+        avg_pose = np.zeros((4,4))
+        for pose in last_x_poses:
+            avg_pose = avg_pose + pose
+        avg_pose /= len(last_x_poses)
+        camera_to_target = self.extrinsics.dot(avg_pose)
+        logger.info("Camera to target was\n {}".format(camera_to_target))
+       
+        #get the robot pose
+        base2ee = self.store.get(key='robot/tcp_pose')
+
+        logger.info('Robot pose was {}'.format(base2ee))
+        if not base2ee is None:
+            self.robot_xforms.append(base2ee)
+            self.cam_to_target_xforms.append(camera_to_target)
+            logger.info("Have {} calibration points".format(len(self.robot_xforms)))
+        else:
+            logger.warning("Robot pose was None, not storing")
+
+    def start_stop_camera(self):
+        if self.thread.isRunning():
+            logger.info("Stopping camera")
+            self.thread.keepRunning = False
+        else:
+            logger.info("Starting camera")
+            self.thread.keepRunning = True
+            self.thread.start()
+
+    def updateView(self, image, aligned_image, point_cloud, cam_num):
+        #keep the last 10 images
+        if len(self.last_images) < 10:
+            #append
+            self.last_images.append(image)
+        else:
+            #replace at the counter
+            self.last_images[self.last_img_cnt] = image
+            self.last_img_cnt = (self.last_img_cnt + 1) % 10
+
+        pix_img = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
+        pix = QtGui.QPixmap(pix_img)
+        self.camera_display.setPixmap(pix)
+        #tell the thread to continue
+        self.thread.can_emit = True
+
+    #2 numpy 4x4 xform matrix of the guess of the transform from the end effector to the camera
+def function_to_min(tuple_of_xforms):
+    ee2camera = tuple_of_xforms[0]
+    base2target = tuple_of_xforms[1]
+    sse = 0
+    for i in range(len(base2eepts)):
+        robot_xform = base2eepts[i]
+        camera2target = camera2targetpts[i]
+
+        guess = np.linalg.inv(base2target).dot(robot_xform).dot(ee2camera)
+        xyz_guess = np.zeros((4,1))
+        xyz_guess[0] = guess[0, 3]
+        xyz_guess[1] = guess[1, 3]
+        xyz_guess[2] = guess[2, 3]
+        xyz_guess[3] = guess[3, 3]
+
+        sse += (xyz_guess[0] - camera2target[0,3])**2 + (xyz_guess[1] - camera2target[1,3])**2 + (xyz_guess[2] - camera2target[2,3])**2
+    
+    return math.sqrt(sse/len(base2eepts))
+
+
 class VideoThread(QtCore.QThread):
     signal = QtCore.pyqtSignal(np.ndarray, np.ndarray, np.ndarray, int)
     def __init__(self, context, cam_num, update_rate=20):
@@ -466,7 +714,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
 
     #set up the window
-    rc = RealsenseCalibration()
+    rc = RobotCamCalibration()
     rc.show()
     sys.exit(app.exec_())
 
