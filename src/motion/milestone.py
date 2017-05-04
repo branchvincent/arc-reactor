@@ -5,10 +5,10 @@ dof = { 'db': 7,
         'robot': 6  }
 
 class Milestone:
-    def __init__(self, t=None, q=None, gripper=None, vacuum_status=False, map=None, type='db'):
+    def __init__(self, t=None, robot=None, gripper=None, vacuum_status=False, map=None, type='db'):
         # Set values
         self.t = t
-        self.robot = q
+        self.robot = robot
         self.gripper = gripper or [0,0,0] #TODO: update with real logic
         self.vacuum = vacuum_status
         self.type = type.lower()

@@ -57,7 +57,7 @@ class RobotController:
     def updateCurrentConfig(self):
         """Updates the database with the robot's current configuration."""
         q = self.robot.getCurrentConfig()
-        m = Milestone(q=q, type='robot')
+        m = Milestone(robot=q, type='robot')
         m.set_type('db')
         self.store.put('/robot/current_config', m.get_robot())
 
@@ -102,7 +102,7 @@ class Trajectory:
     def check(self):
         """Sends milestones to motion plan checker"""
         q0 = self.robot.getCurrentConfig()
-        # m0 = Milestone(q=q0,type='robot')
+        # m0 = Milestone(robot=q0,type='robot')
         # c = MotionPlanChecker([m0] + self.milestones)
         c = MotionPlanChecker(self.milestones, q0=q0)
         failures = c.check()
