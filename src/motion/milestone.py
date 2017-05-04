@@ -1,19 +1,20 @@
+from klampt import *
+from klampt.vis.glrobotprogram import *
+
 class Milestone():
-    def __init__(self, t, q, vacuum_status, simulation_status):
+    def __init__(self, t=None, q=None, vacuum_status=None):
         self.t = t
         self.robot = q
         self.gripper = [0,0,0]
-        self.vacuum = [vacuum_status]
-        self.simulation = simulation_status
+        self.vacuum = vacuum_status
 
     def get_milestone(self):
         return (self.t, {
-                  'self.robot': self.robot,
+                  'robot': self.robot,
                   'gripper': self.gripper,
-                  'vacuum': [self.vacuum],
-                  'simulation': self.simulation
+                  'vacuum': self.vacuum,
                 })
-
+    
     #def set_milestone(self, milestone):
     #    self.milestone = milestone
 
@@ -41,30 +42,23 @@ class Milestone():
     def set_vacuum(self, vacuum):
         self.vacuum = vacuum
 
-    def get_simulation(self):
-        return self.simulation
-
-    def set_simulation(self, simulation):
-        self.simulation = simulation
-
-
     #Fixes an array of milestones
-    def fix_milestones(motion_milestones):
+    def fix_milestones(self, motion_milestones):
         max_change=5.0/180.0*3.14159
         max_speed=60/180.0*3.14159
 
-        old_config=motion_milestones[0][1]['self.robot']
+        old_config=motion_milestones[0].get_robot()
         i=1
         while i<len(motion_milestones):
-            new_config=motion_milestones[i][1]['self.robot']
+            new_config=motion_milestones[i].get_robot()
             d_config=max(max(vectorops.sub(new_config,old_config)),-min(vectorops.sub(new_config,old_config)))
-            speed_config=d_config/motion_milestones[i][0]
+            speed_config=d_config/motion_milestones[i].get_t()
             if d_config>max_change:
-                new_milestone=Milestone(motion_milestones[i][0],vectorops.div(vectorops.add(motion_milestones[i-1][1]['self.robot'],motion_milestones[i][1]['self.robot']),2),motion_milestones[i-1][1]['vacuum'][0],motion_milestones[i-1][1]['simulation']).get_milestone()
+                new_milestone=Milestone(motion_milestones[i].get_t(),vectorops.div(vectorops.add(motion_milestones[i-1].get_robot(),motion_milestones[i].get_robot()),2),motion_milestones[i-1].get_vacuum())
                 motion_milestones.insert(i,new_milestone)
                 continue
             elif speed_config>max_speed:
-                new_milestone=Milestone(d_config/(milestone_check_max_speed-0.1),motion_milestones[i][1]['self.robot'],motion_milestones[i][1]['vacuum'][0],motion_milestones[i][1]['simulation']).get_milestone()
+                new_milestone=Milestone(d_config/(max_speed-0.1),motion_milestones[i].get_robot(),motion_milestones[i].get_vacuum())
                 motion_milestones[i]=new_milestone
                 i+=1
                 old_config=new_config
@@ -72,3 +66,4 @@ class Milestone():
                 i+=1
                 old_config=new_config
         return motion_milestones
+

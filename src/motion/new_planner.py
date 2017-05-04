@@ -48,25 +48,21 @@ class PickPlanner():
     def clear_milestones(self):
         self.motion_milestones=[]
     
-    def get_current_T(self):
-        
-        return current_T
-
     def pick_up(self, item, target_box, target_index):
         """
         This function will return a motion plan that will pick up the target item from the shelf.
         Inputs:
             - world model: including klampt models for the self.robot, the shelf and the target container
-            - item: position/orientation of the target item, ideal surfaces and approach directions for vacuum or preferred grasp configurations for known item
+            - item: position/orientation of the target item
                 -- position: item position
-                -- vacuum_offset: hacked parameter for each item, added to the high of the item to find the grasp position for the vacuum
+                -- vacuum_offset: hacked parameter for each item, added to the high of the item
         
         Outputs:
             a list of Milestones
             check_points for the motion plan:
                 -- a list of transform matrixs for the end-effector at key points for the plan
         """
-
+        #setup initial path to above item (in shelf)
         self.current_config=self.robot.getConfig()
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
         curr_orientation, p = self.robot.link(self.ee_link).getTransform()
@@ -77,23 +73,18 @@ class PickPlanner():
         
         test_cspace=TestCSpace(Globals(self.world))
 
-        #get end point
-        self.find_placement(target_box, target_index) #drop_position?
-
         self.check_points.append(current_T)
         self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,item_position,self.robot,0)
 
         if self.motion_milestones is None:
             raise RuntimeError("First motion milestone is non-existent")
 
-        #TODO previous curr_position is overwritten here. see if needed for things prior to here
+        #move the self.robot from current position to a start position that is above the target item
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
         current_T=[curr_orientation,curr_position]
-
-        self.check_points.append(current_T) #do we need both???
+        self.check_points.append(current_T)
         
-        #move the self.robot from current position to a start position that is above the target item
         start_position=vectorops.add(item_position,[0,0,0.4])
         start_position[2]=min(0.4,start_position[2])
         end_T=[[1,0,0,0,-1,0,0,0,-1],start_position]
@@ -101,11 +92,12 @@ class PickPlanner():
         l=vectorops.distance(current_T[1],end_T[1])
 
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,current_T,end_T,0,0,1)
+
         if not self.motion_milestones:
             raise RuntimeError("Can't find a feasible path to start position")
 
-        #new motion plan, clear milestones from previous instance ?? split here maybe
-    #TODO    self.clear_milestones()
+        #TODO insert break here for separating states when TCP camera works
+
         #start the vacuum
         self.motion_milestones.append(Milestone(1,self.robot.getConfig(),1))
 
@@ -113,10 +105,10 @@ class PickPlanner():
         start_T=copy.deepcopy(end_T) 
         end_T[1]=vectorops.add(item_position,item_vacuum_offset)
         self.check_points.append(end_T)
-
         l=vectorops.distance(start_T[1],end_T[1])
 
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,0,1)
+
         if not self.motion_milestones:
             raise RuntimeError("Can't find a feasible path to lower the vacuum")
 
@@ -125,35 +117,74 @@ class PickPlanner():
         end_T[1][2]+=0.4
         l=vectorops.distance(start_T[1],end_T[1])
         self.check_points.append(end_T)
-        self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
-        if not self.motion_milestones:
-            raise RuntimeError("Can't find a feasible path to lower the vacuum")    
 
-        #inspection_pose = self.store.get('/robot/inspect_pose');
-        #inspect_postition = inspection_pose[:3,3]
-        #TODO get from DB
-        drop_position = [-0.55, 0.7, 0.8]
+        self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
+
+        if not self.motion_milestones:
+            raise RuntimeError("Can't find a feasible path to pick up item")    
+
+        #find and move to the inspection station
+        inspection_pose = self.store.get('/robot/inspect_pose');
+        inspect_position = inspection_pose[:3,3]
 
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
-        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
+        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,inspect_position,self.robot,1)
 
-        #move the item to the inspect position (TODO have arbitray end pos specified?)
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
         current_T=[curr_orientation,curr_position]
 
         start_T=copy.deepcopy(current_T)
         end_T=copy.deepcopy(current_T)
-        end_T[1][0]=drop_position[0]
-        end_T[1][1]=drop_position[1]
+        end_T[1][0]=inspect_position[0]
+        end_T[1][1]=inspect_position[1]
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
+
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
+
         if not self.motion_milestones:
-            raise RuntimeError("Can't find a feasible path to lower the vacuum")
+            raise RuntimeError("Can't find a feasible path to move item to next location")
+
+        #TODO code to return incomplete array for debugging
+        print "Returning motion plan to inspection station"
         return self.motion_milestones
 
-    def drop_item(self):
+    def drop_item(self, item, target_box, target_index):
+        #initial setup
+        self.current_config=self.robot.getConfig()
+        curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
+        curr_orientation, p = self.robot.link(self.ee_link).getTransform()
+        current_T=[curr_orientation,curr_position]
+        test_cspace=TestCSpace(Globals(self.world))
+        self.check_points.append(current_T)
+
+        #get end point
+        drop_position = self.find_placement(target_box, target_index)
+        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
+
+        curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
+        curr_orientation,p=self.robot.link(self.ee_link).getTransform()
+        current_T=[curr_orientation,curr_position]
+        self.check_points.append(current_T)
+        
+        item_vacuum_offset=item['vacuum_offset']
+        drop_offset=item['drop offset']
+
+        start_position=vectorops.add(drop_position,[0,0,0.4])
+        start_position[2]=min(0.4,start_position[2])
+        end_T=[[1,0,0,0,-1,0,0,0,-1],start_position]
+        self.check_points.append(end_T)
+        l=vectorops.distance(current_T[1],end_T[1])
+
+        self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,current_T,end_T,0,0,1)
+
+        if not self.motion_milestones:
+            raise RuntimeError("Can't find a feasible path to start position")
+
+        #move to box location
+
+
         #lower the item
         start_T=copy.deepcopy(end_T)
         end_T[1]=vectorops.add(drop_position,drop_offset)
@@ -161,64 +192,69 @@ class PickPlanner():
         l=vectorops.distance(start_T[1],end_T[1])
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
         if not self.motion_milestones:
-            raise RuntimeError("Can't find a feasible path to lower the vacuum")
+            raise RuntimeError("Can't find a feasible path to lower the vacuum/item")
 
         #turn off the vacuum
-        self.motion_milestones.append(Milestone(1,self.self.robot.getConfig(),0))
+        self.motion_milestones.append(Milestone(1,self.robot.getConfig(),0))
 
-        #raise the self.robot
+        #raise the robot
         start_T=copy.deepcopy(end_T)
         end_T[1][2]=0.45
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,0,0,0)
         if not self.motion_milestones:
-            raise RuntimeError("Can't find a feasible path to raise the self.robot")
+            raise RuntimeError("Can't find a feasible path to raise the robot")
 
-        self.motion_milestones = Milestone.fix_milestones(self.motion_milestones)
+        self.motion_milestones = Milestone().fix_milestones(self.motion_milestones)
         return self.motion_milestones
 
     def find_placement(self, target_box, target_index):
+        print "target index is ", target_index
         #figure out spot to put item. current random?
         box_min,box_max=target_box["box_limit"]
-        origin_T=self.world.rigidObject(target_index).getTransform()
+        box_T = self.world.rigidObject('{}_box'.format(target_box["name"])).getTransform()
+        item_T = self.world.rigidObject(target_index).getTransform()
         goal_T=[[],[]]
-        goal_T[0]=origin_T[0]
+        #goal_T[0]=item_T[0]
         flag=1
         n=0
-        while (flag and n<10):
-            x=random.uniform(box_min[0],box_max[0])
-            y=random.uniform(box_min[1],box_max[1])
-            z=random.uniform(box_min[2],box_max[2])
-            goal_T[1]=[x,y,z]
-            # print goal_T[1]
-            # goal_T[1]=[1.10298067096586, 0.3038671358694375, 0.791611841275841]
+        while (flag and n<20):
+            x=random.uniform(box_min[0]+0.1,box_max[0]-0.1)
+            y=random.uniform(box_min[1]+0.1,box_max[1]-0.1)
+            z=random.uniform(box_min[2]+0.1,box_max[2]-0.1)
+            goal_T[1] = se3.apply(box_T, [x, y, z])
+            goal_T[0] = item_T[0]
+            print "goal T ", goal_T[1]
+            print "box ", box_T[1]
             if self.check_placement(self.world,goal_T,target_index):
                 flag=0
                 drop_position=goal_T[1]
                 box_bottom_high=goal_T[1][2]
             n+=1
         if flag:
-            print "can't find a feasible placement"
-            self.world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
+            raise RuntimeError("here is the error")
+            print "can't find a feasible placement in the box for the item"
+            self.world.rigidObject(target_index).setTransform(item_T[0],item_T[1])
             return False
-        n=0
-        check_flag=1
-        low_bound=0
-        high_bound=z
-        while n<5:
-            new_z=0.5*(low_bound+high_bound)
-            goal_T[1]=[x,y,new_z]
-            if self.check_placement(self.world,goal_T,target_index):
-                drop_position=goal_T[1]
-                box_bottom_high=goal_T[1][2]
-                high_bound=new_z
+       # n=0
+       # check_flag=1
+       # low_bound=0
+       # high_bound=z
+       # while n<5:
+       #     new_z=0.5*(low_bound+high_bound)
+       #     goal_T[1]=[x,y,new_z]
+       #     if self.check_placement(self.world,goal_T,target_index):
+       #         drop_position=goal_T[1]
+       #         box_bottom_high=goal_T[1][2]
+       #         high_bound=new_z
                 # print 'lower!!'
-            else:
-                low_bound=0.5*(low_bound+high_bound)
-            n+=1
+       #     else:
+       #         low_bound=0.5*(low_bound+high_bound)
+       #     n+=1
         print 'find a placement:',goal_T[1]
-        self.world.rigidObject(target_index).setTransform(origin_T[0],origin_T[1])
+        self.world.rigidObject(target_index).setTransform(item_T[0],item_T[1])
+        return drop_position
 
     def joint_space_rotate(self,motion_milestones,current_p,target_p,robot,vacuum_status):
         theta1=math.atan2(current_p[1],current_p[0])
@@ -269,10 +305,12 @@ class PickPlanner():
         return motion_milestones
 
     def check_placement(self,world,T,target_index):
+#only for item placement checking
         world.rigidObject(target_index).setTransform(T[0],T[1])
         glist_target=[]
         glist_target.append(world.rigidObject(target_index).geometry())
         glist_terrain=[]
+        badStuff = []
         glist_object=[]
         for i in xrange(world.numTerrains()):
             t = world.terrain(i)
@@ -282,15 +320,18 @@ class PickPlanner():
         for i in xrange(world.numRigidObjects()):
             o = world.rigidObject(i)
             g = o.geometry()
-            if g != None and g.type()!="" and i!=target_index:
+            if g != None and g.type()!="" and o.getName()!=target_index:
                 glist_object.append(g)
-        if any(collide.group_collision_iter(glist_target,glist_object)):
+                badStuff.append(world.rigidObject(i).getName())
+        listMe = list(collide.group_collision_iter(glist_target,glist_object))
+        if any(listMe):
         # if any(collide.self_collision_iter(glist_target+glist_object)):
-            # print 'objects colliding!'
+            print 'bad object: ', badStuff[listMe[0][1]]
+            print 'objects colliding!'
             return False
         if any(collide.group_collision_iter(glist_target,glist_terrain)):
         # if any(collide.self_collision_iter(glist_target+glist_terrain)):
-            # print 'terrain colliding!'
+            print 'terrain colliding!'
             return False
         return True
 

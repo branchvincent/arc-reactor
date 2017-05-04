@@ -76,17 +76,18 @@ class PlanGetItem(State):
                 }
                 #target_box["box_limit"]=world.rigidObject('{}_box'.format(box)).geometry().getBB()
                 target_box["box_limit"] = self.store.get('/box/'+box+'/bounds')
-                print "bb given is ", target_box["box_limit"]
 
                 logger.info('requesting pick motion plan')
                 self.arguments = {'target_item': target_item, 'target_box': target_box}
                 logger.debug('arguments\n{}'.format(self.arguments))
 
                 #assume already near item (?)
-                motion_plan = planner.pick_up(target_item, target_box, 'item_{}'.format(item))
+                motion_plan = planner.drop_item(target_item, target_box, 'item_{}'.format(item))
 
             elif alg=='stow':
                 # XXX: this will actually need to be a shelf location eventually...
+
+                planner = PickPlanner(self.world, self.store) 
 
                 shelf_pose = self.store.get(['shelf', 'pose'])
                 from master.world import xyz
@@ -109,7 +110,7 @@ class PlanGetItem(State):
                 self.arguments = {'target_item': target_item, 'target_box': target_box}
                 logger.debug('arguments\n{}'.format(self.arguments))
 
-                motion_plan = planner.stow(world, target_item, target_box, "item_"+item)
+                motion_plan = planner.stow(target_item, target_box, "item_"+item)
 
             if not motion_plan:
                 raise RuntimeError('motion plan is empty')
