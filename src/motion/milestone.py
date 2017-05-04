@@ -1,8 +1,7 @@
 import math
 
 dof = { 'db': 7,
-        'robot': 6
-}
+        'robot': 6  }
 
 class Milestone:
     def __init__(self, t=None, q=None, gripper=None, vacuum_status=False, map=None, type='db'):
@@ -53,14 +52,12 @@ class Milestone:
             # To degrees, ignoring extraneous q0
             self.robot = [math.degrees(qi) for qi in self.robot][1:]
             # Flip joints
-            for q in self.robot:
-                q[2] *= -1
-                q[4] *= -1
+            self.robot[2] *= -1
+            self.robot[4] *= -1
         elif self.type =='robot' and newType == 'db':
             # Flip joints
-            for q in self.robot:
-                q[2] *= -1
-                q[4] *= -1
+            self.robot[2] *= -1
+            self.robot[4] *= -1
             # To radians, adding extraneous q0
             qs = [0] + [math.radians(qi) for qi in self.robot]
         elif self.type == newType:
@@ -72,7 +69,7 @@ class Milestone:
 
     def scale_t(self, scale):
         # Check scale
-        if not (0 < speed <= 1):
+        if not (0 < scale <= 1):
             raise RuntimeError('Speed scale "{}" is not in (0,1]'.format(scale))
         # Apply scale
         self.t /= float(scale)

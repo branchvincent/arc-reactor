@@ -1,31 +1,19 @@
 """Controller for simulating sending trajectories to the TX90"""
 
-import logging; logger = logging.getLogger(__name__)
-from time import sleep, time
-from copy import deepcopy
-from math import pi, degrees, radians
-from math import degrees, radians, isnan, isinf, ceil
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.vacuum import Vacuum
-import numpy as np
-
 from master.world import build_world, klampt2numpy
+from motion.milestone import Milestone
+from motion.checker import MotionPlanChecker
+from hardware.control.robotcontroller import Assert
+
 from klampt.model.collide import WorldCollider
 from klampt.plan.robotcspace import RobotCSpace
 
-# List of robot IP addresses
-# dof = 6
-bufferSize = 100
-robots = {  'left': '10.10.1.202',
-            'right': '10.10.1.203',
-            'local': 'localhost'    }
-
-def Assert(condition, message):
-    """Raises and logs an exception if the condition is false"""
-    if not condition:
-        logger.error(message)
-        raise Exception(message)
+import numpy as np
+from time import sleep, time
+import logging; logger = logging.getLogger(__name__)
 
 
 class SimulatedRobotController:

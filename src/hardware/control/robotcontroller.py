@@ -12,15 +12,10 @@ from klampt.plan.robotcspace import RobotCSpace
 from klampt.math import vectorops
 
 import numpy as np
-from time import time
-from time import sleep
-from copy import deepcopy
-from math import degrees, radians, isnan, isinf, ceil
-
+from time import time, sleep
 import logging; logger = logging.getLogger(__name__)
 
 # List of robot IP addresses
-# dof = 6
 bufferSize = 100
 robots = {  'left':  '10.10.1.202',
             'right': '10.10.1.203',
@@ -159,6 +154,7 @@ class Trajectory:
         else:
             self.reset()
             self.complete = True
+
 
 class Robot:
     """A robot defined by its trajectory client"""

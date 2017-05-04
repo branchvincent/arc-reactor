@@ -109,31 +109,3 @@ class TimeScale:
             milestones.append(self.t0 + t, q)
         self.t0 += tf
         return milestones
-
-
-# class Util:
-#     def createMilestoneMap(trajectory, type='db', to='robot'):
-#         # Check input args
-#         if type not in ['robot', 'db']:
-#             raise Exception('Unrecognized option: "{}"'.format(type))
-#         if to not in ['robot', 'db']:
-#             raise Exception('Unrecognized option: "{}"'.format(to))
-#
-#         # # Convert
-#         # if type == 'db' and to == 'robot':
-#         #     qs = [[math.degrees(qi) for qi in q] for dt,q in trajectory]
-#         #     qs = [q[1:] for q in qs]
-#         #     for q in qs:
-#         #         q[2] *= -1
-#         #         q[4] *= -1
-#         # elif type =='robot' and to == 'db':
-#         #     qs = [[math.radians(qi) for qi in q] for dt,q in trajectory]
-#         #     qs = [[0] + q for dt,q in trajectory]
-#         #     for q in qs:
-#         #         q[3] *= -1
-#         #         q[5] *= -1
-#         # elif type == to:
-#         #     pass
-#
-#         # Create map
-#         return [[dt,{'robot': q}] for dt,q in trajectory)]
