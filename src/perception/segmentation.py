@@ -58,10 +58,7 @@ class GraphSegmentationParams():
         
         self.max_elements = 100000  #maximum number of elements a single object can have
 
-        self.topLeft = (78, 423)
-        self.topRight = (666, 423)
-        self.botLeft = (41, 337)
-        self.botRight = (666, 92)
+        self.mask = None            #mask used to block out unwanted points
 
 def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     '''
@@ -101,13 +98,10 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     color_depth_image[:,:,4] = depth.copy()
     color_depth_image[:,:,5] = depth.copy()
 
-
-    #create rectangle to remove any unwatned points
-    mask = maskRect(params.topLeft, params.topRight, params.botRight, np.zeros((imageH,imageW)))
-
     #remove any points outside the desired rectangle
-    for i in range(6):
-        color_depth_image[:,:,i] = np.where(mask == 1, color_depth_image[:,:,i], 0)
+    if not params.mask is None:
+        for i in range(6):
+            color_depth_image[:,:,i] = np.where(params.mask == 1, color_depth_image[:,:,i], 0)
 
     color_depth_image[:,:,0:3] = cv2.GaussianBlur(color_depth_image[:,:,0:3],(0,0), params.sigma, params.sigma)
 
@@ -180,11 +174,12 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
         if cnt/cntnonzero > 0.5:
             continue
 
-        segments.append(indices.astype('int32'))
+        
         #make image for deep learning
-        if (img_crop.shape[0] > 256 or img_crop.shape[1] > 256) and (img_crop.shape[0] < 512 and img_crop.shape[1] < 512):
+        if (img_crop.shape[0] > 224 or img_crop.shape[1] > 224) and (img_crop.shape[0] < 512 and img_crop.shape[1] < 512):
             #large image, put it in 512, 512
             tinyColorImgs.append(img_crop.astype('uint8'))
+            segments.append(indices.astype('int32'))
             bg = np.zeros((512,512, 3)).astype('uint8')
             startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
             startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
@@ -193,12 +188,15 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
             if startY < 0:
                 startY = 0
             bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
-            imagesForDL.append(bg)
+            #shrink to 224 x 224
+            im = cv2.resize(bg,(224, 224))
+            imagesForDL.append(im)
             
-        elif img_crop.shape[0] <= 256 and img_crop.shape[1] <= 256:
-            #small image put it in 256, 256
+        elif img_crop.shape[0] <= 224 and img_crop.shape[1] <= 224:
+            #small image put it in 224, 224
             tinyColorImgs.append(img_crop.astype('uint8'))
-            bg = np.zeros((256,256, 3)).astype('uint8')
+            segments.append(indices.astype('int32'))
+            bg = np.zeros((224,224, 3)).astype('uint8')
             startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
             startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
             if startX < 0:
@@ -226,8 +224,6 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     #     box = np.int0(box)
     #     newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
     #     cv2.drawContours(fcolor_rects, [newbox], 0 , (0,255,255), 2)
-
-
     return_values['boxes_image'] = fcolor_rects
     return return_values
 
