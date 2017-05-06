@@ -387,23 +387,35 @@ class RobotCamCalibration(QtWidgets.QWidget):
         self.horzMid.addItem(self.gridCamera)
         self.horzMid.addStretch(1)
         self.offset_guesses = []
+        names = ['Rx', 'Ry', 'Rz', 'X','Y','Z']
         for row in range(3):
             self.offset_guesses.append([])
-            for col in range(2):
-                tbox = QtWidgets.QLineEdit(self)
-                self.offset_guesses[row].append(tbox)
-                self.gridCamera.addWidget(self.offset_guesses[row][col], row, col)
+            for col in range(8):
+                if col % 2 == 0:
+                    #label
+                    l = QtWidgets.QLabel(self)
+                    if col in [0,4]:
+                        l.setText(names[row])
+                    elif col in [2,6]:
+                        l.setText(names[row+3])
+                    self.gridCamera.addWidget(l,row,col)
+                    l.show()
+                else:
+                    #lineedit
+                    tbox = QtWidgets.QLineEdit(self)
+                    self.offset_guesses[row].append(tbox)
+                    self.gridCamera.addWidget(self.offset_guesses[row][col//2], row, col)
 
         for row in range(3):
-            for col in range(2):
+            for col in range(4):
                 self.offset_guesses[row][col].setText('0')
 
 
         label = QtWidgets.QLabel("Base to target guess",self)
-        self.gridCamera.addWidget(label, 5, 0)
+        self.gridCamera.addWidget(label, 5, 1)
         label.show()
         label = QtWidgets.QLabel("EE to camera guess",self)
-        self.gridCamera.addWidget(label, 5, 1)
+        self.gridCamera.addWidget(label, 5, 5)
         label.show()
         
         #add a push button at the top
@@ -479,16 +491,28 @@ class RobotCamCalibration(QtWidgets.QWidget):
         ee2camera_guess = np.eye(4)
         base2target_guess = np.eye(4)
 
-        ee2camera_guess[0,3] = float(self.offset_guesses[0][0].text())
-        ee2camera_guess[1,3] = float(self.offset_guesses[1][0].text())
-        ee2camera_guess[2,3] = float(self.offset_guesses[2][0].text())
+        x = float(self.offset_guesses[0][1].text())
+        y = float(self.offset_guesses[1][1].text())
+        z = float(self.offset_guesses[2][1].text())
+        #yaw is z pitch is y roll is x
+        roll = float(self.offset_guesses[0][0].text())
+        pitch = float(self.offset_guesses[1][0].text())
+        yaw = float(self.offset_guesses[2][0].text())
 
-        base2target_guess[0,3] = float(self.offset_guesses[0][1].text())
-        base2target_guess[1,3] = float(self.offset_guesses[1][1].text())
-        base2target_guess[2,3] = float(self.offset_guesses[2][1].text())
+        ee2camera_guess = transformMat(x,y,z, yaw, pitch, roll)
 
-        logger.info("EE to camera guess {}, {}, {}".format(ee2camera_guess[0,3],ee2camera_guess[1,3],ee2camera_guess[2,3]))
-        logger.info("Base to target guess {}, {}, {}".format(base2target_guess[0,3],base2target_guess[1,3],base2target_guess[2,3]))
+
+        x = float(self.offset_guesses[0][3].text())
+        y = float(self.offset_guesses[1][3].text())
+        z = float(self.offset_guesses[2][3].text())
+        #yaw is z pitch is y roll is x
+        roll = float(self.offset_guesses[0][2].text())
+        pitch = float(self.offset_guesses[1][2].text())
+        yaw = float(self.offset_guesses[2][2].text())
+        base2target_guess = transformMat(x,y,z, yaw, pitch, roll)
+
+        logger.info("EE to camera guess {}".format(ee2camera_guess))
+        logger.info("Base to target guess {}".format(base2target_guess))
 
         
         guess = (ee2camera_guess, base2target_guess)
@@ -588,6 +612,25 @@ def function_to_min(tuple_of_xforms):
     
     return math.sqrt(sse/len(base2eepts))
 
+def transformMat(x, y, z, yaw, pitch, roll):
+	newpt = np.identity(4)
+	yaw = yaw * math.pi / 180
+	pitch = pitch * math.pi / 180
+	roll = roll * math.pi / 180
+	newpt[0, 0] = math.cos(yaw)*math.cos(pitch)
+	newpt[0, 1] = math.cos(yaw)*math.sin(pitch)*math.sin(roll) - math.sin(yaw)*math.cos(roll)
+	newpt[0, 2] = math.cos(yaw)*math.sin(pitch)*math.cos(roll) + math.sin(yaw)*math.sin(roll)
+	newpt[1, 0] = math.sin(yaw)*math.cos(pitch)
+	newpt[1, 1] = math.sin(yaw)*math.sin(pitch)*math.sin(roll) + math.cos(yaw)*math.cos(roll)
+	newpt[1, 2] = math.sin(yaw)*math.sin(pitch)*math.cos(roll) - math.cos(yaw)*math.sin(roll)
+	newpt[2, 0] = -math.sin(pitch)
+	newpt[2, 1] = math.cos(pitch)*math.sin(roll)
+	newpt[2, 2] = math.cos(pitch)*math.cos(roll)
+	newpt[3, 3] = 1
+	newpt[0, 3] = x
+	newpt[1, 3] = y
+	newpt[2, 3] = z
+	return newpt
 
 class VideoThread(QtCore.QThread):
     signal = QtCore.pyqtSignal(np.ndarray, np.ndarray, np.ndarray, int)
@@ -711,12 +754,26 @@ class VideoThread(QtCore.QThread):
         cam.stop()
 
 def main():
-    app = QtWidgets.QApplication(sys.argv)
 
-    #set up the window
-    rc = RobotCamCalibration()
-    rc.show()
-    sys.exit(app.exec_())
+    if len(sys.argv) < 2:
+        print("Usage 'calibration.py [endeffector/regular]'")
+        return
+
+    if sys.argv[1] == 'endeffector':
+        #calibrate the endeffector cam
+        app = QtWidgets.QApplication(sys.argv)
+        #set up the window
+        rc = RobotCamCalibration()
+        rc.show()
+        sys.exit(app.exec_())
+    elif sys.argv[1] == 'regular':
+        app = QtWidgets.QApplication(sys.argv)
+        #set up the window
+        rc = RealsenseCalibration()
+        rc.show()
+        sys.exit(app.exec_())
+    else:
+        print("unrecognized option {}".format(sys.argv[1]))
 
 
 if __name__ == '__main__':
