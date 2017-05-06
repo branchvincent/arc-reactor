@@ -94,17 +94,30 @@ class ObjectRecognizer:
         im = im[:3]
         # Convert to BGR
         im = im[::-1, :, :]
-        im = im - IMAGE_MEAN
+        # im = im - IMAGE_MEAN
         return rawim, floatX(im[np.newaxis])
 
-    def guessObject(self, image):
+    def guessObject(self, images):
         '''
-        Given an image as np array returns a list of classes and a confidence value, and the best prediction
+        Given RGB images as np array (224x224xRGBxnum) returns a list of classes and a confidence value, and the best prediction
+        For each image
         '''
-        # prep images
-        _,prepped_image = self.prep_image(image)
+        #check input
+        if images.shape[0] != 224 or images.shape[1] !=224 or images.shape[2] !=3:
+            logger.warning("Invalid numpy array passed to guessObject. Expecting 224x224x3xN, got {}".format(images.shape))
+        
+        #make the images BGR
+        images = images[:, :, ::-1]
+
+        #swap the axes so the input is Nx3x224x224
+        im = np.swapaxes(images, 0, 3)
+        im = np.swapaxes(im, 1, 2)
+        im = np.swapaxes(im, 2, 3)
+
+        #convert to tensor thing
+        prepped_image = floatX(im)
+        #guess
         guess = self.pred_fn(prepped_image)
-        #reshape to be a vector, is a 1xN object now
-        guess = guess[0,:]
+
         #guess is vector of "probabilities" guess argmax is the index of the category
-        return guess,guess.argmax(-1)
+        return guess
