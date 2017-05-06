@@ -63,8 +63,6 @@ class Perception:
             #load in the world location for all cameras
             self.load_camera_xforms()
 
-        #query the database to find which objects each camera can see
-        self.update_items_cameras_see()
 
         #list of object names of the items. 
         names = []
@@ -75,6 +73,17 @@ class Perception:
             names.append(key)
         names.sort()
         self.object_names = names
+
+        #dicitonary that provides a list of items, and their index for each location
+        self.items_in_location = {}
+        self.items_in_location['binA'] = []
+        self.items_in_location['binB'] = []
+        self.items_in_location['binC'] = []
+        self.items_in_location['amnesty_tote'] = []
+        self.items_in_location['stow_tote'] = []
+
+        #query the database to find which objects each camera can see
+        self.update_items_cameras_see()
 
     def acquire_images(self, list_of_serial_nums=None):
         '''
@@ -139,6 +148,7 @@ class Perception:
 
             seg_params = segmentation.GraphSegmentationParams()
             #crop the image for desired bin 
+            mask = None
             if not list_of_bins is None:
                 if i < len(list_of_bins):
                     #top directory is either shelf, box, or tote
@@ -158,87 +168,68 @@ class Perception:
                         logger.warn("Bad location passed to segmentation {}".format(list_of_bins[i]))
                         topdir = "noooooooooothing"
                     bin_bounds = self.store.get(topdir + refname + '/bounds')
-                    pixel_bounds = []
+                    if 'bin' in list_of_bins[i]:
+                        #its a bin doesnt have a pose. Use the shelf's
+                        ref_world_xform = self.store.get("/shelf/pose")
+                    else:
+                        ref_world_xform = self.store.get(topdir + refname + "/pose")
+
                     if not bin_bounds is None:
+                        depth_img = self.camera_variables[sn].depth_image
+                        intrins = self.camera_variables[sn].depth_intrinsics
+                        scale = self.camera_variables[sn].depth_scale
+                        #get the 3d point by deprojecting pixel to get camera local
+                        depth_in_3d_cam_local = np.zeros((480,640,3))
+                        #TODO make this not take 1000 years
+                        for y in range(depth_in_3d_cam_local.shape[0]):
+                            for x in range(depth_in_3d_cam_local.shape[1]):
+                                #create a float2 of this pixel
+                                loc = rs.float2()
+                                loc.x = x
+                                loc.y = y
+                                float3res = intrins.deproject(loc,float(depth_img[y,x]*scale))
+                                depth_in_3d_cam_local[y, x, 0] = float3res.x
+                                depth_in_3d_cam_local[y, x, 1] = float3res.y
+                                depth_in_3d_cam_local[y, x, 2] = float3res.z
                         #get camera world location
                         cam_pose_world = self.camera_variables[sn].world_xform
-
-                        #get bin relative to shelf local location (two points that are at opposite corners of the bounding box)
-                        bin_bounds_world = []
-
-                        #get all 8 points
-                        bin_bounds = sorted(bin_bounds, key=lambda k: k[0])
-                        smallestX = bin_bounds[0][0]
-                        largestX = bin_bounds[1][0]
-                        bin_bounds = sorted(bin_bounds, key=lambda k: k[1])
-                        smallestY = bin_bounds[0][1]
-                        largestY = bin_bounds[1][1]
-                        bin_bounds = sorted(bin_bounds, key=lambda k: k[2])
-                        smallestZ = bin_bounds[0][2]
-                        largestZ = bin_bounds[1][2]
-
-                        bin_bounds_world.append([smallestX,smallestY,smallestZ])
-                        bin_bounds_world.append([smallestX,smallestY,largestZ])
-                        bin_bounds_world.append([smallestX,largestY,smallestZ])
-                        bin_bounds_world.append([smallestX,largestY,largestZ])
-
-                        bin_bounds_world.append([largestX,smallestY,smallestZ])
-                        bin_bounds_world.append([largestX,smallestY,largestZ])
-                        bin_bounds_world.append([largestX,largestY,smallestZ])
-                        bin_bounds_world.append([largestX,largestY,largestZ])
                         
-                        if 'bin' in list_of_bins[i]:
-                            #its a bin doesnt have a pose. Use the shelf's
-                            origin_2_ref = self.store.get("/shelf/pose")
-                        else:
-                            origin_2_ref = self.store.get(topdir + refname + "/pose")
-                        #convert all these points to world coordinates
-                        for i in range(len(bin_bounds_world)):
-                            pt = np.array(bin_bounds_world[i] + [1])
-                            bin_bounds_world[i] = origin_2_ref.dot(pt)
+                        #get the transform from world to reflocal
+                        ref_world_xform = np.linalg.inv(ref_world_xform)
 
-                        #get the bin in camera local coordinates
-                        bin_in_camera_local = []
-                        for point in bin_bounds_world:
-                            bin_in_camera_local.append(np.linalg.inv(cam_pose_world).dot(point.transpose()))
+                        #compose these transforms
+                        cam_local_to_ref_local = np.array(ref_world_xform.dot(cam_pose_world))
 
-                        #get camera intrinsics to project 3d point on to color image
-                        cam_intrins = self.camera_variables[sn].color_intrinsics
-
-                        for point in bin_in_camera_local:
-                            #project 3d point on to 2d point
-                            pt = rs.float3()
-                            pt.x = point.astype('float32').tolist()[0][0]
-                            pt.y = point.astype('float32').tolist()[1][0]
-                            pt.z = point.astype('float32').tolist()[2][0]
-                            pixel_coord = cam_intrins.project(pt)
-                            pixel_bounds.append([pixel_coord.x, pixel_coord.y])
+                        # apply transformation to get to ref local coordinates
+                        depth_in_ref_local = (depth_in_3d_cam_local.reshape((-1, 3)).dot(cam_local_to_ref_local[:3, :3].T) + cam_local_to_ref_local[:3, 3].T).reshape(depth_in_3d_cam_local.shape)
+                        
                     
-                    if len(pixel_bounds) > 0:
-                        #find smallest x and smallest y
-                        pixel_bounds = sorted(pixel_bounds, key=lambda k: k[0])
-                        smallestX = pixel_bounds[0][0]
-                        largestX = pixel_bounds[7][0]
-                        pixel_bounds = sorted(pixel_bounds, key=lambda k: k[1])
-                        smallestY = pixel_bounds[0][1]
-                        largestY = pixel_bounds[7][1]
+                        #get min/max x, y, z bounds
+                        minx = min(bin_bounds[0][0],bin_bounds[1][0])
+                        miny = min(bin_bounds[0][1],bin_bounds[1][1])
+                        minz = min(bin_bounds[0][2],bin_bounds[1][2])
 
-                        seg_params.topLeft = (smallestX, largestY)
-                        seg_params.topRight = (largestX, largestY)
-                        seg_params.botRight = (largestX, smallestY)
+                        maxx = max(bin_bounds[0][0],bin_bounds[1][0])
+                        maxy = max(bin_bounds[0][1],bin_bounds[1][1])
+                        maxz = max(bin_bounds[0][2],bin_bounds[1][2])
+
+                        #check to see if point is within bounds by masking
+                        maskx = np.logical_and(depth_in_ref_local[:,:,0] > minx, depth_in_ref_local[:,:,0] < maxx)
+                        masky = np.logical_and(depth_in_ref_local[:,:,1] > miny, depth_in_ref_local[:,:,1] < maxy)
+                        maskz = np.logical_and(depth_in_ref_local[:,:,2] > minz, depth_in_ref_local[:,:,2] < maxz)
+                        mask = np.logical_and(np.logical_and(maskx, masky),maskz)
 
                     else:
-                        logger.warning("No bounds found for reference {}. ".format(list_of_bins[i]))
-            else:
-                logger.warning("No bounds found for reference {}. Database was empty".format(list_of_bins[i]))
-            #TODO location away segmentation parameters
-            seg_params.k = 250
+                        logger.warning("No bounds found for reference {}. Database was empty".format(list_of_bins[i]))
+            #TODO location aware segmentation parameters
+            seg_params.k = 550
             seg_params.medianFilterW = 5
             seg_params.minSize = 600
             seg_params.c_rad = 33
             seg_params.sigma = 0.5
             seg_params.sp_rad = 3
-
+            seg_params.mask = mask
+            
             #segment the image
             ret = segmentation.graphSegmentation(d_image, c_image, seg_params)
 
@@ -267,104 +258,88 @@ class Perception:
             else:
                 location = None
 
-            for num, im in enumerate(self.camera_variables[sn].dl_images):
-                
-                #infer
-                confidences, _ = self.objectRecognizer.guessObject(im)
 
-                #restrict the guesses to the items this camera can see
-                if self.camera_variables[sn].visible_items != [] and not location is None:
-                    vis_item_conf = []
-                    vis_item_ind = []
-                    for item, loc in self.camera_variables[sn].visible_items:
-                        #find the index of this item
-                        ind = self.object_names.index(item)
-                        if loc == location: #only add this item if it is in the correct location
-                            vis_item_ind.append(ind)
-                            vis_item_conf.append(confidences[ind])
-                    vis_item_conf = np.array(vis_item_conf)
-                    #what is the maximum confidence value of the visible_items?
-                    index_of_best_guess_in_subset = vis_item_conf.argmax(-1)
-                    object_name = self.object_names[vis_item_ind[index_of_best_guess_in_subset]]
-                    object_confidence = vis_item_conf[index_of_best_guess_in_subset]
-                    self.camera_variables[sn].item_guesses[num] = object_name
-                    self.camera_variables[sn].item_confidences[num] = object_confidence
-                    logger.info("Camera {} found object {} with confidence of {}".format(sn, object_name, object_confidence))
-                else:
-                    index_of_best_guess = confidences.argmax(-1)
-                    object_name = self.object_names[index_of_best_guess]
-                    object_confidence = confidences[index_of_best_guess]
-                    self.camera_variables[sn].item_guesses[num] = object_name
-                    self.camera_variables[sn].item_confidences[num] = object_confidence
-                    logger.info("Camera {} found object {} with confidence of {}".format(sn, object_name, object_confidence))
-
-                #send confidence and point cloud to the database
-                self.store.put('/item/'+ object_name + '/id_confidence',object_confidence)
-                
-                #transform point cloud to local coordinates
-                pc_indices = self.camera_variables[sn].segments[num]
-                pc = []
-                pc_color = []
-                if not location is None:
-                    if 'bin' in location:
-                        #its a bin doesnt have a pose. Use the shelf's
-                        origin_2_ref = self.store.get("/shelf/pose")
-                    elif 'box' in location:
-                        origin_2_ref = self.store.get('/box/' + location + "/pose")
-                    elif 'tote' in location:
-                        if 'amnesty' in location:
-                            origin_2_ref = self.store.get('/tote/amnesty/pose')
-                        elif 'stow' in location:
-                            origin_2_ref = self.store.get('/tote/stow/pose')
-                    else:
-                        origin_2_ref = np.eye(4)
-                        logger.error('Unrecognized location {}. Pushing point cloud in world coordinates'.format(location))
-                else:
-                    origin_2_ref = np.eye(4)
-                    logger.error('No location provided. Pushing point cloud in world coordinates'.format(location))
-
-
-
-                for point in pc_indices:
-                    point_in_camera_local = np.append(self.camera_variables[sn].point_cloud[point[0],point[1]], 1)
-                    point_in_world = self.camera_variables[sn].world_xform.dot(np.array(point_in_camera_local))
-                    #get the point in reference local coordinates
-                    point_in_ref_local = np.linalg.inv(origin_2_ref).dot(point_in_world.transpose())
-                    pc.append(np.squeeze(np.array(point_in_ref_local[0:3])))
-                    pc_color.append(self.camera_variables[sn].aligned_color_image[point[0],point[1]])
-
-                #HACK for demo. only send out point clouds if they are large
-                currentpc = self.store.get('/item/' + object_name + "/point_cloud")
-                send = False
-                if currentpc is None:
-                    #send it
-                    send = True
-                else:
-                    if np.array(pc).shape[0] > currentpc.shape[0]:
-                        send = True
-                if send:
-                    #TODO update if we ever get pose information
-                    mean_of_pc = np.array(pc).mean(axis=0)
-                    pc_pose = np.eye(4)
-                    pc_pose[:3,3] = mean_of_pc
-                    self.store.put('/item/' + object_name + "/pose", pc_pose)
-                    #update the point cloud
-                    self.store.put('/item/' + object_name + "/point_cloud", np.array(pc)- mean_of_pc)
-                    #update the color
-                    self.store.put('/item/' + object_name + '/point_cloud_color', np.array(pc_color))
-                    #update timestamp as well
-                    self.store.put('/item/' + object_name + "/timestamp",time.time())
+            #guess all objects at once
+            im = np.zeros((224,224,3,len(self.camera_variables[sn].dl_images)))
+            for num,img in enumerate(self.camera_variables[sn].dl_images):
+                im[:,:,:,num] = img
+            #infer
+            confidences = self.objectRecognizer.guessObject(im)
+            #store all confidences for each image
+            for list_of_conf in confidences:
+                self.camera_variables[sn].image_confidences.append(list_of_conf)
 
     def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
         self.segment_objects(list_of_serial_nums, list_of_bins)
         self.infer_objects(list_of_serial_nums, list_of_bins)
+        self.combine_objects(list_of_serial_nums, list_of_bins)
 
-    def combine_objects(self):
+    def combine_objects(self, list_of_serial_nums, list_of_bins):
         '''
         Method to combine point clouds of like objects seen from different cameras
         '''
-        #TODO
-        pass
+
+        #need list of bins and list of serial nums to be the same length. need duplicates
+
+        if len(list_of_serial_nums) != len(list_of_bins):
+            logger.error("Function combine objects requires a location for each camera")
+            return
+
+        #are any two cameras looking at the same location? TODO later
+
+        #only worry about single camera and single location now. pick the "best" match
+        #get non duplicate list of bins
+        non_duplicate_locations = list(set(list_of_bins))
+
+        #find all images that are in location
+        for location in non_duplicate_locations:
+            #find all cameras that see this location
+            cameras = []
+            for c in range(len(list_of_bins)):
+                if list_of_bins[c] == location:
+                    cameras.append(list_of_serial_nums[c])
+
+            #get all the confidences and size of segments for this location
+            location_segment_sizes = []
+            location_conf = []
+            camera_idx_tuple = []
+            for sn in cameras:
+                for n, seg in enumerate(self.camera_variables[sn].segments):
+                    location_segment_sizes.append(len(seg))
+                    location_conf.append(self.camera_variables[sn].image_confidences[n])
+                    camera_idx_tuple.append((sn,n))
+
+            #loop through all the items and find the segment, image, confidence that best fits this item
+            used_segments = []
+            for item_name, item_idx in self.items_in_location[location]:
+            
+                #Which segment size weighted by confidence is the largest for this item?
+                conf_weigted_by_seg_size = []
+                for i, seg_size in enumerate(location_segment_sizes):
+                    if not i in used_segments:
+                        conf_weigted_by_seg_size.append(seg_size*location_conf[i][item_idx])
+                conf_weigted_by_seg_size = np.array(conf_weigted_by_seg_size)
+                
+                #what index has the highest weighted conf*segsize for this item?
+                idxmax = conf_weigted_by_seg_size.argmax()
+                used_segments.append(idxmax)
+
+                #log this
+                cam = camera_idx_tuple[idxmax][0]
+                idx_of_img = camera_idx_tuple[idxmax][1]
+                object_confidence = location_conf[idxmax][item_idx]
+                logger.info("Camera {} found object {} with confidence of {}".format(cam, item_name, object_confidence))
+
+                #write this guess out (point cloud, indices, confidence)
+                # self.store.put('/item/' + item_name + "/pose", pc_pose)
+                #update the point cloud
+                # self.store.put('/item/' + item_name + "/point_cloud", np.array(pc)- mean_of_pc)
+                #update the color
+                # self.store.put('/item/' + item_name + '/point_cloud_color', np.array(pc_color))
+                #send out the indices of the segmentation
+                self.store.put('/item/' + item_name + "/mask", self.camera_variables[sn].segments[idx_of_img])
+                #update timestamp
+                self.store.put('/item/' + item_name + "/timestamp",time.time())
 
     def compute_xform_of_objects(self):
         '''
@@ -519,6 +494,7 @@ class Perception:
                     #shelf1
                     sn = self.store.get('/system/cameras/shelf1')
                     self.camera_variables[sn].visible_items.append((value['name'], 'binA'))
+                    self.items_in_location['binA'].append((value['name'],self.object_names.index(value['name'])))
                 elif location[3] == 'B':
                     #shelf1 and 0
                     sn = self.store.get('/system/cameras/shelf1')
@@ -526,10 +502,13 @@ class Perception:
 
                     sn = self.store.get('/system/cameras/shelf0')
                     self.camera_variables[sn].visible_items.append((value['name'], 'binB'))
+
+                    self.items_in_location['binB'].append((value['name'],self.object_names.index(value['name'])))
                 elif location[3] == 'C':
                     #shelf0
                     sn = self.store.get('/system/cameras/shelf0')
                     self.camera_variables[sn].visible_items.append((value['name'], 'binC'))
+                    self.items_in_location['binC'].append((value['name'],self.object_names.index(value['name'])))
                 else:
                     logger.warning("Invalid bin ({}) for item {}.".format(location, value['name']))
             elif 'tote' in location:
@@ -537,9 +516,11 @@ class Perception:
                 if 'amnesty' in location:
                     sn = self.store.get('/system/cameras/amnesty')
                     self.camera_variables[sn].visible_items.append((value['name'], 'amnesty_tote'))
+                    self.items_in_location['amnesty_tote'].append((value['name'],self.object_names.index(value['name'])))
                 elif 'stow' in location:
                     sn = self.store.get('/system/cameras/stow')
                     self.camera_variables[sn].visible_items.append((value['name'], 'stow_tote'))
+                    self.items_in_location['stow_tote'].append((value['name'],self.object_names.index(value['name'])))
             elif 'box' in location:
                 logger.warning("Unimplemented")
 
@@ -563,6 +544,7 @@ class CameraVariables:
         self.segments = None                            #list of segments used to get the point cloud of objects
         self.sift_images = None                         #list of images that we can use in the sift guesser
         self.item_guesses = None                        #list of the best guess as to what the object in corresponding index of dl_images is
+        self.image_confidences = []                   #list of lists. for each image in dl_images store the output of all confidences for that image
         self.item_confidences = None                    #how confident the guess is
         self.visible_items = []                         #what items can this camera see? What item(s) are in the bin(s) this camera can see?
         
