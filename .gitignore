@@ -279,3 +279,6 @@ ve/
 #SWIG wrapper
 *_wrap.cxx
 *.pkl
+*.npy
+*.png
+*.ipynb
