@@ -24,7 +24,7 @@ class MotionPlanChecker:
         # Add current confiq
         if q0 is not None and len(milestones) > 0:
             type = self.milestones[0].type
-            m0 = Milestone(t=0,q=q0, type=type)
+            m0 = Milestone(t=0,robot=q0, type=type)
             self.milestones.insert(0, m0)
 
     def check(self):

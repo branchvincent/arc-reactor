@@ -5,12 +5,12 @@ dof = { 'db': 7,
         'robot': 6  }
 
 class Milestone:
-    def __init__(self, t=None, robot=None, gripper=None, vacuum_status=False, map=None, type='db'):
+    def __init__(self, t=None, robot=None, gripper=None, vacuum=False, map=None, type='db'):
         # Set values
         self.t = t
         self.robot = robot
         self.gripper = gripper or [0,0,0] #TODO: update with real logic
-        self.vacuum = vacuum_status
+        self.vacuum = vacuum
         self.type = type.lower()
         # Set values from map, if applicable
         if map is not None:

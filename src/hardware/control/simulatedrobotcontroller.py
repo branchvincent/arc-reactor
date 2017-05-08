@@ -22,10 +22,10 @@ class SimulatedRobotController:
         self.store = store or PensiveClient().default()
         # Milestones
         self.trajectory = SimulatedTrajectory(store=self.store)
-        if self.trajectory.milestones is not None:
-            self.freq = 1/self.trajectory.milestones[0].get_t()
-        else:
-            self.freq = 60
+        # if self.trajectory.milestones is not None:
+        #     self.freq = 1/self.trajectory.milestones[0].get_t()
+        # else:
+        #     self.freq = 60
         # self.startTime = None
 
     def run(self):
