@@ -248,6 +248,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
 
             #check if they actually exist
             if base2ee is None or ee2aruco is None:
+                self.thread.can_emit = True
                 logger.warn("Did not recieve transforms from database. Not updating poses")
                 return
 
@@ -283,6 +284,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             if camera_xform is None:
                 logger.warn("Could not retrieve camera_xform")
                 camera_xform = np.identity(4)
+                self.thread.can_emit = True
                 return
 
             #where is the origin of the object with respect to the target
@@ -365,9 +367,9 @@ class RobotCamCalibration(QtWidgets.QWidget):
 
         self.cameraXform = np.identity(4)
         self.cameraName = 'ee_cam'
-        # self.db_client = PensiveClient(host='http://10.10.1.60:8888')
-        # self.store = self.db_client.default()
-        # register_numpy()
+        self.db_client = PensiveClient(host='http://10.10.1.60:8888')
+        self.store = self.db_client.default()
+        register_numpy()
 
         self.last_images = []                      #last camera image
         self.last_img_cnt = 0                       #index of last image
@@ -491,17 +493,6 @@ class RobotCamCalibration(QtWidgets.QWidget):
         ee2camera_guess = np.eye(4)
         base2target_guess = np.eye(4)
 
-        x = float(self.offset_guesses[0][1].text())
-        y = float(self.offset_guesses[1][1].text())
-        z = float(self.offset_guesses[2][1].text())
-        #yaw is z pitch is y roll is x
-        roll = float(self.offset_guesses[0][0].text())
-        pitch = float(self.offset_guesses[1][0].text())
-        yaw = float(self.offset_guesses[2][0].text())
-
-        ee2camera_guess = transformMat(x,y,z, yaw, pitch, roll)
-
-
         x = float(self.offset_guesses[0][3].text())
         y = float(self.offset_guesses[1][3].text())
         z = float(self.offset_guesses[2][3].text())
@@ -509,18 +500,36 @@ class RobotCamCalibration(QtWidgets.QWidget):
         roll = float(self.offset_guesses[0][2].text())
         pitch = float(self.offset_guesses[1][2].text())
         yaw = float(self.offset_guesses[2][2].text())
+
+        ee2camera_guess = transformMat(x,y,z, yaw, pitch, roll)
+
+
+        x = float(self.offset_guesses[0][1].text())
+        y = float(self.offset_guesses[1][1].text())
+        z = float(self.offset_guesses[2][1].text())
+        #yaw is z pitch is y roll is x
+        roll = float(self.offset_guesses[0][0].text())
+        pitch = float(self.offset_guesses[1][0].text())
+        yaw = float(self.offset_guesses[2][0].text())
         base2target_guess = transformMat(x,y,z, yaw, pitch, roll)
 
         logger.info("EE to camera guess {}".format(ee2camera_guess))
         logger.info("Base to target guess {}".format(base2target_guess))
 
         
-        guess = (ee2camera_guess, base2target_guess)
+        guess = np.concatenate((ee2camera_guess.flatten(), base2target_guess.flatten()))
         res = optimize.minimize(function_to_min, guess, method='BFGS', tol=0.0001)
         print("Total RMS {}. {}".format(res.fun, res.message))
 
         #TODO make this correct
-        self.store.put('/camera/ee_cam/pose', res.x)
+        #res.x is a 32x1 vector
+        ee2cam = res.x[0:16]
+        base2target = res.x[16:32]
+        ee2cam = ee2cam.reshape((4,4))
+        base2target = base2target.reshape((4,4))
+        self.store.put('/camera/ee_cam/pose', ee2cam)
+        logger.info("Xform from EE->Camera {}".format(ee2cam))
+        logger.info("Xform from Base->Target {}".format(base2target))
 
     def store_calib_pair(self):
         logger.info("Storing calibration point...")
@@ -594,8 +603,10 @@ class RobotCamCalibration(QtWidgets.QWidget):
 
     #2 numpy 4x4 xform matrix of the guess of the transform from the end effector to the camera
 def function_to_min(tuple_of_xforms):
-    ee2camera = tuple_of_xforms[0]
-    base2target = tuple_of_xforms[1]
+    ee2camera = tuple_of_xforms[0:16]
+    base2target = tuple_of_xforms[16:32]
+    ee2camera = ee2camera.reshape((4,4))
+    base2target = base2target.reshape((4,4))
     sse = 0
     for i in range(len(base2eepts)):
         robot_xform = base2eepts[i]
