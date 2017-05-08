@@ -274,7 +274,6 @@ class Perception:
                 self.camera_variables[sn].image_confidences.append(list_of_conf)
 
     def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
-        self.acquire_images(list_of_serial_nums)
         self.segment_objects(list_of_serial_nums, list_of_bins)
         self.infer_objects(list_of_serial_nums, list_of_bins)
         self.combine_objects(list_of_serial_nums, list_of_bins)
