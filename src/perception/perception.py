@@ -32,7 +32,7 @@ class Perception:
         self.serial_nums_2_cams = {}
 
         #create a deepLearning object ObjectRecognizer
-        self.objectRecognizer = dl.ObjectRecognizer('vgg_finetuned_ARC2017.pkl',40)
+        self.objectRecognizer = dl.ObjectRecognizer('vgg_norandombackground.pkl',40)
 
         #try to connect to the database
         self.store = None
@@ -178,19 +178,22 @@ class Perception:
                         depth_img = self.camera_variables[sn].depth_image
                         intrins = self.camera_variables[sn].depth_intrinsics
                         scale = self.camera_variables[sn].depth_scale
+                        coeffs = self.camera_variables[sn].depth_coefficients
+                        
                         #get the 3d point by deprojecting pixel to get camera local
                         depth_in_3d_cam_local = np.zeros((480,640,3))
-                        #TODO make this not take 1000 years
-                        for y in range(depth_in_3d_cam_local.shape[0]):
-                            for x in range(depth_in_3d_cam_local.shape[1]):
-                                #create a float2 of this pixel
-                                loc = rs.float2()
-                                loc.x = x
-                                loc.y = y
-                                float3res = intrins.deproject(loc,float(depth_img[y,x]*scale))
-                                depth_in_3d_cam_local[y, x, 0] = float3res.x
-                                depth_in_3d_cam_local[y, x, 1] = float3res.y
-                                depth_in_3d_cam_local[y, x, 2] = float3res.z
+                        [xs, ys] = np.meshgrid(range(depth_in_3d_cam_local.shape[1]), range(depth_in_3d_cam_local.shape[0]))
+                        xs = (xs - intrins.ppx)/intrins.fx
+                        ys = (ys - intrins.ppy)/intrins.fy
+                        r2 = xs*xs + ys*ys
+                        f = 1 + coeffs[0]*r2 + coeffs[1]*r2*r2 + coeffs[4]*r2*r2*r2
+                        ux = xs*f + 2*coeffs[2]*xs*ys + coeffs[3]*(r2 + 2*xs*xs)
+                        uy = ys*f + 2*coeffs[3]*xs*ys + coeffs[2]*(r2 + 2*ys*ys)
+                        
+                        depth_in_3d_cam_local[:, :, 0] = ux
+                        depth_in_3d_cam_local[:, :, 1] = uy
+                        depth_in_3d_cam_local[:, :, 2] = depth_img*scale
+                        
                         #get camera world location
                         cam_pose_world = self.camera_variables[sn].world_xform
                         
