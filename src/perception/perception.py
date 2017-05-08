@@ -333,14 +333,57 @@ class Perception:
                 object_confidence = location_conf[idxmax][item_idx]
                 logger.info("Camera {} found object {} with confidence of {}".format(cam, item_name, object_confidence))
 
+
+               
+                
+                #transform point cloud to local coordinates
+                pc_indices = self.camera_variables[sn].segments[idx_of_img]
+                pc = []
+                pc_color = []
+                if not location is None:
+                    if 'bin' in location:
+                        #its a bin doesnt have a pose. Use the shelf's
+                        origin_2_ref = self.store.get("/shelf/pose")
+                    elif 'box' in location:
+                        origin_2_ref = self.store.get('/box/' + location + "/pose")
+                    elif 'tote' in location:
+                        if 'amnesty' in location:
+                            origin_2_ref = self.store.get('/tote/amnesty/pose')
+                        elif 'stow' in location:
+                            origin_2_ref = self.store.get('/tote/stow/pose')
+                    else:
+                        origin_2_ref = np.eye(4)
+                        logger.error('Unrecognized location {}. Pushing point cloud in world coordinates'.format(location))
+                else:
+                    origin_2_ref = np.eye(4)
+                    logger.error('No location provided. Pushing point cloud in world coordinates'.format(location))
+
+
+
+                for point in pc_indices:
+                    point_in_camera_local = np.append(self.camera_variables[sn].point_cloud[point[0],point[1]], 1)
+                    point_in_world = self.camera_variables[sn].world_xform.dot(np.array(point_in_camera_local))
+                    #get the point in reference local coordinates
+                    point_in_ref_local = np.linalg.inv(origin_2_ref).dot(point_in_world.transpose())
+                    pc.append(np.squeeze(np.array(point_in_ref_local[0:3])))
+                    pc_color.append(self.camera_variables[sn].aligned_color_image[point[0],point[1]])
+
+                
+                #TODO update if we ever get pose information
+                mean_of_pc = np.array(pc).mean(axis=0)
+                pc_pose = np.eye(4)
+                pc_pose[:3,3] = mean_of_pc
+
                 #write this guess out (point cloud, indices, confidence)
-                # self.store.put('/item/' + item_name + "/pose", pc_pose)
+                self.store.put('/item/' + item_name + "/pose", pc_pose)
                 #update the point cloud
-                # self.store.put('/item/' + item_name + "/point_cloud", np.array(pc)- mean_of_pc)
+                self.store.put('/item/' + item_name + "/point_cloud", np.array(pc)- mean_of_pc)
                 #update the color
-                # self.store.put('/item/' + item_name + '/point_cloud_color', np.array(pc_color))
+                self.store.put('/item/' + item_name + '/point_cloud_color', np.array(pc_color))
                 #send out the indices of the segmentation
                 self.store.put('/item/' + item_name + "/mask", self.camera_variables[sn].segments[idx_of_img])
+                #send confidence and point cloud to the database
+                self.store.put('/item/'+ item_name + '/id_confidence',object_confidence)
                 #update timestamp
                 self.store.put('/item/' + item_name + "/timestamp",time.time())
 
