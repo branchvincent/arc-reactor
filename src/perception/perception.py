@@ -31,9 +31,6 @@ class Perception:
         #dictionary that converts serial numbers to names for cameras
         self.serial_nums_2_cams = {}
 
-        #create a deepLearning object ObjectRecognizer
-        self.objectRecognizer = dl.ObjectRecognizer('vgg_norandombackground.pkl',40)
-
         #try to connect to the database
         self.store = None
         try:
@@ -63,6 +60,10 @@ class Perception:
             #load in the world location for all cameras
             self.load_camera_xforms()
 
+        else:
+            logger.error("Could not connect to the cameras...EVERYBODY PANIC")
+        #create a deepLearning object ObjectRecognizer
+        self.objectRecognizer = dl.ObjectRecognizer('vgg_norandombackground.pkl',40)
 
         #list of object names of the items. 
         names = []
@@ -273,6 +274,7 @@ class Perception:
                 self.camera_variables[sn].image_confidences.append(list_of_conf)
 
     def segment_plus_detect(self, list_of_serial_nums=None, list_of_bins=None):
+        self.acquire_images(list_of_serial_nums)
         self.segment_objects(list_of_serial_nums, list_of_bins)
         self.infer_objects(list_of_serial_nums, list_of_bins)
         self.combine_objects(list_of_serial_nums, list_of_bins)
@@ -317,14 +319,19 @@ class Perception:
             for item_name, item_idx in self.items_in_location[location]:
             
                 #Which segment size weighted by confidence is the largest for this item?
-                conf_weigted_by_seg_size = []
+                conf_weighted_by_seg_size = []
                 for i, seg_size in enumerate(location_segment_sizes):
                     if not i in used_segments:
-                        conf_weigted_by_seg_size.append(seg_size*location_conf[i][item_idx])
-                conf_weigted_by_seg_size = np.array(conf_weigted_by_seg_size)
+                        conf_weighted_by_seg_size.append(seg_size*location_conf[i][item_idx])
+                conf_weighted_by_seg_size = np.array(conf_weighted_by_seg_size)
                 
+                if len(conf_weighted_by_seg_size) == 0:
+                    #all segments have been accounted for quit
+                    logger.warning("Some objects have not been assigned segments")
+                    break
+
                 #what index has the highest weighted conf*segsize for this item?
-                idxmax = conf_weigted_by_seg_size.argmax()
+                idxmax = conf_weighted_by_seg_size.argmax()
                 used_segments.append(idxmax)
 
                 #log this
