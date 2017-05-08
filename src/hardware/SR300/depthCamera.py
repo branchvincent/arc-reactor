@@ -75,7 +75,7 @@ class DepthCameras:
             except:
                 logger.exception("Unable to start the camera")
                 return (None, None)
-           try:
+            try:
                 for i in range(5):
                 #wait for multiple frames
                     cam.wait_for_frames()
