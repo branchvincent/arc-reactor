@@ -47,18 +47,22 @@ class LinearPlanner:
         if ik.solve(goal):
             return self.robot.getConfig()
         else:
-            raise Exception('Could not find feasible configuration')
+            raise RuntimeError('Could not find feasible configuration')
 
-    def interpolate(self, qdes): #, rads=True):
+    def interpolate(self, q=None, T=None): #, rads=True):
         """Jogs the robot to the specified configuration, in radians"""
         # Get initial configuration
         q0 = self.store.get('/robot/current_config')
+        if T is not None:
+            q = self.getDesiredConfig(T)
+        elif q is not None:
+            raise RuntimeError('Must specify wither q or T')
         # if not rads:
-        #     qdes = [math.radians(qi) for qi in qdes]
+        #     q = [math.radians(qi) for qi in q]
 
         # Get milestones and check feasibility
         feasible = True
-        milestones = TimeScale(self.robot).getMilestones(q0, qdes)
+        milestones = TimeScale(self.robot).getMilestones(q0, q)
         for m in milestones:
             feasible = self.isFeasible(m.get_robot())
             if not feasible:
@@ -126,4 +130,4 @@ if __name__ == "__main__":
     p = LinearPlanner()
     T = s.get('robot/inspect_pose')
     q = p.getDesiredConfig(T)
-    p.interpolate(q)
+    p.interpolate(q=q)
