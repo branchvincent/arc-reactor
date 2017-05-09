@@ -226,11 +226,11 @@ class Perception:
                     else:
                         logger.warning("No bounds found for reference {}. Database was empty".format(list_of_bins[i]))
             #TODO location aware segmentation parameters
-            seg_params.k = 550
+            seg_params.k = 350
             seg_params.medianFilterW = 5
             seg_params.minSize = 600
             seg_params.c_rad = 33
-            seg_params.sigma = 0.5
+            seg_params.sigma = 1.5
             seg_params.sp_rad = 3
             seg_params.mask = mask
             
@@ -322,6 +322,9 @@ class Perception:
                 for i, seg_size in enumerate(location_segment_sizes):
                     if not i in used_segments:
                         conf_weighted_by_seg_size.append(seg_size*location_conf[i][item_idx])
+                    else:
+                        #used index gets negative weight
+                        conf_weighted_by_seg_size.append(-10000)
                 conf_weighted_by_seg_size = np.array(conf_weighted_by_seg_size)
                 
                 if len(conf_weighted_by_seg_size) == 0:
@@ -338,7 +341,6 @@ class Perception:
                 idx_of_img = camera_idx_tuple[idxmax][1]
                 object_confidence = location_conf[idxmax][item_idx]
                 logger.info("Camera {} found object {} with confidence of {}".format(cam, item_name, object_confidence))
-
 
                
                 
