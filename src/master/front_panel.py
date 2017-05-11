@@ -154,18 +154,18 @@ class FrontPanel(QMainWindow):
         if not self.fsm:
             self._reset_handler()
         logger.info('going back one step')
-        
+
         self.fsm.backStep()
 
     def _stop_handler(self):
         if not self.fsm:
             self._reset_handler()
         logger.info('stopping after state finishes')
-        
+
         run_mode = self.db.get('/robot/run_mode')
         if run_mode in ['run_once', 'run_all', 'full_auto']:
             self.fsm.stop()
-    
+
     def _run_handler(self):
         if not self.fsm:
             self._reset_handler()

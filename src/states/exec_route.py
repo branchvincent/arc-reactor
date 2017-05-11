@@ -7,23 +7,20 @@ logger = logging.getLogger(__name__)
 
 class ExecRoute(State):
     def run(self):
-        self.waypoints = self.store.get('/robot/waypoints')
-        self.speed = self.store.get('/robot/speed_scale', 1)
-
-        # PensiveClient().default().put('/robot/waypoints', 'here')
-        # print PensiveClient().default().get('/robot/waypoints')
+        # self.waypoints = self.store.get('/robot/waypoints')
+        # self.speed = self.store.get('/robot/speed_scale', 1)
 
         #check if in simulation mode
         if self.store.get('/simulate/robot_motion'):
             try:
-                controllerSim = SimulatedRobotController(store=self.store, milestones=self.waypoints, speed=self.speed)
+                controllerSim = SimulatedRobotController(store=self.store)
                 controllerSim.run()
             except RuntimeError as e:
                 print "Runtime error: ", e
             completed = True  #always pass in sim mode for now
         else:
             try:
-                controller = RobotController(store=self.store, milestones=self.waypoints, speed=self.speed) # self.waypoints, self.speed
+                controller = RobotController(store=self.store)
                 controller.run()
                 completed = controller.trajectory.complete
             except RuntimeError:

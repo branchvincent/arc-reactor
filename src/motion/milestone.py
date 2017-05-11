@@ -1,12 +1,37 @@
-from klampt import *
-from klampt.vis.glrobotprogram import *
+# from klampt import *
+# from klampt.vis.glrobotprogram import *
 
-class Milestone():
-    def __init__(self, t=None, q=None, vacuum_status=None):
+import math
+import logging; logger = logging.getLogger(__name__)
+
+dof = { 'db': 7,
+        'robot': 6  }
+
+class Milestone:
+    def __init__(self, t=None, robot=None, gripper=None, vacuum=False, map=None, type='db'):
+        # Set values
         self.t = t
-        self.robot = q
-        self.gripper = [0,0,0]
-        self.vacuum = vacuum_status
+        self.robot = robot
+        self.gripper = gripper or [0,0,0] #TODO: update with real logic
+        self.vacuum = vacuum
+        self.type = type.lower()
+        # Set values from map, if applicable
+        if map is not None:
+            self.set_milestone(map)
+        # Validate
+        self.check()
+
+    def check(self):
+        # Check type
+        if self.type not in ['robot', 'db']:
+            raise RuntimeError('Unrecognized milestone type: "{}"'.format(type))
+        # Check robot config length
+        if dof[self.type] != len(self.robot):
+            raise RuntimeError('Milestone type and robot config mismatch: "{}: {} != {}"'.format(self.type, dof[self.type], len(self.robot)))
+        # Check robot configs are numbers
+        for qi in self.robot:
+            if math.isinf(qi) or math.isnan(qi):
+                raise RuntimeError('Invalid configuration {}'.format(qi))
 
     def get_milestone(self):
         return (self.t, {
@@ -14,9 +39,49 @@ class Milestone():
                   'gripper': self.gripper,
                   'vacuum': self.vacuum,
                 })
-    
+
+    def set_milestone(self, milestone):
+        self.t = milestone[0]
+        self.robot = milestone[1]['robot']
+        self.gripper = milestone[1]['gripper']
+        self.vacuum = milestone[1]['vacuum']
+
+    def get_type(self):
+        return self.type
+
+    def set_type(self, newType):
+        # Check type
+        logger.info('From {} to {}'.format(self.type, newType))
+        newType = newType.lower()
+        if newType not in ['robot', 'db']:
+            raise Exception('Unrecognized option: "{}"'.format(type))
+        # Convert
+        if self.type == 'db' and newType == 'robot':
+            # To degrees, ignoring extraneous q0
+            self.robot = [math.degrees(qi) for qi in self.robot][1:]
+            # Flip joints
+            self.robot[2] *= -1
+            self.robot[4] *= -1
+        elif self.type =='robot' and newType == 'db':
+            # Flip joints
+            self.robot[2] *= -1
+            self.robot[4] *= -1
+            # To radians, adding extraneous q0
+            self.robot = [0] + [math.radians(qi) for qi in self.robot]
+        elif self.type == newType:
+            pass
+        self.type = newType
+        self.check()
+
     #def set_milestone(self, milestone):
     #    self.milestone = milestone
+
+    def scale_t(self, scale):
+        # Check scale
+        if not (0 < scale <= 1):
+            raise RuntimeError('Speed scale "{}" is not in (0,1]'.format(scale))
+        # Apply scale
+        self.t /= float(scale)
 
     def get_t(self):
         return self.t
@@ -46,7 +111,6 @@ class Milestone():
     def fix_milestones(self, motion_milestones):
         max_change=5.0/180.0*3.14159
         max_speed=60/180.0*3.14159
-
         old_config=motion_milestones[0].get_robot()
         i=1
         while i<len(motion_milestones):
@@ -66,4 +130,3 @@ class Milestone():
                 i+=1
                 old_config=new_config
         return motion_milestones
-
