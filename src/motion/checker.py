@@ -4,10 +4,12 @@ from pensive.client import PensiveClient
 from motion.milestone import Milestone
 import logging; logger = logging.getLogger(__name__)
 
+import math
+
 # Checker settings
 
-DQ_MAX = 5  # max change in qi / milestone (deg)
-DV_MAX = 60 # max change in velocity / sec (deg/s)
+DQ_MAX = math.radians(5)  # max change in qi / milestone (rad)
+DV_MAX = math.radians(60) # max change in velocity / sec (rad/s)
 
 # Helper functions
 def Assert(condition, message):
@@ -26,6 +28,10 @@ class MotionPlanChecker:
             type = self.milestones[0].type
             m0 = Milestone(t=0,robot=q0, type=type)
             self.milestones.insert(0, m0)
+            # Check for radians or degrees
+            if type == 'robot':
+                DQ_MAX = math.degrees(DQ_MAX)
+                DV_MAX = math.degrees(DV_MAX)
 
     def check(self):
         """Checks the motion plan"""

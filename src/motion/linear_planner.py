@@ -56,7 +56,7 @@ class LinearPlanner:
         if T is not None:
             q = self.getDesiredConfig(T)
         elif q is not None:
-            raise RuntimeError('Must specify wither q or T')
+            raise RuntimeError('Must specify either q or T')
         # if not rads:
         #     q = [math.radians(qi) for qi in q]
 
@@ -103,8 +103,7 @@ class TimeScale:
                 tf.append(max(1.5*D/vi, math.sqrt(6*D/ai)) if vi and ai != 0 else 0)
         return max(tf)
 
-    def interpolate(self, q0, qf, tf, t):
-        # tf = self.getTimeScale(q0,qf)
+    def interpolate(self, q0, qf, t, tf):
         D = vops.sub(qf,q0)
         if self.type == 'linear':
             r = t/tf
@@ -114,15 +113,26 @@ class TimeScale:
 
     def getMilestones(self, q0, qf):
         milestones = []
+        # Calculate duration
         tf = self.getTimeScale(q0,qf)
+        # print 'Tf before', tf
         dt = 1/float(self.freq)
-        numMilestones = int(self.freq*tf)
-        # print 'Q: {} s, {} --> {}'.format(tf,q0,qf)
-        for t in np.linspace(0, tf, tf*self.freq)[1:]:
-            q = self.interpolate(q0, qf, tf, t)
-            m = Milestone(t=dt,q=q)
+        if tf != 0:
+            tf += abs(tf % dt - dt)     # make multiple of dt
+            tf = max(tf, 1)             # enforce min time
+        # print 'Tf after', tf
+        # Append milestones
+        numMilestones = int(math.ceil(tf*self.freq))
+        # diff = [q0i-qfi for q0i,qfi in zip(q0,qf)]
+        # print 'Diff = {}'.format([round(qi,2) for qi in diff])
+        # print 'Q: {:.15f} s, {} --> {}'.format(tf,q0,qf)
+        # print 'Calculated {} milestones'.format(numMilestones)
+        for t in np.linspace(dt, tf, numMilestones):
+            q = self.interpolate(q0, qf, t, tf)
+            m = Milestone(t=dt,robot=q)
             # print "appending {}".format((dt,q))
             milestones.append(m)
+        print 'Added {} milestones'.format(len(milestones))
         return milestones
 
 if __name__ == "__main__":

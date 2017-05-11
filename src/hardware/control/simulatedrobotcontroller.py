@@ -31,9 +31,12 @@ class SimulatedRobotController:
     def run(self):
         """Runs the current trajectory in the database"""
         # self.startTime = time()
-        self.trajectory.start()
-        self.loop()
-        self.updateDatabase()
+        if len(self.trajectory.milestones) == 0:
+            logger.warn('Tried to execute an empty motion plan')
+        else:
+            self.trajectory.start()
+            self.loop()
+            self.updateDatabase()
 
     def loop(self):
         """Executed at the given frequency"""
@@ -73,7 +76,7 @@ class SimulatedTrajectory:
         self.store = store or PensiveClient().default()
         self.vacuum = Vacuum(store=self.store)
         # Get milestone maps
-        milestoneMaps = self.store.get('/robot/waypoints')
+        milestoneMaps = self.store.get('/robot/waypoints') or []
         speed = self.store.get('/robot/speed_scale', 1.)
         # Create milestones
         self.milestones = []
