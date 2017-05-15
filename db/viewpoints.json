@@ -19,5 +19,9 @@
     "amnesty_tote": [
         "stow",
         "tcp"
+    ],
+    "inspect": [
+        "inspect_below",
+        "inspect_side"
     ]
 }

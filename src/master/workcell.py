@@ -402,7 +402,12 @@ def setup_pick(store, location, order, workcell=None, keep=True):
             break
 
         box = boxes.pop(0)
+
+        # pose the box
         store.put(['box', box, 'pose'], store.get(['system', 'spot', spot, 'pose']))
+
+        # add the box viewpoint
+        store.put(['system', 'viewpoints', box], store.get(['system', 'spot', spot, 'viewpoints']))
 
         logger.info('box {} to spot {}'.format(box, spot))
 
