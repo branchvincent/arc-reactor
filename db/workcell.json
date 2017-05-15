@@ -256,6 +256,31 @@
         1,
         0
     ],
+    "/planner/ee_local": [
+        0.0,
+        0.0,
+        0.4
+    ],
+    "/planner/ee_link":
+        6
+    ,
+    "/planner/control_rate":
+        20
+    ,
+    "/planner/max_ee_v":
+        0.15
+    ,
+    "/planner/max_milestone_change":
+        0.35367795
+    ,
+    "/planner/slow_down":
+        0.4
+    ,
+    "/planner/vac_approach_d": [
+        0.0,
+        0.0,
+        0.03
+    ],
     "/camera/tcp/pose": null,
     "/system/spot/B/pose": {
         "__numpy.matrix__": {

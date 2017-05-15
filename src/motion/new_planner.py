@@ -26,24 +26,26 @@ class PickPlanner():
         self.motion_milestones=[]
         self.store = store or PensiveClient().default()
 
-    #TODO put all constants in databse. Notate in wiki which ones should be tuned later.
-        self.ee_local=[0.0,0.0,0.4]
-    # self.ee_local=[0,0,0]
-        self.box_release_offset=[0,0,0.06]
-    # approach_p1=[0.6,0.2+shelf_position[1],1]
-    # approach_p2=[0.6,-0.1+shelf_position[1],1]
-        self.order_box_min=[0.36,0.65,0.5]
-        self.order_box_max=[0.5278,0.904,0.5]
-        self.angle_to_degree=57.296
-        self.ee_link=6
-        self.control_rate=20 #controlling the self.robot with 20 Hz
-        self.max_end_effector_v=0.15 # max end effector move speed
-        self.max_change=200.0/180.0*3.14159 #the max change between raw milestones is 20 degree
-        #self.milestone_check_max_change=5.0/180.0*3.14159 #the max change between milestones is 5 degree
-        #self.milestone_check_max_speed=60/180.0*3.14159
-        self.slow_down_factor=0.4 #should be (0,1). the speed for the self.robot is slowed down to (1-self.slow_down_factor) when holding an item
+        #get necessary constants from the db
 
-        vaccum_approach_distance=[0,0,0.03]
+        self.ee_local = self.store.get('/planner/ee_local', [0.0, 0.0, 0.4])
+        self.ee_link = self.store.get('/planner/ee_link', 6)        
+        self.control_rate= self.store.get('/planner/control_rate', 20) #controlling the self.robot with 20 Hz
+        self.max_end_effector_v = self.store.get('/planner/max_ee_v', 0.15) # max end effector move speed
+        self.max_change = self.store.get('/planner/max_milestone_change', 0.35367795) # 200.0/180.0*3.14159 
+                #the max change between raw milestones is 20 degree
+        self.slow_down_factor = self.store.get('/planner/slow_down', 0.4) 
+                #should be (0,1), for when robot is holding item
+        self.vacuum_approach_dist = self.store.get('/planner/vac_approach_d', [0, 0, 0.03])
+                #should this be different for pick/stow, get/drop?
+
+        #unused...? trash if confirmed unused
+
+        #self.box_release_offset = self.store.get('/planner/release_offset', [0,0,0.06])
+        #self.order_box_min = self.store.get('/planner/box_min', [0.36,0.65,0.5])
+        #self.order_box_max = self.store.get('/planner/box_max', [0.5278,0.904,0.5])
+        #self.angle_to_degree = 57.296
+
         
     def clear_milestones(self):
         self.motion_milestones=[]
