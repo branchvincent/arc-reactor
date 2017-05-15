@@ -6,6 +6,7 @@ tar czvf ${OUT} --exclude='*.blend*' \
     test/workcell_full_0327* \
     test/workcell_boxes_pick* \
     test/workcell_totes_stow* \
+    test/test_vacuum* \
     robots/*.* \
     robots/tx90l \
     robots/gripper7 \
