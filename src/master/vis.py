@@ -18,7 +18,7 @@ from klampt.math import se3
 
 from pensive.core import Store
 
-from util.math import build_pose, transform
+from util.math_helpers import build_pose, transform
 
 from .sync import AsyncUpdateHandler
 from .world import update_world, numpy2klampt
