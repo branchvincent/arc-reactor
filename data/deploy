@@ -11,7 +11,9 @@ tar czvf ${OUT} --exclude='*.blend*' \
     robots/tx90l \
     robots/gripper7 \
     simulation \
-    objects/*.* \
+    objects/*.blend \
+    objects/*.off \
+    objects/*.stl \
     terrains
 
 scp ${OUT} mtd13@login.oit.duke.edu:~/public_html/arc-2017/${OUT}

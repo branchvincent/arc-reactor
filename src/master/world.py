@@ -77,8 +77,8 @@ terrains = {
 }
 
 rigid_objects = {
-    'amnesty_tote': 'data/objects/tote.off',
-    'stow_tote': 'data/objects/tote.off',
+    'amnesty_tote': 'data/objects/tote.stl',
+    'stow_tote': 'data/objects/tote.stl',
     'shelf': 'data/objects/linear_shelf.stl'
 }
 
