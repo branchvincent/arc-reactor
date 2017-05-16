@@ -230,7 +230,7 @@ def _load_vantage(store):
 
         # calculate transform
         T = xyz(xmed, ymax + 0.45, zmed - 0.025) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, pi/6, 0) * rpy(0, -0.2, 0)
-        store.put(['shelf', 'bin', bin_name, 'vantage'], T)
+        store.put(['vantage', bin_name], T)
 
     # compute the order box and tote vantage points
     for entity in ['box', 'tote']:
@@ -247,7 +247,7 @@ def _load_vantage(store):
 
             # calculate transform
             T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, -pi/15 - pi, 0) * rpy(0, 0, pi)
-            store.put([entity, name, 'vantage'], T)
+            store.put(['vantage', name], T)
 
 def _dims2bb(dims):
     return [

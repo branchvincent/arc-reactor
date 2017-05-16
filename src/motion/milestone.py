@@ -1,5 +1,4 @@
-# from klampt import *
-# from klampt.vis.glrobotprogram import *
+from klampt.vis.glrobotprogram import *
 
 import math
 import logging; logger = logging.getLogger(__name__)
@@ -8,18 +7,18 @@ dof = { 'db': 7,
         'robot': 6  }
 
 class Milestone:
-    def __init__(self, t=None, robot=None, gripper=None, vacuum=False, map=None, type='db'):
+    def __init__(self, t=None, robot=None, vacuum=0, gripper=None, map=None, type='db'):
         # Set values
         self.t = t
         self.robot = robot
         self.gripper = gripper or [0,0,0] #TODO: update with real logic
-        self.vacuum = vacuum
+        self.vacuum = [vacuum]
         self.type = type.lower()
         # Set values from map, if applicable
         if map is not None:
             self.set_milestone(map)
         # Validate
-        self.check()
+        #self.check()
 
     def check(self):
         # Check type

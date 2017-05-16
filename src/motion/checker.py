@@ -8,8 +8,6 @@ import math
 
 # Checker settings
 
-DQ_MAX = math.radians(5)  # max change in qi / milestone (rad)
-DV_MAX = math.radians(60) # max change in velocity / sec (rad/s)
 
 # Helper functions
 def Assert(condition, message):
@@ -20,7 +18,11 @@ def Assert(condition, message):
 
 
 class MotionPlanChecker:
+
     def __init__(self, milestones, q0=None):
+        self.DQ_MAX = math.radians(5)  # max change in qi / milestone (rad)
+        self.DV_MAX = math.radians(60) # max change in velocity / sec (rad/s)
+
         self.milestones = milestones
         self.failedMilestones = []
         # Add current confiq
@@ -30,8 +32,8 @@ class MotionPlanChecker:
             self.milestones.insert(0, m0)
             # Check for radians or degrees
             if type == 'robot':
-                DQ_MAX = math.degrees(DQ_MAX)
-                DV_MAX = math.degrees(DV_MAX)
+                self.DQ_MAX = math.degrees(self.DQ_MAX)
+                self.DV_MAX = math.degrees(self.DV_MAX)
 
     def check(self):
         """Checks the motion plan"""
@@ -56,14 +58,14 @@ class MotionPlanChecker:
         for i,(m_p, m) in enumerate(zip(m0,m1)):
             #Joint distance
             dq = abs(m - m_p)
-            if dq > DQ_MAX:
+            if dq > self.DQ_MAX:
                 self.failedMilestones.append(('Exceeded joint distance',index,i))
-                logger.error('Milestone {}, Joint {} exceeded dq: {} > {}'.format(index,i,round(dq,2),DQ_MAX))
+                logger.error('Milestone {}, Joint {} exceeded dq: {} > {}'.format(index,i,round(dq,2),self.DQ_MAX))
             #Joint velocity
             dv = dq/float(dt)
-            if dv > DV_MAX:
+            if dv > self.DV_MAX:
                 self.failedMilestones.append(('Exceeded joint velocity',index,i))
-                logger.error('Milestone {}, Joint {} exceeded dv: {} > {}'.format(index,i,round(dv,2),DV_MAX))
+                logger.error('Milestone {}, Joint {} exceeded dv: {} > {}'.format(index,i,round(dv,2),self.DV_MAX))
 
 if __name__ == "__main__":
     plan = PensiveClient().default().get('robot/waypoints')

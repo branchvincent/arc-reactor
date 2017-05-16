@@ -11,7 +11,7 @@ from motion.new_planner import PickPlanner
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class PlanGetItem(State):
+class PlanPutItem(State):
     def run(self):
         item = self.store.get('/robot/selected_item')
         box = self.store.get('/robot/selected_box')
@@ -115,14 +115,14 @@ class PlanGetItem(State):
             if not motion_plan:
                 raise RuntimeError('motion plan is empty')
         except Exception:
-            self.store.put('/status/route_plan', False)
+            self.store.put('/status/route_plan_put', False)
             logger.exception('Failed to generate motion plan')
         else:
             milestone_map = [m.get_milestone() for m in motion_plan]
             self.store.put('/robot/waypoints', milestone_map)
-            self.store.put('/status/route_plan', True)
+            self.store.put('/status/route_plan_put', True)
             self.store.put('/robot/timestamp', time())
             logger.info('Route generated')
 
 if __name__ == '__main__':
-    PlanGetItem('pgi').run()
+    PlanPutItem('ppi').run()
