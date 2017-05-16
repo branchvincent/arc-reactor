@@ -16,8 +16,8 @@ def write(point_cloud, s):
         s = open(s, 'wb')
 
     if len(point_cloud[0]) == 2:
-        point_cloud = [[p[0][0], p[0][1], p[0][2], p[1]] for p in  point_cloud]
-    if len(point_cloud[0]) == 4 and len(point_cloud[0][3]) != 3:
+        point_cloud = [[p[0][0], p[0][1], p[0][2], p[1]] for p in point_cloud]
+    if len(point_cloud[0]) == 4 and len(point_cloud[0][3]) == 3:
         color = True
     elif len(point_cloud[0]) == 3:
         color = False
@@ -48,7 +48,7 @@ def write(point_cloud, s):
         point_cloud = _encode_color(point_cloud)
 
     for point in point_cloud:
-        s.write(' '.join(['{:.10f}'.format(v) for v in point]) + '\n')
+        s.write(' '.join(['{:.10g}'.format(v) for v in point]) + '\n')
 
 def read(s):
     return parse(s)
