@@ -23,15 +23,22 @@ def transform(pose, array, row=None):
     array = numpy.asarray(array)
     pose = numpy.asarray(pose)
 
+    if len(array.shape) == 1 and array.shape[0] in [3, 4]:
+        # assume a column vector
+        array = numpy.array([array]).T
+
     if len(array.shape) > 2:
         # assume last dimension is to be transformed for multidimensional array
-        if array.shape[-1] != 3:
-            raise RuntimeError('last dimension not of length 3 for transform: {}'.format(array.shape))
+        if array.shape[-1] == 3:
+            # apply transformation
+            return (array.reshape((-1, 3)).dot(pose[:3, :3].T) + pose[:3, 3].T).reshape(array.shape)
+        elif array.shape[-1] == 4:
+            # apply transformation
+            return array.reshape((-1, 4)).dot(pose.T).reshape(array.shape)
+        else:
+            raise RuntimeError('last dimension not of length 3 or 4 for transform: {}'.format(array.shape))
 
-        # apply transformation
-        return (array.reshape((-1, 3)).dot(pose[:3, :3].T) + pose[:3, 3].T).reshape(array.shape)
-
-    elif len(array.shape) == 2:
+    else:
         if row is None:
             if array.shape == (3, 3):
                 raise RuntimeError('cannot detect row or column layout for 3x3 array: {}'.format(array.shape))
@@ -42,9 +49,6 @@ def transform(pose, array, row=None):
             return array.dot(pose[:3, :3].T) + pose[:3, 3].T
         else:
             return pose[:3, :3].dot(array) + pose[:3, 3]
-
-    else:
-        raise RuntimeError('array must have at least 2 dimensions for transform: {}'.format(array.shape))
 
 def build_pose(store, urls, strict=True):
     '''
