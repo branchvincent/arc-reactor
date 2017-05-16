@@ -35,7 +35,7 @@ class Transition():
         if self.checkpoint is not None:
             if self.store.get(self.checkpoint, False):
                 print "got checkpoint"
-                if checkState is None:
+                if self.checkState is None:
                     raise RuntimeError("Checkpoint asked for, but state is non-existent")
                 return self.checkState.upper()
             else: return self.toState

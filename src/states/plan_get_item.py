@@ -83,7 +83,7 @@ class PlanGetItem(State):
                 logger.debug('arguments\n{}'.format(self.arguments))
 
                 #assume already near item (?)
-                motion_plan = planner.pick_up(target_item, target_box, 'item_{}'.format(item))
+                motion_plan = planner.pick_up(target_item)
 
             elif alg=='stow':
                 # XXX: this will actually need to be a shelf location eventually...

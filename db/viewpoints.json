@@ -1,24 +1,19 @@
 {
     "binA": [
-        "shelf1",
-        "tcp"
+        "shelf1"
     ],
     "binB": [
         "shelf0",
-        "shelf1",
-        "tcp"
+        "shelf1"
     ],
     "binC": [
-        "shelf0",
-        "tcp"
+        "shelf0"
     ],
     "stow_tote": [
-        "stow",
-        "tcp"
+        "stow"
     ],
     "amnesty_tote": [
-        "stow",
-        "tcp"
+        "stow"
     ],
     "inspect": [
         "inspect_below",

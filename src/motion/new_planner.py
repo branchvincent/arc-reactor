@@ -50,7 +50,7 @@ class PickPlanner():
     def clear_milestones(self):
         self.motion_milestones=[]
     
-    def pick_up(self, item, target_box, target_index):
+    def pick_up(self, item):
         """
         This function will return a motion plan that will pick up the target item from the shelf.
         Inputs:
