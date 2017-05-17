@@ -4,7 +4,7 @@ import cv2
 import random
 from numpy import unravel_index
 
-def pack(bins,item, margin=0.005,max_height=0.4,pixel_length=0.001):
+def pack(bins,item,BBs, margin=0.005,max_height=0.6,pixel_length=0.001):
     """
     pack a item into a selected number of bins and return the center coordinate of the objects when packed
 
@@ -19,6 +19,8 @@ def pack(bins,item, margin=0.005,max_height=0.4,pixel_length=0.001):
 
     length_per_pixel: x, y increment in meter from 1 pixel to the next pixel, suggest using 0.001m for a 0.3m*0.3m bin entirely enclosed in a 480*640 array
 
+    BBs: a list of bounding box that enclose only the area of interest for packing. Each bounding box is a python list of 2 cornor points, e.g.  [[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]] , the length of the bounding boxs should be the same length as the number of bins to be considered
+
 
 
     Output:
@@ -28,8 +30,8 @@ def pack(bins,item, margin=0.005,max_height=0.4,pixel_length=0.001):
     minimum_height=[]
     locations=[]
 
-    for bin in bins:
-        depth_map,cornor_point=pc2depthmap(bin,max_height,pixel_length)
+    for index,bin in enumerate(bins):
+        depth_map,cornor_point=pc2depthmap(bin,max_height,pixel_length,BBs[index])
 
         depth_maps.append(depth_map)
 
@@ -121,7 +123,7 @@ def find_placement(depth_map,item,margin,pixel_length):
     return (index,max_height)
 
 
-def pc2depthmap(pointcloud,threshold,length_per_pixel):
+def pc2depthmap(pointcloud,threshold,length_per_pixel,BB):
     """
     Convert a pointcloud(Structured or unstructured,2D or 3D) into a depth map where each pixel length is specified by length per pixel, and all Z reading below threshold will be converted to unsigned int from 0 to 255, all depth readings above threshold will be considered noise and assign a value of 0
 
@@ -133,6 +135,8 @@ def pc2depthmap(pointcloud,threshold,length_per_pixel):
 
     length_per_pixel: x, y increment in meter from 1 pixel to the next pixel, suggest using 0.001m for a 0.3m*0.3m bin entirely enclosed in a 480*640 array
 
+    BBs: Bounding box as a python list of 2 cornor points, e.g.  [[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]] containing only the area of interest in a given pointcloud
+
     Output: a de-noised depth map of the dimension x=(x_max-x_min)/length_per_pixel,y=(y_max-y_min)/length_per_pixel
     (x_min,y_min) x,y value for the first pixel in the depth map
 
@@ -140,13 +144,13 @@ def pc2depthmap(pointcloud,threshold,length_per_pixel):
     #flatten and reshape the array to a list of points
     pointcloud=pointcloud.flatten()
     pointcloud=np.reshape(pointcloud,(pointcloud.size/3,3))
-    #pointcloud[:,2]=0.52-pointcloud[:,2]
     #get the boundary of the points in pointcloud's coordinate
 
     #filter the x and y readings of the pointcloud
 
     x_raw=pointcloud[:,0]
     y_raw=pointcloud[:,1]
+    """
     x_filtered=reject_outliers(x_raw, m = 3.5)
     y_filtered=reject_outliers(y_raw, m = 3.5)
 
@@ -154,7 +158,14 @@ def pc2depthmap(pointcloud,threshold,length_per_pixel):
     x_max=np.amax(x_filtered)
     y_min=np.amin(y_filtered)
     y_max=np.amax(y_filtered)
+    """
 
+    x_min=BB[0][0]
+    x_max=BB[1][0]
+    y_min=BB[0][1]
+    y_max=BB[1][1]
+
+    count=0
     num_pixels_X=int((x_max-x_min)/length_per_pixel)
     num_pixels_Y=int((y_max-y_min)/length_per_pixel)
 
@@ -170,10 +181,10 @@ def pc2depthmap(pointcloud,threshold,length_per_pixel):
         y=int(min(max(0,y),num_pixels_Y-1))
         #filter out high and low points
 
-        if point[2]>threshold:
+        if point[2]>threshold or point[2]<0:
             z=np.uint8(0)
         else:
-            depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]/threshold*255))
+            depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
 
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,10,7,21)
@@ -217,7 +228,7 @@ def reject_outliers(data, m = 3.5):
 
 
 # pointcloud=[]
-# pc=np.load("pc.npy")
+# pc=np.load("pc_masked.py.npy")
 # pointcloud.append(pc)
 # for cube in cubes:
-#     pack(pointcloud,[cube[2]/1000.0,cube[1]/1000.0,cube[0]/1000.0])
+#     pack(pointcloud,[0.132,0.116,0.113], [[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]]] )
