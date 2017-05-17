@@ -44,7 +44,7 @@ def plan_vantage(bin, store=store):
     p = LinearPlanner()
     p.interpolate(T=T)
 
-def get_point_cloud(bin, order= 0, camera='tcp', store=store):
+def get_point_cloud(bin, order=0, camera='tcp', store=store):
     # Connect cameras
     cameras = DepthCameras()
     if not cameras.connect():
