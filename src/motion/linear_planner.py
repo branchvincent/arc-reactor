@@ -35,28 +35,37 @@ class LinearPlanner:
             return False
         return True
 
-    def getDesiredConfig(self, T):
+    def getDesiredConfig(self, T=None, p=None):
         """Plans desired configuration to reach the specified ee transform"""
-        if isinstance(T, np.ndarray):
-            T = numpy2klampt(T)
         ee_link = self.robot.link(6)
+
+        if T is not None:
+            if isinstance(T, np.ndarray):
+                T = numpy2klampt(T)
+            goal = ik.objective(ee_link, R=T[0], t=T[1])
+        elif p is not None:
+            goal = ik.objective(ee_link, local=p[0], world=p[1])
+        else:
+            raise RuntimeError('Must specify either p or T')
+
         # T0 = ee_link.getTransform()
         # T = copy.deepcopy(T0); T[1][1] += -0.25
-        goal = ik.objective(ee_link, R=T[0], t=T[1])
         # print "T: {} --> {}".format(T0[1], T[1])
         if ik.solve(goal):
             return self.robot.getConfig()
         else:
             raise RuntimeError('Could not find feasible configuration')
 
-    def interpolate(self, q=None, T=None): #, rads=True):
+    def interpolate(self, q=None, T=None, p=None): #, rads=True):
         """Jogs the robot to the specified configuration, in radians"""
         # Get initial configuration
         q0 = self.store.get('/robot/current_config')
         if T is not None:
-            q = self.getDesiredConfig(T)
+            q = self.getDesiredConfig(T=T)
+        elif p is not None:
+            q = self.getDesiredConfig(p=p)
         elif q is not None:
-            raise RuntimeError('Must specify either q or T')
+            raise RuntimeError('Must specify either p, q, or T')
         # if not rads:
         #     q = [math.radians(qi) for qi in q]
 

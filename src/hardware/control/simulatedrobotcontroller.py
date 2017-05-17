@@ -85,7 +85,7 @@ class SimulatedTrajectory:
             m.scale_t(speed)
             self.milestones.append(m)
         # Validate
-        self.check()
+        # self.check()
         self.reset()
 
     def reset(self):
