@@ -6,8 +6,6 @@ Core database components of Pensive.
 
 import re
 
-from copy import copy
-
 import logging
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -63,13 +61,15 @@ class Store(StoreInterface):
         If `strict`, `KeyError` will be raised for an unknown `key`.
         '''
 
-        logger.debug('get: "{}"'.format(key))
+        # logger.debug('get: "{}"'.format(key))
 
         # split the key into parts if it is a string path
         if isinstance(key, basestring):
             key = [k for k in self._separator.split(key) if len(k)]
+        elif isinstance(key, list):
+           key = key[:]
 
-        result = self._get(copy(key), strict)
+        result = self._get(key, strict)
         if result is None:
             return default
         else:
@@ -110,13 +110,15 @@ class Store(StoreInterface):
         deleted.
         '''
 
-        logger.debug('put: "{}"'.format(key))
+        # logger.debug('put: "{}"'.format(key))
 
         # split the key into parts if it is a string path
         if isinstance(key, basestring):
             key = [k for k in self._separator.split(key) if len(k)]
+        elif isinstance(key, list):
+            key = key[:]
 
-        return self._put(copy(key), value, strict)
+        return self._put(key, value, strict)
 
     def _put(self, key, value, strict):
         if not key:
@@ -158,8 +160,12 @@ class Store(StoreInterface):
         levels deep.
         '''
 
-        logger.debug('index: "{}"'.format(key))
-        return self._index(copy(key), depth)
+        # logger.debug('index: "{}"'.format(key))
+
+        if isinstance(key, list):
+            key = key[:]
+
+        return self._index(key, depth)
 
     def _index(self, key, depth):
         if not key:
@@ -195,7 +201,7 @@ class Store(StoreInterface):
     def cull(self):
         '''Clean out null keys from the database.'''
 
-        logger.debug('cull')
+        # logger.debug('cull')
         return self._cull()
 
     def _cull(self):
@@ -219,7 +225,7 @@ class Store(StoreInterface):
         Make a shallow-copy of the `Store`.
         '''
 
-        logger.debug('copy')
+        # logger.debug('copy')
         return self._copy()
 
     def is_empty(self):
