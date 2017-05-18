@@ -349,7 +349,7 @@ class WorldViewerWindow(QMainWindow):
         self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
 
     def _update_robot_trace(self, name, robot, link, path_url, timestamp_url):
-        trace_name = '{}_pc'.format(name)
+        trace_name = name
 
         # check if path is modified
         stamp = self.db.get(timestamp_url)
@@ -383,7 +383,7 @@ class WorldViewerWindow(QMainWindow):
         trace.update(path=path, **options)
 
     def _update_item(self, name):
-        cloud_name = '{}_pc'.format(name)
+        cloud_name = 'item_{}'.format(name)
 
         # check if point cloud is modified
         stamp = self.db.get(['item', name, 'timestamp'])
@@ -415,7 +415,7 @@ class WorldViewerWindow(QMainWindow):
         )
 
     def _update_camera(self, name):
-        cloud_name = '{}_pc'.format(name)
+        cloud_name = 'cam_{}'.format(name)
 
         # check if point cloud is modified
         stamp = self.db.get(['camera', name, 'timestamp'], 0)
