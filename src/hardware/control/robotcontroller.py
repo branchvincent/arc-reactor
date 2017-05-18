@@ -4,15 +4,10 @@ from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.vacuum import Vacuum
 from motion.checker import MotionPlanChecker
-from master.world import build_world, klampt2numpy
 from motion.milestone import Milestone
+from master.world import build_world, klampt2numpy
 
-from klampt.model.collide import WorldCollider
-from klampt.plan.robotcspace import RobotCSpace
-from klampt.math import vectorops
-
-import numpy as np
-from time import time, sleep
+from time import sleep
 import logging; logger = logging.getLogger(__name__)
 
 # List of robot IP addresses
@@ -39,13 +34,13 @@ class RobotController:
 
     def run(self):
         """Runs the current trajectory in the database"""
-        if self.trajectory:
+        if self.trajectory is None or len(self.trajectory.milestones) == 0:
+            logger.warn('Tried to execute an empty motion plan')
+        else:
             self.trajectory.check()
             self.trajectory.start()
             self.loop()
             self.updateDatabase()
-        else:
-            logger.warning('No trajectory found')
 
     def loop(self):
         """Executed at the given frequency"""

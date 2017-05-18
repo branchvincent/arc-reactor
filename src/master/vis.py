@@ -13,8 +13,9 @@ from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY
 
 from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram, gldraw
-from klampt.vis.qtbackend import QtGLWindow
 from klampt.math import se3
+
+from PyQt4.QtGui import QMainWindow, QCheckBox
 
 from pensive.core import Store
 
@@ -23,9 +24,22 @@ from util.math_helpers import build_pose, transform
 from .sync import AsyncUpdateHandler
 from .world import update_world, numpy2klampt
 
+from .ui.vis import Ui_VisWindow
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class PointCloudRender(object):
+def _call(target, *args, **kwargs):
+    def _cb():
+        return target(*args, **kwargs)
+    return _cb
+
+def _toggle_drawable(group, element, checkbox):
+    if not checkbox.isChecked() and element in group:
+        group.remove(element)
+    elif checkbox.isChecked() and element not in group:
+        group.append(element)
+
+class PointCloud(object):
     '''
     Helper class for using drawing point clouds with Vertex Buffer Objects.
     '''
@@ -45,7 +59,7 @@ class PointCloudRender(object):
 
         Alternatively, `xyz` is an (N, 6) array of packed positions and colors.
         The first 3 elements of each vector are interpreted as position whereas
-        hte second 3 elements of each vector are interpreted as non-normalized color (0-255).
+        the second 3 elements of each vector are interpreted as non-normalized color (0-255).
         '''
         if pose is not None:
             self._pose = numpy.array(pose, dtype=numpy.float32)
@@ -189,6 +203,26 @@ class Trace(object):
 
         glEnable(GL_LIGHTING)
 
+class Pose(object):
+    def __init__(self):
+        self._pose = None
+        self._length = 0.1
+        self._width = 0.01
+
+    def update(self, pose=None, length=None, width=None):
+        if pose is not None:
+            if len(pose) != 2:
+                self._pose = numpy2klampt(pose)
+            else:
+                self._pose = pose
+
+        self._length = length or self._length
+        self._width = width or self._width
+
+    def draw(self):
+        if self._pose is not None:
+            gldraw.xform_widget(self._pose, self._length, self._width, fancy=True)
+
 class WorldViewer(GLRealtimeProgram):
     def __init__(self):
         GLRealtimeProgram.__init__(self, 'World Viewer')
@@ -211,23 +245,12 @@ class WorldViewer(GLRealtimeProgram):
         for drawable in self.post_drawables:
             drawable.draw()
 
-        # draw poses for all robots and boxes
-        poses = [se3.identity()] + self.extra_poses
+        # for i in range(self.world.numRobots()):
+        #     robot = self.world.robot(i)
+        #     poses.append(robot.link(0).getTransform())
+        #     poses.append(robot.link(robot.numLinks()-1).getTransform())
 
-        for i in range(self.world.numRobots()):
-            robot = self.world.robot(i)
-            poses.append(robot.link(0).getTransform())
-            poses.append(robot.link(robot.numLinks()-1).getTransform())
-
-        for i in range(self.world.numRigidObjects()):
-            poses.append(self.world.rigidObject(i).getTransform())
-
-        for pose in poses:
-            if pose is not None:
-                if len(pose) != 2:
-                    pose = numpy2klampt(pose)
-
-                gldraw.xform_widget(pose, 0.1, 0.01, fancy=True)
+        gldraw.xform_widget(se3.identity(), 0.1, 0.01, fancy=True)
 
     def mousefunc(self,button,state,x,y):
         return GLRealtimeProgram.mousefunc(self,button,state,x,y)
@@ -235,13 +258,17 @@ class WorldViewer(GLRealtimeProgram):
     def motionfunc(self,x,y,dx,dy):
         return GLRealtimeProgram.motionfunc(self,x,y,dx,dy)
 
-class WorldViewerWindow(QtGLWindow):
+class WorldViewerWindow(QMainWindow):
     def __init__(self):
         super(WorldViewerWindow, self).__init__()
 
-        self.setProgram(WorldViewer())
+        self.ui = Ui_VisWindow()
+        self.ui.setupUi(self)
+
+        self.program = WorldViewer()
+        self.ui.view.setProgram(self.program)
         self.setWindowTitle(self.program.name)
-        self.setMaximumSize(1920, 1080)
+        self.ui.view.setMaximumSize(1920, 1080)
 
         self.ready = False
         self.db = Store()
@@ -263,7 +290,7 @@ class WorldViewerWindow(QtGLWindow):
         self.point_clouds = {}
         self.bounding_boxes = {}
         self.traces = {}
-        self.pose = {}
+        self.poses = {}
 
         self.options = {}
 
@@ -283,11 +310,12 @@ class WorldViewerWindow(QtGLWindow):
 
         update_world(self.db, self.program.world, self.timestamps, ignore=['items', 'obstacles'])
 
-        self._update_bounding_box('target_bb', [], ['robot', 'target_bounding_box'])
+        self._update_bounding_box('target', [], ['robot', 'target_bounding_box'])
 
-        # # update camera point clouds
-        # for name in self.db.get('/system/cameras', []):
-        #     self._update_camera(name)
+        # update camera point clouds
+        for name in self.db.get('/system/cameras', []):
+            self._update_camera(name)
+            self._update_pose('cam_{}'.format(name), [['camera', name, 'pose']])
 
         # update item point clouds
         for name in self.db.get('item', {}):
@@ -297,27 +325,31 @@ class WorldViewerWindow(QtGLWindow):
 
         # update shelf bin bounding boxes
         for name in self.db.get('/shelf/bin', {}):
-            self._update_bounding_box('shelf_{}_bb'.format(name), ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
-            self.program.extra_poses.append(build_pose(self.db, [['shelf', 'pose'], ['shelf', 'bin', name, 'vantage']], strict=False))
+            self._update_bounding_box('shelf_{}'.format(name), ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
 
         # update box bounding boxes
         for name in self.db.get('/box', {}):
-            self._update_bounding_box('box_{}_bb'.format(name), [['box', name, 'pose']], ['box', name, 'bounds'])
-            self.program.extra_poses.append(build_pose(self.db, [['box', name, 'pose'], ['box', name, 'vantage']], strict=False))
+            self._update_bounding_box('box_{}'.format(name), [['box', name, 'pose']], ['box', name, 'bounds'])
+            self._update_pose('box_{}'.format(name), [['box', name, 'pose']])
+            self._update_pose('vantage_{}'.format(name), [['box', name, 'pose'], ['box', name, 'vantage']])
 
         # update tote bounding boxes
         for name in self.db.get('/tote', {}):
-            self._update_bounding_box('tote_{}_bb'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
-            self.program.extra_poses.append(build_pose(self.db, [['tote', name, 'pose'], ['tote', name, 'vantage']], strict=False))
+            self._update_bounding_box('tote_{}'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
+            self._update_pose('tote_{}'.format(name), [['tote', name, 'pose']])
+            self._update_pose('vantage_{}'.format(name), [['tote', name, 'pose'], ['tote', name, 'vantage']])
 
         for grasp in self.db.get('/debug/grasps', []):
             self.program.extra_poses.append(se3.from_translation(grasp[1]))
-        self.program.extra_poses.append(self.db.get('/robot/inspect_pose'))
+
+        self._update_pose('robot_base', [['robot', 'base_pose']])
+        self._update_pose('robot_tcp', [['robot', 'tcp_pose']])
+        self._update_pose('robot_inspect', [['robot', 'inspect_pose']])
 
         self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
 
     def _update_robot_trace(self, name, robot, link, path_url, timestamp_url):
-        trace_name = '{}_pc'.format(name)
+        trace_name = name
 
         # check if path is modified
         stamp = self.db.get(timestamp_url)
@@ -340,12 +372,18 @@ class WorldViewerWindow(QtGLWindow):
             self.program.post_drawables.append(trace)
             self.traces[trace_name] = trace
 
+            checkbox = QCheckBox()
+            checkbox.setText(name)
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(_call(_toggle_drawable, self.program.post_drawables, trace, checkbox))
+            self.ui.trace_area.layout().addWidget(checkbox)
+
         options = self.options.get(trace, {})
 
         trace.update(path=path, **options)
 
     def _update_item(self, name):
-        cloud_name = '{}_pc'.format(name)
+        cloud_name = 'item_{}'.format(name)
 
         # check if point cloud is modified
         stamp = self.db.get(['item', name, 'timestamp'])
@@ -377,7 +415,7 @@ class WorldViewerWindow(QtGLWindow):
         )
 
     def _update_camera(self, name):
-        cloud_name = '{}_pc'.format(name)
+        cloud_name = 'cam_{}'.format(name)
 
         # check if point cloud is modified
         stamp = self.db.get(['camera', name, 'timestamp'], 0)
@@ -408,6 +446,12 @@ class WorldViewerWindow(QtGLWindow):
             self.program.post_drawables.append(bb)
             self.bounding_boxes[name] = bb
 
+            checkbox = QCheckBox()
+            checkbox.setText(name)
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(_call(_toggle_drawable, self.program.post_drawables, bb, checkbox))
+            self.ui.bb_area.layout().addWidget(checkbox)
+
         options = self.options.get(bb, {})
 
         bb.update(pose=build_pose(self.db, pose_urls, strict=False), bounds=self.db.get(bounds_url), **options)
@@ -416,9 +460,15 @@ class WorldViewerWindow(QtGLWindow):
         cloud = self.point_clouds.get(name)
         if not cloud:
             # construct and register a new point cloud
-            cloud = PointCloudRender()
+            cloud = PointCloud()
             self.program.post_drawables.append(cloud)
             self.point_clouds[name] = cloud
+
+            checkbox = QCheckBox()
+            checkbox.setText(name)
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(_call(_toggle_drawable, self.program.post_drawables, cloud, checkbox))
+            self.ui.pc_area.layout().addWidget(checkbox)
 
         options = self.options.get(cloud, {})
 
@@ -468,6 +518,25 @@ class WorldViewerWindow(QtGLWindow):
             self.db.put(xyz_url, None)
         if rgb_url:
             self.db.put(rgb_url, None)
+
+    def _update_pose(self, name, path):
+        data = build_pose(self.db, path, strict=False)
+        if data is None:
+            return
+
+        pose = self.poses.get(name)
+        if not pose:
+            pose = Pose()
+            self.program.post_drawables.append(pose)
+            self.poses[name] = pose
+
+            checkbox = QCheckBox()
+            checkbox.setText(name)
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(_call(_toggle_drawable, self.program.post_drawables, pose, checkbox))
+            self.ui.pose_area.layout().addWidget(checkbox)
+
+        pose.update(data)
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
