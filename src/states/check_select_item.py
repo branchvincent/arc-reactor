@@ -16,6 +16,7 @@ class CheckSelectItem(State):
     def run(self):
         window = ItemSelector(self.store)
         window.show()
+        self.setOutcome(True)
 
 class ItemSelector(QWidget):
     def __init__(self, store):
@@ -136,8 +137,12 @@ class ItemSelector(QWidget):
 
 if __name__ == '__main__':
     app = QApplication([])
-
-    csi = CheckSelectItem('csi')
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'csi')
+    csi = CheckSelectItem(myname)
     csi.run()
 
     app.exec_()

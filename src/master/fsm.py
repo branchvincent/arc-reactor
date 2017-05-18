@@ -10,35 +10,43 @@ import logging; logger = logging.getLogger(__name__)
 
 class State():
     def __init__(self, name, store=None):
+        self.fullname = name
         self.name = name.upper()
         self.store = store or PensiveClient().default()
     def __str__(self):
         return self.name
+    def setFullName(self, fullname):
+        self.fullname = fullname
+    def getFullName(self):
+        return self.fullname
     def run(self):
         raise NotImplementedError
+    def setOutcome(self, outcome):
+        self.outcome = outcome
+        self.store.put('/outcome/'+self.getFullName(), outcome)
+
 
 class Transition():
-    def __init__(self, fromState, toState, altState, condition=None, checkpoint=None, store=None, checkState=None):
+    def __init__(self, fromState, toState, altState, store=None, checkState=None):
         self.fromState = fromState.upper()
         self.toState = toState.upper()
         self.altState = altState.upper()
         self.checkState = checkState
-        self.condition = condition
-        self.checkpoint = checkpoint
+        self.outcome = '/outcome/'+fromState
+        self.checkpoint = '/checkpoint/'+fromState
         self.store = store or PensiveClient().default()
 
     def decideTransition(self):
-        if self.condition is None:
-            raise RuntimeError("No pass/fail in state specified. Cannot proceed.")
-        if not self.store.get(self.condition):
+        if not self.store.get(self.outcome, False): #if nothing set, assume failed
+            print "Failed, going back, outcome was ", self.outcome
+            logger.info('State failed, going to alternative state')
             return self.altState
-        if self.checkpoint is not None:
-            if self.store.get(self.checkpoint, False):
-                print "got checkpoint"
-                if self.checkState is None:
-                    raise RuntimeError("Checkpoint asked for, but state is non-existent")
-                return self.checkState.upper()
-            else: return self.toState
+        if self.store.get(self.checkpoint, False):
+            print "got checkpoint"
+            logger.info('Checkpoint after current state is called')
+            if self.checkState is None:
+                raise RuntimeError("Checkpoint asked for, but state is non-existent")
+            return self.checkState.upper()
         else: 
             return self.toState
 
@@ -54,6 +62,9 @@ class StateMachine():
         #self.removeHistory()
         self.setupFlag()
         self.p = None
+
+    def getStartState(self):
+        raise NotImplementedError
 
     def getStore(self):
         return self.store
@@ -110,6 +121,7 @@ class StateMachine():
 
     def runCurrent(self):
         print "currently running ", self.getCurrentState()
+        self.events[self.getCurrentState()].setOutcome(False)
         logger.info("Current running the state {} ".format(self.getCurrentState()))
         history_name = self.getCurrentState()+str(len(self.pastStorage))
         if history_name in PensiveClient().index():
@@ -117,7 +129,7 @@ class StateMachine():
         histStore = PensiveClient().create(history_name, parent=self.store.get_instance())
 
         whoiam = inspect.getmodule(self.events[self.current]).__name__
-        self.p = Popen(['./reactor', 'shell', '-m', whoiam])
+        self.p = Popen(['./reactor', 'shell', '-m', whoiam, self.getCurrentState().lower()])
         self.p.wait()
 
         self.pastEvents.append(self.current)
@@ -140,8 +152,8 @@ class StateMachine():
     def getAllPastEvents(self):
         return self.pastEvents
 
-    def setTransition(self, name, nameNext, altNext, condition=None, checkpoint=None, checkState=None):
-        self.transitions[name.upper()]=Transition(name, nameNext, altNext, condition, checkpoint, self.store, checkState)
+    def setTransition(self, name, nameNext, altNext, checkState=None):
+        self.transitions[name.upper()]=Transition(name, nameNext, altNext, self.store, checkState)
 
     def getTransitions(self):
         return self.transitions

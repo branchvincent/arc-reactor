@@ -23,11 +23,11 @@ class ExecRoute(State):
                 controller = RobotController(store=self.store)
                 controller.run()
                 completed = controller.trajectory.complete
+                self.setOutcome(True)
             except RuntimeError:
+                self.setOutcome(False)
                 logger.exception('Robot controller had an exception.')
                 completed = False
-
-        self.store.put('/status/route_exec', completed)
 
         #update history
         # if completed:
@@ -35,4 +35,9 @@ class ExecRoute(State):
         #     self.store.put('/robot/history', self.waypoints)
 
 if __name__ == '__main__':
-    ExecRoute('er').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'er')
+    ExecRoute(myname).run()

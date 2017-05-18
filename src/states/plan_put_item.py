@@ -115,14 +115,19 @@ class PlanPutItem(State):
             if not motion_plan:
                 raise RuntimeError('motion plan is empty')
         except Exception:
-            self.store.put('/status/route_plan_put', False)
+            self.setOutcome(False)
             logger.exception('Failed to generate motion plan')
         else:
             milestone_map = [m.get_milestone() for m in motion_plan]
             self.store.put('/robot/waypoints', milestone_map)
-            self.store.put('/status/route_plan_put', True)
+            self.setOutcome(True)
             self.store.put('/robot/timestamp', time())
             logger.info('Route generated')
 
 if __name__ == '__main__':
-    PlanPutItem('ppi').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'ppi')
+    PlanPutItem(myname).run()

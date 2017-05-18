@@ -119,13 +119,18 @@ class PlanRoute(State):
             if not motion_plan:
                 raise RuntimeError('motion plan is empty')
         except Exception:
-            self.store.put('/status/route_plan', False)
+            self.setOutcome(False)
             logger.exception('failed to generate motion plan')
         else:
             self.store.put('/robot/waypoints', motion_plan)
-            self.store.put('/status/route_plan', True)
+            self.setOutcome(True)
             self.store.put('/robot/timestamp', time())
             logger.info('route generated')
 
 if __name__ == '__main__':
-    PlanRoute('pr').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'pr')
+    PlanRoute(myname).run()

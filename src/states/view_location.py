@@ -14,6 +14,13 @@ class ViewLocation(State):
         lp = LinearPlanner()
         # T = self.store.get('')
         # lp.interpolate(T=T)
+        
+       self.setOutcome(True)
 
 if __name__ == '__main__':
-    ViewLocation('vl').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'vl')
+    ViewLocation(myname).run()
