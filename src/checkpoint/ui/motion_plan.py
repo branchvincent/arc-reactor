@@ -25,7 +25,7 @@ except AttributeError:
 class Ui_MotionPlanWindow(object):
     def setupUi(self, MotionPlanWindow):
         MotionPlanWindow.setObjectName(_fromUtf8("MotionPlanWindow"))
-        MotionPlanWindow.resize(735, 491)
+        MotionPlanWindow.resize(785, 665)
         self.centralwidget = QtGui.QWidget(MotionPlanWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.centralwidget)
@@ -34,7 +34,7 @@ class Ui_MotionPlanWindow(object):
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.view = QtGLWindow(parent=self.centralwidget)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(1)
+        sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         # sizePolicy.setHeightForWidth(self.view.sizePolicy().hasHeightForWidth())
         self.view.setSizePolicy(sizePolicy)
@@ -50,8 +50,8 @@ class Ui_MotionPlanWindow(object):
         self.time_slider = QtGui.QSlider(self.widget)
         self.time_slider.setEnabled(False)
         self.time_slider.setMaximum(0)
-        self.time_slider.setSingleStep(1000)
-        self.time_slider.setPageStep(10000)
+        self.time_slider.setSingleStep(100)
+        self.time_slider.setPageStep(1000)
         self.time_slider.setOrientation(QtCore.Qt.Horizontal)
         self.time_slider.setObjectName(_fromUtf8("time_slider"))
         self.horizontalLayout_2.addWidget(self.time_slider)
@@ -76,6 +76,15 @@ class Ui_MotionPlanWindow(object):
         self.reject_button.setObjectName(_fromUtf8("reject_button"))
         self.horizontalLayout_2.addWidget(self.reject_button)
         self.verticalLayout.addWidget(self.widget)
+        self.checker_results = QtGui.QPlainTextEdit(self.centralwidget)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.checker_results.sizePolicy().hasHeightForWidth())
+        self.checker_results.setSizePolicy(sizePolicy)
+        self.checker_results.setReadOnly(True)
+        self.checker_results.setObjectName(_fromUtf8("checker_results"))
+        self.verticalLayout.addWidget(self.checker_results)
         MotionPlanWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MotionPlanWindow)
@@ -84,7 +93,7 @@ class Ui_MotionPlanWindow(object):
     def retranslateUi(self, MotionPlanWindow):
         MotionPlanWindow.setWindowTitle(_translate("MotionPlanWindow", "MainWindow", None))
         self.run_button.setText(_translate("MotionPlanWindow", "Pause", None))
-        self.time_label.setText(_translate("MotionPlanWindow", "0m00s of 0m00s", None))
+        self.time_label.setText(_translate("MotionPlanWindow", "0s of 0s (0)", None))
         self.approve_button.setText(_translate("MotionPlanWindow", "Approve", None))
         self.reject_button.setText(_translate("MotionPlanWindow", "Reject", None))
 

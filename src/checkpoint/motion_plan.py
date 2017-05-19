@@ -18,6 +18,9 @@ from PyQt4.QtGui import QMainWindow
 
 from master.world import build_world
 
+from motion.checker import MotionPlanChecker
+from motion.milestone import Milestone
+
 from .ui.motion_plan import Ui_MotionPlanWindow
 
 logger = logging.getLogger(__name__)
@@ -69,7 +72,7 @@ class WorldViewer(GLRealtimeProgram):
 
     def query_time(self, t, hint=None):
         if t < 0:
-            return self.commands[0]
+            return (0, self.commands[0])
 
         for i in range(len(self.dts)):
             dt = self.dts[i]
@@ -92,9 +95,9 @@ class WorldViewer(GLRealtimeProgram):
                 if name in cmd_start:
                     command[name] = cmd_start[name]
 
-            return command
+            return (i + 1, command)
 
-        return self.commands[-1]
+        return (len(self.commands) - 1, self.commands[-1])
 
     def display(self):
         self.world.drawGL()
@@ -123,10 +126,10 @@ class WorldViewer(GLRealtimeProgram):
             if self.current_time > self.duration + self.end_delay:
                 self.start_time = time() + self.end_delay
 
-            if self.update_callback:
-                self.update_callback(min([max([0, self.current_time]), self.duration]), self.duration)
+        (self.index, command) = self.query_time(self.current_time)
 
-        command = self.query_time(self.current_time)
+        if not self.pause and self.update_callback:
+            self.update_callback()
 
         if 'robot' in command:
             self.world.robot('tx90l').setConfig(command['robot'])
@@ -152,10 +155,25 @@ class WorldViewerWindow(QMainWindow):
         self.ui.view.setMaximumSize(1920, 1080)
 
         self.ui.run_button.clicked.connect(self.toggle_pause)
-        self.ui.time_slider.sliderMoved.connect(self.change_slider)
+        self.ui.time_slider.valueChanged.connect(self.change_slider)
 
         self.ui.approve_button.setEnabled(False)
         self.ui.reject_button.setEnabled(False)
+
+        mp = store.get('/robot/waypoints', [])
+        errors = MotionPlanChecker([Milestone(map=m) for m in mp]).check()
+
+        if len(errors) == 0:
+            self.ui.checker_results.setPlainText('Motion plan has no errors.')
+            self.ui.checker_results.setStyleSheet('color: green;')
+        else:
+            self.ui.checker_results.setPlainText('\n'.join(
+                ['Motion plan has {} errors!'.format(len(errors))] +
+                ['Milestone {1} Joint {2}: {0}'.format(*error) for error in errors]
+            ))
+            self.ui.checker_results.setStyleSheet('color: red;')
+
+        self.ui.time_slider.setMaximum(1000 * self.program.duration)
 
     def toggle_pause(self):
         self.program.pause = not self.program.pause
@@ -171,18 +189,15 @@ class WorldViewerWindow(QMainWindow):
         if self.program.pause:
             self.program.current_time = value / 1000.0
 
-        self.sync_label()
+        self.update(False)
 
-    def update(self, time, duration):
-        self.ui.time_slider.setMaximum(1000 * duration)
-        self.ui.time_slider.setValue(1000 * time)
+    def update(self, slider=True):
+        time = min([max([self.program.current_time, 0]), self.program.duration])
 
-        self.sync_label()
+        if slider:
+            self.ui.time_slider.setValue(1000 * time)
 
-    def sync_label(self):
-        time = self.ui.time_slider.value() / 1000.0
-        duration = self.ui.time_slider.maximum() / 1000.0
-        self.ui.time_label.setText('{:.2f}s of {:.2f}s'.format(time, duration))
+        self.ui.time_label.setText('{:.2f}s of {:.2f}s ({})'.format(time, self.program.duration, self.program.index))
 
 def run(modal=True, store=None):
     from pensive.client import PensiveClient
