@@ -1,28 +1,29 @@
 import logging
 
-import numpy
-from matplotlib import cm
-
 from time import time, sleep
 
 from math import pi
 
+import numpy
+from matplotlib import cm
+
 from OpenGL.arrays import vbo
 from OpenGL.GL import glEnable, glDisable
-from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glColorPointerf, glDrawArrays, glColor, glLineWidth
-from OpenGL.GL import GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_LINE_STRIP, GL_STATIC_DRAW
+from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glDrawArrays, glColor, glLineWidth
+from OpenGL.GL import GL_LIGHTING, GL_VERTEX_ARRAY, GL_LINE_STRIP, GL_STATIC_DRAW
 
-from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram
-from klampt.vis.qtbackend import QtGLWindow
-from klampt.math import vectorops, so3
-numpy
-from master.world import build_world, update_world
+
+from PyQt4.QtGui import QMainWindow
+
+from master.world import build_world
+
+from .ui.motion_plan import Ui_MotionPlanWindow
 
 logger = logging.getLogger(__name__)
 
 class WorldViewer(GLRealtimeProgram):
-    def __init__(self, store):
+    def __init__(self, store, update_callback=None):
         GLRealtimeProgram.__init__(self, 'Motion Plan Checkpoint')
 
         self.world = build_world(store)
@@ -54,6 +55,9 @@ class WorldViewer(GLRealtimeProgram):
             color = cm.gist_rainbow(float(i - 1) / (self.dofs - 2))
             self.trace_vbos.append((color, vbo.VBO(data, GL_STATIC_DRAW)))
 
+        self.pause = False
+        self.update_callback = update_callback
+
     def trace_link(self, plan, link):
         trace = []
 
@@ -62,91 +66,6 @@ class WorldViewer(GLRealtimeProgram):
             trace.append(self.robot.link(link).getTransform()[1])
 
         return trace
-
-    # def resample(self, max_dt=None, max_dq=None, max_dx=None):
-    #     if max_dq is not None:
-    #         try:
-    #             if len(max_dq) < self.dofs:
-    #                 raise TypeError
-    #         except TypeError:
-    #             max_dq = [max_dq] * self.dofs
-
-    #     if max_dx is not None:
-    #         try:
-    #             if len(max_dx) < self.dofs:
-    #                 raise TypeError
-    #         except TypeError:
-    #             max_dx = [max_dx] * self.dofs
-
-    #     trajectory = [self.motion_plan[0]]
-    #     i = 0
-    #     step = 1.0
-
-    #     while i < len(self.motion_plan):
-    #         # query motion plan
-    #         (t, cmd) = self.query_index(i + step)
-
-    #         if max_dt is not None:
-    #             # check time differences
-    #             if t - trajectory[-1][0] > max_dt:
-    #                 step /= 2
-    #                 continue
-
-    #         if max_dq is not None:
-    #             # check joint differences
-    #             dq = [a - b for (a, b) in zip(cmd['robot'], trajectory[-1][1]['robot'])]
-    #             if any([dq > lim for (dq, lim) in zip(dq, max_dq)]):
-    #                 step /= 2
-    #                 continue
-
-    #         if max_dx is not None:
-    #             for i in range(self.dofs):
-    #                 self.robot.setConfig(trajectory[-1][1]['robot'])
-    #                 (Ra, ta) = self.robot.link(i).getTransform()
-
-    #                 self.robot.setConfig(cmd['robot'])
-    #                 (Rb, tb) = self.robot.link(i).getTransform()
-
-    #                 # check angle
-    #                 if so3.distance(Ra, Rb) > max_dq[i][0]:
-    #                     step /= 2
-    #                     continue
-
-    #                 # check distance
-    #                 if vectorops.distance(ta, tb) > max_dq[i][1]:
-    #                     step /= 2
-    #                     continue
-
-    #         trajectory.append((t, cmd))
-    #         i += step
-    #         step = 1.0
-
-    #     return trajectory
-
-    # def query_index(self, i):
-    #     command = {}
-
-    #     if i <= 0:
-    #         # before start
-    #         return self.motion_plan[0]
-    #     elif i >= len(self.motion_plan) - 1:
-    #         # after end
-    #         return self.motion_plan[-1]
-    #     else:
-    #         segment = self.motion_plan[int(i):int(i)+2]
-
-    #         # first-order hold for continuous variables
-    #         ratio = i % 1
-    #         for name in ['robot', 'shelf', 'gripper']:
-    #             if name in segment[0][1] and name in segment[1][1]:
-    #                 command[name] = [ratio*a + (1 - ratio)*b for (a, b) in zip(segment[0][1][name], segment[1][1][name])]
-
-    #         # zero-order hold for discrete variables
-    #         for name in ['vacuum']:
-    #             if name in segment[0][1]:
-    #                 command[name] = segment[0][1][name]
-
-    #         return ((1 - ratio)*segment[0][0] + ratio*segment[1][0], command)
 
     def query_time(self, t, hint=None):
         if t < 0:
@@ -185,11 +104,11 @@ class WorldViewer(GLRealtimeProgram):
 
         glEnableClientState(GL_VERTEX_ARRAY)
 
-        for (color, vbo) in self.trace_vbos:
+        for (color, trace) in self.trace_vbos:
             glColor(*color)
-            with vbo:
-                glVertexPointerf(vbo)
-                glDrawArrays(GL_LINE_STRIP, 0, len(vbo))
+            with trace:
+                glVertexPointerf(trace)
+                glDrawArrays(GL_LINE_STRIP, 0, len(trace))
 
         glDisableClientState(GL_VERTEX_ARRAY)
 
@@ -199,11 +118,15 @@ class WorldViewer(GLRealtimeProgram):
         if not self.commands:
             return
 
-        current_time = self.speed_scale * (time() - self.start_time)
-        if current_time > self.duration + self.end_delay:
-            self.start_time = time() + self.end_delay
+        if not self.pause:
+            self.current_time = self.speed_scale * (time() - self.start_time)
+            if self.current_time > self.duration + self.end_delay:
+                self.start_time = time() + self.end_delay
 
-        command = self.query_time(current_time)
+            if self.update_callback:
+                self.update_callback(min([max([0, self.current_time]), self.duration]), self.duration)
+
+        command = self.query_time(self.current_time)
 
         if 'robot' in command:
             self.world.robot('tx90l').setConfig(command['robot'])
@@ -216,13 +139,50 @@ class WorldViewer(GLRealtimeProgram):
     def motionfunc(self,x,y,dx,dy):
         return GLRealtimeProgram.motionfunc(self,x,y,dx,dy)
 
-class WorldViewerWindow(QtGLWindow):
+class WorldViewerWindow(QMainWindow):
     def __init__(self, store):
         super(WorldViewerWindow, self).__init__()
 
-        self.setProgram(WorldViewer(store))
+        self.ui = Ui_MotionPlanWindow()
+        self.ui.setupUi(self)
+
+        self.program = WorldViewer(store, self.update)
+        self.ui.view.setProgram(self.program)
         self.setWindowTitle(self.program.name)
-        self.setMaximumSize(1920, 1080)
+        self.ui.view.setMaximumSize(1920, 1080)
+
+        self.ui.run_button.clicked.connect(self.toggle_pause)
+        self.ui.time_slider.sliderMoved.connect(self.change_slider)
+
+        self.ui.approve_button.setEnabled(False)
+        self.ui.reject_button.setEnabled(False)
+
+    def toggle_pause(self):
+        self.program.pause = not self.program.pause
+        self.ui.time_slider.setEnabled(self.program.pause)
+
+        if not self.program.pause:
+            self.program.start_time = time() - self.program.current_time / self.program.speed_scale
+            self.ui.run_button.setText('Pause')
+        else:
+            self.ui.run_button.setText('Play')
+
+    def change_slider(self, value):
+        if self.program.pause:
+            self.program.current_time = value / 1000.0
+
+        self.sync_label()
+
+    def update(self, time, duration):
+        self.ui.time_slider.setMaximum(1000 * duration)
+        self.ui.time_slider.setValue(1000 * time)
+
+        self.sync_label()
+
+    def sync_label(self):
+        time = self.ui.time_slider.value() / 1000.0
+        duration = self.ui.time_slider.maximum() / 1000.0
+        self.ui.time_label.setText('{:.2f}s of {:.2f}s'.format(time, duration))
 
 def run(modal=True, store=None):
     from pensive.client import PensiveClient
