@@ -3,17 +3,20 @@ from klampt.vis.glrobotprogram import *
 import math
 import logging; logger = logging.getLogger(__name__)
 
-dof = { 'db': 7,
-        'robot': 6  }
+DOF = { 'db': 7,
+        'robot': 6,
+        'vacuum': 1,
+        'gripper': 1
+}
 
 class Milestone:
-    def __init__(self, t=None, robot=None, vacuum=0, gripper=None, map=None, type='db'):
+    def __init__(self, t=None, robot=None, vacuum=None, gripper=None, map=None, type='db'):
         # Set values
         self.type = type.lower()
         self.t = t
-        self.robot = robot or [0]*dof[self.type]
-        self.gripper = gripper or [0]*3 #TODO: update with real logic
-        self.vacuum = [vacuum]
+        self.robot = robot or [0]*DOF[self.type]
+        self.gripper = gripper or [0]*DOF['gripper']
+        self.vacuum = vacuum or [0]*DOF['vacuum']
         # Set values from map, if applicable
         if map is not None:
             self.set_milestone(map)
@@ -24,9 +27,13 @@ class Milestone:
         # Check type
         if self.type not in ['robot', 'db']:
             raise RuntimeError('Unrecognized milestone type: "{}"'.format(self.type))
-        # Check robot config length
-        if dof[self.type] != len(self.robot):
-            raise RuntimeError('Milestone type and robot config mismatch: "{}: {} != {}"'.format(self.type, dof[self.type], len(self.robot)))
+        # Check dofs
+        if DOF[self.type] != len(self.robot):
+            raise RuntimeError('Milestone type and robot dof mismatch: "{}: {} != {}"'.format(self.type, DOF[self.type], len(self.robot)))
+        if DOF['gripper'] != len(self.gripper):
+            raise RuntimeError('Gripper dof mismatch: "{} != {}"'.format(DOF['gripper'], len(self.gripper)))
+        if DOF['vacuum'] != len(self.vacuum):
+            raise RuntimeError('Vacuum dof mismatch: "{} != {}"'.format(DOF['vacuum'], len(self.vacuum)))
         # Check robot configs are numbers
         for qi in self.robot:
             if math.isinf(qi) or math.isnan(qi):

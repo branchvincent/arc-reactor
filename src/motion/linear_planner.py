@@ -48,13 +48,12 @@ class LinearPlanner:
         else:
             raise RuntimeError('Must specify either p or T')
 
-        # T0 = ee_link.getTransform()
-        # T = copy.deepcopy(T0); T[1][1] += -0.25
-        # print "T: {} --> {}".format(T0[1], T[1])
         if ik.solve(goal):
             return self.robot.getConfig()
         else:
+            logger.warn('Could not find feasible configuration')
             raise RuntimeError('Could not find feasible configuration')
+            # return self.robot.getConfig()
 
     def interpolate(self, q=None, T=None, p=None): #, rads=True):
         """Jogs the robot to the specified configuration, in radians"""

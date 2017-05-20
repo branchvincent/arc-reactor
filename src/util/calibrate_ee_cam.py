@@ -16,6 +16,8 @@ class CalibrateCam:
         self.planner = LinearPlanner()
         self.x_target = x_target
         self.robot = self.planner.robot
+        # print self.robot.getJointLimits()
+        # print self.robot.getConfig()
 
     def run(self):
         # Get all transforms
@@ -33,7 +35,10 @@ class CalibrateCam:
         Ts = self.getTransforms(self.robot, T0)
         for Ti in Ts:
             self.store.put('robot/inspect_pose', Ti)
-            self.planner.interpolate(T=Ti)
+            try:
+                self.planner.interpolate(T=Ti)
+            except:
+                logger.warn('Could not interpolate')
             # print 'Executing: t = {}'.format([round(tii,2) for tii in Ti[1]])
             self.executePlan()
 
@@ -46,7 +51,7 @@ class CalibrateCam:
         Ts += [T0]
         return Ts
 
-    def getCircle(self, T0, r=0.2, z=0.5, N=2):
+    def getCircle(self, T0, r=0.2, z=0.5, N=8):
         R0 = T0[0]
         x0,y0,_ = T0[1]
         s = 2*math.pi/N
@@ -76,7 +81,7 @@ class CalibrateCam:
 
 if __name__ == "__main__":
     # x_target = (0.07, 0.77, 0.85)
-    x_target = (0, 0.47, 0.85)
-    # x_target = (-0.37, 0.37, 0.85)
+    # x_target = (0, 0.57, 0.85)
+    x_target = (-0.37, 0.37, 0.85)
     cc = CalibrateCam(x_target)
     cc.run()
