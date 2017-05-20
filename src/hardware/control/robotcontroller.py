@@ -128,7 +128,7 @@ class Trajectory:
         # Update milestone
         if self.curr_index < len(self.milestones):
             self.curr_milestone = self.milestones[self.curr_index]
-            self.robot.vacuum.change(bool(self.curr_milestone.get_vacuum()))
+            self.robot.vacuum.change(bool(self.curr_milestone.get_vacuum()[0]))
             logger.info('Moving to milestone {}'.format(self.robot.getCurrentIndexAbs()))
             # Add new milestone
             if len(self.robot.receivedMilestones) < len(self.milestones):
