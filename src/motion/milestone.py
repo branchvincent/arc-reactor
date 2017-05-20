@@ -9,21 +9,21 @@ dof = { 'db': 7,
 class Milestone:
     def __init__(self, t=None, robot=None, vacuum=0, gripper=None, map=None, type='db'):
         # Set values
-        self.t = t
-        self.robot = robot
-        self.gripper = gripper or [0,0,0] #TODO: update with real logic
-        self.vacuum = [vacuum]
         self.type = type.lower()
+        self.t = t
+        self.robot = robot or [0]*dof[self.type]
+        self.gripper = gripper or [0]*3 #TODO: update with real logic
+        self.vacuum = [vacuum]
         # Set values from map, if applicable
         if map is not None:
             self.set_milestone(map)
         # Validate
-        #self.check()
+        self.check()
 
     def check(self):
         # Check type
         if self.type not in ['robot', 'db']:
-            raise RuntimeError('Unrecognized milestone type: "{}"'.format(type))
+            raise RuntimeError('Unrecognized milestone type: "{}"'.format(self.type))
         # Check robot config length
         if dof[self.type] != len(self.robot):
             raise RuntimeError('Milestone type and robot config mismatch: "{}: {} != {}"'.format(self.type, dof[self.type], len(self.robot)))
