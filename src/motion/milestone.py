@@ -1,4 +1,4 @@
-from klampt.vis.glrobotprogram import *
+from klampt.math import vectorops
 
 import math
 import logging; logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ class Milestone:
     def __init__(self, t=None, robot=None, vacuum=None, gripper=None, map=None, type='db'):
         # Set values
         self.type = type.lower()
-        self.t = t
+        self.t = t or 1
         self.robot = robot or [0]*DOF[self.type]
         self.gripper = gripper or [0]*DOF['gripper']
         self.vacuum = vacuum or [0]*DOF['vacuum']
