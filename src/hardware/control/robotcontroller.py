@@ -79,7 +79,7 @@ class Trajectory:
         self.store = store or PensiveClient().default()
         self.robot = robot
         # Get milestone maps
-        milestoneMaps = self.store.get('/robot/waypoints')
+        milestoneMaps = self.store.get('/robot/waypoints', [])
         speed = self.store.get('/robot/speed_scale', 1.)
         # Create milestones
         self.milestones = [Milestone(map=map) for map in milestoneMaps]
