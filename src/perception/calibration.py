@@ -516,12 +516,17 @@ class RobotCamCalibration(QtWidgets.QWidget):
         logger.info("EE to camera guess {}".format(ee2camera_guess))
         logger.info("Base to target guess {}".format(base2target_guess))
 
+
+        #save everything
+        np.save('base2targetguess.npy', base2target_guess)
+        np.save('ee2camera_guess.npy', ee2camera_guess)
+        np.save('robotxforms.npy', self.robot_xforms)
+        np.save('cameraxforms.npy',self.cam_to_target_xforms)
         
         guess = np.concatenate((ee2camera_guess.flatten(), base2target_guess.flatten()))
         res = optimize.minimize(function_to_min, guess, method='BFGS', tol=0.0001)
         print("Total RMS {}. {}".format(res.fun, res.message))
 
-        #TODO make this correct
         #res.x is a 32x1 vector
         ee2cam = res.x[0:16]
         base2target = res.x[16:32]
@@ -744,6 +749,16 @@ class VideoThread(QtCore.QThread):
                 width = cam.get_stream_width(rs.stream_color_aligned_to_depth)
                 height = cam.get_stream_height(rs.stream_color_aligned_to_depth)
                 imageAllignedColor = np.reshape(imageAllignedColor, (height, width, 3) )
+
+            imageAllignedDepth = cam.get_frame_data_u16(rs.stream_depth_aligned_to_color)
+            if imageAllignedDepth.size == 1:
+                #something went wrong
+                logger.error("Could not capture the depth alinged image. Size of requested stream did not match")
+                imageAllignedDepth = None
+            else:
+                width = cam.get_stream_width(rs.stream_depth_aligned_to_color)
+                height = cam.get_stream_height(rs.stream_depth_aligned_to_color)
+                imageAllignedDepth = np.reshape(imageAllignedDepth, (height, width) )
 
             points = cam.get_frame_data_f32(rs.stream_points)
             if points.size == 1:
