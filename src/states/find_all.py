@@ -2,7 +2,7 @@ from master.fsm import State
 
 class FindAll(State):
     def run(self):
-        pass
+        self.setOutcome(True)
 
         #look at camera view and ID any and all items in view
 

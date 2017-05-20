@@ -93,8 +93,10 @@ class FrontPanel(QMainWindow):
             self.sync.request(url + '/timestamp')
 
         self.checkpoints = self._make_path_map([
-            'select_item',
-            'plan_route',
+            'si',
+            'pr',
+            'pgi',
+            'ppi',
         ])
         self._load_toggle_list('/checkpoint/', self.checkpoints, self.ui.checkpointsLayout)
 
@@ -216,7 +218,7 @@ class FrontPanel(QMainWindow):
         self.fsm.loadStates()
         self.fsm.setupTransitions()
         self.fsm.removeHistory()
-        self.fsm.setCurrentState('si') #always start with SelectItem
+        self.fsm.setCurrentState(self.fsm.getStartState())
         self.db.put('/robot/stop_flag', False)
 
     def update(self, db=None):

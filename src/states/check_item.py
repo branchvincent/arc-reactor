@@ -2,6 +2,7 @@ from master.fsm import State
 import logging; logger = logging.getLogger(__name__)
 
 class CheckItem(State):
+
     #Confirm item was picked correctly (temp state).
     def run(self):
         #assume it succeeded for now
@@ -9,7 +10,6 @@ class CheckItem(State):
         self.store.put('/item/'+self.chosenItem+'/point_value', 0)
         for i, n in self.store.get('/status/').items():
             self.store.put('/status/'+i, False)
-        self.store.put('/status/item_picked', True)
 
         logger.info("{} item was moved successfully".format(self.chosenItem))
 
@@ -33,7 +33,15 @@ class CheckItem(State):
                         self.points = (20 if self.store.get('/item/'+i+'/new_item') else 10)
                         self.points += 10/(self.number-len(self.filled))
                         self.store.put('/item/'+i+'/point_value', self.points)
+            
+        self.setOutcome(True)
 
+    
 if __name__ == '__main__':
-    CheckItem('ci').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'ci')
+    CheckItem(myname).run()
 

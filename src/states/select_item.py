@@ -33,8 +33,13 @@ class SelectItem(State):
         logger.info("Chosen item is {} worth {} points".format(self.chosenItem, self.store.get('/item/'+self.chosenItem+'/point_value')))
         self.store.put('/robot/selected_item', self.chosenItem)
 
-        self.store.put('/status/selected_item', self.chosenItem is not None)
+        self.setOutcome(self.chosenItem is not None)
 
 
 if __name__ == '__main__':
-    SelectItem('si').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'si')
+    SelectItem(myname).run()

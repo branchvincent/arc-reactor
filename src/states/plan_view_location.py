@@ -15,5 +15,13 @@ class PlanViewLocation(State):
         lp = LinearPlanner()
         lp.interpolate(T=T)
 
+        self.setOutcome(True)
+
 if __name__ == '__main__':
-    PlanViewLocation('pvl').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'pvl')
+    PlanViewLocation(myname).run()
+

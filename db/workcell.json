@@ -261,21 +261,11 @@
         0.0,
         0.4
     ],
-    "/planner/ee_link":
-        6
-    ,
-    "/planner/control_rate":
-        20
-    ,
-    "/planner/max_ee_v":
-        0.15
-    ,
-    "/planner/max_milestone_change":
-        0.35367795
-    ,
-    "/planner/slow_down":
-        0.4
-    ,
+    "/planner/ee_link": 6,
+    "/planner/control_rate": 20,
+    "/planner/max_ee_v": 0.15,
+    "/planner/max_milestone_change": 0.35367795,
+    "/planner/slow_down": 0.4,
     "/planner/vac_approach_d": [
         0.0,
         0.0,
@@ -415,5 +405,36 @@
     ],
     "/system/spot/C/viewpoints": [
         "box"
-    ]
+    ],
+    "/robot/target_xform": {
+        "__numpy.matrix__": {
+            "dtype": "float64",
+            "list": [
+                [
+                    1.2246467991473532e-16,
+                    -6.123233995736767e-17,
+                    1.0,
+                    0.0
+                ],
+                [
+                    1.0,
+                    -6.123233995736765e-17,
+                    -1.2246467991473532e-16,
+                    -0.0465
+                ],
+                [
+                    6.123233995736766e-17,
+                    1.0,
+                    6.123233995736766e-17,
+                    0.023
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ]
+            ]
+        }
+    }
 }

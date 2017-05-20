@@ -7,4 +7,4 @@ PYSIDE_RCC := $(shell locate -b '\pyside-rcc')
 %.py: %.ui
 	$(PYSIDE_UIC) $< > $@
 
-all: front_panel.py resources_rc.py
+all: front_panel.py vis.py resources_rc.py

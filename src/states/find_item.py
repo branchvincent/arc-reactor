@@ -132,7 +132,7 @@ class FindItem(State):
             # # XXX: no color image yet either
             # pc_color = None
 
-        self.store.put('/status/selected_item_location', True)
+        self.setOutcome(True) #TODO need more clear outcome determination
 
     def simulate_acquire_image(self, camera_name):
         """Simulates acquiring an image from the specified camera"""
@@ -197,4 +197,9 @@ class FindItem(State):
         return aligned_color[mask], point_cloud[mask]
 
 if __name__ == '__main__':
-    FindItem('fi').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or 'fi')
+    FindItem(myname).run()

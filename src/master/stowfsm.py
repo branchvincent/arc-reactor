@@ -20,12 +20,15 @@ class StowStateMachine(StateMachine):
         self.add('csi', CheckSelectItem('csi', store=self.store))
         self.add('cr', CheckRoute('cr', store=self.store))
 
+    def getStartState(self):
+        return 'fa'
+
     def setupTransitions(self):
         self.setTransition('fa', 'si', 'fa', '/status/viewed_items')
-        self.setTransition('si', 'fi', 'si', '/status/selected_item', '/checkpoint/select_item', checkState='csi')
+        self.setTransition('si', 'fi', 'si', '/status/selected_item', checkState='csi')
         self.setTransition('csi', 'fi', 'si', '/status/selected_item')
         self.setTransition('fi', 'pr', 'ms', '/status/selected_item_location')
-        self.setTransition('pr', 'er', 'si', '/status/route_plan', '/checkpoint/plan_route', checkState='cr')
+        self.setTransition('pr', 'er', 'si', '/status/route_plan', checkState='cr')
         self.setTransition('cr', 'er', 'si', '/status/route_plan')
         self.setTransition('er', 'ci', 'fi', '/status/route_exec')
         self.setTransition('ms', 'fi', 'fi', '/status/shelf_move')
@@ -60,7 +63,7 @@ def runStowFSM():
 
     #number = 10
     #for _ in range(number): pick.runOrdered('si')
-    stow.setCurrentState('si')
+    stow.setCurrentState('fa')
     stow.runStep()
     while(not stow.isDone()): stow.runOrdered(stow.getCurrentState())
 

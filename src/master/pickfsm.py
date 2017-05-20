@@ -22,17 +22,20 @@ class PickStateMachine(StateMachine):
         self.add('csi', CheckSelectItem('csi', store=self.store))
         self.add('cr2', CheckRoute('cr2', store=self.store))
 
+    def getStartState(self):
+        return 'si'
+
     def setupTransitions(self):
-        self.setTransition('si', 'fi', 'si', '/status/selected_item', '/checkpoint/select_item', checkState='csi')
-        self.setTransition('csi', 'fi', 'si', '/status/selected_item')
-        self.setTransition('fi', 'pgi', 'csi', '/status/selected_item_location')
-        self.setTransition('pgi', 'er1', 'fi', '/status/route_plan_get', '/checkpoint/plan_route', checkState='cr1')
-        self.setTransition('cr1', 'er1', 'pgi', '/status/route_plan')
-        self.setTransition('er1', 'ppi', 'fi', '/status/route_exec')
-        self.setTransition('ppi', 'er2', 'fi', '/status/route_plan_put', '/checkpoint/plan_route', checkState='cr2')
-        self.setTransition('cr2', 'er2', 'ppi', '/status/route_plan')
-        self.setTransition('er2', 'ci', 'fi', '/status/route_exec')
-        self.setTransition('ci', 'si', 'fi', '/status/item_picked')
+        self.setTransition('si', 'fi', 'si', checkState='csi')
+        self.setTransition('csi', 'fi', 'si')
+        self.setTransition('fi', 'pgi', 'csi')
+        self.setTransition('pgi', 'er1', 'fi', checkState='cr1')
+        self.setTransition('cr1', 'er1', 'pgi')
+        self.setTransition('er1', 'ppi', 'fi')
+        self.setTransition('ppi', 'er2', 'fi', checkState='cr2')
+        self.setTransition('cr2', 'er2', 'ppi')
+        self.setTransition('er2', 'ci', 'fi')
+        self.setTransition('ci', 'si', 'fi')
 
     def isDone(self):
         #if all items picked, all their point values are 0. Need to re-write
