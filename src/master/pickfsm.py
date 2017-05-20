@@ -1,8 +1,8 @@
 from master.fsm import StateMachine
 from states.select_item import SelectItem
 from states.find_item import FindItem
-from states.plan_get_item import PlanGetItem
-from states.plan_put_item import PlanPutItem
+from states.plan_pick_item import PlanPickItem
+from states.plan_place_box import PlanPlaceBox
 from states.exec_route import ExecRoute
 from states.check_item import CheckItem
 from states.check_route import CheckRoute
@@ -13,10 +13,10 @@ class PickStateMachine(StateMachine):
     def loadStates(self):
         self.add('si', SelectItem('si', store=self.store))
         self.add('fi', FindItem('fi', store=self.store))
-        self.add('pgi', PlanGetItem('pgi', store=self.store))
+        self.add('ppi', PlanPickItem('ppi', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
         self.add('er1', ExecRoute('er1', store=self.store))
-        self.add('ppi', PlanPutItem('ppi', store=self.store))
+        self.add('ppb', PlanPlaceBox('ppb', store=self.store))
         self.add('er2', ExecRoute('er2', store=self.store))
         self.add('ci', CheckItem('ci', store=self.store), endState=1)
         self.add('csi', CheckSelectItem('csi', store=self.store))
@@ -28,12 +28,12 @@ class PickStateMachine(StateMachine):
     def setupTransitions(self):
         self.setTransition('si', 'fi', 'si', checkState='csi')
         self.setTransition('csi', 'fi', 'si')
-        self.setTransition('fi', 'pgi', 'csi')
-        self.setTransition('pgi', 'er1', 'fi', checkState='cr1')
-        self.setTransition('cr1', 'er1', 'pgi')
-        self.setTransition('er1', 'ppi', 'fi')
-        self.setTransition('ppi', 'er2', 'fi', checkState='cr2')
-        self.setTransition('cr2', 'er2', 'ppi')
+        self.setTransition('fi', 'ppi', 'csi')
+        self.setTransition('ppi', 'er1', 'fi', checkState='cr1')
+        self.setTransition('cr1', 'er1', 'ppi')
+        self.setTransition('er1', 'ppb', 'fi')
+        self.setTransition('ppb', 'er2', 'fi', checkState='cr2')
+        self.setTransition('cr2', 'er2', 'ppb')
         self.setTransition('er2', 'ci', 'fi')
         self.setTransition('ci', 'si', 'fi')
 

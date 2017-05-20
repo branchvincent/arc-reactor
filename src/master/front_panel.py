@@ -95,8 +95,10 @@ class FrontPanel(QMainWindow):
         self.checkpoints = self._make_path_map([
             'si',
             'pr',
-            'pgi',
             'ppi',
+            'ppb',
+            'psg',
+            'pps'
         ])
         self._load_toggle_list('/checkpoint/', self.checkpoints, self.ui.checkpointsLayout)
 
