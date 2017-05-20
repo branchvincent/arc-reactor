@@ -29,14 +29,21 @@ class DepthCameras:
             logger.info("Found %i cameras", self.num_cameras)
             for i in range(self.num_cameras):
                 self.time_of_last_image.append(0)
+                cam = self.context.get_device(i)
                 #cycle through all of the cameras and find out what streams they support
                 for j in range(rs.capabilities_fish_eye):
-                    cam = self.context.get_device(i)
                     if cam.supports_capability(j):
                         logger.info("Camera %i supports %s", i, rs.rs_stream_to_string(j))
+                
+                #set the camera options
+                cam.set_option(rs.option_f200_filter_option, 1)
+                cam.set_option(rs.option_f200_confidence_threshold, 4)
+                cam.set_option(rs.option_f200_accuracy, 1)
+                cam.set_option(rs.option_f200_motion_range, 10)
+
             return True
         
-    
+
     def acquire_image(self, camera, ivcam_preset=rs.RS_IVCAM_PRESET_OBJECT_SCANNING):
         if self.connect is None:
             logger.warning("No cameras connected, or connect has not been run")
