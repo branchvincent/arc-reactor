@@ -18,6 +18,7 @@ class ExecRoute(State):
             except RuntimeError as e:
                 print "Runtime error: ", e
             completed = True  #always pass in sim mode for now
+            self.setOutcome(True)
         else:
             try:
                 controller = RobotController(store=self.store)

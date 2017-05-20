@@ -2,7 +2,8 @@ from master.fsm import StateMachine
 from states.find_all import FindAll
 from states.select_item import SelectItem
 from states.find_item import FindItem
-from states.plan_route import PlanRoute
+from states.plan_stow_grab import PlanStowGrab
+from states.plan_place_shelf import PlanPlaceShelf
 from states.exec_route import ExecRoute
 from states.check_item import CheckItem
 from states.check_select_item import CheckSelectItem
@@ -14,25 +15,30 @@ class StowStateMachine(StateMachine):
         self.add('fa', FindAll('fa', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
         self.add('fi', FindItem('fi', store=self.store))
-        self.add('pr', PlanRoute('pr', store=self.store))
-        self.add('er', ExecRoute('er', store=self.store))
+        self.add('psg', PlanStowGrab('psg', store=self.store))
+        self.add('pps', PlanPlaceShelf('pps', store=self.store))
+        self.add('er1', ExecRoute('er1', store=self.store))
+        self.add('er2', ExecRoute('er2', store=self.store))
         self.add('ci', CheckItem('ci', store=self.store), endState=1)
         self.add('csi', CheckSelectItem('csi', store=self.store))
-        self.add('cr', CheckRoute('cr', store=self.store))
+        self.add('cr1', CheckRoute('cr1', store=self.store))
+        self.add('cr2', CheckRoute('cr2', store=self.store))
 
     def getStartState(self):
         return 'fa'
 
     def setupTransitions(self):
-        self.setTransition('fa', 'si', 'fa', '/status/viewed_items')
-        self.setTransition('si', 'fi', 'si', '/status/selected_item', checkState='csi')
-        self.setTransition('csi', 'fi', 'si', '/status/selected_item')
-        self.setTransition('fi', 'pr', 'ms', '/status/selected_item_location')
-        self.setTransition('pr', 'er', 'si', '/status/route_plan', checkState='cr')
-        self.setTransition('cr', 'er', 'si', '/status/route_plan')
-        self.setTransition('er', 'ci', 'fi', '/status/route_exec')
-        self.setTransition('ms', 'fi', 'fi', '/status/shelf_move')
-        self.setTransition('ci', 'si', 'fi', '/status/item_picked')
+        self.setTransition('fa', 'si', 'fa')
+        self.setTransition('si', 'fi', 'si', checkState='csi')
+        self.setTransition('csi', 'fi', 'si')
+        self.setTransition('fi', 'psg', 'si')
+        self.setTransition('psg', 'er1', 'si', checkState='cr1')
+        self.setTransition('cr1', 'er1', 'si')
+        self.setTransition('er1', 'pps', 'fi')
+        self.setTransition('pps', 'er2', 'fi', checkState='cr2')
+        self.setTransition('cr2', 'er2', 'fi')
+        self.setTransition('er2', 'ci', 'pps')
+        self.setTransition('ci', 'fa', 'fi')
 
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write

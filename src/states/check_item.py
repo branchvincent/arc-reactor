@@ -8,8 +8,8 @@ class CheckItem(State):
         #assume it succeeded for now
         self.chosenItem = self.store.get('/robot/selected_item')
         self.store.put('/item/'+self.chosenItem+'/point_value', 0)
-        for i, n in self.store.get('/status/').items():
-            self.store.put('/status/'+i, False)
+        #for i, n in self.store.get('/outcome/').items():
+        #    self.store.put('/outcome/'+i, False)
 
         logger.info("{} item was moved successfully".format(self.chosenItem))
 
