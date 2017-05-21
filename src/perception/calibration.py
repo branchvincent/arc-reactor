@@ -490,9 +490,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
             logger.warning("Tried to calibrate with zero points")
             return
 
-        ee2camera_guess = np.eye(4)
-        base2target_guess = np.eye(4)
-
+       
         x = float(self.offset_guesses[0][3].text())
         y = float(self.offset_guesses[1][3].text())
         z = float(self.offset_guesses[2][3].text())
@@ -501,7 +499,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
         pitch = float(self.offset_guesses[1][2].text())
         yaw = float(self.offset_guesses[2][2].text())
 
-        ee2camera_guess = transformMat(x,y,z, yaw, pitch, roll)
+        ee2camera_guess = np.array([x,y,z,yaw,pitch,roll])
 
 
         x = float(self.offset_guesses[0][1].text())
@@ -511,27 +509,23 @@ class RobotCamCalibration(QtWidgets.QWidget):
         roll = float(self.offset_guesses[0][0].text())
         pitch = float(self.offset_guesses[1][0].text())
         yaw = float(self.offset_guesses[2][0].text())
-        base2target_guess = transformMat(x,y,z, yaw, pitch, roll)
+        base2target_guess = np.array([x,y,z,yaw,pitch,roll])
 
         logger.info("EE to camera guess {}".format(ee2camera_guess))
         logger.info("Base to target guess {}".format(base2target_guess))
-
 
         #save everything
         np.save('base2targetguess.npy', base2target_guess)
         np.save('ee2camera_guess.npy', ee2camera_guess)
         np.save('robotxforms.npy', self.robot_xforms)
         np.save('cameraxforms.npy',self.cam_to_target_xforms)
-        
         guess = np.concatenate((ee2camera_guess.flatten(), base2target_guess.flatten()))
         res = optimize.minimize(function_to_min, guess, method='BFGS', tol=0.0001)
         print("Total RMS {}. {}".format(res.fun, res.message))
 
-        #res.x is a 32x1 vector
-        ee2cam = res.x[0:16]
-        base2target = res.x[16:32]
-        ee2cam = ee2cam.reshape((4,4))
-        base2target = base2target.reshape((4,4))
+        #res.x is a 12x1 vector
+        ee2cam = transformMat(res.x[0],res.x[1],res.x[2],res.x[3],res.x[4],res.x[5])
+        base2target = transformMat(res.x[6],res.x[7],res.x[8],res.x[9],res.x[10],res.x[11])
         self.store.put('/camera/ee_cam/pose', ee2cam)
         logger.info("Xform from EE->Camera {}".format(ee2cam))
         logger.info("Xform from Base->Target {}".format(base2target))
@@ -607,15 +601,13 @@ class RobotCamCalibration(QtWidgets.QWidget):
         self.thread.can_emit = True
 
     #2 numpy 4x4 xform matrix of the guess of the transform from the end effector to the camera
-def function_to_min(tuple_of_xforms):
-    ee2camera = tuple_of_xforms[0:16]
-    base2target = tuple_of_xforms[16:32]
-    ee2camera = ee2camera.reshape((4,4))
-    base2target = base2target.reshape((4,4))
+def function_to_min(xforms):
+    ee2camera = transformMat(xforms[0],xforms[1],xforms[2],xforms[3],xforms[4],xforms[5])
+    base2target = transformMat(xforms[6],xforms[7],xforms[8],xforms[9],xforms[10],xforms[11])
     sse = 0
     for i in range(len(base2eepts)):
         robot_xform = base2eepts[i]
-        camera2target = camera2targetpts[i]
+        target2cam = np.linalg.inv(camera2targetpts[i])
 
         guess = np.linalg.inv(base2target).dot(robot_xform).dot(ee2camera)
         xyz_guess = np.zeros((4,1))
@@ -624,7 +616,7 @@ def function_to_min(tuple_of_xforms):
         xyz_guess[2] = guess[2, 3]
         xyz_guess[3] = guess[3, 3]
 
-        sse += (xyz_guess[0] - camera2target[0,3])**2 + (xyz_guess[1] - camera2target[1,3])**2 + (xyz_guess[2] - camera2target[2,3])**2
+        sse += (xyz_guess[0] - target2cam[0,3])**2 + (xyz_guess[1] - target2cam[1,3])**2 + (xyz_guess[2] - target2cam[2,3])**2
     
     return math.sqrt(sse/len(base2eepts))
 
