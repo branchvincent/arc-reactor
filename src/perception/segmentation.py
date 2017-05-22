@@ -8,7 +8,6 @@ import cv2
 import sys
 sys.path.append('../hardware/SR300/')
 sys.path.append('..')
-import realsense as rs
 # configure the root logger to accept all records
 import logging
 logger = logging.getLogger()
@@ -49,8 +48,10 @@ class GraphSegmentationParams():
         self.k = 300
         self.sigma = 0.5
         
-        #filtering parameter for the depth image
-        self.medianFilterW = 7
+        self.L_weight = 1
+        self.A_weight = 1
+        self.B_weight = 1
+        self.depth_weight = 1
 
         #filtering parameters for the mean shift filtering
         self.sp_rad = 7     #spatial window radius
@@ -72,18 +73,12 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     #return dictionary
     return_values = {}
 
-    #filter depth image
-    depth = scipy.signal.medfilt(depthImage, params.medianFilterW)
-    dmin = np.min(depth[np.nonzero(depth)])
-    depth = (depth-dmin) / (depth.max()-dmin)
-    depth = depth*255
-    depth = np.where(depth > 0, depth, 0)
-    depth = depth.astype('uint8')
+
+    depth = depthImage.astype('uint16')
     return_values['depth_filter'] = depth.copy()
 
     
     #create a 4D array of full color in lab space and the last channel is the depth image alligned to the full color
-    
     #convert to LAB
     labcolor = cv2.cvtColor(fcolor, cv2.COLOR_RGB2LAB)
 
@@ -91,16 +86,14 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
     return_values['lab_filter'] = labcolor.copy()
 
-    color_depth_image = np.zeros((imageH, imageW, 6))
+    color_depth_image = np.zeros((imageH, imageW, 4))
     #fill the first three channels with the LAB image
     color_depth_image[:,:,0:3] = labcolor
     color_depth_image[:,:,3] = depth.copy()
-    color_depth_image[:,:,4] = depth.copy()
-    color_depth_image[:,:,5] = depth.copy()
 
     #remove any points outside the desired rectangle
     if not params.mask is None:
-        for i in range(6):
+        for i in range(4):
             color_depth_image[:,:,i] = np.where(params.mask == 1, color_depth_image[:,:,i], 0)
 
     color_depth_image[:,:,0:3] = cv2.GaussianBlur(color_depth_image[:,:,0:3],(0,0), params.sigma, params.sigma)
@@ -110,10 +103,13 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     gs.setSigma(0.001)
     gs.setK(params.k)
     gs.setMinSize(int(params.minSize))
+    weights = [params.L_weight, params.A_weight, params.B_weight, params.depth_weight]
+    for n,w in enumerate(weights):
+        color_depth_image[:,:,n] = color_depth_image[:,:,n]*w
     outp = gs.processImage(color_depth_image)
     numObj = outp.max()
     logger.info("Found {} segments in the image".format(outp.max()))
-    outp = np.where(outp == 0, 255, outp)
+
 
     display_segment_img = outp.copy().astype('float32')
     display_segment_img = (display_segment_img - display_segment_img.min()) / (display_segment_img.max() - display_segment_img.min())
@@ -214,7 +210,7 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     return_values['DL_images'] = imagesForDL
     return_values['small_images'] = tinyColorImgs
     return_values['pixel_locations'] = segments
-
+    return_values['labeled_image'] = outp
     #gets the largest items, but isn't working right now 4/29/2017
     # sizes = [x.size for x in segments]
     # ind = np.argsort(sizes)[::-1]
@@ -225,6 +221,16 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     #     newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
     #     cv2.drawContours(fcolor_rects, [newbox], 0 , (0,255,255), 2)
     return_values['boxes_image'] = fcolor_rects
+
+
+
+    #debugging stuff
+    # if not params.mask is None:
+    #     colorout = np.zeros(fcolor.shape)
+    #     colorout[:,:,0] = params.mask*fcolor[:,:,0]
+    #     colorout[:,:,1] = params.mask*fcolor[:,:,1]
+    #     colorout[:,:,2] = params.mask*fcolor[:,:,2]
+    #     cv2.imwrite('mask.png', colorout.astype('uint8')[:,:,::-1])
     return return_values
 
 
