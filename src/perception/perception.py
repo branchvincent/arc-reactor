@@ -3,7 +3,7 @@ import math
 import sys
 sys.path.append('../hardware/SR300/')
 sys.path.append('..')
-from import depthCamera import DepthCameras
+from depthCamera import DepthCameras
 import realsense as rs
 import segmentation
 import deepLearning as dl
