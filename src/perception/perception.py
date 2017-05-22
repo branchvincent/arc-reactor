@@ -3,7 +3,7 @@ import math
 import sys
 sys.path.append('../hardware/SR300/')
 sys.path.append('..')
-import depthCamera
+from import depthCamera import DepthCameras
 import realsense as rs
 import segmentation
 import deepLearning as dl
@@ -47,7 +47,7 @@ def update_camera_parameters(list_of_serial_nums):
         sn_to_cam_names[value] = key
 
     #try to connect to the depth cameras
-    depthCamera = depthCamera.DepthCameras()
+    depthCamera = DepthCameras()
     if depthCamera.connect():
         #get a dictionary that gives sn->camera num
         sn_to_camNum = depthCamera.get_camera_serial_numbers()
@@ -138,7 +138,7 @@ def acquire_images(list_of_urls, list_of_serial_nums):
         return
 
     #try to connect to the depth cameras
-    depthCamera = depthCamera.DepthCameras()
+    depthCamera = DepthCameras()
     if depthCamera.connect():
         #get a dictionary that gives sn->camera num
         sn_to_camNum = self.depthCamera.get_camera_serial_numbers()
