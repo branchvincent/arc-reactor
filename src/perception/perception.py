@@ -181,7 +181,7 @@ Performs segmentation on images from camera serial numbers in the list.
 Crops the image based on the bounds in list of bounds and the pose in 
 list of poses
 '''
-def segment_images(self, list_of_urls, list_of_bounds, list_of_world_xforms):
+def segment_images(list_of_urls, list_of_bounds, list_of_world_xforms):
 
     if len(list_of_urls) != len(list_of_bounds) or len(list_of_bounds) != len(list_of_world_xforms):
         logger.warning("Length mismatch of url list and bounds list or bounds list and pose list. Not segmenting")
