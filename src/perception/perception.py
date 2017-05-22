@@ -45,7 +45,6 @@ def update_camera_parameters(list_of_serial_nums):
         return
     for key, value in cam_names_to_sn.items():
         sn_to_cam_names[value] = key
-
     #try to connect to the depth cameras
     depthCamera = DepthCameras()
     if depthCamera.connect():
@@ -65,7 +64,7 @@ def update_camera_parameters(list_of_serial_nums):
         store.put('/camera/' + sn_to_cam_names[sn] + '/color/matrix', cameramat)
         store.put('/camera/' + sn_to_cam_names[sn] + '/color/coeff', cameracoeff)
 
-        cameramat, cameracoeff = depthCamera.get_camera_coefs(sn_to_camNum[sn].number, rs.stream_depth)
+        cameramat, cameracoeff = depthCamera.get_camera_coefs(sn_to_camNum[sn], rs.stream_depth)
         if cameramat is None:
             logger.warning("Unable to get depth coefficients/matrix for camera {}. Setting to zeros...".format(sn))
             cameramat = np.array([[1,0,0],[0,1,0],[0,0,1]])
@@ -74,7 +73,7 @@ def update_camera_parameters(list_of_serial_nums):
         store.put('/camera/' + sn_to_cam_names[sn] + '/depth/matrix', cameramat)
         store.put('/camera/' + sn_to_cam_names[sn] + '/depth/coeff', cameracoeff)
 
-        cameraIntrinsics = depthCamera.get_camera_intrinsics(sn_to_camNum[sn].number, rs.stream_depth)
+        cameraIntrinsics = depthCamera.get_camera_intrinsics(sn_to_camNum[sn], rs.stream_depth)
         if cameraIntrinsics is None:
             logger.warning("Unable to get depth intrinsics for camera {}".format(sn))
         else:
@@ -84,7 +83,7 @@ def update_camera_parameters(list_of_serial_nums):
             store.put('/camera/' + sn_to_cam_names[sn] + '/depth/intrinsics/fx', cameraIntrinsics.fx)
             store.put('/camera/' + sn_to_cam_names[sn] + '/depth/intrinsics/fy', cameraIntrinsics.fy)
 
-        cameraIntrinsics = depthCamera.get_camera_intrinsics(sn_to_camNum[sn].number, rs.stream_color)
+        cameraIntrinsics = depthCamera.get_camera_intrinsics(sn_to_camNum[sn], rs.stream_color)
         if cameraIntrinsics is None:
             logger.warning("Unable to get color intrinsics for camera {}".format(sn))
         else:
@@ -94,7 +93,7 @@ def update_camera_parameters(list_of_serial_nums):
             store.put('/camera/' + sn_to_cam_names[sn] + '/color/intrinsics/fx', cameraIntrinsics.fx)
             store.put('/camera/' + sn_to_cam_names[sn] + '/color/intrinsics/fy', cameraIntrinsics.fy)
 
-        cameraScale = depthCamera.get_camera_depthscale(sn_to_camNum[sn].number)
+        cameraScale = depthCamera.get_camera_depthscale(sn_to_camNum[sn])
         if cameraScale is None:
             logger.warning("Unable to get camera depth scale for {}. Setting to 1!".format(sn))
             cameraScale = 1
@@ -111,7 +110,7 @@ def update_camera_parameters(list_of_serial_nums):
         store.put('/camera/' + sn_to_cam_names[sn] + '/color/depthExtrinsics', cameraEx)
 
 '''
-Update camera images only.  Takes in one or more camera serial numbers as a list. 
+Update camera images only.  Takes in one or more camera serial numbers as a list.
 Takes in one or more urls as output location for the images.
 Point clouds, aligned images, color images, and intrinsics/extrinsics etc are updated and pushed to the database
 '''
@@ -141,12 +140,12 @@ def acquire_images(list_of_urls, list_of_serial_nums):
     depthCamera = DepthCameras()
     if depthCamera.connect():
         #get a dictionary that gives sn->camera num
-        sn_to_camNum = self.depthCamera.get_camera_serial_numbers()
+        sn_to_camNum = depthCamera.get_camera_serial_numbers()
     else:
         logger.critical("Could not connect to the cameras...EVERYBODY PANIC")
         return
 
-    for sn in list_of_serial_nums:
+    for i,sn in enumerate(list_of_serial_nums):
         #get pictures from camera
         try:
             picSnTuple = depthCamera.acquire_image(sn_to_camNum[sn])
@@ -155,7 +154,7 @@ def acquire_images(list_of_urls, list_of_serial_nums):
             continue
         if picSnTuple != (None, None):
             images, serialNum = picSnTuple
-        
+
             aligned_color_image = images[1]
             depth_image = images[4]
             full_color_image = images[0]
@@ -165,7 +164,7 @@ def acquire_images(list_of_urls, list_of_serial_nums):
                 #write stuff out to the database
                 key = list_of_urls[i] + "/full_color"
                 store.put(key=key,value=full_color_image)
-                
+
                 key = list_of_urls[i] + "/aligned_color"
                 store.put(key=key,value=aligned_color_image)
 
@@ -187,10 +186,10 @@ def acquire_images(list_of_urls, list_of_serial_nums):
                         if value == sn:
                             key = '/camera/' + value + "/connected"
                             store.put(key, False)
-        
+
 '''
 Performs segmentation on images from camera serial numbers in the list.
-Crops the image based on the bounds in list of bounds and the pose in 
+Crops the image based on the bounds in list of bounds and the pose in
 list of poses
 '''
 def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls):
@@ -231,8 +230,8 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             return
 
         seg_params = segmentation.GraphSegmentationParams()
-        bounds = store.get(list_of_bounds_urls[i])
-        if bounds is None:
+        bin_bounds = store.get(list_of_bounds_urls[i])
+        if bin_bounds is None:
             logger.warn("Bounds were None. Can't segment image")
             return
 
@@ -241,7 +240,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             logger.warn("Reference world transform was None. Can't segment image")
             return
 
-        #crop the image for desired bin 
+        #crop the image for desired bin
         intrins_fx = store.get('/camera/' + cam_name + "/depth/intrinsics/fx")
         intrins_fy = store.get('/camera/' + cam_name + "/depth/intrinsics/fy")
         intrins_ppx = store.get('/camera/' + cam_name + "/depth/intrinsics/ppx")
@@ -257,7 +256,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         if scale is None or coeffs is None or cam_pose_world is None:
             logger.warning("Could not get the depth scale or coeffs for the camera {}. Not segmenting".format(cam_name))
             return
-        
+
         #get the 3d point by deprojecting pixel to get camera local
         depth_in_3d_cam_local = np.zeros((480,640,3))
         [xs, ys] = np.meshgrid(range(depth_in_3d_cam_local.shape[1]), range(depth_in_3d_cam_local.shape[0]))
@@ -267,11 +266,11 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         f = 1 + coeffs[0]*r2 + coeffs[1]*r2*r2 + coeffs[4]*r2*r2*r2
         ux = xs*f + 2*coeffs[2]*xs*ys + coeffs[3]*(r2 + 2*xs*xs)
         uy = ys*f + 2*coeffs[3]*xs*ys + coeffs[2]*(r2 + 2*ys*ys)
-        
+
         depth_in_3d_cam_local[:, :, 0] = ux
         depth_in_3d_cam_local[:, :, 1] = uy
-        depth_in_3d_cam_local[:, :, 2] = depth_img*scale
-        
+        depth_in_3d_cam_local[:, :, 2] = d_image*scale
+
         #get the transform from world to reflocal
         ref_world_xform = np.linalg.inv(ref_world_xform)
 
@@ -280,8 +279,8 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
 
         # apply transformation to get to ref local coordinates
         depth_in_ref_local = (depth_in_3d_cam_local.reshape((-1, 3)).dot(cam_local_to_ref_local[:3, :3].T) + cam_local_to_ref_local[:3, 3].T).reshape(depth_in_3d_cam_local.shape)
-        
-    
+
+
         #get min/max x, y, z bounds
         minx = min(bin_bounds[0][0],bin_bounds[1][0])
         miny = min(bin_bounds[0][1],bin_bounds[1][1])
@@ -309,7 +308,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         seg_params.B_weight = 57.456
         seg_params.depth_weight = 17.838
         seg_params.mask = mask
-        
+
         #segment the image
         ret = segmentation.graphSegmentation(d_image, c_image, seg_params)
 
@@ -318,7 +317,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         store.put(url + "DL_images", ret['DL_images'])
         store.put(url + "segments", ret['pixel_locations'])
 
-    
+
 import argparse
 if __name__ == "__main__":
     #command line parsing of arguments
@@ -329,7 +328,7 @@ if __name__ == "__main__":
     parser.add_argument('-b', type=str,nargs='+', help="List of bounds URLs")
     parser.add_argument('-x', type=str,nargs='+', help="List of xforms URLs")
     args = parser.parse_args()
-    
+
     if args.f == "update_cams":
         update_camera_parameters(args.sn)
     elif args.f == 'acquire_images':
