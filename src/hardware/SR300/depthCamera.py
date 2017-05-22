@@ -174,22 +174,19 @@ class DepthCameras:
             self.time_of_last_image[camera] = time.time()
             return (images, sn)
 
-    def get_online_cams(self):
+    def get_camera_serial_numbers(self):
         if self.context is None:
             logger.warning("Tried to access online cams without connecting")
             return []
-        online_cams = []
+        num2sn = {}
         for cam in range(self.num_cameras):
-            try:
-                #only way to tell if a camera is connected is to get images
-                res = self.acquire_image(cam)
-                if not res[0] is None: 
-                   online_cams.append(res[1])
-            except:
-                logger.exception("Tried to access camera {}, but an error occured".format(cam))
-                continue
+            #get the camera
+            cam = self.context.get_device(cam)
+            #get the sn
+            sn = cam.get_info(rs.camera_info_serial_number)
+            num2sn[sn] = cam
         
-        return online_cams
+        return num2sn
 
     def get_camera_coefs(self, camera, stream):
         '''
@@ -267,6 +264,10 @@ class DepthCameras:
         except:
             logger.exception("Unable to enable stream and get extrinsics")
             return None
+
+        mat = np.eye(4)
+        mat[:3, :3] = np.array([rs.floatp_getitem(extrinsics.rotation, i) for i in range(9)]).reshape((3, 3))
+        mat[:3, 3] = [rs.floatp_getitem(extrinsics.translation, i) for i in range(3)]
         return extrinsics
 
 def test():
