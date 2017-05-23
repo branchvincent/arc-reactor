@@ -22,6 +22,17 @@ def show(data, format=None):
 
         pyplot.imshow(data)
 
+    elif data.dtype == numpy.float32:
+        # guess point cloud
+        cloud = data.reshape((-1, 3))
+
+        from util import pcd
+        path = '/tmp/cloud.pcd'
+        pcd.write(cloud, path)
+
+        from subprocess import call
+        call(['pcl_viewer', '-ax', '0.1', path])
+
     else:
         print 'unknown data type'
 
