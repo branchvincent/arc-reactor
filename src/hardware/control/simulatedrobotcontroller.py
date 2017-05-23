@@ -3,6 +3,7 @@
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.vacuum import Vacuum
+from hardware.gripper import Gripper
 from master.world import build_world, klampt2numpy
 from motion.milestone import Milestone
 from motion.checker import MotionPlanChecker
@@ -20,17 +21,10 @@ class SimulatedRobotController:
     """Trajectory execution for TX90"""
     def __init__(self, store=None):
         self.store = store or PensiveClient().default()
-        # Milestones
         self.trajectory = SimulatedTrajectory(store=self.store)
-        # if self.trajectory.milestones is not None:
-        #     self.freq = 1/self.trajectory.milestones[0].get_t()
-        # else:
-        #     self.freq = 60
-        # self.startTime = None
 
     def run(self):
         """Runs the current trajectory in the database"""
-        # self.startTime = time()
         if self.trajectory is None or len(self.trajectory.milestones) == 0:
             logger.warn('Tried to execute an empty motion plan')
         else:
@@ -75,6 +69,7 @@ class SimulatedTrajectory:
     def __init__(self, store=None):
         self.store = store or PensiveClient().default()
         self.vacuum = Vacuum(store=self.store)
+        self.gripper = Gripper(store=self.store)
         # Get milestone maps
         milestoneMaps = self.store.get('/robot/waypoints', [])
         speed = self.store.get('/robot/speed_scale', 1.)
@@ -102,12 +97,10 @@ class SimulatedTrajectory:
 
     def start(self):
         """Sets the current milestone to the first in the list"""
+        logger.info('Starting trajectory')
         self.curr_index = 0
         self.curr_milestone = self.milestones[self.curr_index]
-        logger.info('Starting trajectory')
-        dt = self.curr_milestone.get_t()
-        q = [round(qi,1) for qi in self.curr_milestone.get_robot()]
-        logger.info('Moving to milestone {}: {}'.format(self.curr_index, (round(dt,3),q)))
+        self.advanceMilestone(self.curr_index)
 
     def update(self, index):
         """Checks the current milestone in progress and updates, if necessary"""
@@ -120,6 +113,7 @@ class SimulatedTrajectory:
         if self.curr_index < len(self.milestones):
             self.curr_milestone = self.milestones[self.curr_index]
             self.vacuum.change(bool(self.curr_milestone.get_vacuum()[0]))
+            self.gripper.command(self.curr_milestone.get_gripper()[0])
             dt = self.curr_milestone.get_t()
             qf = [round(qi,1) for qi in self.curr_milestone.get_robot()]
             logger.info('Moving to milestone {}: {}'.format(self.curr_index, (round(dt,3),qf)))
@@ -128,6 +122,7 @@ class SimulatedTrajectory:
             self.complete = True
 
 
-# if __name__ == "__main__":
-#     store = PensiveClient().default()
-#     c = SimulatedRobotController(store=store)
+if __name__ == "__main__":
+    store = PensiveClient().default()
+    c = SimulatedRobotController(store=store)
+    c.run()

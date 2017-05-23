@@ -2,6 +2,7 @@
 
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
+from hardware.gripper import Gripper
 from hardware.vacuum import Vacuum
 from motion.checker import MotionPlanChecker
 from motion.milestone import Milestone
@@ -37,7 +38,7 @@ class RobotController:
         if self.trajectory is None or len(self.trajectory.milestones) == 0:
             logger.warn('Tried to execute an empty motion plan')
         else:
-            self.trajectory.check()
+            # self.trajectory.check()
             self.trajectory.start()
             self.loop()
             self.updateDatabase()
@@ -78,6 +79,8 @@ class Trajectory:
     def __init__(self, robot, store=None):
         self.store = store or PensiveClient().default()
         self.robot = robot
+        self.vacuum = Vacuum(store=self.store)
+        self.gripper = Gripper(store=self.store)
         # Get milestone maps
         milestoneMaps = self.store.get('/robot/waypoints', [])
         speed = self.store.get('/robot/speed_scale', 1.)
@@ -96,8 +99,6 @@ class Trajectory:
     def check(self):
         """Sends milestones to motion plan checker"""
         q0 = self.robot.getCurrentConfig()
-        # m0 = Milestone(robot=q0,type='robot')
-        # c = MotionPlanChecker([m0] + self.milestones)
         c = MotionPlanChecker(self.milestones, q0=q0)
         failures = c.check()
         if failures:
@@ -108,8 +109,6 @@ class Trajectory:
         logger.info('Starting trajectory')
         self.curr_index = 0
         self.curr_milestone = self.milestones[self.curr_index]
-        # HACK: Delay first milestone to create sufficient buffering
-        self.curr_milestone.set_t(5)
         # Send first milestones
         for m in self.milestones[:bufferSize]:
             self.robot.sendMilestone(m)
@@ -128,7 +127,8 @@ class Trajectory:
         # Update milestone
         if self.curr_index < len(self.milestones):
             self.curr_milestone = self.milestones[self.curr_index]
-            self.robot.vacuum.change(bool(self.curr_milestone.get_vacuum()[0]))
+            self.vacuum.change(bool(self.curr_milestone.get_vacuum()[0]))
+            self.gripper.command(self.curr_milestone.get_gripper()[0])
             logger.info('Moving to milestone {}'.format(self.robot.getCurrentIndexAbs()))
             # Add new milestone
             if len(self.robot.receivedMilestones) < len(self.milestones):
@@ -150,7 +150,6 @@ class Robot:
         # self.name = self.client.name
         self.store = store or PensiveClient().default()
         self.receivedMilestones = []
-        self.vacuum = Vacuum(store=self.store)
         self.startIndex = None
 
     def sendMilestone(self, milestone):
@@ -193,8 +192,7 @@ class Robot:
 
 
 if __name__ == "__main__":
-    s = PensiveClient().default()
-    milestones = s.get('robot/waypoints')
-    # c = RobotController(milestones=milestones)
+    # s = PensiveClient().default()
+    c = RobotController()
     # c.run()
     # c.updateCurrentConfig()

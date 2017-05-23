@@ -292,6 +292,8 @@ def setup_workcell(store, workcell):
     _load(store, 'db/cameras.json', '/system/cameras')
     _load(store, 'db/viewpoints.json', '/system/viewpoints')
 
+    _load(store, 'db/scales.json', '/system/scales')
+
     # load box data
     boxes = json.load(open('db/boxes.json'))
     jsonschema.validate(boxes, BOXES_SCHEMA)
@@ -532,6 +534,8 @@ def main(argv):
 
         for c in store.get('camera').keys():
             urls.append('/camera/{}/pose'.format(c))
+            urls.append('/camera/{}/color'.format(c))
+            urls.append('/camera/{}/depth'.format(c))
 
         for s in store.get('/system/spot').keys():
             urls.append('/system/spot/{}/pose'.format(s))

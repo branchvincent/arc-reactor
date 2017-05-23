@@ -6,43 +6,13 @@ from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
 
-def _build_args(prefix, args):
-    return [prefix] + [str(a) for a in args]
-
-BASE_PATH = '/home/motion/Desktop/reactor-perception/src/perception/'
-
-def initialize_cameras(serials):
-    args = ['python3', os.path.join(BASE_PATH, 'perception.py'), '-f', 'update_cams']
-    args += _build_args('-sn', serials)
-
-    logger.debug('invoking camera initialization: {}'.format(args))
-    check_call(args, cwd=BASE_PATH)
-
-def acquire_images(serials, photo_urls):
-    args = ['python3', os.path.join(BASE_PATH, 'perception.py'), '-f', 'acquire_images']
-    args += _build_args('-sn', serials)
-    args += _build_args('-u', photo_urls)
-
-    logger.debug('invoking camera acquisition: {}'.format(args))
-    check_call(args, cwd=BASE_PATH)
-
-def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
-    args = ['python3', os.path.join(BASE_PATH, 'perception.py'), '-f', 'segment_images']
-    args += _build_args('-u', photo_urls)
-    args += _build_args('-b', bounds_urls)
-    args += _build_args('-x', bounds_pose_urls)
-
-    logger.debug('invoking image segmentation: {}'.format(args))
-    check_call(args, cwd=BASE_PATH)
+from perception import acquire_images, segment_images, recognize_objects
 
 class FindAll(State):
     def run(self):
 
-        # perform one-time camera initialization
-        serials = [ s for s in self.store.get('/system/cameras').values() if len(s) > 1 ]
-        initialize_cameras(serials)
-
-        location = 'stow_tote'
+        # figure out which cameras to use
+        location = self.store.get('/robot/target_location')
         selected_cameras = self.store.get(['system', 'viewpoints', location], None)
         if selected_cameras is None:
             raise RuntimeError('no camera available for {}'.format(location))
@@ -58,6 +28,9 @@ class FindAll(State):
         # segment images
         segment_images(photo_urls, [location_bounds_url(location)] * len(photo_urls), [location_pose_url(location)] * len(photo_urls))
 
+        # recognize segments
+        recognize_objects(self.store, photo_urls, [location] * len(photo_urls))
+
         self.setOutcome(True)
 
 if __name__ == '__main__':
@@ -67,4 +40,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
     myname = (args.name or 'fa')
     FindAll(myname).run()
-
