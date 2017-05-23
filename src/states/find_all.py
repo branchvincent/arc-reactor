@@ -3,6 +3,8 @@ import logging
 from subprocess import check_call
 import os
 
+from time import sleep
+
 from master.fsm import State
 
 from util.location import location_bounds_url, location_pose_url
@@ -38,6 +40,27 @@ def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
     logger.debug('invoking image segmentation: {}'.format(args))
     check_call(args, cwd=BASE_PATH)
 
+def recognize_objects(store, photo_urls, locations):
+    # wait for prior recognition to end
+    while store.put('/object_recognition/run', False):
+        logger.warn('waiting for object recognition idle')
+        sleep(0.5)
+
+    # update parameters
+    store.put('/object_recognition/urls', photo_urls)
+    store.put('/object_recognition/locations', locations)
+
+    # trigger recognition
+    store.put('/object_recognition/run', True)
+
+    logger.debug('objection recognition started')
+
+    # wait for completion
+    while store.put('/object_recognition/done', True):
+        sleep(0.1)
+
+    logger.debug('object recognition finished')
+
 class FindAll(State):
     def run(self):
 
@@ -60,6 +83,9 @@ class FindAll(State):
 
         # segment images
         segment_images(photo_urls, [location_bounds_url(location)] * len(photo_urls), [location_pose_url(location)] * len(photo_urls))
+
+        # recognize segments
+        recognize_objects(self.store, photo_urls, [location] * len(photo_urls))
 
         self.setOutcome(True)
 
