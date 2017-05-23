@@ -146,6 +146,8 @@ class WorldViewerWindow(QMainWindow):
     def __init__(self, store):
         super(WorldViewerWindow, self).__init__()
 
+        self.approved = False
+
         self.ui = Ui_MotionPlanWindow()
         self.ui.setupUi(self)
 
@@ -157,8 +159,8 @@ class WorldViewerWindow(QMainWindow):
         self.ui.run_button.clicked.connect(self.toggle_pause)
         self.ui.time_slider.valueChanged.connect(self.change_slider)
 
-        self.ui.approve_button.setEnabled(False)
-        self.ui.reject_button.setEnabled(False)
+        self.ui.approve_button.clicked.connect(self.approve_plan)
+        self.ui.reject_button.clicked.connect(self.reject_plan)
 
         mp = store.get('/robot/waypoints', [])
         errors = MotionPlanChecker([Milestone(map=m) for m in mp]).check()
@@ -174,6 +176,14 @@ class WorldViewerWindow(QMainWindow):
             self.ui.checker_results.setStyleSheet('color: red;')
 
         self.ui.time_slider.setMaximum(1000 * self.program.duration)
+
+    def approve_plan(self, value):
+        self.approved = True
+        logger.warn('user approved plan')
+
+    def reject_plan(self):
+        self.approved = False
+        logger.warn('user rejected plan')
 
     def toggle_pause(self):
         self.program.pause = not self.program.pause
@@ -220,6 +230,8 @@ def run(modal=True, store=None):
 
     if not embedded:
         app.exec_()
+
+    return window.approved
 
 if __name__ == '__main__':
     run()
