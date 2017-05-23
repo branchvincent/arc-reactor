@@ -7,8 +7,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class CheckRoute(State):
     def run(self):
-        self.setOutcome(True)
-        motion_plan.run()
+        self.setOutcome(motion_plan.run())
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
