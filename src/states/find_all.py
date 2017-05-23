@@ -1,10 +1,7 @@
 import logging
-
 from subprocess import check_call
 import os
-
 from master.fsm import State
-
 from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
