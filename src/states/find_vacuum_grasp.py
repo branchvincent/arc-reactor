@@ -15,7 +15,7 @@ class FindVacuumGrasp(State):
     '''
     Inputs:  /robot/target_location (e.g., 'binA')
 
-    Outputs: /robot/vacuum_grasps (a list of lists of (grasp xform in WCS, grasp feature vectors))
+    Outputs: photo_url + '/vacuum_grasps' (a list of lists of (grasp xform in WCS, grasp feature vectors))
     '''
 
     def run(self):
@@ -71,7 +71,7 @@ class FindVacuumGrasp(State):
         logger.debug('{}'.format(grasps))
 
         # store result
-        self.store.put('/robot/vacuum_grasps', grasps)
+        self.store.put(photo_url + ['vacuum_grasps'], grasps)
 
         self.setOutcome(True)
         logger.info('find vacuum grasp completed successfully')
