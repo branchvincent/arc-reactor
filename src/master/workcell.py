@@ -532,6 +532,8 @@ def main(argv):
 
         for c in store.get('camera').keys():
             urls.append('/camera/{}/pose'.format(c))
+            urls.append('/camera/{}/color'.format(c))
+            urls.append('/camera/{}/depth'.format(c))
 
         for s in store.get('/system/spot').keys():
             urls.append('/system/spot/{}/pose'.format(s))
