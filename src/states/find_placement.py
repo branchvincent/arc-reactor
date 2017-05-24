@@ -21,6 +21,7 @@ class FindPlacement(State):
     '''
 
     def run(self):
+        logger.info('finding placements')
 
         # figure out which cameras to use
         location = self.store.get('/robot/target_location')
@@ -64,6 +65,8 @@ class FindPlacement(State):
         logger.error('assuming the object is box (not using inspect point cloud')
         # TODO: handle orientation
         position = heightmap.pack([local_point_cloud[mask]], [0.1, 0.1, 0.1] , [bounding_box])
+        logger.info('found placement')
+        logger.debug('{}'.format(position))
 
         # transform placement into world coordinate system
         local_placement = xyz(*position)
@@ -73,6 +76,7 @@ class FindPlacement(State):
         self.store.put('/robot/target_placement', world_placement)
 
         self.setOutcome(True)
+        logger.info('find placement completed successfully')
 
 if __name__ == '__main__':
     import argparse
