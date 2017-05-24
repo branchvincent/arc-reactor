@@ -8,13 +8,8 @@ def show(data, format=None):
     if data.dtype == numpy.int32:
         # guess segmentation data
         labels = data
-        # HACK: not sure why cm.Set1.colors stopped working
-        cmap = cm.Set1._segmentdata['blue']
 
-        labels_rgb = 255 * numpy.array(cmap)[(labels - 1) % len(cmap)]
-        labels_rgb[labels == 0] = [0, 0, 0]
-
-        pyplot.imshow(labels_rgb)
+        pyplot.imshow(labels, cmap=cm.viridis)
 
     elif data.dtype == numpy.uint8:
         # guess image data
