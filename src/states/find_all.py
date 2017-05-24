@@ -1,22 +1,18 @@
 import logging
 
-
 from master.fsm import State
 
 from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
 
-from perception import initialize_cameras, acquire_images, segment_images, recognize_objects
+from perception import acquire_images, segment_images, recognize_objects
 
 class FindAll(State):
     def run(self):
 
-        # perform one-time camera initialization
-        serials = [ s for s in self.store.get('/system/cameras').values() if len(s) > 1 ]
-        initialize_cameras(serials)
-
-        location = 'stow_tote'
+        # figure out which cameras to use
+        location = self.store.get('/robot/target_location')
         selected_cameras = self.store.get(['system', 'viewpoints', location], None)
         if selected_cameras is None:
             raise RuntimeError('no camera available for {}'.format(location))
