@@ -23,7 +23,7 @@ class Scale:
     def __init__(self, serial, port, store=None):
         self.store = store or PensiveClient().default()
         # Connect or simulate
-        if self.store.get('/simulate/scale', False):
+        if self.store.get('/simulate/scale', True):
             self.device = None
             logger.warn('Scale {} simulated'.format(serial))
         else:
@@ -54,7 +54,6 @@ class Scale:
             data = None
         else:
             data = self.getData()
-        # Return weight
         return self.getWeight(data)
 
     def getData(self, attempts=5):
@@ -66,8 +65,7 @@ class Scale:
             try:
                 data = self.device.read(endpoint.bEndpointAddress, endpoint.wMaxPacketSize)
             except usb.core.USBError as e:
-                logger.exception('Scale had an error')
-                logger.info('{} attempts remaining'.format(attempts))
+                logger.exception('Scale had an error. {} attempts remaining'.format(attempts))
                 data = None
                 attempts -= 1
                 # if e.args == ('Operation timed out',):
@@ -81,9 +79,9 @@ class Scale:
 
     def getWeight(self, data):
         """Returns the weight, in kg"""
-        # Check for simulated data
+        # Check for data
         if data is None:
-            return None
+            return -1
 
         # Calculate kg
         raw_weight = data[4] + data[5] * 256
@@ -112,6 +110,5 @@ class Scale:
 
 if __name__ == '__main__':
     s = Scale(serial='0071431044934', port=3)
-    # 0071431044934
     weight = s.read()
     print "Weight: {} kg".format(weight)
