@@ -10,7 +10,7 @@ class ReadScales(State):
         scales = []
         for key, val in self.store.get('system/scales', {}).iteritems():
             if key.startswith('dymo'):
-                scales.append(DymoScale(serial=val[:-1], port=val[-1]))
+                scales.append(DymoScale(port=val))
             elif key.startswith('atron'):
                 pass
                 # scales.append(AtronScale(serial=scale[:-1], port=scale[-1]))

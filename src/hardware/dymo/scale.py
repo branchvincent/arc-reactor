@@ -20,23 +20,24 @@ OUNCES_2_GRAMS = 28.3495231
 # GRAMS_2_OUNCES = 1/OUNCES_2_GRAMS
 
 class Scale:
-    def __init__(self, serial, port, store=None):
+    def __init__(self, port, store=None):
         self.store = store or PensiveClient().default()
         # Connect or simulate
-        if self.store.get('/simulate/scale', True):
+        if self.store.get('/simulate/scales', True):
             self.device = None
-            logger.warn('Scale {} simulated'.format(serial))
+            logger.warn('Scale {} simulated'.format(port))
         else:
-            self.connect(serial, port)
-            logger.info('Scale {} connected'.format(serial))
+            self.connect(port)
+            logger.info('Scale {} connected'.format(port))
 
-    def connect(self, serial, port):
-        # Find by serial and port
+    def connect(self, port):
+        # Find by port
         self.device = None
-        self.serial = serial
+        # self.serial = serial
         for device in usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID, find_all=True):
             # self.getInfo(device)
-            if usb.util.get_string(device, device.iSerialNumber) == serial and device.port_number == port:
+            # if usb.util.get_string(device, device.iSerialNumber) == serial and device.port_number == int(port):
+            if device.port_number == int(port):
                 self.device = device
                 break
         if self.device is None:
@@ -109,6 +110,7 @@ class Scale:
                         print "    ", attrib, x
 
 if __name__ == '__main__':
-    s = Scale(serial='0071431044934', port=3)
+    # s = Scale(serial='0071431044934', port=3)
+    s = Scale(port=3)
     weight = s.read()
     print "Weight: {} kg".format(weight)
