@@ -1,9 +1,12 @@
 import logging
 
+import numpy
+
 from master.fsm import State
 
 from grasp import vacuum
 
+from util.math_helpers import transform
 from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
@@ -38,20 +41,32 @@ class FindVacuumGrasp(State):
         logger.info('using photo: {}'.format(photo_url))
 
         # retrieve the photo
-        full_cloud = self.store.get(photo_url + ['point_cloud'])
+        point_cloud = self.store.get(photo_url + ['point_cloud'])
+        camera_pose = self.store.get(photo_url + ['pose'])
         # HACK: actually need the labeled image registered with the point cloud
         logger.error('assuming that the labeled image is registered with the point cloud')
         object_mask = self.store.get(photo_url + ['labeled_image'])
 
-        # mask out invalid points
-        mask = (full_cloud[:,:,2] > 0)
+        # retreive the container and its bounds
+        bounds_pose = self.store.get(location_pose_url(location))
+        bounding_box = self.store.get(location_bounds_url(location))
+
+        # generate world and local to container versions
+        world_point_cloud = transform(camera_pose, point_cloud)
+        local_point_cloud = transform(numpy.linalg.inv(bounds_pose), world_point_cloud)
+
+        # apply bounding box
+        mask = (point_cloud[:,:,2] > 0)
+        for dim in range(3):
+            mask = numpy.logical_and(mask, local_point_cloud[:, :, dim] >= min([bounding_box[0][dim], bounding_box[1][dim]]))
+            mask = numpy.logical_and(mask, local_point_cloud[:, :, dim] <= max([bounding_box[0][dim], bounding_box[1][dim]]))
 
         # build the object point clouds
-        object_clouds = [ full_cloud[object_mask == (idx + 1)][mask] for idx in range(object_mask.max())]
+        object_clouds = [ world_point_cloud[object_mask == (idx + 1)][mask] for idx in range(object_mask.max())]
         logger.info('generated {} object point clouds'.format(len(object_clouds)))
 
         # do not mask the full cloud because it must be structured
-        grasps = vacuum.compute(full_cloud, object_clouds)
+        grasps = vacuum.compute(world_point_cloud, object_clouds)
         logger.info('found {} grasps'.format(len(grasps)))
         logger.debug('{}'.format(grasps))
 
