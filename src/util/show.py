@@ -4,21 +4,35 @@ import matplotlib
 matplotlib.use('Qt4Agg')
 from matplotlib import pyplot, cm
 
-def show(data, format=None):
-    if data.dtype == numpy.int32:
-        # guess segmentation data
-        labels = data
+def show(data, fmt=None):
+    if not fmt:
+        if len(data.shape) == 2:
+            if data.dtype == numpy.int32:
+                fmt = 'label'
+            else:
+                fmt = 'intensity'
+        elif len(data.shape) == 3 and data.shape[2] == 3:
+            if data.dtype == numpy.uint8:
+                fmt = 'color'
+            elif data.dtype == numpy.float32:
+                fmt = 'point_cloud'
 
-        pyplot.imshow(labels, cmap=cm.viridis)
+    if not fmt:
+        raise RuntimeError('unknown data format')
 
-    elif data.dtype == numpy.uint8:
-        # guess image data
-        image = data
 
+    if fmt == 'label':
+        pyplot.imshow(data, cmap=cm.viridis)
+        pyplot.colorbar()
+
+    elif fmt == 'color':
         pyplot.imshow(data)
 
-    elif data.dtype == numpy.float32:
-        # guess point cloud
+    elif fmt == 'intensity':
+        pyplot.imshow(data, cmap=cm.gray)
+        pyplot.colorbar()
+
+    elif fmt == 'point_cloud':
         cloud = data.reshape((-1, 3))
 
         from util import pcd
@@ -27,9 +41,6 @@ def show(data, format=None):
 
         from subprocess import call
         call(['pcl_viewer', '-ax', '0.1', path])
-
-    else:
-        print 'unknown data type'
 
     pyplot.show()
 
@@ -41,6 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
     parser.add_argument('-s', '--store', metavar='STORE', help='database store')
     parser.add_argument('-p', '--path', metavar='PATH', help='path to a JSON database')
+    parser.add_argument('-f', '--format', metavar='FORMAT', help='data display format', choices=['label', 'intensity', 'color', 'point_cloud', None])
     parser.add_argument('url', metavar='URL', help='url to image')
 
     args = parser.parse_args()
@@ -62,4 +74,4 @@ if __name__ == '__main__':
         # get the store
         store = client.store(args.store)
 
-    show(store.get(args.url))
+    show(store.get(args.url), args.format)
