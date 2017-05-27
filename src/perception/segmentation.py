@@ -128,83 +128,15 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     imagesForDL = []
     for i in range(numObj):
         #find element in outp == i
-        indices = np.array((outp == i).nonzero())
-        if not indices.shape[1] > 0:
+        dl_tuple = create_deep_learing_image(fcolor, outp, i)
+        if dl_tuple is None:
             continue
-        indices = np.transpose(indices.astype('float32'))
-    
-        #axis aligned rect
-        axisrect = cv2.boundingRect(indices)
-        maskeditem = np.zeros(fcolor.shape)
-        maskeditem[:,:,0] = np.where(outp == i, fcolor[:,:,0], 0)
-        maskeditem[:,:,1] = np.where(outp == i, fcolor[:,:,1], 0)
-        maskeditem[:,:,2] = np.where(outp == i, fcolor[:,:,2], 0)
-
-        maskeditemlab = np.zeros(fcolor.shape)
-        maskeditemlab[:,:,0] = np.where(outp == i, labcolor[:,:,0], 0)
-        maskeditemlab[:,:,1] = np.where(outp == i, labcolor[:,:,1], 0)
-        maskeditemlab[:,:,2] = np.where(outp == i, labcolor[:,:,2], 0)
-        
-        startY = axisrect[0]
-        endY = axisrect[0] + axisrect[2]
-        startX = axisrect[1]
-        endX = axisrect[1] + axisrect[3]
-        img_crop = maskeditem[startY:endY, startX:endX]
-        img_crop_lab = maskeditemlab[startY:endY, startX:endX]
-
-
-
-        #code to remove the red tote
-        cnt = 0
-        cntnonzero = 0
-        #remove the red tote
-        for y in range(img_crop_lab.shape[0]):
-            for x in range(img_crop_lab.shape[1]):
-                #80 175 175
-                pix = img_crop_lab[y,x]
-                if pix[0]!= 0 and pix[1] != 0  and pix[2] != 0:
-                    cntnonzero += 1
-                    if np.linalg.norm(pix-np.array([80,175,175])) < 50:
-                        cnt+=1
-                
-        if cnt/cntnonzero > 0.5:
-            continue
-
-        
-        #make image for deep learning
-        if (img_crop.shape[0] > 224 or img_crop.shape[1] > 224) and (img_crop.shape[0] < 512 and img_crop.shape[1] < 512):
-            #large image, put it in 512, 512
-            tinyColorImgs.append(img_crop.astype('uint8'))
-            segments.append(indices.astype('int32'))
-            bg = np.zeros((512,512, 3)).astype('uint8')
-            startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
-            startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
-            if startX < 0:
-                startX = 0
-            if startY < 0:
-                startY = 0
-            bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
-            #shrink to 224 x 224
-            im = cv2.resize(bg,(224, 224))
-            imagesForDL.append(im)
-            
-        elif img_crop.shape[0] <= 224 and img_crop.shape[1] <= 224:
-            #small image put it in 224, 224
-            tinyColorImgs.append(img_crop.astype('uint8'))
-            segments.append(indices.astype('int32'))
-            bg = np.zeros((224,224, 3)).astype('uint8')
-            startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
-            startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
-            if startX < 0:
-                startX = 0
-            if startY < 0:
-                startY = 0
-            bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
-            imagesForDL.append(bg)
         else:
-            #image was really big and is probably the entire image or some mistake, so we are not adding it
-            logger.warn("Segment was larger than 512x512. This is probably a mistake, not adding to identification set")
-     
+            ind, tiny_img, dl_im = dl_tuple
+        tinyColorImgs.append(tiny_img)
+        segments.append(ind)
+        imagesForDL.append(dl_im)
+        
     
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
@@ -222,17 +154,88 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     #     cv2.drawContours(fcolor_rects, [newbox], 0 , (0,255,255), 2)
     return_values['boxes_image'] = fcolor_rects
 
-
-
-    #debugging stuff
-    # if not params.mask is None:
-    #     colorout = np.zeros(fcolor.shape)
-    #     colorout[:,:,0] = params.mask*fcolor[:,:,0]
-    #     colorout[:,:,1] = params.mask*fcolor[:,:,1]
-    #     colorout[:,:,2] = params.mask*fcolor[:,:,2]
-    #     cv2.imwrite('mask.png', colorout.astype('uint8')[:,:,::-1])
     return return_values
 
+def create_deep_learing_image(fullcolor, labeled_image, index):
+    '''
+    Given a full color image, a labeled image and index of the desired object,
+    this function returns a tuple
+    (indices, cropped image, 224x224 image suitable for input into deep learning)
+    Returns none if the image is not good for input into DL
+    '''
+    #find element in labeld image == index
+    indices = np.array((labeled_image == index).nonzero())
+    if not indices.shape[1] > 0:
+        return None
+    indices = np.transpose(indices.astype('float32'))
+    labcolor = cv2.cvtColor(fullcolor, cv2.COLOR_RGB2LAB)
+    #axis aligned rect
+    axisrect = cv2.boundingRect(indices)
+    maskeditem = np.zeros(fullcolor.shape)
+    maskeditem[:,:,0] = np.where(labeled_image == index, fullcolor[:,:,0], 0)
+    maskeditem[:,:,1] = np.where(labeled_image == index, fullcolor[:,:,1], 0)
+    maskeditem[:,:,2] = np.where(labeled_image == index, fullcolor[:,:,2], 0)
+
+    maskeditemlab = np.zeros(fullcolor.shape)#to decide if this is the tote
+    maskeditemlab[:,:,0] = np.where(labeled_image == index, labcolor[:,:,0], 0)
+    maskeditemlab[:,:,1] = np.where(labeled_image == index, labcolor[:,:,1], 0)
+    maskeditemlab[:,:,2] = np.where(labeled_image == index, labcolor[:,:,2], 0)
+    
+    startY = axisrect[0]
+    endY = axisrect[0] + axisrect[2]
+    startX = axisrect[1]
+    endX = axisrect[1] + axisrect[3]
+    img_crop = maskeditem[startY:endY, startX:endX]
+    img_crop_lab = maskeditemlab[startY:endY, startX:endX]
+
+    #is this segment the tote?
+    cnt = 0
+    cntnonzero = 0
+    #remove the red tote
+    for y in range(img_crop_lab.shape[0]):
+        for x in range(img_crop_lab.shape[1]):
+            #80 175 175
+            pix = img_crop_lab[y,x]
+            if pix[0]!= 0 and pix[1] != 0  and pix[2] != 0:
+                cntnonzero += 1
+                if np.linalg.norm(pix-np.array([80,175,175])) < 50:
+                    cnt+=1
+            
+    if cnt/cntnonzero > 0.5:
+        logger.debug("Found tote in image label {}".format(index))
+        return None
+
+    #make image for deep learning
+    if (img_crop.shape[0] > 224 or img_crop.shape[1] > 224) and (img_crop.shape[0] < 512 and img_crop.shape[1] < 512):
+        #large image, put it in 512, 512
+        bg = np.zeros((512,512, 3)).astype('uint8')
+        startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
+        startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
+        if startX < 0:
+            startX = 0
+        if startY < 0:
+            startY = 0
+        bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
+        #shrink to 224 x 224
+        im = cv2.resize(bg,(224, 224))
+        
+    elif img_crop.shape[0] <= 224 and img_crop.shape[1] <= 224:
+        #small image put it in 224, 224
+        bg = np.zeros((224,224, 3)).astype('uint8')
+        startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
+        startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
+        if startX < 0:
+            startX = 0
+        if startY < 0:
+            startY = 0
+        bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
+        im = bg
+    else:
+        #image was really big and is probably the entire image or some mistake, so we are not adding it
+        logger.warn("Segment {} was larger than 512x512. This is probably a mistake, not adding to identification set".format(index))
+        return None
+
+    return (indices.astype('int32'), img_crop.astype('uint8'), im)
 
 
 class SegmentationGUI(QtWidgets.QWidget):

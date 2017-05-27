@@ -225,8 +225,9 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         #look between the first and last slash of the url for the camera name
         last_slash = url.rfind('/',0, len(url))
         second_last_slash = url.rfind('/',0, last_slash)
+        third_last_slash = url.rfind('/',0, second_last_slash)
         cam_name = url[second_last_slash+1:last_slash]
-
+        location = url[third_last_slash+1:second_last_slash]
         d_image = store.get(url + "aligned_depth")
         c_image = store.get(url + "full_color")
 
@@ -316,13 +317,24 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         seg_params.depth_weight = 17.838
         seg_params.mask = mask
 
-        #segment the image
-        ret = segmentation.graphSegmentation(d_image, c_image, seg_params)
+        #segment the image if it is not an inspection station
 
-        #write out results to database
-        store.put(url + "labeled_image", ret['labeled_image'])
-        store.put(url + "DL_images", ret['DL_images'])
-        store.put(url + "point_cloud", depth_in_3d_cam_local)
+        if location == 'inspection':
+            #dont segment just use the mask
+            store.put(url + "labeled_image", np.where(mask == True, 1, 0))
+            store.put(url + "point_cloud", depth_in_3d_cam_local)
+            #create a DL image
+            dl_tuple = segmentation.create_deep_learing_image(c_image, np.where(mask == True,1,0),1)
+            if dl_tuple is None:
+                raise RuntimeError("Unable to create image for deep learning.")
+            else:
+                store.put(url + "DL_images", dl_tuple[2])
+        else:
+            ret = segmentation.graphSegmentation(d_image, c_image, seg_params)
+            #write out results to database
+            store.put(url + "labeled_image", ret['labeled_image'])
+            store.put(url + "DL_images", ret['DL_images'])
+            store.put(url + "point_cloud", depth_in_3d_cam_local)
 
 
 import argparse
