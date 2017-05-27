@@ -322,7 +322,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         #write out results to database
         store.put(url + "labeled_image", ret['labeled_image'])
         store.put(url + "DL_images", ret['DL_images'])
-        store.put(url + "segments", ret['pixel_locations'])
+        store.put(url + "point_cloud", depth_in_3d_cam_local)
 
 
 import argparse
