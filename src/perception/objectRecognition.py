@@ -6,12 +6,23 @@ import deepLearning as dl
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
 from time import sleep
+import json
+# configure the root logger to accept all records
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.setLevel(logging.NOTSET)
+
+formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
+
+# set up colored logging to console
+from rainbow_logging_handler import RainbowLoggingHandler
+console_handler = RainbowLoggingHandler(sys.stderr)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 class ObjectRecognition:
 
-     def __init__(self, network_name):
+    def __init__(self, network_name):
         #try to connect to the database
         self.store = None
         try:
@@ -21,10 +32,10 @@ class ObjectRecognition:
         except:
             logger.error("Could not connect to the database on {}. Cannot function".format('10.10.1.60:8888'))
             return
-        
-        self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,40)
-    
 
+        self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,40)
+
+        names = []
         #load in the items.json file
         with open('../../db/items.json') as data_file:    
             jsonnames = json.load(data_file)
@@ -38,21 +49,28 @@ class ObjectRecognition:
         self.items_in_location = {}
 
 
+
     '''
     Polls the database at a specific URL until a flag is set.
     Once the flag is set run inference and return to polling
     '''
     def poll_database(self):
-
-        while True:
-            should_run = self.store.get('/object_recognition/run')
-            if should_run == 1:
-                #get the arguments
-                list_of_locations = self.store.get('/object_recognition/locations')
-                list_of_urls = self.store.get('/object_recognition/urls')
-                infer_objects(list_of_urls, list_of_locations)
-            else:
-                sleep(0.1)
+        try:
+            while True:
+                should_run = self.store.get('/object_recognition/run')
+                if should_run:
+                    logger.info("Starting inference")
+                    self.store.put('/object_recognition/run',0)
+                    #get the arguments
+                    list_of_locations = self.store.get('/object_recognition/locations')
+                    list_of_urls = self.store.get('/object_recognition/urls')
+                    self.infer_objects(list_of_urls, list_of_locations)
+                    logger.info("Inference complete")
+                    self.store.put('/object_recognition/done', 1)
+                else:
+                    sleep(0.1)
+        except:
+            pass
 
     '''
     Given a list of urls and a list of locations infer what each image is at the URL
@@ -75,7 +93,7 @@ class ObjectRecognition:
 
         for i, url in enumerate(list_of_urls):
             #get the list of images at this URL
-            dl_images = store.get(url + 'DL_images')
+            dl_images = self.store.get(url + 'DL_images')
             if dl_images is None:
                 logger.error("No deep learning images were found at the URL {}".format(url))
                 continue
@@ -86,6 +104,7 @@ class ObjectRecognition:
                 im[:,:,:,num] = img
 
             #infer
+            logger.info("Runing {} images through network".format(len(dl_images)))
             confidences = self.deep_learning_recognizer.guessObject(im)
 
             #store all confidences for each image
@@ -98,7 +117,7 @@ class ObjectRecognition:
                     items_at_location = None
                 
                 item_name_confidence = self.make_name_confidence_list(list_of_conf, items_at_location)
-                store.put(url + 'detections', item_name_confidence)
+                self.store.put(url + 'detections', item_name_confidence)
     
     def make_name_confidence_list(self, list_of_conf, valid_items):
         res = []
@@ -135,7 +154,7 @@ class ObjectRecognition:
             #where is this item? binA/B/C, tote? 
             location = value['location']
             if 'bin' in location:
-                if location[3] == 'A
+                if location[3] == 'A':
                     self.items_in_location['binA'].append(value['name'])
                 elif location[3] == 'B':
                     self.items_in_location['binB'].append(value['name'])
@@ -151,3 +170,8 @@ class ObjectRecognition:
                     self.items_in_location['stow_tote'].append(value['name'])
             else:
                 logger.warning("Unknown itme location {}".format(location))
+
+
+if __name__ == '__main__':
+    o = ObjectRecognition('vgg_finetuned_ARC2017.pkl')
+    o.poll_database()
