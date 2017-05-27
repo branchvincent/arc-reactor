@@ -272,9 +272,10 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         ux = xs*f + 2*coeffs[2]*xs*ys + coeffs[3]*(r2 + 2*xs*xs)
         uy = ys*f + 2*coeffs[3]*xs*ys + coeffs[2]*(r2 + 2*ys*ys)
 
-        depth_in_3d_cam_local[:, :, 0] = ux
-        depth_in_3d_cam_local[:, :, 1] = uy
         depth_in_3d_cam_local[:, :, 2] = d_image*scale
+        depth_in_3d_cam_local[:, :, 0] = ux*depth_in_3d_cam_local[:, :, 2]
+        depth_in_3d_cam_local[:, :, 1] = uy*depth_in_3d_cam_local[:, :, 2]
+        
 
         #get the transform from world to reflocal
         ref_world_xform = np.linalg.inv(ref_world_xform)
@@ -298,8 +299,9 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         #check to see if point is within bounds by masking
         maskx = np.logical_and(depth_in_ref_local[:,:,0] > minx, depth_in_ref_local[:,:,0] < maxx)
         masky = np.logical_and(depth_in_ref_local[:,:,1] > miny, depth_in_ref_local[:,:,1] < maxy)
-        maskz = np.logical_and(depth_in_ref_local[:,:,2] > minz, depth_in_ref_local[:,:,2] < maxz)
-        mask = np.logical_and(np.logical_and(maskx, masky),maskz)
+        mask = np.logical_and(maskx, masky)
+        # maskz = np.logical_and(depth_in_ref_local[:,:,2] > minz, depth_in_ref_local[:,:,2] < maxz)
+        # mask = np.logical_and(np.logical_and(maskx, masky),maskz)
 
         #optimized params
         seg_params.minSize = 3762.97
