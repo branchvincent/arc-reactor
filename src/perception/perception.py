@@ -157,7 +157,7 @@ def acquire_images(list_of_urls, list_of_serial_nums):
             picSnTuple = depthCamera.acquire_image(sn_to_camNum[sn])
         except:
             logger.error('DID YOU PASS IN AN INVALID SERIAL NUMBER {}?!?! DAMMIT!'.format(sn))
-            continue
+            raise RuntimeError("Invalid serial number")
         if picSnTuple != (None, None):
             images, serialNum = picSnTuple
 
