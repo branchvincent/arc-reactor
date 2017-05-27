@@ -31,8 +31,8 @@ class StowStateMachine(StateMachine):
     def getStartState(self):
         #TODO put this action in separate state?
         self.store.put('/robot/target_location', 'stow_tote')
-        #return 'fa'
-        return 'si'
+        return 'fa'
+        #return 'si'
 
     def setupTransitions(self):
         self.setTransition('fa', 'si', 'fa')

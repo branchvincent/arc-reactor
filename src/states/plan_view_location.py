@@ -9,11 +9,13 @@ class PlanViewLocation(State):
         # Get location
         # item = self.store.get('robot/selected_item')
         # location = self.store.get(['item',item,'location'])
+        self.loc_name = self.store.get('/robot/target_location')
+        self.store.put('/robot/target_xform', self.store.get('/vantage/'+self.loc_name))
         T = self.store.get('/robot/target_xform')
 
         if T is None:
-            raise RuntimeError("no target is set to view")
             self.setOutcome(False)
+            raise RuntimeError("no target is set to view")
 
         else:
             # Plan route
