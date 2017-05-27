@@ -108,6 +108,7 @@ class ObjectRecognition:
             confidences = self.deep_learning_recognizer.guessObject(im)
 
             #store all confidences for each image
+            list_of_list_of_confidences = []
             for list_of_conf in confidences:
                 #see if a valid location was passed in
                 try:
@@ -117,7 +118,8 @@ class ObjectRecognition:
                     items_at_location = None
                 
                 item_name_confidence = self.make_name_confidence_list(list_of_conf, items_at_location)
-                self.store.put(url + 'detections', item_name_confidence)
+                list_of_list_of_confidences.append(dict(item_name_confidence))
+            self.store.put(url + 'detections', list_of_list_of_confidences)
     
     def make_name_confidence_list(self, list_of_conf, valid_items):
         res = []
@@ -173,5 +175,5 @@ class ObjectRecognition:
 
 
 if __name__ == '__main__':
-    o = ObjectRecognition('vgg_finetuned_ARC2017.pkl')
+    o = ObjectRecognition('vgg_finetuned_05262017.pkl')
     o.poll_database()
