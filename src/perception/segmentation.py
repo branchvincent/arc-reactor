@@ -1,6 +1,3 @@
-import matplotlib
-matplotlib.use('qt5agg')
-import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import sys
@@ -106,14 +103,6 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     outp = gs.processImage(color_depth_image)
     numObj = outp.max()
     logger.info("Found {} segments in the image".format(outp.max()))
-
-
-    display_segment_img = outp.copy().astype('float32')
-    display_segment_img = (display_segment_img - display_segment_img.min()) / (display_segment_img.max() - display_segment_img.min())
-    display_segment_img = plt.cm.jet(display_segment_img)
-    display_segment_img = (255*display_segment_img).astype('uint8')
-    display_segment_img
-    return_values['segmented_image'] = np.array(display_segment_img[:,:,0:3])
     
     segments = []
 
