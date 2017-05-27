@@ -17,15 +17,16 @@ import json
 import time
 logger = logging.getLogger(__name__)
 
-'''
-Updates the camera parameters (intrinsics, extrinsics, depth scale, etc)
-for all cameras in list_of_serial_nums
-'''
-def update_camera_parameters(list_of_serial_nums):
 
-    if len(list_of_serial_nums) == 0 or list_of_serial_nums is None:
-        logger.warning("No serial numbers were passed. Need at least one. Not updating values")
-        return
+def update_camera_parameters(list_of_serial_nums):
+    '''
+    Updates the camera parameters (intrinsics, extrinsics, depth scale, etc)
+    for all cameras in list_of_serial_nums
+    '''
+
+    if list_of_serial_nums is None or len(list_of_serial_nums) == 0:
+        raise RuntimeError("No serial numbers were passed. Need at least one. Not updating values")
+        
 
     #try to connect to the database
     store = None
@@ -34,15 +35,15 @@ def update_camera_parameters(list_of_serial_nums):
         store = db_client.default()
         register_numpy()
     except:
-        logger.warn("Could not connect to the database on {}. Not updating params".format('10.10.1.60:8888'))
-        return
+        raise RuntimeError("Could not connect to the database on {}. Not updating params".format('10.10.1.60:8888'))
+        
 
     #make a dict of sn to names
     sn_to_cam_names = {}
     cam_names_to_sn = store.get('system/cameras')
     if cam_names_to_sn is None:
-        logger.warn("Could not get the dictionary of camera names to sn. Not updating params")
-        return
+        raise RuntimeError("Could not get the dictionary of camera names to sn. Not updating params")
+        
     for key, value in cam_names_to_sn.items():
         sn_to_cam_names[value] = key
     #try to connect to the depth cameras
@@ -52,7 +53,8 @@ def update_camera_parameters(list_of_serial_nums):
         sn_to_camNum = depthCamera.get_camera_serial_numbers()
     else:
         logger.critical("Could not connect to the cameras...EVERYBODY PANIC")
-        return
+        raise RuntimeError("Could not connect to cameras")
+        
 
     for sn in list_of_serial_nums:
         cameramat, cameracoeff = depthCamera.get_camera_coefs(sn_to_camNum[sn], rs.stream_color)
@@ -109,22 +111,25 @@ def update_camera_parameters(list_of_serial_nums):
             logger.warning("Unable to get color to depth extrinsics for {}. Setting to None".format(sn))
         store.put('/camera/' + sn_to_cam_names[sn] + '/color/depthExtrinsics', cameraEx)
 
-'''
-Update camera images only.  Takes in one or more camera serial numbers as a list.
-Takes in one or more urls as output location for the images.
-Point clouds, aligned images, color images, and intrinsics/extrinsics etc are updated and pushed to the database
-'''
+
 def acquire_images(list_of_urls, list_of_serial_nums):
+    '''
+    Update camera images only.  Takes in one or more camera serial numbers as a list.
+    Takes in one or more urls as output location for the images.
+    Point clouds, aligned images, color images, and intrinsics/extrinsics etc are updated and pushed to the database
+    '''
+    if list_of_urls is None or list_of_serial_nums is None:
+        raise RuntimeError("Arguments cant be None")
     #check to make sure the length of the urls == len of serial nums
-    if len(list_of_urls) != len(list_of_serial_nums):
-        logger.warning("Length mismatch of url list and serial number list. Not acquiring")
-        return
+    elif len(list_of_urls) != len(list_of_serial_nums):
+        raise RuntimeError("Length mismatch of url list and serial number list. Not acquiring")
+        
     elif len(list_of_urls) == 0 or list_of_urls is None:
-        logger.warning("No URLs were passed. Need at least one. Not acquiring")
-        return
+        raise RuntimeError("No URLs were passed. Need at least one. Not acquiring")
+        
     elif len(list_of_serial_nums) == 0 or list_of_serial_nums is None:
-        logger.warning("No serial numbers were passed. Need at least one. Not acquiring")
-        return
+        raise RuntimeError("No serial numbers were passed. Need at least one. Not acquiring")
+        
 
     #try to connect to the database
     store = None
@@ -133,8 +138,8 @@ def acquire_images(list_of_urls, list_of_serial_nums):
         store = db_client.default()
         register_numpy()
     except:
-        logger.warn("Could not connect to the database on {}. Not acquiring".format('10.10.1.60:8888'))
-        return
+        raise RuntimeError("Could not connect to the database on {}. Not acquiring".format('10.10.1.60:8888'))
+        
 
     #try to connect to the depth cameras
     depthCamera = DepthCameras()
@@ -143,14 +148,15 @@ def acquire_images(list_of_urls, list_of_serial_nums):
         sn_to_camNum = depthCamera.get_camera_serial_numbers()
     else:
         logger.critical("Could not connect to the cameras...EVERYBODY PANIC")
-        return
+        raise RuntimeError("Could not connect to cameras")
+        
 
     for i,sn in enumerate(list_of_serial_nums):
         #get pictures from camera
         try:
             picSnTuple = depthCamera.acquire_image(sn_to_camNum[sn])
         except:
-            logger.error('DID YOU PASS IN AN INVALID SERIAL NUMBER?!?! DAMMIT!')
+            logger.error('DID YOU PASS IN AN INVALID SERIAL NUMBER {}?!?! DAMMIT!'.format(sn))
             continue
         if picSnTuple != (None, None):
             images, serialNum = picSnTuple
@@ -187,22 +193,21 @@ def acquire_images(list_of_urls, list_of_serial_nums):
                             key = '/camera/' + value + "/connected"
                             store.put(key, False)
 
-'''
-Performs segmentation on images from camera serial numbers in the list.
-Crops the image based on the bounds in list of bounds and the pose in
-list of poses
-'''
-def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls):
 
-    if len(list_of_urls) != len(list_of_bounds_urls) or len(list_of_bounds_urls) != len(list_of_world_xforms_urls):
-        logger.warning("Length mismatch of url list and bounds list or bounds list and pose list. Not segmenting")
-        return
+def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls):
+    '''
+    Performs segmentation on images from camera serial numbers in the list.
+    Crops the image based on the bounds in list of bounds and the pose in
+    list of poses
+    '''
+    if list_of_urls is None or list_of_bounds_urls is None or list_of_world_xforms_urls is None:
+        raise RuntimeError("Arguments cant be None")
+    elif len(list_of_urls) != len(list_of_bounds_urls) or len(list_of_bounds_urls) != len(list_of_world_xforms_urls):
+        raise RuntimeError("Length mismatch of url list and bounds list or bounds list and pose list. Not segmenting")
     elif len(list_of_urls) == 0 or list_of_urls is None:
-        logger.warning("No URLs were passed. Need at least one. Not segmenting")
-        return
+        raise RuntimeError("No URLs were passed. Need at least one. Not segmenting")
     elif len(list_of_bounds_urls) == 0 or list_of_bounds_urls is None:
-        logger.warning("No bounds were passed. Need at least one. Not segmenting")
-        return
+        raise RuntimeError("No bounds were passed. Need at least one. Not segmenting")
 
     #try to connect to the database
     store = None
@@ -211,8 +216,8 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         store = db_client.default()
         register_numpy()
     except:
-        logger.warn("Could not connect to the database on {}. Not segmenting".format('10.10.1.60:8888'))
-        return
+        raise RuntimeError("Could not connect to the database on {}. Not segmenting".format('10.10.1.60:8888'))
+        
 
     #loop though all the urls
     for i,url in enumerate(list_of_urls):
@@ -226,19 +231,19 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         c_image = store.get(url + "full_color")
 
         if d_image is None or c_image is None:
-            logger.warn("Depth or color image was none. Can't segment")
-            return
+            raise RuntimeError("Depth or color image was none. Can't segment")
+            
 
         seg_params = segmentation.GraphSegmentationParams()
         bin_bounds = store.get(list_of_bounds_urls[i])
         if bin_bounds is None:
-            logger.warn("Bounds were None. Can't segment image")
-            return
+            raise RuntimeError("Bounds were None. Can't segment image")
+            
 
         ref_world_xform = store.get(list_of_world_xforms_urls[i])
         if ref_world_xform is None:
-            logger.warn("Reference world transform was None. Can't segment image")
-            return
+            raise RuntimeError("Reference world transform was None. Can't segment image")
+            
 
         #crop the image for desired bin
         intrins_fx = store.get('/camera/' + cam_name + "/depth/intrinsics/fx")
@@ -246,16 +251,16 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         intrins_ppx = store.get('/camera/' + cam_name + "/depth/intrinsics/ppx")
         intrins_ppy = store.get('/camera/' + cam_name + "/depth/intrinsics/ppy")
         if intrins_fx is None or intrins_fy is None or intrins_ppx is None or intrins_ppy is None:
-            logger.warning("Could not get the intrinsicds for the camera {}. Not segmenting".format(cam_name))
-            return
+            raise RuntimeError("Could not get the intrinsicds for the camera {}. Not segmenting".format(cam_name))
+            
 
         scale = store.get('/camera/' + cam_name + "/depth/scale")
         coeffs = store.get('/camera/' + cam_name + "/depth/coeff")
         #get camera world location
         cam_pose_world = store.get(url + "pose")
         if scale is None or coeffs is None or cam_pose_world is None:
-            logger.warning("Could not get the depth scale or coeffs for the camera {}. Not segmenting".format(cam_name))
-            return
+            raise RuntimeError("Could not get the depth scale or coeffs for the camera {}. Not segmenting".format(cam_name))
+            
 
         #get the 3d point by deprojecting pixel to get camera local
         depth_in_3d_cam_local = np.zeros((480,640,3))
@@ -297,8 +302,8 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         mask = np.logical_and(np.logical_and(maskx, masky),maskz)
 
         #optimized params
-        seg_params.k = 3762.97
-        seg_params.minSize = 840.067
+        seg_params.minSize = 3762.97
+        seg_params.k = 840.067
         seg_params.c_rad = 7
         seg_params.sigma = 1.8066
         seg_params.sp_rad = 3
