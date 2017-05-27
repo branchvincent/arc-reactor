@@ -93,12 +93,8 @@ class FrontPanel(QMainWindow):
             self.sync.request(url + '/timestamp')
 
         self.checkpoints = self._make_path_map([
-            'si',
-            'pr',
-            'ppi',
-            'ppb',
-            'psg',
-            'pps'
+            'select_item',
+            'plan_route'
         ])
         self._load_toggle_list('/checkpoint/', self.checkpoints, self.ui.checkpointsLayout)
 

@@ -33,8 +33,15 @@ class Transition():
         self.altState = altState.upper()
         self.checkState = checkState
         self.outcome = '/outcome/'+fromState
-        self.checkpoint = '/checkpoint/'+fromState
+        self.checkpoint = '/checkpoint/'+self.findCheckpoint(fromState)
         self.store = store or PensiveClient().default()
+
+    def findCheckpoint(self, fromState):
+        if fromState.startswith("p"):
+            return "plan_route"
+        elif fromState.startswith("si"):
+            return "select_item"
+        else: return fromState
 
     def decideTransition(self):
         if not self.store.get(self.outcome, False): #if nothing set, assume failed

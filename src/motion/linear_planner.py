@@ -56,11 +56,16 @@ class LinearPlanner:
             # return self.robot.getConfig()
 
     def interpolate(self, q=None, T=None, p=None): #, rads=True):
+        if (q is None and T is None and p is None):
+            raise RuntimeError('Cannot interpolate nothing')
+
         """Jogs the robot to the specified configuration, in radians"""
         # Get initial configuration
         q0 = self.store.get('/robot/current_config')
+        print "T is ", T
         if T is not None:
             q = self.getDesiredConfig(T=T)
+            print "T is not none so q is ", q
         elif p is not None:
             q = self.getDesiredConfig(p=p)
         elif q is not None:
@@ -68,6 +73,7 @@ class LinearPlanner:
         # if not rads:
         #     q = [math.radians(qi) for qi in q]
 
+        print "q is ", q
         # Get milestones and check feasibility
         feasible = True
         milestones = TimeScale(self.robot).getMilestones(q0, q)

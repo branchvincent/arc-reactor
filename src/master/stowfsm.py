@@ -8,6 +8,7 @@ from states.exec_route import ExecRoute
 from states.check_item import CheckItem
 from states.check_select_item import CheckSelectItem
 from states.check_route import CheckRoute
+from states.plan_view_location import PlanViewLocation
 
 class StowStateMachine(StateMachine):
 
@@ -16,16 +17,22 @@ class StowStateMachine(StateMachine):
         self.add('si', SelectItem('si', store=self.store))
         self.add('fi', FindItem('fi', store=self.store))
         self.add('psg', PlanStowGrab('psg', store=self.store))
+        self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('pps', PlanPlaceShelf('pps', store=self.store))
         self.add('er1', ExecRoute('er1', store=self.store))
         self.add('er2', ExecRoute('er2', store=self.store))
+        self.add('er3', ExecRoute('er3', store=self.store))
         self.add('ci', CheckItem('ci', store=self.store), endState=1)
         self.add('csi', CheckSelectItem('csi', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
         self.add('cr2', CheckRoute('cr2', store=self.store))
+        self.add('cr3', CheckRoute('cr3', store=self.store))
 
     def getStartState(self):
-        return 'fa'
+        #TODO put this action in separate state?
+        self.store.put('/robot/target_location', 'stow_tote')
+        #return 'fa'
+        return 'si'
 
     def setupTransitions(self):
         self.setTransition('fa', 'si', 'fa')
@@ -34,7 +41,9 @@ class StowStateMachine(StateMachine):
         self.setTransition('fi', 'psg', 'si')
         self.setTransition('psg', 'er1', 'si', checkState='cr1')
         self.setTransition('cr1', 'er1', 'si')
-        self.setTransition('er1', 'pps', 'fi')
+        self.setTransition('er1', 'pvl', 'fi')
+        self.setTransition('pvl', 'er3', 'fi', checkState='cr3')
+        self.setTransition('er3', 'pps', 'pvl')
         self.setTransition('pps', 'er2', 'fi', checkState='cr2')
         self.setTransition('cr2', 'er2', 'fi')
         self.setTransition('er2', 'ci', 'pps')

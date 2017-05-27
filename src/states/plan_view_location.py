@@ -11,11 +11,15 @@ class PlanViewLocation(State):
         # location = self.store.get(['item',item,'location'])
         T = self.store.get('/robot/target_xform')
 
-        # Plan route
-        lp = LinearPlanner()
-        lp.interpolate(T=T)
+        if T is None:
+            raise RuntimeError("no target is set to view")
+            self.setOutcome(False)
 
-        self.setOutcome(True)
+        else:
+            # Plan route
+            lp = LinearPlanner()
+            lp.interpolate(T=T)
+            self.setOutcome(True)
 
 if __name__ == '__main__':
     import argparse
