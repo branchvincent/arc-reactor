@@ -50,12 +50,13 @@ def recognize_objects(store, photo_urls, locations):
     store.put('/object_recognition/locations', locations)
 
     # trigger recognition
+    store.put('/object_recognition/done', False)
     store.put('/object_recognition/run', True)
 
     logger.debug('objection recognition started')
 
     # wait for completion
-    while store.put('/object_recognition/done', True):
+    while not store.get('/object_recognition/done', False):
         sleep(0.1)
 
     logger.debug('object recognition finished')
