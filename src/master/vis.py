@@ -343,6 +343,9 @@ class WorldViewerWindow(QMainWindow):
             self._update_pose('tote_{}'.format(name), [['tote', name, 'pose']])
             self._update_pose('vantage_{}'.format(name), [['tote', name, 'pose'], ['tote', name, 'vantage']])
 
+        # update inspection bounding box
+        self._update_bounding_box('inspect', [['robot', 'inspect_pose']], ['robot', 'inspect_bounds'])
+
         for grasp in self.db.get('/debug/grasps', []):
             self.program.extra_poses.append(se3.from_translation(grasp[1]))
 
