@@ -31,14 +31,14 @@ class CapturePhoto(State):
         serials  = [name2serial[n] for n in selected_cameras]
         photo_urls = ['/photos/{}/{}/'.format(location, cam) for cam in selected_cameras]
 
-        # acquire images
-        acquire_images(serials, photo_urls)
-
         # store ancillary information
         for (cam, photo_url) in zip(selected_cameras, photo_urls):
             self.store.put(photo_url + 'pose', self.store.get(['camera', cam, 'pose']))
             self.store.put(photo_url + 'camera', cam)
             self.store.put(photo_url + 'location', location)
+
+        # acquire images
+        acquire_images(serials, photo_urls)
 
         self.setOutcome(True)
 
