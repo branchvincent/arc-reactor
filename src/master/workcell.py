@@ -530,6 +530,7 @@ def main(argv):
             '/robot/inspect_pose',
             '/robot/inspect_bounds',
             '/robot/camera_xform',
+            '/robot/target_xform',
             '/shelf/pose'
         ]
 
