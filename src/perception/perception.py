@@ -224,11 +224,11 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
        
         
         #get the name of the camera that took the image
-        cam_name = self.store.get(url + "/camera")
+        cam_name = store.get(url + "/camera")
         if cam_name is None:
             raise RuntimeError("Camrea name not present")
         #get the location
-        location = self.store.get(url + "/location")
+        location = store.get(url + "/location")
         if location is None:
             raise RuntimeError("No location provided to segmentation")
 
@@ -260,10 +260,9 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
 
 
         scale = store.get('/camera/' + cam_name + "/depth/scale")
-        coeffs = store.get('/camera/' + cam_name + "/depth/coeff")
         #get camera world location
         cam_pose_world = store.get(url + "pose")
-        if scale is None or coeffs is None or cam_pose_world is None:
+        if scale is None or cam_pose_world is None:
             raise RuntimeError("Could not get the depth scale or coeffs for the camera {}. Not segmenting".format(cam_name))
 
 
@@ -272,14 +271,10 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         [xs, ys] = np.meshgrid(range(depth_in_3d_cam_local.shape[1]), range(depth_in_3d_cam_local.shape[0]))
         xs = (xs - intrins_ppx)/intrins_fx
         ys = (ys - intrins_ppy)/intrins_fy
-        r2 = xs*xs + ys*ys
-        f = 1 + coeffs[0]*r2 + coeffs[1]*r2*r2 + coeffs[4]*r2*r2*r2
-        ux = xs*f + 2*coeffs[2]*xs*ys + coeffs[3]*(r2 + 2*xs*xs)
-        uy = ys*f + 2*coeffs[3]*xs*ys + coeffs[2]*(r2 + 2*ys*ys)
 
         depth_in_3d_cam_local[:, :, 2] = d_image*scale
-        depth_in_3d_cam_local[:, :, 0] = ux*depth_in_3d_cam_local[:, :, 2]
-        depth_in_3d_cam_local[:, :, 1] = uy*depth_in_3d_cam_local[:, :, 2]
+        depth_in_3d_cam_local[:, :, 0] = xs*depth_in_3d_cam_local[:, :, 2]
+        depth_in_3d_cam_local[:, :, 1] = ys*depth_in_3d_cam_local[:, :, 2]
 
 
         #get the transform from world to reflocal
@@ -341,7 +336,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             #write out results to database
             store.put(url + "labeled_image", ret['labeled_image'])
             store.put(url + "DL_images", ret['DL_images'])
-            store.put(url + "pc_segmented", depth_in_3d_cam_local)
+            store.put(url + "point_cloud_segmented", depth_in_3d_cam_local)
 
 
 import argparse
