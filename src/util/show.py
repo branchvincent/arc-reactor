@@ -4,14 +4,15 @@ import matplotlib
 matplotlib.use('Qt4Agg')
 from matplotlib import pyplot, cm
 
-def show(store, urls, fmt=None):
+def show(store, urls, override_format=None):
     subprocs = []
 
     for url in urls:
         print url, '->',
         data = store.get(url)
-        print data.shape, data.dtype
+        print data.shape, data.dtype,
 
+        fmt = override_format
         if not fmt:
             if len(data.shape) == 2:
                 if data.dtype == numpy.int32:
@@ -26,6 +27,8 @@ def show(store, urls, fmt=None):
 
         if not fmt:
             raise RuntimeError('unknown data format')
+
+        print '->', fmt
 
         if fmt == 'label':
             pyplot.figure()
