@@ -43,8 +43,9 @@ test_parser.add_argument('path', nargs=REMAINDER, metavar='PATH', help='search p
 
 shell_parser = subparsers.add_parser('shell', help='Python shell', description='launch Python', formatter_class=ArgumentDefaultsHelpFormatter, add_help=False)
 shell_parser.add_argument('-h', '--help', action='store_true', help='show this help message and exit')
-shell_parser.add_argument('-m', '--module', metavar='MODULE', help='run module')
-shell_parser.add_argument('args', nargs='*', metavar='ARGS', help='module arguments')
+shell_parser.add_argument('-m', '--module', dest='ignored', action='store_true', help='deprecated')
+shell_parser.add_argument('module', nargs='?', help='module or file to run')
+shell_parser.add_argument('args', nargs=REMAINDER, help='execution arguments')
 
 load_parser = subparsers.add_parser('load', help='load database', description='load database', formatter_class=ArgumentDefaultsHelpFormatter)
 load_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
@@ -60,7 +61,8 @@ group = dump_parser.add_mutually_exclusive_group()
 group.add_argument('-c', '--compress', action='store_true', help='compress JSON', default=False)
 group.add_argument('-p', '--pretty', action='store_true', help='print JSON nicely', default=False)
 
-args, other_args = parser.parse_known_args()
+#args, other_args = parser.parse_known_args()
+args = parser.parse_args()
 
 # configure the root logger to accept all records
 import logging
@@ -152,9 +154,8 @@ elif args.command == 'test':
 elif args.command == 'shell':
     if args.module:
         import runpy
-        sys.argv = [args.module] + args.args + other_args
-        if args.help:
-            sys.argv.insert(1, '-h')
+
+        sys.argv = [args.module] + args.args
 
         if os.sep in args.module or args.module.endswith('.py'):
             # run the file directly
