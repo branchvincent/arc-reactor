@@ -124,10 +124,10 @@ def acquire_images(list_of_urls, list_of_serial_nums):
     elif len(list_of_urls) != len(list_of_serial_nums):
         raise RuntimeError("Length mismatch of url list and serial number list. Not acquiring")
         
-    elif len(list_of_urls) == 0 or list_of_urls is None:
+    elif len(list_of_urls) == 0:
         raise RuntimeError("No URLs were passed. Need at least one. Not acquiring")
         
-    elif len(list_of_serial_nums) == 0 or list_of_serial_nums is None:
+    elif len(list_of_serial_nums) == 0:
         raise RuntimeError("No serial numbers were passed. Need at least one. Not acquiring")
         
 
@@ -221,13 +221,17 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
 
     #loop though all the urls
     for i,url in enumerate(list_of_urls):
+       
+        
         #get the name of the camera that took the image
-        #look between the first and last slash of the url for the camera name
-        last_slash = url.rfind('/',0, len(url))
-        second_last_slash = url.rfind('/',0, last_slash)
-        third_last_slash = url.rfind('/',0, second_last_slash)
-        cam_name = url[second_last_slash+1:last_slash]
-        location = url[third_last_slash+1:second_last_slash]
+        cam_name = self.store.get(url + "/camera")
+        if cam_name is None:
+            raise RuntimeError("Camrea name not present")
+        #get the location
+        location = self.store.get(url + "/location")
+        if location is None:
+            raise RuntimeError("No location provided to segmentation")
+
         d_image = store.get(url + "aligned_depth")
         c_image = store.get(url + "full_color")
 
