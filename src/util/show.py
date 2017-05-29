@@ -83,9 +83,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.path:
+        # read the file
+        if args.path.endswith('.gz'):
+            import gzip
+            data = gzip.open(args.path, 'rb').read()
+        else:
+            data = open(args.path).read()
+
         # load the JSON object
         from pensive.client import json_decode
-        obj = json_decode(open(args.path).read())
+        obj = json_decode(data)
 
         # populate in-memory store
         from pensive.core import Store
