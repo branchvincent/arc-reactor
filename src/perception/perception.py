@@ -204,9 +204,9 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         raise RuntimeError("Arguments cant be None")
     elif len(list_of_urls) != len(list_of_bounds_urls) or len(list_of_bounds_urls) != len(list_of_world_xforms_urls):
         raise RuntimeError("Length mismatch of url list and bounds list or bounds list and pose list. Not segmenting")
-    elif len(list_of_urls) == 0 or list_of_urls is None:
+    elif len(list_of_urls) == 0:
         raise RuntimeError("No URLs were passed. Need at least one. Not segmenting")
-    elif len(list_of_bounds_urls) == 0 or list_of_bounds_urls is None:
+    elif len(list_of_bounds_urls) == 0:
         raise RuntimeError("No bounds were passed. Need at least one. Not segmenting")
 
     #try to connect to the database
