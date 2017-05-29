@@ -36,3 +36,8 @@ scipy
 # pyqt          # manual install
 # pyside        # manual install
 # pyopengl      # manual install
+
+# perception
+-r https://raw.githubusercontent.com/Lasagne/Lasagne/master/requirements.txt
+https://github.com/Lasagne/Lasagne/archive/master.zip
+scikit-image
