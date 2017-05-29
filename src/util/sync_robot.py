@@ -1,18 +1,29 @@
+from time import sleep
+
 from hardware.control.robotcontroller import RobotController
 
-from master.world import build_world, klampt2numpy
+from master.world import update_world, klampt2numpy
 
-def sync(db):
-    # update the robot config
+def sync(db, continuous=False):
     rc = RobotController()
-    rc.updateCurrentConfig()
+    world = None
 
-    # build the world
-    world = build_world(db)
+    while True:
+        # update the robot config
+        rc.updateCurrentConfig()
 
-    # update the robot tool pose
-    robot = world.robot('tx90l')
-    db.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
+        # build the world
+        world = update_world(db, world)
+
+        # update the robot tool pose
+        robot = world.robot('tx90l')
+        db.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
+
+        if continuous:
+            sleep(0.25)
+            continue
+
+        break
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -21,6 +32,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
     parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+    parser.add_argument('-c', '--continuous', action='store_true', default=False, help='operate continuously')
 
     args = parser.parse_args()
 
@@ -31,4 +43,7 @@ if __name__ == '__main__':
     # get the store
     store = client.store(args.store)
 
-    sync(store)
+    try:
+        sync(store, args.continuous)
+    except KeyboardInterrupt:
+        pass

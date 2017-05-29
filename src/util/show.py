@@ -4,14 +4,15 @@ import matplotlib
 matplotlib.use('Qt4Agg')
 from matplotlib import pyplot, cm
 
-def show(store, urls, fmt=None):
-    for url in urls:
-        pyplot.figure()
+def show(store, urls, override_format=None):
+    subprocs = []
 
+    for url in urls:
         print url, '->',
         data = store.get(url)
-        print data.shape, data.dtype
+        print data.shape, data.dtype,
 
+        fmt = override_format
         if not fmt:
             if len(data.shape) == 2:
                 if data.dtype == numpy.int32:
@@ -21,22 +22,27 @@ def show(store, urls, fmt=None):
             elif len(data.shape) == 3 and data.shape[2] == 3:
                 if data.dtype == numpy.uint8:
                     fmt = 'color'
-                elif data.dtype == numpy.float32:
+                elif data.dtype in [numpy.float32, numpy.float64]:
                     fmt = 'point_cloud'
 
         if not fmt:
             raise RuntimeError('unknown data format')
 
+        print '->', fmt
+
         if fmt == 'label':
+            pyplot.figure()
             pyplot.imshow(data, cmap=cm.viridis)
             pyplot.colorbar()
             pyplot.title(url)
 
         elif fmt == 'color':
+            pyplot.figure()
             pyplot.imshow(data)
             pyplot.title(url)
 
         elif fmt == 'intensity':
+            pyplot.figure()
             pyplot.imshow(data, cmap=cm.gray)
             pyplot.colorbar()
             pyplot.title(url)
@@ -44,14 +50,24 @@ def show(store, urls, fmt=None):
         elif fmt == 'point_cloud':
             cloud = data.reshape((-1, 3))
 
+            import os
+            from tempfile import mkstemp
+            (fd, path) = mkstemp('{}.pcd'.format(url.replace('/', '_')))
+
             from util import pcd
-            path = '/tmp/cloud.pcd'
-            pcd.write(cloud, path)
+            pcd.write(cloud, os.fdopen(fd, 'w'))
 
             from subprocess import Popen
-            Popen(['pcl_viewer', '-ax', '0.1', path])
+            subprocs.append(Popen(['pcl_viewer', '-ax', '0.1', path]))
 
-    pyplot.show()
+    try:
+        pyplot.show()
+
+        for proc in subprocs:
+            proc.wait()
+    except KeyboardInterrupt:
+        for proc in subprocs:
+            proc.kill()
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
