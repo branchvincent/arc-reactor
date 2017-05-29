@@ -4,39 +4,70 @@ import matplotlib
 matplotlib.use('Qt4Agg')
 from matplotlib import pyplot, cm
 
-def show(data, format=None):
-    if data.dtype == numpy.int32:
-        # guess segmentation data
-        labels = data
-        # HACK: not sure why cm.Set1.colors stopped working
-        cmap = cm.Set1._segmentdata['blue']
+def show(store, urls, override_format=None):
+    subprocs = []
 
-        labels_rgb = 255 * numpy.array(cmap)[(labels - 1) % len(cmap)]
-        labels_rgb[labels == 0] = [0, 0, 0]
+    for url in urls:
+        print url, '->',
+        data = store.get(url)
+        print data.shape, data.dtype,
 
-        pyplot.imshow(labels_rgb)
+        fmt = override_format
+        if not fmt:
+            if len(data.shape) == 2:
+                if data.dtype == numpy.int32:
+                    fmt = 'label'
+                else:
+                    fmt = 'intensity'
+            elif len(data.shape) == 3 and data.shape[2] == 3:
+                if data.dtype == numpy.uint8:
+                    fmt = 'color'
+                elif data.dtype in [numpy.float32, numpy.float64]:
+                    fmt = 'point_cloud'
 
-    elif data.dtype == numpy.uint8:
-        # guess image data
-        image = data
+        if not fmt:
+            raise RuntimeError('unknown data format')
 
-        pyplot.imshow(data)
+        print '->', fmt
 
-    elif data.dtype == numpy.float32:
-        # guess point cloud
-        cloud = data.reshape((-1, 3))
+        if fmt == 'label':
+            pyplot.figure()
+            pyplot.imshow(data, cmap=cm.viridis)
+            pyplot.colorbar()
+            pyplot.title(url)
 
-        from util import pcd
-        path = '/tmp/cloud.pcd'
-        pcd.write(cloud, path)
+        elif fmt == 'color':
+            pyplot.figure()
+            pyplot.imshow(data)
+            pyplot.title(url)
 
-        from subprocess import call
-        call(['pcl_viewer', '-ax', '0.1', path])
+        elif fmt == 'intensity':
+            pyplot.figure()
+            pyplot.imshow(data, cmap=cm.gray)
+            pyplot.colorbar()
+            pyplot.title(url)
 
-    else:
-        print 'unknown data type'
+        elif fmt == 'point_cloud':
+            cloud = data.reshape((-1, 3))
 
-    pyplot.show()
+            import os
+            from tempfile import mkstemp
+            (fd, path) = mkstemp('{}.pcd'.format(url.replace('/', '_')))
+
+            from util import pcd
+            pcd.write(cloud, os.fdopen(fd, 'w'))
+
+            from subprocess import Popen
+            subprocs.append(Popen(['pcl_viewer', '-ax', '0.1', path]))
+
+    try:
+        pyplot.show()
+
+        for proc in subprocs:
+            proc.wait()
+    except KeyboardInterrupt:
+        for proc in subprocs:
+            proc.kill()
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -46,7 +77,8 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
     parser.add_argument('-s', '--store', metavar='STORE', help='database store')
     parser.add_argument('-p', '--path', metavar='PATH', help='path to a JSON database')
-    parser.add_argument('url', metavar='URL', help='url to image')
+    parser.add_argument('-f', '--format', metavar='FORMAT', help='data display format', choices=['label', 'intensity', 'color', 'point_cloud', None])
+    parser.add_argument('url', nargs='+', metavar='URL', help='url to image')
 
     args = parser.parse_args()
 
@@ -67,4 +99,4 @@ if __name__ == '__main__':
         # get the store
         store = client.store(args.store)
 
-    show(store.get(args.url))
+    show(store, args.url, args.format)

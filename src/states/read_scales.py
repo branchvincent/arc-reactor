@@ -23,5 +23,12 @@ class ReadScales(State):
         # Update database
         self.store.put('scales/weight', weight)
 
+        self.setOutcome(True)
+
 if __name__ == '__main__':
-    ReadScales('rs').run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', nargs='?')
+    args = parser.parse_args()
+    myname = (args.name or rs')
+    ReadScales(myname).run()

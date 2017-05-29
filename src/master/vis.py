@@ -270,6 +270,8 @@ class WorldViewerWindow(QMainWindow):
         self.setWindowTitle(self.program.name)
         self.ui.view.setMaximumSize(1920, 1080)
 
+        self.photos = []
+
         self.ready = False
         self.db = Store()
 
@@ -301,10 +303,13 @@ class WorldViewerWindow(QMainWindow):
         if not self.ready:
             # populate the camera requests
             for name in self.db.get('/system/cameras', []):
-                self.sync.request_many([
-                    (3, '/camera/{}/timestamp'.format(name)),
-                    (3, '/camera/{}/pose'.format(name)),
-                ])
+                self.sync.request('/camera/{}/pose'.format(name), 3)
+
+                # TODO: read a list of locations from somewhere
+                for location in ['binA', 'binB', 'binC', 'inspect', 'stow_tote', 'amnesty_tote', 'boxA1', 'box1A5', 'box1AD', 'box1B2', 'boxK3']:
+                    self.photos.append((location, name))
+                    self.sync.request('/photos/{}/{}/time_stamp'.format(location, name), 3)
+                    self.sync.request('/photos/{}/{}/pose'.format(location, name), 3)
 
             self.ready = True
 
@@ -312,14 +317,13 @@ class WorldViewerWindow(QMainWindow):
 
         self._update_bounding_box('target', [], ['robot', 'target_bounding_box'])
 
-        # update camera point clouds
+        # update camera poses
         for name in self.db.get('/system/cameras', []):
-            self._update_camera(name)
             self._update_pose('cam_{}'.format(name), [['camera', name, 'pose']])
 
-        # update item point clouds
-        for name in self.db.get('item', {}):
-            self._update_item(name)
+        # update photo point clouds
+        for (location, camera) in self.photos:
+            self._update_photo(location, camera)
 
         self.program.extra_poses = []
 
@@ -338,6 +342,9 @@ class WorldViewerWindow(QMainWindow):
             self._update_bounding_box('tote_{}'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
             self._update_pose('tote_{}'.format(name), [['tote', name, 'pose']])
             self._update_pose('vantage_{}'.format(name), [['tote', name, 'pose'], ['tote', name, 'vantage']])
+
+        # update inspection bounding box
+        self._update_bounding_box('inspect', [['robot', 'inspect_pose']], ['robot', 'inspect_bounds'])
 
         for grasp in self.db.get('/debug/grasps', []):
             self.program.extra_poses.append(se3.from_translation(grasp[1]))
@@ -414,29 +421,29 @@ class WorldViewerWindow(QMainWindow):
             ['item', name, 'point_cloud_color'],
         )
 
-    def _update_camera(self, name):
-        cloud_name = 'cam_{}'.format(name)
+    def _update_photo(self, location, camera):
+        cloud_name = 'photo_{}_{}'.format(location, camera)
 
         # check if point cloud is modified
-        stamp = self.db.get(['camera', name, 'timestamp'], 0)
+        stamp = self.db.get(['photos', location, camera, 'time_stamp'], 0)
         if stamp <= self.timestamps.get(cloud_name, 0):
             return
 
         # retrieve the point clouds once
-        if self.db.get(['camera', name, 'point_cloud']) is None:
-            self.sync.request_once(['camera', name, 'point_cloud'])
-            self.sync.request_once(['camera', name, 'aligned_image'])
+        if self.db.get(['photos', location, camera, 'point_cloud']) is None:
+            self.sync.request_once(['photos', location, camera, 'point_cloud'])
+            self.sync.request_once(['photos', location, camera, 'aligned_color'])
             return
 
         self.timestamps[cloud_name] = stamp
 
-        logger.debug('updating {} point cloud'.format(name))
+        logger.debug('updating {} point cloud'.format(cloud_name))
 
         self._update_point_cloud(
             cloud_name,
-            [['camera', name, 'pose']],
-            ['camera', name, 'point_cloud'],
-            ['camera', name, 'aligned_image']
+            [['photos', location, camera, 'pose']],
+            ['photos', location, camera, 'point_cloud'],
+            ['photos', location, camera, 'aligned_color']
         )
 
     def _update_bounding_box(self, name, pose_urls, bounds_url):
