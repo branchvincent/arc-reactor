@@ -25,7 +25,6 @@ class State():
         self.outcome = outcome
         self.store.put('/outcome/'+self.getFullName(), outcome)
 
-
 class Transition():
     def __init__(self, fromState, toState, altState, store=None, checkState=None):
         self.fromState = fromState.upper()
