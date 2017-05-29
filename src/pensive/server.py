@@ -17,13 +17,15 @@ bodies.
 
 import logging
 
-import httplib
+import http.client
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler, StaticFileHandler, Application
 from tornado.escape import json_decode
 
 import jsonschema
+
+from future.utils import viewitems, viewvalues
 
 from .core import Store
 from . import DEFAULT_PORT
@@ -53,10 +55,10 @@ class ManagerHandler(RequestHandler):  # pylint: disable=abstract-method
 
         if instance:
             # no utility for providing instance
-            self.send_error(httplib.NOT_FOUND)
+            self.send_error(http.client.NOT_FOUND)
         else:
             # send back the list of keys
-            self.write({'index': self.application.stores.keys()})
+            self.write({'index': list(self.application.stores)})
 
     def put(self, instance=None):  # pylint: disable=arguments-differ
         '''
@@ -79,7 +81,7 @@ class ManagerHandler(RequestHandler):  # pylint: disable=abstract-method
 
         if instance in self.application.stores:
             # no action if instance already exists
-            self.set_status(httplib.NO_CONTENT)
+            self.set_status(http.client.NO_CONTENT)
             logger.warning('silently ignored store re-creation request: "{}"'.format(instance))
         elif self.request.body:
             try:
@@ -99,12 +101,12 @@ class ManagerHandler(RequestHandler):  # pylint: disable=abstract-method
                 else:
                     # fork the new instance
                     self.application.stores[instance] = parent.fork()
-                    self.set_status(httplib.CREATED)
+                    self.set_status(http.client.CREATED)
                     logger.info('forked a new store "{}" -> "{}"'.format(obj['parent'], instance))
         else:
             # create an empty new store
             self.application.stores[instance] = Store()
-            self.set_status(httplib.CREATED)
+            self.set_status(http.client.CREATED)
             logger.info('created empty new store "{}"'.format(instance))
 
     def delete(self, instance=None):  # pylint: disable=arguments-differ
@@ -115,7 +117,7 @@ class ManagerHandler(RequestHandler):  # pylint: disable=abstract-method
         '''
 
         if instance is None:
-            self.send_error(httplib.BAD_REQUEST, reason='cannot delete default store')
+            self.send_error(http.client.BAD_REQUEST, reason='cannot delete default store')
             logger.warning('attempted default store deletion')
         else:
             try:
@@ -123,10 +125,10 @@ class ManagerHandler(RequestHandler):  # pylint: disable=abstract-method
                 del self.application.stores[instance]
             except KeyError:
                 logger.warning('unrecognized instance: {}'.format(instance))
-                self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
+                self.send_error(http.client.NOT_FOUND, reason='unrecognized instance')
             else:
                 logger.info('deleted store "{}"'.format(instance))
-                self.set_status(httplib.NO_CONTENT)
+                self.set_status(http.client.NO_CONTENT)
 
 class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
     '''
@@ -175,7 +177,7 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
                 self.options[k] = json_decode(data)
             except ValueError as exc:
                 logger.warning('bad JSON in query argument "{}": {}\n\nArgument:\n{}'.format(k, exc, data))
-                self.send_error(httplib.BAD_REQUEST, reason='malformed query string')
+                self.send_error(http.client.BAD_REQUEST, reason='malformed query string')
 
     def get(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
@@ -198,16 +200,16 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
             store = self.application.stores[instance]
         except KeyError:
             logger.warning('unrecognized instance: {}'.format(instance))
-            self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
+            self.send_error(http.client.NOT_FOUND, reason='unrecognized instance')
         else:
             try:
                 # retrieve value
                 self.write({'value': store.get(path, **self.options)})
             except KeyError:
-                self.send_error(httplib.NOT_FOUND)
+                self.send_error(http.client.NOT_FOUND)
             except TypeError as exc:
                 logger.warning('unrecognized option: {}\n\nOptions:\n{}'.format(exc, self.options))
-                self.send_error(httplib.BAD_REQUEST, reason='unrecognized option')
+                self.send_error(http.client.BAD_REQUEST, reason='unrecognized option')
 
     def post(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
@@ -251,7 +253,7 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
             store = self.application.stores[instance]
         except KeyError:
             logger.warning('unrecognized instance: {}'.format(instance))
-            self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
+            self.send_error(http.client.NOT_FOUND, reason='unrecognized instance')
         else:
             try:
                 # decode and validate the request JSON
@@ -259,7 +261,7 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
                 jsonschema.validate(obj, StoreHandler.POST_SCHEMA)
             except (ValueError, jsonschema.ValidationError) as exc:
                 logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(exc, self.request.body))
-                self.send_error(httplib.BAD_REQUEST, reason='malformed payload')
+                self.send_error(http.client.BAD_REQUEST, reason='malformed payload')
             else:
                 if path and not path.endswith(Store.SEPARATOR):
                     path += Store.SEPARATOR
@@ -275,10 +277,10 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
                     # multiple DELETE
                     for key in obj['keys']:
                         store.delete(path + key.strip('/'))
-                    self.set_status(httplib.NO_CONTENT)
+                    self.set_status(http.client.NO_CONTENT)
                 else:
                     logger.warning('invalid operation: {}'.format(obj['operation']))
-                    self.send_error(httplib.BAD_REQUEST, reason='invalid operation')
+                    self.send_error(http.client.BAD_REQUEST, reason='invalid operation')
 
     def put(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
@@ -307,7 +309,7 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
             store = self.application.stores[instance]
         except KeyError:
             logger.warn('unrecognized instance: {}'.format(instance))
-            self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
+            self.send_error(http.client.NOT_FOUND, reason='unrecognized instance')
         else:
             try:
                 # decode and validate the request JSON
@@ -315,29 +317,29 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
                 jsonschema.validate(obj, StoreHandler.PUT_SCHEMA)
             except (ValueError, jsonschema.ValidationError) as exc:
                 logger.warning('malformed payload: {}\n\nPayload:\n{}'.format(exc, self.request.body))
-                self.send_error(httplib.BAD_REQUEST, reason='malformed payload')
+                self.send_error(http.client.BAD_REQUEST, reason='malformed payload')
             else:
                 if 'value' in obj:
                     # single put
                     try:
                         store.put(path, obj['value'], **self.options)
                     except KeyError:
-                        self.send_error(httplib.NOT_FOUND)
+                        self.send_error(http.client.NOT_FOUND)
                     except TypeError as exc:
                         logger.warning('unrecognized option: {}\n\nOptions:\n{}'.format(exc, self.options))
-                        self.send_error(httplib.BAD_REQUEST, reason='unrecognized option')
+                        self.send_error(http.client.BAD_REQUEST, reason='unrecognized option')
                     else:
-                        self.set_status(httplib.NO_CONTENT)
+                        self.set_status(http.client.NO_CONTENT)
                 elif 'keys' in obj:
                     if path and not path.endswith(Store.SEPARATOR):
                         path += Store.SEPARATOR
                     # multiple put with relative path
-                    for (key, value) in obj['keys'].iteritems():
+                    for (key, value) in viewitems(obj['keys']):
                         store.put(path + key.strip('/'), value)
-                    self.set_status(httplib.NO_CONTENT)
+                    self.set_status(http.client.NO_CONTENT)
                 else:
                     logger.warning('incomplete payload')
-                    self.send_error(httplib.BAD_REQUEST, reason='incomplete payload')
+                    self.send_error(http.client.BAD_REQUEST, reason='incomplete payload')
 
     def delete(self, path, instance=None):  # pylint: disable=arguments-differ
         '''
@@ -349,18 +351,18 @@ class StoreHandler(RequestHandler):  # pylint: disable=abstract-method
             store = self.application.stores[instance]
         except KeyError:
             logger.warn('unrecognized instance: {}'.format(instance))
-            self.send_error(httplib.NOT_FOUND, reason='unrecognized instance')
+            self.send_error(http.client.NOT_FOUND, reason='unrecognized instance')
         else:
             # single delete
             try:
                 store.delete(path, **self.options)
             except KeyError:
-                self.send_error(httplib.NOT_FOUND)
+                self.send_error(http.client.NOT_FOUND)
             except TypeError as exc:
                 logger.warning('unrecognized option: {}\n\nOptions:\n{}'.format(exc, self.options))
-                self.send_error(httplib.BAD_REQUEST, reason='unrecognized option')
+                self.send_error(http.client.BAD_REQUEST, reason='unrecognized option')
             else:
-                self.set_status(httplib.NO_CONTENT)
+                self.set_status(http.client.NO_CONTENT)
 
 class PensiveServer(Application):
     '''

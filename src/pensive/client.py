@@ -4,7 +4,7 @@ Web client interface to `PensiveServer`.
 
 import logging
 
-import httplib
+import http.client
 
 from os import environ
 
@@ -14,6 +14,9 @@ from tornado.httputil import url_concat
 
 import json
 import jsonschema
+
+from past.builtins import basestring
+from future.utils import viewitems
 
 from .core import Store, StoreInterface
 from . import DEFAULT_PORT
@@ -35,7 +38,7 @@ def _json_decoder(obj):
     if not isinstance(obj, dict):
         return obj
 
-    for k in obj.keys():
+    for k in obj:
         if k in JSON_DECODERS:
             return JSON_DECODERS[k](obj[k])
 
@@ -84,7 +87,7 @@ class JSONClientMixin(object):
         # encode the query parameters
         if args:
             if not isinstance(args, basestring):
-                args = dict([(k, json_encode(v)) for (k, v) in args.iteritems()])
+                args = dict([(k, json_encode(v)) for (k, v) in viewitems(args)])
             path = url_concat(path, args)
 
         # perform the request
@@ -98,7 +101,7 @@ class JSONClientMixin(object):
         # map common HTTP errors to exceptions
         if response.code == 404:
             raise KeyError(path)
-        elif response.code not in [httplib.OK, httplib.CREATED, httplib.NO_CONTENT]:
+        elif response.code not in [http.client.OK, http.client.CREATED, http.client.NO_CONTENT]:
             logger.error('unexpected HTTP response: {} {}\
                 \n\nResponse:\n{}'.format(response.code,
                                           response.reason,
@@ -107,7 +110,7 @@ class JSONClientMixin(object):
 
         # decode the response using JSON if a schema is provided
         if schema:
-            if response.code == httplib.NO_CONTENT:
+            if response.code == http.client.NO_CONTENT:
                 raise RuntimeError('server indicated no content when expecting response body')
 
             try:
@@ -211,7 +214,7 @@ class StoreProxy(JSONClientMixin, BatchStoreInterface):
         in a single HTTP request.
         '''
 
-        mapping = {self._concat_key(key): value for (key, value) in mapping.iteritems()}
+        mapping = {self._concat_key(key): value for (key, value) in viewitems(mapping)}
         return self._fetch(root or '', 'PUT', body={'keys': mapping})
 
     def delete(self, key=None, strict=False):
