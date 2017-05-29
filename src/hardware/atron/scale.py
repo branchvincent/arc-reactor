@@ -52,7 +52,7 @@ class Scale:
 
     def command(self, cmd, read=False):
         self.open()
-        self.serial.write(cmd + '\r\n')
+        self.serial.write(cmd)
         val = self.serial.readline() if read else None
         self.close()
         return val
@@ -66,7 +66,6 @@ class Scale:
 
 def debug():
     import time
-
     s = Scale('/dev/ttyUSB1')
     ser = s.serial
     print 'Enter your commands below.\r\nInsert "exit" to leave the application.'

@@ -1,7 +1,7 @@
 import logging
 from master.fsm import State
 from hardware.dymo.scale import Scale as DymoScale
-# from hardware.atron.scale import Scale as AtronScale
+from hardware.atron.scale import Scale as AtronScale
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class ReadScales(State):
@@ -12,7 +12,7 @@ class ReadScales(State):
             if key.startswith('dymo'):
                 scales.append(DymoScale(port=val))
             elif key.startswith('atron'):
-                pass
+                scales.append(AtronScale(port=val))
                 # scales.append(AtronScale(serial=scale[:-1], port=scale[-1]))
 
         # Read total weight
