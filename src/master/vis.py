@@ -19,10 +19,10 @@ from PyQt4.QtGui import QMainWindow, QCheckBox
 
 from pensive.core import Store
 
-from util.math_helpers import build_pose, transform
+from util.math_helpers import build_pose, transform, rotate, normalize
 
 from .sync import AsyncUpdateHandler
-from .world import update_world, numpy2klampt
+from .world import update_world, numpy2klampt, rpy
 
 from .ui.vis import Ui_VisWindow
 
@@ -310,6 +310,7 @@ class WorldViewerWindow(QMainWindow):
                     self.photos.append((location, name))
                     self.sync.request('/photos/{}/{}/time_stamp'.format(location, name), 3)
                     self.sync.request('/photos/{}/{}/pose'.format(location, name), 3)
+                    self.sync.request('/photos/{}/{}/vacuum_grasps'.format(location, name), 3)
 
             self.ready = True
 
@@ -324,6 +325,16 @@ class WorldViewerWindow(QMainWindow):
         # update photo point clouds
         for (location, camera) in self.photos:
             self._update_photo(location, camera)
+            for (i, grasp) in enumerate(self.db.get(['photos', location, camera, 'vacuum_grasps'], [])):
+                pose = numpy.eye(4)
+                # normal vector points along Z
+                pose[:3, 2] = normalize(grasp['orientation'])
+                pose[:3, 0] = normalize(numpy.cross(rotate(rpy(pi / 2, 0, 0), pose[:3, 2]), pose[:3, 2]))
+                pose[:3, 1] = normalize(numpy.cross(pose[:3, 2], pose[:3, 0]))
+                # position is grasp center
+                pose[:3, 3] = grasp['center']
+
+                self._update_pose('grasp_{}_{}_{}'.format(location, camera, i), pose=pose)
 
         self.program.extra_poses = []
 
@@ -345,9 +356,6 @@ class WorldViewerWindow(QMainWindow):
 
         # update inspection bounding box
         self._update_bounding_box('inspect', [['robot', 'inspect_pose']], ['robot', 'inspect_bounds'])
-
-        for grasp in self.db.get('/debug/grasps', []):
-            self.program.extra_poses.append(se3.from_translation(grasp[1]))
 
         self._update_pose('robot_base', [['robot', 'base_pose']])
         self._update_pose('robot_tcp', [['robot', 'tcp_pose']])
@@ -526,10 +534,13 @@ class WorldViewerWindow(QMainWindow):
         if rgb_url:
             self.db.put(rgb_url, None)
 
-    def _update_pose(self, name, path):
-        data = build_pose(self.db, path, strict=False)
-        if data is None:
-            return
+    def _update_pose(self, name, path=None, pose=None):
+        if path is not None:
+            data = build_pose(self.db, path, strict=False)
+            if data is None:
+                return
+        elif pose is not None:
+            data = pose
 
         pose = self.poses.get(name)
         if not pose:
