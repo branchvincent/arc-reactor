@@ -42,7 +42,7 @@ class EvaluateGrasp(State):
         self.store.put('/robot/target_photo_url', photo_url)
 
         # retrieve the photo
-        point_cloud = self.store.get(photo_url + ['pc_segmented'])
+        point_cloud = self.store.get(photo_url + ['point_cloud_segmented'])
         camera_pose = self.store.get(photo_url + ['pose'])
         object_mask = self.store.get(photo_url + ['labeled_image'])
         full_color = self.store.get(photo_url + ['full_color'])
