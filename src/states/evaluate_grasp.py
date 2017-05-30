@@ -44,7 +44,7 @@ class EvaluateGrasp(State):
         # retrieve the photo
         point_cloud = self.store.get(photo_url + ['point_cloud_segmented'])
         camera_pose = self.store.get(photo_url + ['pose'])
-        object_mask = self.store.get(photo_url + ['labeled_image'])
+        labeled_image = self.store.get(photo_url + ['labeled_image'])
         full_color = self.store.get(photo_url + ['full_color'])
 
         # retreive the container and its bounds
@@ -59,7 +59,7 @@ class EvaluateGrasp(State):
         mask = crop_with_aabb(local_point_cloud, bounding_box, point_cloud[:,:,2] > 0)
 
         # build the object point clouds
-        object_masks = [numpy.logical_and(object_mask == (idx + 1), mask) for idx in range(object_mask.max())]
+        object_masks = [numpy.logical_and(labeled_image == (idx + 1), mask) for idx in range(labeled_image.max())]
         logger.info('generated {} object masks'.format(len(object_masks)))
 
         # do not mask the full cloud because it must be structured
@@ -67,7 +67,7 @@ class EvaluateGrasp(State):
         #TODO create pass/fail criteria
 
         for grasp in grasps:
-            grasp['segment_id'] = self.find_segment_by_point(photo_url, grasps['center'])
+            grasp['segment_id'] = self.find_segment_by_point(point_cloud, labeled_image, grasps['center'])
 
         logger.info('found {} grasps'.format(len(grasps)))
         logger.debug('{}'.format(grasps))
@@ -78,8 +78,17 @@ class EvaluateGrasp(State):
         self.setOutcome(True)
         logger.info('evaluate vacuum grasp completed successfully')
 
-    def find_segment_by_point(self, url, grasp_center):
-        pass
+    def find_segment_by_point(self, point_cloud, labeled_image, grasp_center):
+        # find the closest point in the point cloud
+        distance = ((point_cloud - grasp_center)**2).sum(axis=2)
+        idx = numpy.unravel_index(numpy.argmin(distance), distance.shape)
+
+        # lookup the matching segment index
+        label = labeled_image[idx]
+        if label == 0:
+            raise RuntimeError('grasp center does not belong to segment: {}'.format(grasp_center))
+
+        return label
 
 if __name__ == '__main__':
     import argparse
