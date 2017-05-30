@@ -63,11 +63,13 @@ class EvaluateGrasp(State):
         logger.info('generated {} object masks'.format(len(object_masks)))
 
         # do not mask the full cloud because it must be structured
-        grasps = vacuum.compute(world_point_cloud, object_masks, aligned_color=full_color)
+        grasps = vacuum.compute(local_point_cloud, object_masks, aligned_color=full_color)
         #TODO create pass/fail criteria
 
         for grasp in grasps:
-            grasp['segment_id'] = self.find_segment_by_point(point_cloud, labeled_image, grasps['center'])
+            grasp['segment_id'] = self.find_segment_by_point(local_point_cloud, labeled_image, grasp['center'])
+
+        # TODO: trasnform grasps back into world coordinates
 
         logger.info('found {} grasps'.format(len(grasps)))
         logger.debug('{}'.format(grasps))
@@ -81,10 +83,11 @@ class EvaluateGrasp(State):
     def find_segment_by_point(self, point_cloud, labeled_image, grasp_center):
         # find the closest point in the point cloud
         distance = ((point_cloud - grasp_center)**2).sum(axis=2)
+        distance[labeled_image == 0] = float('Inf')
         idx = numpy.unravel_index(numpy.argmin(distance), distance.shape)
 
         # lookup the matching segment index
-        label = labeled_image[idx]
+        label = int(labeled_image[idx])
         if label == 0:
             raise RuntimeError('grasp center does not belong to segment: {}'.format(grasp_center))
 

@@ -362,7 +362,7 @@ def check_flatness(segment):
 print " "
 print "################################################################### RUNNING PLANE CHECKING #######################################################################################"
 print " "
-pointcloud=np.load("pc.npy")
+pointcloud=np.load("pc.npy").astype(np.float32)
 try:
     img = cv2.imread("bin.png")
 except:
