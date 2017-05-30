@@ -332,7 +332,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             else:
                 store.put(url + "DL_images", dl_tuple[2])
         else:
-            ret = segmentation.graphSegmentation(d_image, c_image, seg_params)
+            ret = segmentation.graphSegmentation(d_image, c_image, depth_in_3d_cam_local, seg_params)
             #write out results to database
             store.put(url + "labeled_image", ret['labeled_image'])
             store.put(url + "DL_images", ret['DL_images'])

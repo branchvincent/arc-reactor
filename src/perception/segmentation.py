@@ -2,7 +2,9 @@ import numpy as np
 import cv2
 import sys
 sys.path.append('..')
+from normals.normals import compute_normals
 # configure the root logger to accept all records
+import time
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.NOTSET)
@@ -46,6 +48,9 @@ class GraphSegmentationParams():
         self.A_weight = 1
         self.B_weight = 1
         self.depth_weight = 1
+        self.x_norm_weight = 1
+        self.y_norm_weight = 1
+        self.z_norm_weight = 1
 
         #filtering parameters for the mean shift filtering
         self.sp_rad = 7     #spatial window radius
@@ -55,7 +60,7 @@ class GraphSegmentationParams():
 
         self.mask = None            #mask used to block out unwanted points
 
-def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
+def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationParams()):
     '''
     Takes in a depth image and full color image and returns a list of images
     that can be fed into deep learning to figure out what they are.
@@ -69,9 +74,15 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
 
 
     depth = depthImage.astype('uint16')
-    return_values['depth_filter'] = depth.copy()
 
-    
+    #create the normals
+    point_cloud_list = point_cloud[point_cloud[:,:,2] != 0]
+    point_cloud_list = point_cloud_list.tolist()
+    pc_norms = compute_normals(point_cloud_list, 10, 0.01)
+    good_ind = np.where(point_cloud[:,:,2] != 0)
+    n_array = np.zeros(point_cloud.shape)
+    n_array[good_ind] = pc_norms
+
     #create a 4D array of full color in lab space and the last channel is the depth image alligned to the full color
     #convert to LAB
     labcolor = cv2.cvtColor(fcolor, cv2.COLOR_RGB2LAB)
@@ -80,10 +91,13 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
     return_values['lab_filter'] = labcolor.copy()
 
-    color_depth_image = np.zeros((imageH, imageW, 4))
-    #fill the first three channels with the LAB image
+    color_depth_image = np.zeros((imageH, imageW, 7))
+    #fill the first three channels with the LAB image, 4th with depth, 5-7 normals
     color_depth_image[:,:,0:3] = labcolor
     color_depth_image[:,:,3] = depth.copy()
+    color_depth_image[:,:,4] = n_array[:,:,0]
+    color_depth_image[:,:,5] = n_array[:,:,1]
+    color_depth_image[:,:,6] = n_array[:,:,2]
 
     #remove any points outside the desired rectangle
     if not params.mask is None:
@@ -97,7 +111,8 @@ def graphSegmentation(depthImage, fcolor, params=GraphSegmentationParams()):
     gs.setSigma(0.001)
     gs.setK(params.k)
     gs.setMinSize(int(params.minSize))
-    weights = [params.L_weight, params.A_weight, params.B_weight, params.depth_weight]
+
+    weights = [params.L_weight, params.A_weight, params.B_weight, params.depth_weight, params.x_norm_weight, params.y_norm_weight, params.z_norm_weight]
     for n,w in enumerate(weights):
         color_depth_image[:,:,n] = color_depth_image[:,:,n]*w
     outp = gs.processImage(color_depth_image)
@@ -176,17 +191,14 @@ def create_deep_learing_image(fullcolor, labeled_image, index):
 
     #is this segment the tote?
     cnt = 0
-    cntnonzero = 0
-    #remove the red tote
-    for y in range(img_crop_lab.shape[0]):
-        for x in range(img_crop_lab.shape[1]):
-            #80 175 175
-            pix = img_crop_lab[y,x]
-            if pix[0]!= 0 and pix[1] != 0  and pix[2] != 0:
-                cntnonzero += 1
-                if np.linalg.norm(pix-np.array([80,175,175])) < 50:
-                    cnt+=1
-            
+    #number of nonzero pixels
+    cntnonzero = np.logical_and(np.logical_and(img_crop_lab[:,:,0] != 0, img_crop_lab[:,:,1] != 0), img_crop_lab[:,:,2] != 0)
+    cntnonzero = len(cntnonzero.nonzero()[0])
+    t = (img_crop_lab - [80,175,175])
+    t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
+    t2 = t2[t2 < 50]
+    cnt = len(t2)
+
     if cnt/cntnonzero > 0.5:
         logger.debug("Found tote in image label {}".format(index))
         return None
