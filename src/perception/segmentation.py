@@ -43,7 +43,7 @@ class GraphSegmentationParams():
         self.minSize = 500
         self.k = 300
         self.sigma = 0.5
-        
+
         self.L_weight = 1
         self.A_weight = 1
         self.B_weight = 1
@@ -55,7 +55,7 @@ class GraphSegmentationParams():
         #filtering parameters for the mean shift filtering
         self.sp_rad = 7     #spatial window radius
         self.c_rad = 3     #color window radius
-        
+
         self.max_elements = 100000  #maximum number of elements a single object can have
 
         self.mask = None            #mask used to block out unwanted points
@@ -101,7 +101,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     #remove any points outside the desired rectangle
     if not params.mask is None:
-        for i in range(4):
+        for i in range(color_depth_image.shape[2]):
             color_depth_image[:,:,i] = np.where(params.mask == 1, color_depth_image[:,:,i], 0)
 
     color_depth_image[:,:,0:3] = cv2.GaussianBlur(color_depth_image[:,:,0:3],(0,0), params.sigma, params.sigma)
@@ -118,7 +118,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     outp = gs.processImage(color_depth_image)
     numObj = outp.max()
     logger.info("Found {} segments in the image".format(outp.max()))
-    
+
     segments = []
 
     #create a copy of the full color image we can draw rectangles on
@@ -137,8 +137,8 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
         tinyColorImgs.append(tiny_img)
         segments.append(ind)
         imagesForDL.append(dl_im)
-        
-    
+
+
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
     return_values['small_images'] = tinyColorImgs
@@ -181,7 +181,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index):
     maskeditemlab[:,:,0] = np.where(labeled_image == index, labcolor[:,:,0], 0)
     maskeditemlab[:,:,1] = np.where(labeled_image == index, labcolor[:,:,1], 0)
     maskeditemlab[:,:,2] = np.where(labeled_image == index, labcolor[:,:,2], 0)
-    
+
     startY = axisrect[0]
     endY = axisrect[0] + axisrect[2]
     startX = axisrect[1]
@@ -216,7 +216,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index):
         bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
         #shrink to 224 x 224
         im = cv2.resize(bg,(224, 224))
-        
+
     elif img_crop.shape[0] <= 224 and img_crop.shape[1] <= 224:
         #small image put it in 224, 224
         bg = np.zeros((224,224, 3)).astype('uint8')
