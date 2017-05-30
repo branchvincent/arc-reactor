@@ -115,21 +115,18 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     weights = [params.L_weight, params.A_weight, params.B_weight, params.depth_weight, params.x_norm_weight, params.y_norm_weight, params.z_norm_weight]
     for n,w in enumerate(weights):
         color_depth_image[:,:,n] = color_depth_image[:,:,n]*w
-    outp = gs.processImage(color_depth_image)
-    numObj = outp.max()
-    logger.info("Found {} segments in the image".format(outp.max()))
+    labeled_image = gs.processImage(color_depth_image)
+    numObj = labeled_image.max()
+    logger.info("Found {} segments in the image".format(labeled_image.max()))
 
     segments = []
-
-    #create a copy of the full color image we can draw rectangles on
-    fcolor_rects = fcolor.copy()
 
     #extract the sub image for each label based on the minimum bounding rectangle
     tinyColorImgs = []
     imagesForDL = []
     for i in range(numObj):
-        #find element in outp == i
-        dl_tuple = create_deep_learing_image(fcolor, outp, i)
+        #find element in labeled_image == i
+        dl_tuple = create_deep_learing_image(fcolor, labeled_image, i)
         if dl_tuple is None:
             continue
         else:
@@ -138,22 +135,20 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
         segments.append(ind)
         imagesForDL.append(dl_im)
 
+    #create a new labeled image that only has non zero labels for segments that we are using
+    #for deep learning inference
+    labeled_image = np.zeros(labeled_image.shape)
+    for i in range(1,len(imagesForDL)):
+        xs = segments[i][:,0]
+        ys = segments[i][:,1]
+        labeled_image[xs,ys] = i
+
 
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
     return_values['small_images'] = tinyColorImgs
     return_values['pixel_locations'] = segments
-    return_values['labeled_image'] = outp
-    #gets the largest items, but isn't working right now 4/29/2017
-    # sizes = [x.size for x in segments]
-    # ind = np.argsort(sizes)[::-1]
-    # for i in range(len(ind)):
-    #     rect = cv2.minAreaRect(segments[ind[i]].astype('float32'))
-    #     box = cv2.boxPoints(rect)
-    #     box = np.int0(box)
-    #     newbox = np.array([ [box[0][1], box[0][0]], [box[1][1], box[1][0]], [box[2][1], box[2][0]], [box[3][1], box[3][0]]  ])
-    #     cv2.drawContours(fcolor_rects, [newbox], 0 , (0,255,255), 2)
-    return_values['boxes_image'] = fcolor_rects
+    return_values['labeled_image'] = labeled_image
 
     return return_values
 
