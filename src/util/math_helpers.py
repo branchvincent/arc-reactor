@@ -67,3 +67,16 @@ def build_pose(store, urls, strict=True):
             full_pose = full_pose.dot(pose)
 
     return full_pose
+
+def crop_with_aabb(cloud, aabb, mask=None):
+    if mask is None:
+        mask = numpy.full((cloud.shape[:-1]), True)
+
+    if cloud.shape[-1] != len(aabb[0]):
+        raise RuntimeError('point cloud and AABB dimensionality mismatch: {} vs {}'.format(cloud.shape, len(aabb[0])))
+
+    for dim in range(cloud.shape[-1]):
+        mask = numpy.logical_and(mask, cloud[..., dim] >= min([aabb[0][dim], aabb[1][dim]]))
+        mask = numpy.logical_and(mask, cloud[..., dim] <= max([aabb[0][dim], aabb[1][dim]]))
+
+    return mask
