@@ -24,8 +24,8 @@ def transform(pose, array, row=None):
     pose = numpy.asarray(pose)
 
     if len(array.shape) == 1 and array.shape[0] in [3, 4]:
-        # assume a column vector
-        array = numpy.array([array]).T
+        # assume a row vector
+        array = numpy.array([array])
 
     if len(array.shape) > 2:
         # assume last dimension is to be transformed for multidimensional array
@@ -57,7 +57,7 @@ def rotate(pose, array, **kwargs):
     '''
 
     # ensure conversion to NumPy types without copying existing arrays
-    pose = numpy.asarray(pose)
+    pose = numpy.asarray(pose).copy()
 
     # suppress translation
     pose[:3, 3] = 0
