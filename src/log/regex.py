@@ -14,6 +14,7 @@ from sqlalchemy.sql.expression import BinaryExpression, func, literal
 from sqlalchemy.sql.operators import custom_op
 import sqlite3
 
+from future.utils import viewvalues
 
 __all__ = ['String', 'Text']
 
@@ -77,7 +78,7 @@ def sqlite_regex_match(element, compiler, **kw):
     operator = element.operator.opstring
     try:
         func_name, _ = SQLITE_REGEX_FUNCTIONS[operator]
-    except (KeyError, ValueError), e:
+    except (KeyError, ValueError) as e:
         would_be_sql_string = ' '.join((compiler.process(element.left),
                                         operator,
                                         compiler.process(element.right)))
@@ -101,7 +102,7 @@ def sqlite_engine_connect(dbapi_connection, connection_record):
     if not isinstance(dbapi_connection, sqlite3.Connection):
         return
 
-    for name, function in SQLITE_REGEX_FUNCTIONS.values():
+    for name, function in viewvalues(SQLITE_REGEX_FUNCTIONS):
         dbapi_connection.create_function(name, 2, function)
 
 

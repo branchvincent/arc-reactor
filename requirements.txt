@@ -36,3 +36,6 @@ scipy
 # pyqt          # manual install
 # pyside        # manual install
 # pyopengl      # manual install
+
+# Python 3 compatibility
+future

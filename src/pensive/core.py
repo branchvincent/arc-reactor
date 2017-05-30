@@ -7,6 +7,10 @@ Core database components of Pensive.
 import re
 
 import logging
+
+from past.builtins import basestring
+from future.utils import viewitems, viewvalues
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class StoreInterface(object):
@@ -174,7 +178,7 @@ class Store(StoreInterface):
                     return {}
 
                 # recursively serialize
-                result = [(k, c.index(None, depth - 1)) for (k, c) in self._children.iteritems()]
+                result = [(k, c.index(None, depth - 1)) for (k, c) in viewitems(self._children)]
                 # remove null values
                 return {k: v for (k, v) in result if v is not None}
             elif self._value is not None:
@@ -206,9 +210,7 @@ class Store(StoreInterface):
 
     def _cull(self):
         if self._children:
-            keys = self._children.keys()
-
-            for k in keys:
+            for k in list(self._children):
                 # cull all children
                 if self._children[k]._cull():
                     del self._children[k]
@@ -235,7 +237,7 @@ class Store(StoreInterface):
 
         if self._children:
             # check that there exists a non-empty child
-            for child in self._children.values():
+            for child in viewvalues(self._children):
                 if not child.is_empty():
                     return False
 
@@ -255,11 +257,11 @@ class Store(StoreInterface):
         if self._children:
             result = {}
             # recursively flatten
-            for (k, child) in self._children.iteritems():
+            for (k, child) in viewitems(self._children):
                 # prepend the path with the child key and skip over
                 # empty values if not strict
                 d = [((k + self.SEPARATOR + p).strip('/'), v) \
-                    for (p, v) in child.flatten(strict).iteritems() \
+                    for (p, v) in viewitems(child.flatten(strict)) \
                     if strict or v is not None]
                 result.update(dict(d))
             return result
@@ -274,7 +276,7 @@ class Store(StoreInterface):
         if self._children:
             # recursively serialize
             result = [(k, c._serialize()) for (k, c) \
-                in self._children.iteritems()]
+                in viewitems(self._children)]
             # remove null values
             result = {k: v for (k, v) in result if v is not None}
             # check if non-null result
@@ -290,20 +292,17 @@ class Store(StoreInterface):
         Construct a `Store` from a dictionary representation.
         '''
 
-        try:
-            # check if there are subkeys or not
-            keys = data.keys()
-        except AttributeError:
-            # set up a value Store
-            self._value = data
-            self._children = None
-        else:
+        if isinstance(data, dict):
             # set up a subkey Store
             self._value = None
             self._children = {}
             # recurse through the subkeys
-            for k in keys:
+            for k in data:
                 self._children[k] = Store(data[k])
+        else:
+            # set up a value Store
+            self._value = data
+            self._children = None
 
     def _copy(self):
         '''
@@ -313,7 +312,7 @@ class Store(StoreInterface):
         if self._children:
             # recursively copy
             result = [(k, c._copy()) for (k, c) \
-                in self._children.iteritems()]
+                in viewitems(self._children)]
             # remove null values
             result = {k: v for (k, v) in result if v is not None}
             # check if non-null result

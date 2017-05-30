@@ -4,7 +4,7 @@ Web client interface to `PensiveServer`.
 
 import logging
 
-import httplib
+import http.client
 
 from os import environ
 
@@ -13,6 +13,9 @@ from tornado.httputil import url_concat
 from tornado.gen import coroutine, Return
 
 import jsonschema
+
+from past.builtins import basestring
+from future.utils import viewitems
 
 from .core import Store
 from .client import BatchStoreInterface, StoreProxy, PensiveClient, json_encode, json_decode
@@ -58,7 +61,7 @@ class JSONClientMixinAsync(object):
         # encode the query parameters
         if args:
             if not isinstance(args, basestring):
-                args = dict([(k, json_encode(v)) for (k, v) in args.iteritems()])
+                args = dict([(k, json_encode(v)) for (k, v) in viewitems(args)])
             path = url_concat(path, args)
 
         # perform the request
@@ -72,7 +75,7 @@ class JSONClientMixinAsync(object):
         # map common HTTP errors to exceptions
         if response.code == 404:
             raise KeyError(path)
-        elif response.code not in [httplib.OK, httplib.CREATED, httplib.NO_CONTENT]:
+        elif response.code not in [http.client.OK, http.client.CREATED, http.client.NO_CONTENT]:
             logger.error('unexpected HTTP response: {} {}\
                 \n\nResponse:\n{}'.format(response.code,
                                           response.reason,
@@ -81,7 +84,7 @@ class JSONClientMixinAsync(object):
 
         # decode the response using JSON if a schema is provided
         if schema:
-            if response.code == httplib.NO_CONTENT:
+            if response.code == http.client.NO_CONTENT:
                 raise RuntimeError('server indicated no content when expecting response body')
 
             try:
@@ -158,7 +161,7 @@ class StoreProxyAsync(JSONClientMixinAsync, BatchStoreInterface):
         in a single HTTP request.
         '''
 
-        mapping = {self._concat_key(key): value for (key, value) in mapping.iteritems()}
+        mapping = {self._concat_key(key): value for (key, value) in viewitems(mapping)}
         result = yield self._fetch(root or '', 'PUT', body={'keys': mapping})
         raise Return(result)
 

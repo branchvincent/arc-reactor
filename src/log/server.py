@@ -4,7 +4,7 @@ import socket
 
 import jsonschema
 
-import httplib
+import http.client
 
 import re
 
@@ -274,7 +274,7 @@ class RecordHandler(RequestHandler):
         record = self.application.session.query(LogRecord).get(id)
 
         if not record:
-            self.send_error(httplib.NOT_FOUND)
+            self.send_error(http.client.NOT_FOUND)
         else:
             self.write({'record': _record_to_dict(record)})
 
