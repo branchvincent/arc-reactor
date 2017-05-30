@@ -27,6 +27,7 @@ class SegmentPhoto(State):
 
         # segment images
         segment_images(photo_urls, bounds_urls, pose_urls)
+        #TODO give pass/fail criteria
 
         self.setOutcome(True)
 
@@ -35,5 +36,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'fa')
+    myname = (args.name or 'sp')
     SegmentPhoto(myname).run()

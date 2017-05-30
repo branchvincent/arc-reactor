@@ -11,7 +11,7 @@ from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
 
-class FindVacuumGrasp(State):
+class EvaluateGrasp(State):
     '''
     Inputs:  /robot/target_location (e.g., 'binA')
 
@@ -39,6 +39,7 @@ class FindVacuumGrasp(State):
         camera = available_cameras[0]
         photo_url = ['photos', location, camera]
         logger.info('using photo: {}'.format(photo_url))
+        self.store.put('/robot/target_photo_url', photo_url)
 
         # retrieve the photo
         point_cloud = self.store.get(photo_url + ['point_cloud'])
@@ -67,19 +68,27 @@ class FindVacuumGrasp(State):
 
         # do not mask the full cloud because it must be structured
         grasps = vacuum.compute(world_point_cloud, object_clouds)
+        #TODO create pass/fail criteria
+
+        #TODO get segment_id and add to dictionary grasps for each grasp
+        self.find_segment_by_point(photo_url, grasps['center']) # or something
+
         logger.info('found {} grasps'.format(len(grasps)))
         logger.debug('{}'.format(grasps))
 
         # store result
         self.store.put(photo_url + ['vacuum_grasps'], grasps)
-
+        
         self.setOutcome(True)
-        logger.info('find vacuum grasp completed successfully')
+        logger.info('evaluate vacuum grasp completed successfully')
+
+    def find_segment_by_point(self, url, grasp_center):
+        pass
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'fvg')
-    FindVacuumGrasp(myname).run()
+    myname = (args.name or 'eg')
+    EvaluateGrasp(myname).run()

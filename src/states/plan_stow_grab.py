@@ -9,13 +9,10 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanStowGrab(State):
     def run(self):
+        
         item = self.store.get('/robot/selected_item')
-        #box = self.store.get('/robot/selected_box')
-        #alg = self.store.get('/robot/task')
-        #print "item is ", item, " in box ", box
-
-        #if not alg: raise RuntimeError("Task undefined")
-
+        grasp = self.store.get('/robot/selected_grasp')
+        # item is in stow tote
         location = self.store.get(['item', item, 'location'])
 
         logger.info('planning route for "{}" to shelf'.format(item))
@@ -26,12 +23,10 @@ class PlanStowGrab(State):
         item_pose_local = self.store.get(['item', item, 'pose'])
         item_pc_local = self.store.get(['item', item, 'point_cloud'])
 
-#        if location.startswith('bin'):
-#            reference_pose = self.store.get('/shelf/pose')
-        if location in ['stow_tote', 'stow tote']:
+#        if location in ['stow_tote', 'stow tote']:
             reference_pose = self.store.get('/tote/stow/pose')
-        else:
-            raise RuntimeError('unrecognized item location: "{}"'.format(location))
+#        else:
+#            raise RuntimeError('unrecognized item location: "{}"'.format(location))
 
         item_pose_world = reference_pose.dot(item_pose_local)
         item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
@@ -41,15 +36,13 @@ class PlanStowGrab(State):
             [item_pc_world[:, 0].max(), item_pc_world[:, 1].max(), item_pc_world[:, 2].max()]
         ]
         logger.debug('item bounding box: {}'.format(bounding_box))
-        # item_position = [item_pc_world[:, 0].mean(), item_pc_world[:, 1].mean(), item_pc_world[:, 2].max()]
-        # logger.info('item center top: {}'.format(item_position))
-
+       
         target_item = {
             # 'bbox': [item_position, item_position],
             'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
             'drop offset': [0, 0, 0.1],
-        } #TODO make sure this info is in db, not stored locally here
+        } #TODO make sure this info is in db, not stored locally here. why are these values selected?
 
         self.store.put('/robot/target_bounding_box', bounding_box)
 
@@ -60,16 +53,11 @@ class PlanStowGrab(State):
                 logger.warn('skipped motion planning for testing')
 
             else:
-                # XXX: this will actually need to be a shelf location eventually...
-
-                shelf_pose = self.store.get(['shelf', 'pose'])
-
                 logger.info('requesting stow motion plan')
                 self.arguments = {'target_item': target_item}
                 logger.debug('arguments\n{}'.format(self.arguments))
 
                 planner = StowPlanner(self.world, self.store)
-
                 motion_plan = planner.stow_grab(target_item)
 
             if not motion_plan:

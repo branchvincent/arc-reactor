@@ -22,7 +22,7 @@ class ReadScales(State):
 
         # Update database
         self.store.put('scales/weight', weight)
-
+        #TODO fail if scales hardware produces an error
         self.setOutcome(True)
 
 if __name__ == '__main__':
@@ -30,5 +30,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or rs')
+    myname = (args.name or 'rs')
     ReadScales(myname).run()

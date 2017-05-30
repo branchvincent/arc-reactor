@@ -13,6 +13,7 @@ class RecognizePhoto(State):
 
         # recognize segments
         recognize_objects(self.store, photo_urls, locations)
+        #TODO give pass/fail criteria
 
         self.setOutcome(True)
 

@@ -9,13 +9,22 @@ from states.check_item import CheckItem
 from states.check_select_item import CheckSelectItem
 from states.check_route import CheckRoute
 from states.plan_view_location import PlanViewLocation
+from states.capture_photo import CapturePhoto
+from states.segment_photo import SegmentPhoto
+from states.recognize_photo import RecognizePhoto
+from states.evaluate_grasp import EvaluateGrasp
+from states.read_scales import ReadScales
 
 class StowStateMachine(StateMachine):
 
     def loadStates(self):
-        self.add('fa', FindAll('fa', store=self.store))
+        #self.add('fa', FindAll('fa', store=self.store))
+        self.add('cp', CapturePhoto('cp', store=self.store))
+        self.add('sp', SegmentPhoto('sp', store=self.store))
+        self.add('rp', RecognizePhoto('rp', store=self.store))
+        self.add('eg', EvaluateGrasp('eg', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
-        self.add('fi', FindItem('fi', store=self.store))
+        #self.add('fi', FindItem('fi', store=self.store))
         self.add('psg', PlanStowGrab('psg', store=self.store))
         self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('pps', PlanPlaceShelf('pps', store=self.store))
@@ -26,28 +35,32 @@ class StowStateMachine(StateMachine):
         self.add('csi', CheckSelectItem('csi', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
         self.add('cr2', CheckRoute('cr2', store=self.store))
-        self.add('cr3', CheckRoute('cr3', store=self.store))
+        self.add('cr3', CheckRoute('cr3', store=self.store)) #TODO create check states on the fly?
+        self.add('rs', ReadScales('rs', store=self.store))
 
     def getStartState(self):
         #TODO put this action in separate state?
         self.store.put('/robot/target_location', 'stow_tote')
-        return 'fa'
+        return 'cp'
         #return 'si'
 
     def setupTransitions(self):
-        self.setTransition('fa', 'si', 'fa')
-        self.setTransition('si', 'fi', 'si', checkState='csi')
-        self.setTransition('csi', 'fi', 'si')
-        self.setTransition('fi', 'psg', 'si')
+        self.setTransition('cp', 'sp', 'cp')
+        self.setTransition('sp', 'rp', 'sp') #TODO make handler for these failed states (hardware)
+        self.setTransition('rp', 'eg', 'rp')
+        self.setTransition('eg', 'si', 'eg')
+        self.setTransition('si', 'psg', 'si', checkState='csi')
+        self.setTransition('csi', 'psg', 'si')
         self.setTransition('psg', 'er1', 'si', checkState='cr1')
-        self.setTransition('cr1', 'er1', 'si')
-        self.setTransition('er1', 'pvl', 'fi')
-        self.setTransition('pvl', 'er3', 'fi', checkState='cr3')
+        self.setTransition('cr1', 'er1', 'psg')
+        self.setTransition('er1', 'pvl', 'psg')
+        self.setTransition('pvl', 'er3', 'si', checkState='cr3') #TODO sim. for failed route planning
         self.setTransition('er3', 'pps', 'pvl')
-        self.setTransition('pps', 'er2', 'fi', checkState='cr2')
-        self.setTransition('cr2', 'er2', 'fi')
-        self.setTransition('er2', 'ci', 'pps')
-        self.setTransition('ci', 'fa', 'fi')
+        self.setTransition('pps', 'er2', 'si', checkState='cr2')
+        self.setTransition('cr2', 'er2', 'pps')
+        self.setTransition('er2', 'rs', 'pps')
+        self.setTransition('rs', 'ci', 'ci') #TODO handler for failed read scales
+        self.setTransition('ci', 'cp', 'si') #TODO handler for failed check item 
 
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write

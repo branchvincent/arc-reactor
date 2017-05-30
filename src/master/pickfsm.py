@@ -7,6 +7,7 @@ from states.exec_route import ExecRoute
 from states.check_item import CheckItem
 from states.check_route import CheckRoute
 from states.check_select_item import CheckSelectItem
+from states.plan_view_location import PlanViewLocation
 
 class PickStateMachine(StateMachine):
 
@@ -15,12 +16,15 @@ class PickStateMachine(StateMachine):
         self.add('fi', FindItem('fi', store=self.store))
         self.add('ppi', PlanPickItem('ppi', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
+        self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('er1', ExecRoute('er1', store=self.store))
         self.add('ppb', PlanPlaceBox('ppb', store=self.store))
         self.add('er2', ExecRoute('er2', store=self.store))
         self.add('ci', CheckItem('ci', store=self.store), endState=1)
         self.add('csi', CheckSelectItem('csi', store=self.store))
         self.add('cr2', CheckRoute('cr2', store=self.store))
+        self.add('cr3', CheckRoute('cr3', store=self.store))
+        self.add('er3', ExecRoute('er3', store=self.store))
 
     def getStartState(self):
         return 'si'

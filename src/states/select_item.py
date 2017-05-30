@@ -17,9 +17,23 @@ class SelectItem(State):
 
         elif self.alg == 'stow':
             # XXX: copied from picking for testing purposes
-            self.chosenItem = self.itemList.keys()[0]
+            #self.chosenItem = self.itemList.keys()[0]
             #self.points =
-            pass
+
+            self.url = self.store.get('/robot/target_photo_url')
+            
+            # get graspability vector from photo-url vacuum_grasps
+            #TODO expand to other grasps
+            self.grasps = self.store.get(self.url+'/vacuum_grasps')
+            self.maxGrasp = max(self.grasps, key=lambda l: l['score']))
+            self.maxGraspSeg = self.maxGrasp['segment_id']
+
+            # match greatest graspability segment to the highest likely item ID            
+            self.idSeg = self.store.get(self.url+'/detections')[self.maxGraspSeg]
+            self.chosenItem = max(self.idSeg, key=lambda l: self.idSeg[l])
+
+            #TODO move this outside of if statement
+            self.store.put('/robot/selected_grasp', self.maxGrasp)
 
         elif self.alg == 'final':
             #self.points =

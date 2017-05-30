@@ -35,14 +35,8 @@ def compute(full_cloud, object_clouds, store=None, clean=True):
     check_call([sys.executable, target_path], cwd=tmp_path)
 
     # load the results
-    grasps = []
-    for result in json.load(open(os.path.join(tmp_path, 'planes.txt'))):
-        grasps.append((
-            result['score'],
-            result['center'],
-            result['orientation'][:3]
-        ))
-    grasps.sort(key=lambda x: -x[0])
+    grasps = json.load(open(os.path.join(tmp_path, 'planes.txt'))):
+    #grasps.sort(key=lambda x: -x[0])
 
     if store:
         store.put('/debug/grasps', grasps)

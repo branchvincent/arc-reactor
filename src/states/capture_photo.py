@@ -39,6 +39,7 @@ class CapturePhoto(State):
 
         # acquire images
         acquire_images(serials, photo_urls)
+        #TODO have pass/fail criteria
 
         self.setOutcome(True)
 

@@ -17,6 +17,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'ci')
-    CheckItem(myname).run()
+    myname = (args.name or 'ii')
+    InspectItem(myname).run()
 
