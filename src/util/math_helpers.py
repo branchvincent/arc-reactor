@@ -64,6 +64,14 @@ def rotate(pose, array, **kwargs):
 
     return transform(pose, array, **kwargs)
 
+def normalize(vector):
+    '''
+    Normalize a vector
+    '''
+
+    vector = numpy.array(vector)
+    return vector / ((vector**2).sum())**0.5
+
 def build_pose(store, urls, strict=True):
     '''
     Multiply poses together from multiple database URLs.
