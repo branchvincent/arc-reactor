@@ -6,7 +6,7 @@ from master.fsm import State
 
 from grasp import vacuum
 
-from util.math_helpers import transform, crop_with_aabb
+from util.math_helpers import transform, rotate, crop_with_aabb
 from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
@@ -68,8 +68,8 @@ class EvaluateGrasp(State):
 
         for grasp in grasps:
             grasp['segment_id'] = self.find_segment_by_point(local_point_cloud, labeled_image, grasp['center'])
-
-        # TODO: trasnform grasps back into world coordinates
+            grasp['center'] = transform(bounds_pose, grasp['center'])
+            grasp['orientation'] = rotate(bounds_pose, grasp['orientation'][:3])
 
         logger.info('found {} grasps'.format(len(grasps)))
         logger.debug('{}'.format(grasps))
