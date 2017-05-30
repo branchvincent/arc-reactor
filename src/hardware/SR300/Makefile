@@ -1,4 +1,4 @@
-VERSION			= 2.7
+VERSION			= 3.5m
 CPP        		= g++
 CFLAGS     		= -g -std=c++11 -fPIC -O3
 PYTHON_INC 		= /usr/include/python$(VERSION)
