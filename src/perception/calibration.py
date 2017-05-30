@@ -34,7 +34,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         super(RealsenseCalibration, self).__init__()
         self.initUI()
         self.ctx = rs.context()
-        
+
         #what cameras are connected?
         self.connected_cams = self.ctx.get_device_count()
         self.cam_serial_nums = []
@@ -43,7 +43,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
             #return the serial num of the camera too
             sn = cam.get_info(rs.camera_info_serial_number)
             self.cam_serial_nums.append(sn)
-        
+
         #fill in the combo box with the cameras attached
         self.camera_selector_combo.addItems(self.cam_serial_nums)
         self.camera_selector_combo.currentIndexChanged.connect(self.change_camera)
@@ -55,7 +55,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.cameraName = ""
 
         self.last_x_poses = []              #stores the last 10 poses of the camera charuco
-        self.db_client = PensiveClient(host='http://10.10.1.60:8888')
+        self.db_client = PensiveClient()
         self.store = self.db_client.default()
         register_numpy()
     def initUI(self):
@@ -128,7 +128,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.gridTop.addWidget(label, 2, 0)
         self.gridTop.addWidget(self.objectNameTextBox, 2, 1)
         self.horzTop.addItem(self.gridTop)
-        
+
         self.camera_selector_combo = QtWidgets.QComboBox(self)
         self.horzTop.addWidget(self.camera_selector_combo)
 
@@ -171,7 +171,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         self.camera_coeff = cameracoeff
         self.last_x_poses = []
         self.pose_counter = 0
-    
+
     def calibrate_camera(self):
         if self.thread.isRunning():
             self.thread.keepRunning = False
@@ -237,7 +237,7 @@ class RealsenseCalibration(QtWidgets.QWidget):
         pix_img = QtGui.QImage(image, image.shape[1], image.shape[0], image.shape[1] * 3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(pix_img)
         self.camera_display.setPixmap(pix)
-        
+
         if self.calib_cameraCheckBox.isChecked():
             self.objectXformLabel.setText("Robot Xform")
             #calbrate the camera
@@ -350,7 +350,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
         super(RobotCamCalibration, self).__init__()
         self.initUI()
         self.ctx = rs.context()
-        
+
         #what cameras are connected?
         self.connected_cams = self.ctx.get_device_count()
         self.cam_serial_nums = []
@@ -359,7 +359,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
             #return the serial num of the camera too
             sn = cam.get_info(rs.camera_info_serial_number)
             self.cam_serial_nums.append(sn)
-        
+
         #fill in the combo box with the cameras attached
         self.camera_selector_combo.addItems(self.cam_serial_nums)
         self.camera_selector_combo.currentIndexChanged.connect(self.change_camera)
@@ -367,7 +367,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
 
         self.cameraXform = np.identity(4)
         self.cameraName = 'ee_cam'
-        self.db_client = PensiveClient(host='http://10.10.1.60:8888')
+        self.db_client = PensiveClient()
         self.store = self.db_client.default()
         register_numpy()
 
@@ -419,7 +419,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
         label = QtWidgets.QLabel("EE to camera guess",self)
         self.gridCamera.addWidget(label, 5, 5)
         label.show()
-        
+
         #add a push button at the top
         self.horzTop = QtWidgets.QHBoxLayout()
         self.horzTop.addStretch(1)
@@ -477,7 +477,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
 
         self.camera_matrix = cameramat
         self.camera_coeff = cameracoeff
-    
+
     def calibrate_camera(self):
         logger.info("Optimizing to find end effector to camera xform")
         global camera2targetpts
@@ -490,7 +490,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
             logger.warning("Tried to calibrate with zero points")
             return
 
-       
+
         x = float(self.offset_guesses[0][3].text())
         y = float(self.offset_guesses[1][3].text())
         z = float(self.offset_guesses[2][3].text())
@@ -551,7 +551,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
                 xform = np.zeros((4,4))
                 xform[0:3, 0:3] = rotMat
                 xform[0:3, 3] = pose[2].flatten()
-                xform[3, 3] = 1    
+                xform[3, 3] = 1
                 last_x_poses.append(xform)
                 logger.info("Found charuco!")
             else:
@@ -563,7 +563,7 @@ class RobotCamCalibration(QtWidgets.QWidget):
         avg_pose /= len(last_x_poses)
         camera_to_target = self.extrinsics.dot(avg_pose)
         logger.info("Camera to target was\n {}".format(camera_to_target))
-       
+
         #get the robot pose
         base2ee = self.store.get(key='robot/tcp_pose')
 
@@ -617,7 +617,7 @@ def function_to_min(xforms):
         xyz_guess[3] = guess[3, 3]
 
         sse += (xyz_guess[0] - target2cam[0,3])**2 + (xyz_guess[1] - target2cam[1,3])**2 + (xyz_guess[2] - target2cam[2,3])**2
-    
+
     return math.sqrt(sse/len(base2eepts))
 
 def transformMat(x, y, z, yaw, pitch, roll):

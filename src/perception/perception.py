@@ -31,11 +31,11 @@ def update_camera_parameters(list_of_serial_nums):
     #try to connect to the database
     store = None
     try:
-        db_client = PensiveClient(host='http://10.10.1.60:8888')
+        db_client = PensiveClient()
         store = db_client.default()
         register_numpy()
     except:
-        raise RuntimeError("Could not connect to the database on {}. Not updating params".format('10.10.1.60:8888'))
+        raise RuntimeError('Could not connect to the database. Not updating params')
 
 
     #make a dict of sn to names
@@ -123,10 +123,10 @@ def acquire_images(list_of_urls, list_of_serial_nums):
     #check to make sure the length of the urls == len of serial nums
     elif len(list_of_urls) != len(list_of_serial_nums):
         raise RuntimeError("Length mismatch of url list and serial number list. Not acquiring")
-        
+
     elif len(list_of_urls) == 0:
         raise RuntimeError("No URLs were passed. Need at least one. Not acquiring")
-        
+
     elif len(list_of_serial_nums) == 0:
         raise RuntimeError("No serial numbers were passed. Need at least one. Not acquiring")
 
@@ -134,11 +134,11 @@ def acquire_images(list_of_urls, list_of_serial_nums):
     #try to connect to the database
     store = None
     try:
-        db_client = PensiveClient(host='http://10.10.1.60:8888')
+        db_client = PensiveClient()
         store = db_client.default()
         register_numpy()
     except:
-        raise RuntimeError("Could not connect to the database on {}. Not acquiring".format('10.10.1.60:8888'))
+        raise RuntimeError('Could not connect to the database on {}. Not acquiring')
 
 
     #try to connect to the depth cameras
@@ -212,17 +212,17 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
     #try to connect to the database
     store = None
     try:
-        db_client = PensiveClient(host='http://10.10.1.60:8888')
+        db_client = PensiveClient()
         store = db_client.default()
         register_numpy()
     except:
-        raise RuntimeError("Could not connect to the database on {}. Not segmenting".format('10.10.1.60:8888'))
+        raise RuntimeError('Could not connect to the database on {}. Not segmenting')
 
 
     #loop though all the urls
     for i,url in enumerate(list_of_urls):
-       
-        
+
+
         #get the name of the camera that took the image
         cam_name = store.get(url + "/camera")
         if cam_name is None:

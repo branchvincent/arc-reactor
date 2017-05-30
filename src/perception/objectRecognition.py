@@ -26,18 +26,18 @@ class ObjectRecognition:
         #try to connect to the database
         self.store = None
         try:
-            db_client = PensiveClient(host='http://10.10.1.60:8888')
+            db_client = PensiveClient()
             self.store = db_client.default()
             register_numpy()
         except:
-            logger.error("Could not connect to the database on {}. Cannot function".format('10.10.1.60:8888'))
+            logger.error('Could not connect to the database. Cannot function')
             return
 
         self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,40)
 
         names = []
         #load in the items.json file
-        with open('../../db/items.json') as data_file:    
+        with open('../../db/items.json') as data_file:
             jsonnames = json.load(data_file)
         for key,value in jsonnames.items():
             names.append(key)
@@ -77,7 +77,7 @@ class ObjectRecognition:
     and post the entire list of confidences. Set confidence of object not at location to zero
     '''
     def infer_objects(self, list_of_urls, list_of_locations):
-        
+
         if len(list_of_urls) != len(list_of_locations):
             logger.warning("Length mismatch of url list and location list. Not guessing objects")
             return
@@ -87,7 +87,7 @@ class ObjectRecognition:
         elif len(list_of_locations) == 0 or list_of_locations is None:
             logger.warning("No locations were passed. Need at least one. Not guessing objects")
             return
-        
+
         #find which items are at each location
         self.update_item_locations()
 
@@ -97,7 +97,7 @@ class ObjectRecognition:
             if dl_images is None:
                 logger.error("No deep learning images were found at the URL {}".format(url))
                 continue
-        
+
             #guess all objects at once
             im = np.zeros((224,224,3,len(dl_images)))
             for num,img in enumerate(dl_images):
@@ -116,11 +116,11 @@ class ObjectRecognition:
                 except:
                     logger.warning("Bad location name {}. Sending all confidences".format(list_of_locations[i]))
                     items_at_location = None
-                
+
                 item_name_confidence = self.make_name_confidence_list(list_of_conf, items_at_location)
                 list_of_list_of_confidences.append(dict(item_name_confidence))
             self.store.put(url + 'detections', list_of_list_of_confidences)
-    
+
     def make_name_confidence_list(self, list_of_conf, valid_items):
         res = []
 
@@ -138,7 +138,7 @@ class ObjectRecognition:
         return res
 
     def update_item_locations(self):
-        
+
         items = self.store.get('/item/')
         if items is None:
             logger.warn("Item dictionary returned was None. Can't update item locations")
@@ -153,7 +153,7 @@ class ObjectRecognition:
 
 
         for key, value in items.items():
-            #where is this item? binA/B/C, tote? 
+            #where is this item? binA/B/C, tote?
             location = value['location']
             if 'bin' in location:
                 if location[3] == 'A':
