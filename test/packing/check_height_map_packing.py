@@ -5,7 +5,7 @@ import cv2
 
 from hardware.SR300 import DepthCameras
 
-from packing import packingwithHeightmap
+from packing import heightmap
 
 from pensive.client import PensiveClient
 
@@ -65,7 +65,7 @@ def main():
         bounding_box = store.get('/box/box1A5/bounds')
 
         print 'packing', item['display_name']
-        packingwithHeightmap.pack([local_point_cloud[mask]], list(reversed(sorted(item['bounds'][1]))), [bounding_box])
+        heightmap.pack([local_point_cloud[mask]], list(reversed(sorted(item['bounds'][1]))), [bounding_box])
 
 if __name__ == '__main__':
     try:

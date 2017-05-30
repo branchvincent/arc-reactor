@@ -115,11 +115,11 @@ def find_placement(depth_map,item,margin,pixel_length):
             max_height=H_min
             depth_map[int(index[1]-M/2.0):int(index[1]+M/2.0),int(index[0]-N/2.0):int(index[0]+N/2.0)]=np.uint8(max_height+item[2]/pixel_length)
 
-    # if max_height!=255:
-    #     cv2.imshow("denoised",depth_map)
-    #     k = cv2.waitKey(0)
-    #     if k == 27:         # wait for ESC key to exit
-    #         cv2.destroyAllWindows()
+    if max_height!=255:
+        cv2.imshow("denoised",depth_map)
+        k = cv2.waitKey(0)
+        if k == 27:         # wait for ESC key to exit
+            cv2.destroyAllWindows()
     return (index,max_height)
 
 
