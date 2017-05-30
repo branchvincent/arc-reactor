@@ -7,7 +7,7 @@ from time import sleep
 
 logger = logging.getLogger(__name__)
 
-BASE_PATH = os.path.abspath(os.path.join('..', 'reactor-perception', 'src', 'perception'))
+BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 
 def _build_command(name):
     return ['python3', os.path.join(BASE_PATH, 'perception.py'), '-f', name]
