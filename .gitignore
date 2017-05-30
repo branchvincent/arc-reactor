@@ -278,4 +278,11 @@ ve/
 
 #SWIG wrapper
 *_wrap.cxx
+
+# binary data files
+*.pkl
+*.npy
+*.png
+*.ipynb
+
 data/objects/apc2017

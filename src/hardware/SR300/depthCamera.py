@@ -29,16 +29,23 @@ class DepthCameras:
             logger.info("Found %i cameras", self.num_cameras)
             for i in range(self.num_cameras):
                 self.time_of_last_image.append(0)
+                cam = self.context.get_device(i)
                 #cycle through all of the cameras and find out what streams they support
                 for j in range(rs.capabilities_fish_eye):
-                    cam = self.context.get_device(i)
                     if cam.supports_capability(j):
                         logger.info("Camera %i supports %s", i, rs.rs_stream_to_string(j))
+
+                #set the camera options
+                cam.set_option(rs.option_f200_filter_option, 1)
+                cam.set_option(rs.option_f200_confidence_threshold, 4)
+                cam.set_option(rs.option_f200_accuracy, 1)
+                cam.set_option(rs.option_f200_motion_range, 10)
+
             return True
 
 
     def acquire_image(self, camera, ivcam_preset=rs.RS_IVCAM_PRESET_OBJECT_SCANNING):
-        if self.context is None:
+        if self.connect is None:
             logger.warning("No cameras connected, or connect has not been run")
             return (None, None)
         elif camera >= self.num_cameras or camera < 0:
@@ -72,13 +79,17 @@ class DepthCameras:
             #start the camera
             try:
                 cam.start()
-                 #wait for a single frame
-                cam.wait_for_frames()
             except:
                 logger.exception("Unable to start the camera")
                 return (None, None)
-
-
+            try:
+                for i in range(5):
+                #wait for multiple frames
+                    cam.wait_for_frames()
+            except:
+                #wait for frame failed
+                logger.exception("Wait for frame failed on the camera")
+                return (None, None)
             #get all the images at once
             try:
                 imageFullColor = cam.get_frame_data_u8(rs.stream_color)
@@ -163,22 +174,19 @@ class DepthCameras:
             self.time_of_last_image[camera] = time.time()
             return (images, sn)
 
-    def get_online_cams(self):
+    def get_camera_serial_numbers(self):
         if self.context is None:
             logger.warning("Tried to access online cams without connecting")
             return []
-        online_cams = []
-        for cam in range(self.num_cameras):
-            try:
-                c = self.context.get_device(cam)
-                t = time.time() - self.time_of_last_image[cam]
-                if t < 50 or self.time_of_last_image[cam] == 0: #if last image was less than 5 seconds ago camera is probably online
-                    online_cams.append(c.get_info(rs.camera_info_serial_number))
-            except:
-                logger.exception("Tried to access camera {}, but an error occured".format(cam))
-                continue
+        num2sn = {}
+        for i in range(self.num_cameras):
+            #get the camera
+            cam = self.context.get_device(i)
+            #get the sn
+            sn = cam.get_info(rs.camera_info_serial_number)
+            num2sn[sn] = i
 
-        return online_cams
+        return num2sn
 
     def get_camera_coefs(self, camera, stream):
         '''
@@ -256,23 +264,15 @@ class DepthCameras:
         except:
             logger.exception("Unable to enable stream and get extrinsics")
             return None
-        return extrinsics
 
-    def get_camera_index_by_serial(self, serial):
-        '''Returns the camera with the specified serial number'''
-        if self.context is None:
-            logger.warning("Tried to access online cams without connecting")
-            return None
-        for i in xrange(self.num_cameras):
-            cam = self.context.get_device(i)
-            if cam is None:
-                logger.error("Tried to get a camera that does not exist")
-            elif cam.get_info(rs.camera_info_serial_number) == serial:
-                return i
-        logger.error("Could not find camera with serial number {}".format(serial))
-        return None
+        mat = np.eye(4)
+        mat[:3, :3] = np.array([rs.floatp_getitem(extrinsics.rotation, i) for i in range(9)]).reshape((3, 3))
+        mat[:3, 3] = [rs.floatp_getitem(extrinsics.translation, i) for i in range(3)]
+        return mat
 
 def test():
+    import matplotlib
+    matplotlib.use('Qt5Agg')
     import matplotlib.pyplot as plt
     x = DepthCameras()
     if not x.connect():

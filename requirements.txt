@@ -39,3 +39,8 @@ scipy
 
 # Python 3 compatibility
 future
+
+# perception
+-r https://raw.githubusercontent.com/Lasagne/Lasagne/master/requirements.txt
+https://github.com/Lasagne/Lasagne/archive/master.zip
+scikit-image

@@ -2,7 +2,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-import matplotlib.pyplot as plt
 import skimage.transform
 import pickle
 import os
@@ -17,7 +16,7 @@ from lasagne.utils import floatX
 import logging
 logger = logging.getLogger(__name__)
 
-class ObjectRecognizer:
+class DeepLearningRecognizer:
     '''
     Class for performing object recognition. Uses theano and pretrained net to guess object
     '''
@@ -65,45 +64,33 @@ class ObjectRecognizer:
         return net
 
     def loadWeights(self,filename):
-        logger.info("Loading weigts")
+        logger.info("Loading weights")
         # Load model weights and metadata
         d = pickle.load(open(filename, 'rb'),encoding='latin-1')
         logger.info("Weights loaded from file {}".format(filename))
         return d
 
-    def prep_image(self, im):
+    def guessObject(self, images):
         '''
-        expects a numpy array not a filename
+        Given RGB images as np array (224x224xRGBxnum) returns a list of classes and a confidence value, and the best prediction
+        For each image
         '''
-        IMAGE_MEAN = self.weights['mean value'][:, np.newaxis, np.newaxis]
-        # Resize so smallest dim = 256, preserving aspect ratio
-        h, w, _ = im.shape
-        if h < w:
-            im = skimage.transform.resize(im, (256, w * 256 / h), preserve_range=True)
-        else:
-            im = skimage.transform.resize(im, (h * 256 / w, 256), preserve_range=True)
-        # Central crop to 224x224
-        h, w, _ = im.shape
-        im = im[h // 2 - 112:h // 2 + 112, w // 2 - 112:w // 2 + 112]
+        #check input
+        if images.shape[0] != 224 or images.shape[1] !=224 or images.shape[2] !=3:
+            logger.warning("Invalid numpy array passed to guessObject. Expecting 224x224x3xN, got {}".format(images.shape))
+        
+        #make the images BGR
+        images = images[:, :, ::-1]
 
-        rawim = np.copy(im).astype('uint8')
+        #swap the axes so the input is Nx3x224x224
+        im = np.swapaxes(images, 0, 3)
+        im = np.swapaxes(im, 1, 2)
+        im = np.swapaxes(im, 2, 3)
 
-        # Shuffle axes to c01
-        im = np.swapaxes(np.swapaxes(im, 1, 2), 0, 1)
-
-        # discard alpha channel if present
-        im = im[:3]
-        # Convert to BGR
-        im = im[::-1, :, :]
-        im = im - IMAGE_MEAN
-        return rawim, floatX(im[np.newaxis])
-
-    def guessObject(self, image):
-        '''
-        Given an image as np array returns a list of classes and a confidence value, and the best prediction
-        '''
-        # prep images
-        _,prepped_image = self.prep_image(image)
+        #convert to tensor thing
+        prepped_image = floatX(im)
+        #guess
         guess = self.pred_fn(prepped_image)
+
         #guess is vector of "probabilities" guess argmax is the index of the category
-        return guess,guess.argmax(-1)
+        return guess
