@@ -50,6 +50,20 @@ def transform(pose, array, row=None):
         else:
             return pose[:3, :3].dot(array) + pose[:3, 3]
 
+
+def rotate(pose, array, **kwargs):
+    '''
+    Apply a rigid body rotation `pose` to `array`.
+    '''
+
+    # ensure conversion to NumPy types without copying existing arrays
+    pose = numpy.asarray(pose)
+
+    # suppress translation
+    pose[:3, 3] = 0
+
+    return transform(pose, array, **kwargs)
+
 def build_pose(store, urls, strict=True):
     '''
     Multiply poses together from multiple database URLs.
