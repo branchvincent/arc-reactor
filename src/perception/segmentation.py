@@ -138,10 +138,10 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     #create a new labeled image that only has non zero labels for segments that we are using
     #for deep learning inference
     labeled_image = np.zeros(labeled_image.shape)
-    for i in range(1,len(imagesForDL)):
-        xs = segments[i][:,0]
-        ys = segments[i][:,1]
-        labeled_image[xs,ys] = i
+    for i in range(len(imagesForDL)):
+        ys = segments[i][:,0]
+        xs = segments[i][:,1]
+        labeled_image[ys,xs] = i+1
 
 
     #tiny depth images are the size of the full depth image and non zero where the object is
