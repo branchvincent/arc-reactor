@@ -467,30 +467,30 @@ for filename in glob.iglob('segments/*.npy'):
 
                  # printing information to the terminal
 
-                 print('Plane angle is {} degrees, taking {} points off.'.format(angle,deductions['Orientation']))
-                 print " "
-                 if Collision is True:
-                     print "No valid placement for the suction cup found"
-                 else:
-                     print "Valid placement for the suction cup found"
-                 print " "
-                 print('{} percent of the original can be approximated as a plane.'.format(plane_percentage))
-                 print " "
-                 print('The smaller dimension is {} required, its shape can be approximated as a rectangle or ellipse by {} %, taking {} off.'.format(ratio,fitness*100,deductions['size']))
-                 print " "
-                 print('The side of the plane is clean, {} percent of surroundings are confirmed gaps, with an average dip of {} cm.  {} percent of surroundings are confirmed blockage, with an average height of {} cm. {} percent of surroundings have insufficient readings. {} percent of the surroundings have readings that are close to the edge. Taking {} points off'.format(edge_gap*100,gap_Depth*100,edge_covered*100,converage_height*100,edge_missing*100,edge_close*100, deductions['Side_coverage']))
-                 print " "
-                 print('The top of the plane should be clean, {} percent of measurements is above the 1 cm thereshold, with an average displacement of {} cm. Taking {} points off.'.format(percentage*100,average_distance*100,deductions['top_Coverage']))
+                #  print('Plane angle is {} degrees, taking {} points off.'.format(angle,deductions['Orientation']))
+                #  print " "
+                #  if Collision is True:
+                #      print "No valid placement for the suction cup found"
+                #  else:
+                #      print "Valid placement for the suction cup found"
+                #  print " "
+                #  print('{} percent of the original can be approximated as a plane.'.format(plane_percentage))
+                #  print " "
+                #  print('The smaller dimension is {} required, its shape can be approximated as a rectangle or ellipse by {} %, taking {} off.'.format(ratio,fitness*100,deductions['size']))
+                #  print " "
+                #  print('The side of the plane is clean, {} percent of surroundings are confirmed gaps, with an average dip of {} cm.  {} percent of surroundings are confirmed blockage, with an average height of {} cm. {} percent of surroundings have insufficient readings. {} percent of the surroundings have readings that are close to the edge. Taking {} points off'.format(edge_gap*100,gap_Depth*100,edge_covered*100,converage_height*100,edge_missing*100,edge_close*100, deductions['Side_coverage']))
+                #  print " "
+                #  print('The top of the plane should be clean, {} percent of measurements is above the 1 cm thereshold, with an average displacement of {} cm. Taking {} points off.'.format(percentage*100,average_distance*100,deductions['top_Coverage']))
 
-                 print " "
-                 print ("The final score for the plane is {}" .format(Finalscore))
-                 print " "
-                 print " "
-                 print "                                                               Press 'Space' for the next plane                                                                              "
-                 print " "
+                #  print " "
+                #  print ("The final score for the plane is {}" .format(Finalscore))
+                #  print " "
+                #  print " "
+                #  print "                                                               Press 'Space' for the next plane                                                                              "
+                #  print " "
 
 
-                #  try:
+                # #  try:
 
                 #      #if uv map and color image exists, map depth pixels to RGB pixels for drawing segments on the original image
                 #      ctr = np.array(pixel_in_pointcloud).reshape((-1,1,2)).astype(np.int32)

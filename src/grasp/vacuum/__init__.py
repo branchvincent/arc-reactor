@@ -15,7 +15,7 @@ from util import pcd
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-def compute(full_cloud, object_masks, store=None, clean=True, aligned_color=None):
+def compute(full_cloud, object_masks, clean=True, aligned_color=None):
     # make a workspace
     tmp_path = mkdtemp(prefix='vacuum_')
     segment_path = os.path.join(tmp_path, 'segments')
@@ -40,10 +40,6 @@ def compute(full_cloud, object_masks, store=None, clean=True, aligned_color=None
 
     # load the results
     grasps = json.load(open(os.path.join(tmp_path, 'planes.txt')))
-    #grasps.sort(key=lambda x: -x[0])
-
-    if store:
-        store.put('/debug/grasps', grasps)
 
     if clean:
         # clean up
