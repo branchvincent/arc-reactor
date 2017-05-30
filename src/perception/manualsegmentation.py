@@ -26,9 +26,9 @@ class ManualSegmentationGUI(QtWidgets.QWidget):
         self.horz_top = QtWidgets.QHBoxLayout()
         self.num_items_combo_box = QtWidgets.QComboBox(self)
         numstrings = []
-        for i in range(1,16):
+        for i in range(1,21):
             numstrings.append(str(i))
-        self.num_items_combo_box.insertItems(15,numstrings)
+        self.num_items_combo_box.insertItems(20,numstrings)
         self.load_button = QtWidgets.QPushButton(self)
         self.load_button.setText("Load")
         self.load_button.pressed.connect(self.load_file)
@@ -286,7 +286,8 @@ class ImageGLWidget(QtOpenGL.QGLWidget):
     def draw_line(self, x1, y1, x2, y2):
         dx = x2-x1
         dy = y2-y1
-
+        if dx == 0 and dy == 0:
+            return []
         if abs(dx) > abs(dy):
             steps = int(abs(dx))
         else:
