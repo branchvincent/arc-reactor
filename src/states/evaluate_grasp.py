@@ -6,7 +6,7 @@ from master.fsm import State
 
 from grasp import vacuum
 
-from util.math_helpers import transform
+from util.math_helpers import transform, crop_with_aabb
 from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
@@ -42,11 +42,10 @@ class EvaluateGrasp(State):
         self.store.put('/robot/target_photo_url', photo_url)
 
         # retrieve the photo
-        point_cloud = self.store.get(photo_url + ['point_cloud'])
+        point_cloud = self.store.get(photo_url + ['pc_segmented'])
         camera_pose = self.store.get(photo_url + ['pose'])
-        # HACK: actually need the labeled image registered with the point cloud
-        logger.error('assuming that the labeled image is registered with the point cloud')
         object_mask = self.store.get(photo_url + ['labeled_image'])
+        full_color = self.store.get(photo_url + ['full_color'])
 
         # retreive the container and its bounds
         bounds_pose = self.store.get(location_pose_url(location))
@@ -57,28 +56,25 @@ class EvaluateGrasp(State):
         local_point_cloud = transform(numpy.linalg.inv(bounds_pose), world_point_cloud)
 
         # apply bounding box
-        mask = (point_cloud[:,:,2] > 0)
-        for dim in range(3):
-            mask = numpy.logical_and(mask, local_point_cloud[:, :, dim] >= min([bounding_box[0][dim], bounding_box[1][dim]]))
-            mask = numpy.logical_and(mask, local_point_cloud[:, :, dim] <= max([bounding_box[0][dim], bounding_box[1][dim]]))
+        mask = crop_with_aabb(local_point_cloud, bounding_box, point_cloud[:,:,2] > 0)
 
         # build the object point clouds
-        object_clouds = [ world_point_cloud[object_mask == (idx + 1)][mask] for idx in range(object_mask.max())]
-        logger.info('generated {} object point clouds'.format(len(object_clouds)))
+        object_masks = [numpy.logical_and(object_mask == (idx + 1), mask) for idx in range(object_mask.max())]
+        logger.info('generated {} object masks'.format(len(object_masks)))
 
         # do not mask the full cloud because it must be structured
-        grasps = vacuum.compute(world_point_cloud, object_clouds)
+        grasps = vacuum.compute(world_point_cloud, object_masks, aligned_color=full_color)
         #TODO create pass/fail criteria
 
-        #TODO get segment_id and add to dictionary grasps for each grasp
-        self.find_segment_by_point(photo_url, grasps['center']) # or something
+        for grasp in grasps:
+            grasp['segment_id'] = self.find_segment_by_point(photo_url, grasps['center'])
 
         logger.info('found {} grasps'.format(len(grasps)))
         logger.debug('{}'.format(grasps))
 
         # store result
         self.store.put(photo_url + ['vacuum_grasps'], grasps)
-        
+
         self.setOutcome(True)
         logger.info('evaluate vacuum grasp completed successfully')
 
