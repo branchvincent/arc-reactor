@@ -15,7 +15,7 @@ def show(store, urls, override_format=None):
         fmt = override_format
         if not fmt:
             if len(data.shape) == 2:
-                if data.dtype == numpy.int32:
+                if data.dtype in [numpy.int32, numpy.int64]:
                     fmt = 'label'
                 else:
                     fmt = 'intensity'
