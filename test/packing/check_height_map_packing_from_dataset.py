@@ -60,11 +60,7 @@ def run(inspect_store, location_store):
     pcd.write(zip(container_cloud, container_color), '/tmp/test_container.pcd')
     cv2.imwrite('/tmp/aligned_color.png', photo_aligned_color[..., ::-1])
 
-    location = heightmap.pack([container_cloud], [0.05, 0.1, 0.15], [container_aabb])
-
-    # TODO: update the packing algorithm to accept an item point cloud and return the
-    # position and orientation to place that point cloud within the container
-    #(position, orientation) = heightmap.pack([container_cloud], item_cloud, [container_aabb])
+    (position, orientation) = heightmap.pack([container_cloud], item_cloud, [container_aabb])
 
 def load_store(path):
     # read the file
