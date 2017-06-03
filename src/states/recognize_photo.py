@@ -12,7 +12,7 @@ class RecognizePhoto(State):
         locations = [self.store.get(url + '/location') for url in photo_urls]
 
         # use the grasp source for recognition
-        for (i, location) in locations:
+        for (i, location) in enumerate(locations):
             if location == 'inspect':
                 location[i] = self.store.get('/robot/grasp_location')
 
