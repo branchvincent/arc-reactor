@@ -11,6 +11,11 @@ class RecognizePhoto(State):
         photo_urls = [url + '/' for url in self.store.get('/robot/target_photos')]
         locations = [self.store.get(url + '/location') for url in photo_urls]
 
+        # use the grasp source for recognition
+        for (i, location) in locations:
+            if location == 'inspect':
+                location[i] = self.store.get('/robot/grasp_location')
+
         # recognize segments
         recognize_objects(self.store, photo_urls, locations)
         #TODO give pass/fail criteria
