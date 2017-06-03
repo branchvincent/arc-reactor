@@ -15,7 +15,7 @@ class PlanStowGrab(State):
 
         # Get item and grasp info
         item = self.store.get('/robot/selected_item')
-        grasp = self.store.get('/robot/selected_grasp')
+        grasp = self.store.get('/robot/target_grasp')
         # TODO: add to db (defaults to vacuum for now)
         gripper = self.store.get('/robot/active_gripper', 'vacuum').lower()
         if gripper not in ['vacuum', 'mechanical']:
@@ -30,17 +30,19 @@ class PlanStowGrab(State):
         reference_pose = self.store.get('/tote/stow/pose')
 
         # Calculate item bounding box
+        # NOTE: single point for now
         self.world = build_world(self.store)
-        item_pose_local = self.store.get(['item', item, 'pose'])
-        item_pc_local = self.store.get(['item', item, 'point_cloud'])
-
-        item_pose_world = reference_pose.dot(item_pose_local)
-        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
-
-        bounding_box = [
-            [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
-            [item_pc_world[:, 0].max(), item_pc_world[:, 1].max(), item_pc_world[:, 2].max()]
-        ]
+        bounding_box = [grasp['center'][0], grasp['center'][0]]
+        # item_pose_local = self.store.get(['item', item, 'pose'])
+        # item_pc_local = self.store.get(['item', item, 'point_cloud'])
+        #
+        # item_pose_world = reference_pose.dot(item_pose_local)
+        # item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
+        #
+        # bounding_box = [
+        #     [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
+        #     [item_pc_world[:, 0].max(), item_pc_world[:, 1].max(), item_pc_world[:, 2].max()]
+        # ]
         self.store.put('/robot/target_bounding_box', bounding_box)
         logger.debug('item bounding box: {}'.format(bounding_box))
 
