@@ -13,6 +13,7 @@ from states.capture_photo import CapturePhoto
 from states.segment_photo import SegmentPhoto
 from states.recognize_photo import RecognizePhoto
 from states.evaluate_grasp import EvaluateGrasp
+from states.evaluate_placement import EvaluatePlacement
 from states.read_scales import ReadScales
 
 class StowStateMachine(StateMachine):
@@ -37,6 +38,7 @@ class StowStateMachine(StateMachine):
         self.add('cr2', CheckRoute('cr2', store=self.store))
         self.add('cr3', CheckRoute('cr3', store=self.store)) #TODO create check states on the fly?
         self.add('rs', ReadScales('rs', store=self.store))
+        self.add('ep', EvaluatePlacement('ep', store=self.store))
 
     def getStartState(self):
         #TODO put this action in separate state?
@@ -54,8 +56,9 @@ class StowStateMachine(StateMachine):
         self.setTransition('psg', 'er1', 'si', checkState='cr1')
         self.setTransition('cr1', 'er1', 'psg')
         self.setTransition('er1', 'pvl', 'psg')
-        self.setTransition('pvl', 'er3', 'si', checkState='cr3') #TODO sim. for failed route planning
-        self.setTransition('er3', 'pps', 'pvl')
+        self.setTransition('pvl', 'er3', 'si', checkState='cr3') #TODO similar for failed route planning
+        self.setTransition('er3', 'ep', 'pvl')
+        self.setTransition('ep', 'pps', 'ep') #TODO need failure analysis
         self.setTransition('pps', 'er2', 'si', checkState='cr2')
         self.setTransition('cr2', 'er2', 'pps')
         self.setTransition('er2', 'rs', 'pps')
@@ -91,7 +94,7 @@ def runStowFSM():
 
     #number = 10
     #for _ in range(number): pick.runOrdered('si')
-    stow.setCurrentState('fa')
+    stow.setCurrentState(stow.getStartState())
     stow.runStep()
     while(not stow.isDone()): stow.runOrdered(stow.getCurrentState())
 

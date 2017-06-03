@@ -24,7 +24,7 @@ class PlanStowGrab(State):
         item_pc_local = self.store.get(['item', item, 'point_cloud'])
 
 #        if location in ['stow_tote', 'stow tote']:
-            reference_pose = self.store.get('/tote/stow/pose')
+        reference_pose = self.store.get('/tote/stow/pose')
 #        else:
 #            raise RuntimeError('unrecognized item location: "{}"'.format(location))
 

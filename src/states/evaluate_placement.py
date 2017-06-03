@@ -12,7 +12,7 @@ from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
 
-class FindPlacement(State):
+class EvaluatePlacement(State):
     '''
     Inputs:  /robot/target_location (e.g., 'binA')
              /robot/inspect_point_cloud releative to inspect_pose
@@ -83,5 +83,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'fp')
-    FindPlacement(myname).run()
+    myname = (args.name or 'ep')
+    EvaluatePlacement(myname).run()
