@@ -34,6 +34,7 @@ class SelectItem(State):
 
             #TODO move this outside of if statement
             self.store.put('/robot/target_grasp', self.maxGrasp)
+            self.store.put('/robot/grasp_location', 'stow_tote')
 
         elif self.alg == 'final':
             #self.points =

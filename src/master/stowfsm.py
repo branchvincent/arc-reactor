@@ -63,7 +63,8 @@ class StowStateMachine(StateMachine):
         self.setTransition('cr2', 'er2', 'pps')
         self.setTransition('er2', 'rs', 'pps')
         self.setTransition('rs', 'ci', 'ci') #TODO handler for failed read scales
-        self.setTransition('ci', 'cp', 'si') #TODO handler for failed check item 
+        self.setTransition('ci', 'pvl', 'ci') #TODO handler for failed check item
+        self.setTransition(' 
 
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write
