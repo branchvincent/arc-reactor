@@ -15,6 +15,9 @@ appdirs
 six
 packaging
 
+# scale interface
+pyserial
+
 # unit test coverage
 pytest-cov
 
