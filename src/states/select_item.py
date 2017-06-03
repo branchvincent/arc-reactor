@@ -32,6 +32,7 @@ class SelectItem(State):
             self.idSeg = self.store.get(self.url+'/detections')[self.maxGraspSeg]
             self.chosenItem = max(self.idSeg, key=lambda l: self.idSeg[l])
 
+
             #TODO move this outside of if statement
             self.store.put('/robot/target_grasp', self.maxGrasp)
             self.store.put('/robot/grasp_location', 'stow_tote')
