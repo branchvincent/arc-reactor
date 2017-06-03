@@ -87,7 +87,7 @@ class EvaluateGrasp(State):
         idx = numpy.unravel_index(numpy.argmin(distance), distance.shape)
 
         # lookup the matching segment index
-        label = int(labeled_image[idx])
+        label = labeled_image[idx]
         if label == 0:
             raise RuntimeError('grasp center does not belong to segment: {}'.format(grasp_center))
 

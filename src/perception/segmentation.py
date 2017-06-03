@@ -148,7 +148,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     return_values['DL_images'] = imagesForDL
     return_values['small_images'] = tinyColorImgs
     return_values['pixel_locations'] = segments
-    return_values['labeled_image'] = labeled_image
+    return_values['labeled_image'] = labeled_image.astype(np.int)
 
     return return_values
 

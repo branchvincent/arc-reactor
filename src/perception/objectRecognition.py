@@ -30,7 +30,7 @@ class ObjectRecognition:
             self.store = db_client.default()
             register_numpy()
         except:
-            logger.error('Could not connect to the database. Cannot function')
+            logger.exception('Could not connect to the database. Cannot function')
             return
 
         self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,40)
@@ -70,7 +70,8 @@ class ObjectRecognition:
                 else:
                     sleep(0.1)
         except:
-            pass
+            logger.exception('Inference failed!')
+            raise
 
     '''
     Given a list of urls and a list of locations infer what each image is at the URL
@@ -113,7 +114,7 @@ class ObjectRecognition:
                 #see if a valid location was passed in
                 try:
                     items_at_location = self.items_in_location[list_of_locations[i]]
-                except:
+                except KeyError:
                     logger.warning("Bad location name {}. Sending all confidences".format(list_of_locations[i]))
                     items_at_location = None
 
@@ -126,12 +127,12 @@ class ObjectRecognition:
 
         if valid_items is None:
             for i in range(len(list_of_conf)):
-                res.append((self.object_names[i], list_of_conf[i]))
+                res.append((self.object_names[i], float(list_of_conf[i])))
         else:
         #set the confidence of items that are not valid_items to zero
             for i in range(len(list_of_conf)):
                 if self.object_names[i] in valid_items:
-                    res.append((self.object_names[i], list_of_conf[i]))
+                    res.append((self.object_names[i], float(list_of_conf[i])))
                 else:
                     res.append((self.object_names[i], 0))
 
