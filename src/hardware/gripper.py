@@ -5,6 +5,7 @@ Gripper server interface.
 import logging
 
 import socket
+import struct
 
 from os import environ
 
@@ -78,12 +79,11 @@ class Gripper(object):
         if cmd > 1 or cmd < 0:
             raise RuntimeError('command is out of range [0, 1]: {}'.format(cmd))
 
-        q = round(cmd * (self._max - self._min) + self._min)
+        q = int(round(cmd * (self._max - self._min) + self._min))
 
         # check if real or simulated gripper
         if self._socket:
-            data = '{:04.0f}'.format(q)
-            self._socket.sendall(data)
+            self._socket.sendall(struct.pack('!BBBl', 1, 1, 4, q))
 
         self._store.put('/gripper/status', cmd)
 
