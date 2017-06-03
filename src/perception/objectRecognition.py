@@ -127,12 +127,12 @@ class ObjectRecognition:
 
         if valid_items is None:
             for i in range(len(list_of_conf)):
-                res.append((self.object_names[i], list_of_conf[i]))
+                res.append((self.object_names[i], float(list_of_conf[i])))
         else:
         #set the confidence of items that are not valid_items to zero
             for i in range(len(list_of_conf)):
                 if self.object_names[i] in valid_items:
-                    res.append((self.object_names[i], list_of_conf[i]))
+                    res.append((self.object_names[i], float(list_of_conf[i])))
                 else:
                     res.append((self.object_names[i], 0))
 
