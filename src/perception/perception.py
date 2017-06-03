@@ -17,6 +17,7 @@ import json
 import time
 logger = logging.getLogger(__name__)
 
+from util.math_helpers import transform
 
 def update_camera_parameters(list_of_serial_nums):
     '''
@@ -251,11 +252,12 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
 
 
         #crop the image for desired bin
-        intrins_fx = store.get('/camera/' + cam_name + "/depth/intrinsics/fx")
-        intrins_fy = store.get('/camera/' + cam_name + "/depth/intrinsics/fy")
-        intrins_ppx = store.get('/camera/' + cam_name + "/depth/intrinsics/ppx")
-        intrins_ppy = store.get('/camera/' + cam_name + "/depth/intrinsics/ppy")
-        if intrins_fx is None or intrins_fy is None or intrins_ppx is None or intrins_ppy is None:
+        intrins_fx = store.get('/camera/' + cam_name + "/color/intrinsics/fx")
+        intrins_fy = store.get('/camera/' + cam_name + "/color/intrinsics/fy")
+        intrins_ppx = store.get('/camera/' + cam_name + "/color/intrinsics/ppx")
+        intrins_ppy = store.get('/camera/' + cam_name + "/color/intrinsics/ppy")
+        extrinsics = store.get('/camera/' + cam_name + "/color/depthExtrinsics")
+        if intrins_fx is None or intrins_fy is None or intrins_ppx is None or intrins_ppy is None or extrinsics is None:
             raise RuntimeError("Could not get the intrinsicds for the camera {}. Not segmenting".format(cam_name))
 
 
@@ -276,6 +278,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         depth_in_3d_cam_local[:, :, 0] = xs*depth_in_3d_cam_local[:, :, 2]
         depth_in_3d_cam_local[:, :, 1] = ys*depth_in_3d_cam_local[:, :, 2]
 
+        depth_in_3d_cam_local = transform(extrinsics, depth_in_3d_cam_local).astype(np.float64)
 
         #get the transform from world to reflocal
         ref_world_xform = np.linalg.inv(ref_world_xform)
