@@ -39,7 +39,7 @@ class EvaluateGrasp(State):
         camera = available_cameras[0]
         photo_url = ['photos', location, camera]
         logger.info('using photo: {}'.format(photo_url))
-        self.store.put('/robot/target_photo_url', '/'+'/'.join(photo_url))
+        self.store.put('/robot/target_photo_url', photo_url)
 
         # retrieve the photo
         point_cloud = self.store.get(photo_url + ['point_cloud_segmented'])
