@@ -552,7 +552,7 @@ def main(argv):
 
         cell = dict([(url, store.get(url)) for url in urls])
         cell.update({
-            '/robot/current_config': [0, 0, -0.5, 1, 0, 1, 0]
+            '/robot/current_config': [0, 0, -0.5, 1, 0, 1, -2]
         })
 
         from pensive.client import json_encode
