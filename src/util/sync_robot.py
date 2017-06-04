@@ -11,6 +11,7 @@ def sync(db, continuous=False):
     while True:
         # update the robot config
         rc.updateCurrentConfig()
+        rc.updateDatabase()
 
         # build the world
         world = update_world(db, world)
