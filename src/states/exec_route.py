@@ -11,7 +11,7 @@ class ExecRoute(State):
         # self.speed = self.store.get('/robot/speed_scale', 1)
 
         #check if in simulation mode
-        if self.store.get('/simulate/robot_motion'):
+        if self.store.get('/simulate/robot_motion', True):
             try:
                 controllerSim = SimulatedRobotController(store=self.store)
                 controllerSim.run()
