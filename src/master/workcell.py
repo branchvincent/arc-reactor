@@ -219,8 +219,6 @@ def _load_location(store, location):
     items = store.get('/item').keys()
 
 def _load_vantage(store):
-    shelf_pose = store.get(['shelf', 'pose'])
-
     # compute the bin vantage points
     for bin_name in store.get(['shelf', 'bin']).keys():
         bounds = store.get(['shelf', 'bin', bin_name, 'bounds'])
@@ -232,13 +230,12 @@ def _load_vantage(store):
 
         # calculate transform
         T = xyz(xmed, ymax + 0.45, zmed - 0.025) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, pi/6, 0) * rpy(0, -0.2, 0)
-        store.put(['vantage', bin_name], shelf_pose.dot(T))
+        store.put(['vantage', bin_name], T)
 
     # compute the order box and tote vantage points
     for entity in ['box', 'tote']:
         for name in store.get([entity], {}).keys():
             bounds = store.get([entity, name, 'bounds'])
-            pose = store.get([entity, name, 'pose'])
 
             if not bounds:
                 continue
@@ -250,7 +247,7 @@ def _load_vantage(store):
 
             # calculate transform
             T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, -pi/15 - pi, 0) * rpy(0, 0, pi)
-            store.put(['vantage', name], pose.dot(T))
+            store.put(['vantage', name], T)
 
 def _dims2bb(dims):
     return [
@@ -329,6 +326,11 @@ def setup_workcell(store, workcell):
 
     # load workcell
     store.multi_put(workcell)
+
+    # update bin poses
+    shelf_pose = store.get('/shelf/pose')
+    for b in store.get('/shelf/bin').items():
+        store.put(['shelf', 'bin', b, 'pose'], shelf_pose.dot(b['pose']))
 
 def setup_pick(store, location, order, workcell=None, keep=True):
     '''

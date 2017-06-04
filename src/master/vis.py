@@ -340,7 +340,7 @@ class WorldViewerWindow(QMainWindow):
 
         # update shelf bin bounding boxes
         for name in self.db.get('/shelf/bin', {}):
-            self._update_bounding_box('shelf_{}'.format(name), ['shelf/pose', ['shelf', 'bin', name, 'pose']], ['shelf', 'bin', name, 'bounds'])
+            self._update_bounding_box('shelf_{}'.format(name), ['shelf/pose'], ['shelf', 'bin', name, 'bounds'])
 
         # update box bounding boxes
         for name in self.db.get('/box', {}):
