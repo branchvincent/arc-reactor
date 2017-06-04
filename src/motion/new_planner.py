@@ -504,8 +504,9 @@ class StowPlanner(Planner):
 
         start_T=copy.deepcopy(current_T)
         end_T=copy.deepcopy(current_T)
-        end_T[1][0]=inspect_position[0]
-        end_T[1][1]=inspect_position[1]
+        end_T[1][0]=inspect_position[0] - self.ee_local[0]
+        end_T[1][1]=inspect_position[1] - self.ee_local[1]
+        end_T[1][2]=inspect_position[2] - self.ee_local[2]
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
 
