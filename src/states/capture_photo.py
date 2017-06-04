@@ -26,13 +26,18 @@ class CapturePhoto(State):
         selected_cameras = self.store.get(['system', 'viewpoints', location], None)
         if selected_cameras is None:
             raise RuntimeError('no camera available for {}'.format(location))
+        logger.debug('using cameras: {}'.format(selected_cameras))
 
         name2serial = self.store.get('/system/cameras')
         serials  = [name2serial[n] for n in selected_cameras]
         photo_urls = ['/photos/{}/{}/'.format(location, cam) for cam in selected_cameras]
+        logger.debug('using URLs: {}'.format(photo_urls))
 
-        # store ancillary information
         for (cam, photo_url) in zip(selected_cameras, photo_urls):
+            # erase existing data
+            self.store.delete(photo_url)
+
+            # store ancillary information
             self.store.put(photo_url + 'pose', self.store.get(['camera', cam, 'pose']))
             self.store.put(photo_url + 'camera', cam)
             self.store.put(photo_url + 'location', location)
