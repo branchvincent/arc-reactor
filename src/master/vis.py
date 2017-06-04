@@ -284,7 +284,7 @@ class WorldViewerWindow(QMainWindow):
             (3, '/item'),
             (3, '/box'),
             (3, '/tote'),
-            (3, '/debug'),
+            (3, '/vantage'),
         ])
 
         self.timestamps = {}
@@ -346,16 +346,20 @@ class WorldViewerWindow(QMainWindow):
         for name in self.db.get('/box', {}):
             self._update_bounding_box('box_{}'.format(name), [['box', name, 'pose']], ['box', name, 'bounds'])
             self._update_pose('box_{}'.format(name), [['box', name, 'pose']])
-            self._update_pose('vantage_{}'.format(name), [['box', name, 'pose'], ['box', name, 'vantage']])
 
         # update tote bounding boxes
         for name in self.db.get('/tote', {}):
             self._update_bounding_box('tote_{}'.format(name), [['tote', name, 'pose']], ['tote', name, 'bounds'])
             self._update_pose('tote_{}'.format(name), [['tote', name, 'pose']])
-            self._update_pose('vantage_{}'.format(name), [['tote', name, 'pose'], ['tote', name, 'vantage']])
 
         # update inspection bounding box
         self._update_bounding_box('inspect', [['robot', 'inspect_pose']], ['robot', 'inspect_bounds'])
+
+        # update vantage poses
+        for (name, pose) in self.db.get('/vantage', {}).items():
+            self._update_pose('vantage_{}'.format(name), [['vantage', name]])
+
+        self._update_pose('shelf', [['shelf', 'pose']])
 
         self._update_pose('robot_base', [['robot', 'base_pose']])
         self._update_pose('robot_tcp', [['robot', 'tcp_pose']])
