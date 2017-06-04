@@ -32,18 +32,21 @@ class EvaluatePlacement(State):
 
         # obtain container point cloud and bounding box in container local coordinates
         container_clouds = [self._build_container_point_cloud(location) for location in locations]
-        container_aabbs = [self.store.get(location_bounds_url(location))]
+        container_aabbs = [self.store.get(location_bounds_url(location)) for location in locations]
 
         # attempt the packing
-        (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None)
+        (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None, max_height=0.3)
         pack_location = locations[idx]
         logger.info('found placement in "{}"'.format(pack_location))
         logger.debug('{}, {}'.format(position, orientation))
 
         # transform placement into world coordinate system
-        local_placement = xyz(*position) * rpy(0, 0, orientation * 180.0 / pi)
+        robot_tcp_pose = self.store.get('/robot/tcp_pose')
+        robot_tcp_pose[:3, 3] = [[0], [0], [0]]
+
+        local_placement = xyz(*position).dot(robot_tcp_pose).dot(rpy(0, 0, orientation * 180.0 / pi))
         container_pose = self.store.get(location_pose_url(pack_location))
-        world_placement = transform(container_pose, local_placement)
+        world_placement = container_pose.dot(local_placement)
 
         # store result
         self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})

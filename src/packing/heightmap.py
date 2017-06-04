@@ -88,10 +88,10 @@ def pack(bins,pointcloud,BBs,layer_map,margin=0.005,max_height=0.5,pixel_length=
         layer_map[order]=layermap2update
 
         tool_location=get_location(location,orientation,offset)
-        cv2.imshow("denoised",image_show)
-        k = cv2.waitKey(0)
-        if k == 27:         # wait for ESC key to exit
-            cv2.destroyAllWindows()
+        # cv2.imshow("denoised",image_show)
+        # k = cv2.waitKey(0)
+        # if k == 27:         # wait for ESC key to exit
+        #     cv2.destroyAllWindows()
 
         print (best_index, location,tool_location,-orientation)
         return (best_index, tool_location,-orientation,layer_map)
@@ -108,8 +108,9 @@ def get_location(center,angle,offset):
 
     X=center[0]+offset[0]*math.cos(theta) - offset[1]*math.sin(theta)
     Y=center[1]-offset[0]*math.sin(theta) - offset[1]*math.cos(theta)
+    Z=center[2]-offset[2]
 
-    return [X,Y]
+    return [X,Y,Z]
 
 
 
@@ -144,7 +145,7 @@ def get_object_dimension(pointcloud):
     z_min=np.amin(z_filtered)
     z_max=np.amax(z_filtered)
 
-    center_offset=(-(x_min+x_max)/2.0,-(y_min+y_max)/2.0)
+    center_offset=(-(x_min+x_max)/2.0,-(y_min+y_max)/2.0,-(z_min+z_max)/2.0)
     return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset)
 
 
@@ -289,10 +290,10 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
 
     #filter the x and y readings of the pointcloud
 
-    x_min=BB[0][0]
-    x_max=BB[1][0]
-    y_min=BB[0][1]
-    y_max=BB[1][1]
+    x_min=min(BB[0][0], BB[1][0])
+    x_max=max(BB[0][0], BB[1][0])
+    y_min=min(BB[0][1], BB[1][1])
+    y_max=max(BB[0][1], BB[1][1])
 
     count=0
     num_pixels_X=int((x_max-x_min)/length_per_pixel)
