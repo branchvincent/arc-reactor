@@ -28,19 +28,19 @@ class Planner():
         #get necessary constants from the db
 
         self.ee_local = self.store.get('/planner/ee_local', [0.0, 0.0, 0.4])
-        self.ee_link = self.store.get('/planner/ee_link', 6)        
+        self.ee_link = self.store.get('/planner/ee_link', 6)
         self.control_rate= self.store.get('/planner/control_rate', 20) #controlling the self.robot with 20 Hz
         self.max_end_effector_v = self.store.get('/planner/max_ee_v', 0.15) # max end effector move speed
-        self.max_change = self.store.get('/planner/max_milestone_change', 0.35367795) # 200.0/180.0*3.14159 
+        self.max_change = self.store.get('/planner/max_milestone_change', 0.35367795) # 200.0/180.0*3.14159
                 #the max change between raw milestones is 20 degree
-        self.slow_down_factor = self.store.get('/planner/slow_down', 0.4) 
+        self.slow_down_factor = self.store.get('/planner/slow_down', 0.4)
                 #should be (0,1), for when robot is holding item
         self.vacuum_approach_dist = self.store.get('/planner/vac_approach_d', [0, 0, 0.03])
                 #should this be different for pick/stow, get/drop?
-    
+
     def clear_milestones(self):
         self.motion_milestones=[]
-    
+
     def joint_space_rotate(self,motion_milestones,current_p,target_p,robot,vacuum_status):
         theta1=math.atan2(current_p[1],current_p[0])
         theta2=math.atan2(target_p[1],target_p[0])
@@ -254,7 +254,7 @@ class PickPlanner(Planner):
             - item: position/orientation of the target item
                 -- position: item position
                 -- vacuum_offset: hacked parameter for each item, added to the high of the item
-        
+
         Outputs:
             a list of Milestones
             check_points for the motion plan:
@@ -265,10 +265,10 @@ class PickPlanner(Planner):
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
         curr_orientation, p = self.robot.link(self.ee_link).getTransform()
         current_T=[curr_orientation,curr_position]
-        
+
         item_position=vectorops.div(vectorops.add(item['bbox'][0],item['bbox'][1]),2.0)
         item_vacuum_offset=item['vacuum_offset']
-        
+
         test_cspace=TestCSpace(Globals(self.world))
 
         self.check_points.append(current_T)
@@ -282,7 +282,7 @@ class PickPlanner(Planner):
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
         current_T=[curr_orientation,curr_position]
         self.check_points.append(current_T)
-        
+
         start_position=vectorops.add(item_position,[0,0,0.4])
         start_position[2]=min(0.4,start_position[2])
         end_T=[[1,0,0,0,-1,0,0,0,-1],start_position]
@@ -300,7 +300,7 @@ class PickPlanner(Planner):
         self.motion_milestones.append(Milestone(1,self.robot.getConfig(),1))
 
         #lower the vacuum
-        start_T=copy.deepcopy(end_T) 
+        start_T=copy.deepcopy(end_T)
         end_T[1]=vectorops.add(item_position,item_vacuum_offset)
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
@@ -319,7 +319,7 @@ class PickPlanner(Planner):
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
 
         if not self.motion_milestones:
-            raise RuntimeError("Can't find a feasible path to pick up item")    
+            raise RuntimeError("Can't find a feasible path to pick up item")
 
         #find and move to the inspection station
         inspection_pose = self.store.get('/robot/inspect_pose');
@@ -365,7 +365,7 @@ class PickPlanner(Planner):
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
         current_T=[curr_orientation,curr_position]
         self.check_points.append(current_T)
-        
+
         item_vacuum_offset=item['vacuum_offset']
         drop_offset=item['drop offset']
 
@@ -431,7 +431,7 @@ class StowPlanner(Planner):
             - vaccum: 0-off 1-on
         """
         self.vacuum_approach_dist = self.store.get('/planner/vac_approach_d', [0, 0, 0.15])
-#        self.clearMilestones() 
+#        self.clearMilestones()
 
         self.current_config=self.robot.getConfig()
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
@@ -526,11 +526,11 @@ class StowPlanner(Planner):
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
         curr_orientation, p = self.robot.link(self.ee_link).getTransform()
         current_T=[curr_orientation,curr_position]
-        
+
         test_cspace=TestCSpace(Globals(self.world))
-        
+
         self.check_points.append(current_T)
-        
+
         #get end point
         drop_position = self.find_placement(target_box, target_index)
         self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
