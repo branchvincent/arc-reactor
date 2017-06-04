@@ -365,6 +365,10 @@ class WorldViewerWindow(QMainWindow):
         self._update_pose('robot_tcp', [['robot', 'tcp_pose']])
         self._update_pose('robot_inspect', [['robot', 'inspect_pose']])
 
+        self._update_pose('robot_placement', [['robot', 'placement', 'pose']])
+
+        self._update_pose('robot_target', [['robot', 'target_xform']])
+
         self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
 
     def _update_robot_trace(self, name, robot, link, path_url, timestamp_url):
