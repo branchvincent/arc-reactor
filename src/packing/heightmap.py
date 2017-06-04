@@ -10,9 +10,8 @@ from numpy import unravel_index
 import pcl
 import glob
 
-layer_map=None
 
-def pack(bins,pointcloud,BBs, margin=0.005,max_height=0.5,pixel_length=0.001,rotate=True,stability=True,layer=False):
+def pack(bins,pointcloud,BBs,layer_map,margin=0.005,max_height=0.5,pixel_length=0.001,rotate=False,stability=False,layer=True):
     """
     pack a item into a selected number of bins and return the center coordinate of the objects when packed
 
@@ -21,6 +20,8 @@ def pack(bins,pointcloud,BBs, margin=0.005,max_height=0.5,pixel_length=0.001,rot
     bins: structured or unstructured pointclouds of each bins the item might be packed into as a list of numpy arrays
 
     pointcloud: pointcloud of the item picked at the inspection station in a numpy array
+
+    layer_map: A map of the same dimension as the height map that store the layer information from previous placement in the bin, given as a python list of numpy array,  if layer_map equals none, will initialize a layer_map.
 
     margin: how much margin to be left at the edge of the object in meter
 
@@ -35,11 +36,10 @@ def pack(bins,pointcloud,BBs, margin=0.005,max_height=0.5,pixel_length=0.001,rot
 
 
     Output:
-    location: center coordinate of for top of the object when packed properly. In a python list [x,y,z], if no proper placement was found, return None
+    location: center coordinate of for the tool. In a python list [x,y,z], if no proper placement was found, return None
     Orientation: rotation angle in degrees(item rotated contour clock wise therefore all degrees are negative)
-
+    layer_map_updated: A updated layer map after the placement of the item
     """
-    global layer_map
 
     depth_maps=[]
     minimum_height=[]
@@ -47,8 +47,10 @@ def pack(bins,pointcloud,BBs, margin=0.005,max_height=0.5,pixel_length=0.001,rot
     orientations=[]
     visuals=[]
     cornor_points=[]
+    layer_map_candidates=[]
+    orders=[]
 
-    item=get_object_dimension(pointcloud)
+    item,offset=get_object_dimension(pointcloud)
     #initialize the layer_map if one doesn't exsist
     #or if the length of the layer map is different from the number of bins current evaluating(likely forgot to clear layer_map after one run)
     if layer_map is None or len(layer_map)!=len(bins):
@@ -57,38 +59,58 @@ def pack(bins,pointcloud,BBs, margin=0.005,max_height=0.5,pixel_length=0.001,rot
             layer_map.append([])
 
     for indice,bin in enumerate(bins):
-        depth_map,cornor_point=pc2depthmap(indice,bin,max_height,pixel_length,BBs[indice])
+        depth_map,cornor_point,bin_layer_map=pc2depthmap(indice,bin,max_height,pixel_length,BBs[indice],layer_map[indice])
+        layer_map[indice]=bin_layer_map
         depth_maps.append(depth_map)
         cornor_points.append(cornor_point)
 
     for order,depth_map in enumerate(depth_maps):
-        index,orientation,height,visualization=find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer)
+        index,orientation,height,visualization,bin_layer_map=find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map[order])
 
         if height!=255:
+            orders.append(order)
             z=height/255.0*max_height+item[2]
             x=cornor_points[order][0]+index[0]*pixel_length
             y=cornor_points[order][1]+index[1]*pixel_length
             minimum_height.append(height)
             visuals.append(visualization)
             locations.append([x,y,z])
+            layer_map_candidates.append(bin_layer_map)
             orientations.append(orientation)
-
     if len(minimum_height)>0:
         #get the placement that result in the lowest stack height
-        location=locations[minimum_height.index(min(minimum_height))]
-        orientation=orientations[minimum_height.index(min(minimum_height))]
-        image_show=visuals[minimum_height.index(min(minimum_height))]
+        best_index=minimum_height.index(min(minimum_height))
+        location=locations[best_index]
+        orientation=orientations[best_index]
+        image_show=visuals[best_index]
+        layermap2update=layer_map_candidates[best_index]
+        order=orders[best_index]
+        layer_map[order]=layermap2update
 
+        tool_location=get_location(location,orientation,offset)
         cv2.imshow("denoised",image_show)
         k = cv2.waitKey(0)
         if k == 27:         # wait for ESC key to exit
             cv2.destroyAllWindows()
 
-        print (location,-orientation)
-        return (location,-orientation)
+        print (best_index, location,tool_location,-orientation)
+        return (best_index, tool_location,-orientation,layer_map)
 
     else:
-        return (None,None)
+        return (None,None,layer_map)
+
+def get_location(center,angle,offset):
+    """
+    get the tool position off the center
+    """
+
+    theta=math.radians(-angle)
+
+    X=center[0]+offset[0]*math.cos(theta) - offset[1]*math.sin(theta)
+    Y=center[1]-offset[0]*math.sin(theta) - offset[1]*math.cos(theta)
+
+    return [X,Y]
+
 
 
 def get_object_dimension(pointcloud):
@@ -122,7 +144,8 @@ def get_object_dimension(pointcloud):
     z_min=np.amin(z_filtered)
     z_max=np.amax(z_filtered)
 
-    return [x_max-x_min,y_max-y_min,z_max-z_min]
+    center_offset=(-(x_min+x_max)/2.0,-(y_min+y_max)/2.0)
+    return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset)
 
 
 def reject_outliers(data, m = 3.5):
@@ -131,7 +154,7 @@ def reject_outliers(data, m = 3.5):
     s = d/mdev if mdev else 0.
     return data[s<m]
 
-def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer):
+def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map):
 
     """
     Pack an object using a depth map
@@ -148,7 +171,7 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
     index: center of the candidate placements in the depth map (not rotated) as a list of python list [[x1,y1,angle1],[x2,y2,angle2]...]
     max_height: canditates of stack hight of the object as an interger between 0-255 as a python list
     """
-    global layer_map
+
     #by default packer will find placement for object both vertically or horizontally, therefore setting increment from 0 to 90 degrees to be 90
     increment = 90
 
@@ -178,7 +201,7 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
 
     for angle in np.arange(0, 171, increment):
         matrix,depth_rotated=rotate_bound(depth_map, angle)
-        mat2,layer_rotated=rotate_bound_black(layer_map[order].copy(), angle)
+        mat2,layer_rotated=rotate_bound_black(layer_map.copy(), angle)
         P,Q=depth_rotated.shape
 
         try:
@@ -229,16 +252,16 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
         (cX, cY) = (w // 2, h // 2)
         original_shape=depth_map.shape
         histogram=histogram[cY-original_shape[0]/2:cY+original_shape[0]/2,cX-original_shape[1]/2:cX+original_shape[1]/2]
-        layer_map[order]=layer_bound[cY-original_shape[0]/2:cY+original_shape[0]/2,cX-original_shape[1]/2:cX+original_shape[1]/2]
+        layer_map=layer_bound[cY-original_shape[0]/2:cY+original_shape[0]/2+1,cX-original_shape[1]/2:cX+original_shape[1]/2+1]
         histogram[indices_original[1]][indices_original[0]]=np.uint8(255)
 
     else:
         print "No placement for the item found"
 
-    return (location,orientation,stack_height,histogram)
+    return (location,orientation,stack_height,histogram,layer_map)
 
 
-def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB):
+def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
     """
     Convert a pointcloud(Structured or unstructured,2D or 3D) into a depth map where each pixel length is specified by length per pixel, and all Z reading below threshold will be converted to unsigned int from 0 to 255, all depth readings above threshold will be considered noise and assign a value of 0
 
@@ -256,7 +279,6 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB):
     (x_min,y_min) x,y value for the first pixel in the depth map
 
     """
-    global layer_map
 
 
     #if the layer map is empty, initialize the layer map
@@ -280,8 +302,9 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB):
     depth_map=np.full((num_pixels_Y,num_pixels_X),0,dtype="uint8")
 
     #initialize  layer_map if one doesn't exsist
-    if len(layer_map[order]) == 0:
-        layer_map[order]=np.full((num_pixels_Y,num_pixels_X),0,dtype="uint8")
+    if len(layer_map) == 0 or layer_map.shape!=depth_map.shape:
+        print "Layer map is either None or doesn't match the shape of the bin, creating a new layer_map"
+        layer_map=np.full((num_pixels_Y,num_pixels_X),0,dtype="uint8")
 
     #fill in the depth map
     for point in pointcloud:
@@ -300,7 +323,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB):
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,10,7,21)
 
-    return (depth_map,(x_min,y_min))
+    return (depth_map,(x_min,y_min),layer_map)
 
 def detect_local_minima(arr):
     # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710
@@ -532,6 +555,7 @@ def updatescore(score,layer_score,depth_rotated,stability,item_dimension,layer, 
 
 
 # """
+# map=None
 # pointcloud=[]
 # pc=np.load("pc_masked.py.npy")
 # for i in range(3):
@@ -546,4 +570,5 @@ def updatescore(score,layer_score,depth_rotated,stability,item_dimension,layer, 
 #     item=np.asarray(seg_pcd)
 #     print filename
 
-#     location,angle=pack(pointcloud,item, [[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]],[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]],[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]]],rotate=True )
+#     location,angle,layer_map=pack(pointcloud,item, [[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]],[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]],[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]]],map,rotate=True )
+#     map=layer_map

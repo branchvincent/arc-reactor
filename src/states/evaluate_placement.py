@@ -1,9 +1,9 @@
 import logging
 
-import numpy
-from math import pi
-
 from time import time
+
+from math import pi
+import numpy
 
 from master.fsm import State
 from master.world import xyz, rpy
@@ -28,28 +28,25 @@ class EvaluatePlacement(State):
         # obtain item point cloud from inspection station in tool coordinates
         item_cloud = self._build_item_point_cloud()
 
-        placements = {}
+        locations = self.store.get('/robot/target_locations')
 
-        # attempt packing for each location
-        for location in self.store.get('/robot/target_locations'):
-            # obtain container point cloud in container local coordinates
-            container_cloud = self._build_container_point_cloud(location)
+        # obtain container point cloud and bounding box in container local coordinates
+        container_clouds = [self._build_container_point_cloud(location) for location in locations]
+        container_aabbs = [self.store.get(location_bounds_url(location))]
 
-            # attempt the packing
-            container_aabb = self.store.get(location_bounds_url(location))
-            (position, orientation) = heightmap.pack([container_cloud], item_cloud, [container_aabb])
-            logger.info('found placement in "{}"'.format(location))
-            logger.debug('{}, {}'.format(position, orientation))
+        # attempt the packing
+        (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None)
+        pack_location = locations[idx]
+        logger.info('found placement in "{}"'.format(pack_location))
+        logger.debug('{}, {}'.format(position, orientation))
 
-            # transform placement into world coordinate system
-            local_placement = xyz(*position) * rpy(0, 0, orientation * 180.0 / pi)
-            container_pose = self.store.get(location_pose_url(location))
-            world_placement = transform(container_pose, local_placement)
-
-            placements[location] = world_placement
+        # transform placement into world coordinate system
+        local_placement = xyz(*position) * rpy(0, 0, orientation * 180.0 / pi)
+        container_pose = self.store.get(location_pose_url(pack_location))
+        world_placement = transform(container_pose, local_placement)
 
         # store result
-        self.store.put('/robot/placements', placements)
+        self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})
 
         self.setOutcome(True)
         logger.info('find placement completed successfully')
