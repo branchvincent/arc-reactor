@@ -182,6 +182,10 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
             if name in ignore:
                 continue
 
+            if name == 'tcp':
+                # the TCP camera is part of the robot model
+                continue
+
             cam = _get_rigid_object(world, name, 'data/objects/sr300.stl')
             _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
 
