@@ -1,5 +1,5 @@
 {
-    "binC": {
+    "binA": {
         "pose": {
             "__numpy.matrix__": {
                 "dtype": "float64",
@@ -44,7 +44,7 @@
             ]
         ]
     },
-    "binA": {
+    "binC": {
         "pose": {
             "__numpy.matrix__": {
                 "dtype": "float64",
