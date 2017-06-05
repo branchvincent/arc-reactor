@@ -15,6 +15,8 @@ import json
 import copy
 from pensive.client import PensiveClient
 from motion.milestone import Milestone
+from master.world import numpy2klampt
+import numpy as np
 
 class Planner():
 
@@ -520,7 +522,7 @@ class StowPlanner(Planner):
         return self.motion_milestones
 
 
-    def place_shelf(self, item, target_box, target_index):
+    def place_shelf(self, item, T):#target_box, target_index):
         #initial setup
         self.current_config=self.robot.getConfig()
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
@@ -532,7 +534,10 @@ class StowPlanner(Planner):
         self.check_points.append(current_T)
 
         #get end point
-        drop_position = self.find_placement(target_box, target_index)
+        if isinstance(T, np.ndarray):
+            T = numpy2klampt(T)
+        drop_position = T[1]
+        # drop_position = self.find_placement(target_box, target_index)
         self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
 
         # while drop_position[0]*p[1]>p[0]*drop_position[1]:
@@ -553,8 +558,11 @@ class StowPlanner(Planner):
 
         start_T=copy.deepcopy(current_T)
         end_T=copy.deepcopy(current_T)
+        end_T[0] = T[0]
         end_T[1][0]=drop_position[0]
         end_T[1][1]=drop_position[1]
+        end_T[1][2]=start_T[1][2]
+        hover_T = copy.deepcopy(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
 
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
@@ -565,7 +573,10 @@ class StowPlanner(Planner):
         #lower the item
         drop_offset=item['drop offset']
         start_T=copy.deepcopy(end_T)
-        end_T[1]=vectorops.add(drop_position,drop_offset)
+        # HACK: not sure why need to subtract ee_local off here...
+        end_T[1][0]=drop_position[0]
+        end_T[1][1]=drop_position[1]
+        end_T[1][2]=drop_position[2] - self.ee_local[2]
         l=vectorops.distance(start_T[1],end_T[1])
 
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
@@ -574,11 +585,11 @@ class StowPlanner(Planner):
             raise RuntimeError("Can't find a feasible path to lower the item")
 
         #turn off the vacuum
-        self.motion_milestones.append(Milestone(1,self.robot.getConfig(),0))
+        self.motion_milestones.append(Milestone(3,self.robot.getConfig(),0))
 
         #raise the self.robot
         start_T=copy.deepcopy(end_T)
-        end_T[1][2]=0.45
+        end_T[1] = hover_T[1]
         l=vectorops.distance(start_T[1],end_T[1])
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,0,0,0)
         if not self.motion_milestones:

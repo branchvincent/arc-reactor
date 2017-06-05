@@ -222,20 +222,22 @@ def _load_vantage(store):
     # compute the bin vantage points
     for bin_name in store.get(['shelf', 'bin']).keys():
         bounds = store.get(['shelf', 'bin', bin_name, 'bounds'])
+        pose = store.get(['shelf', 'bin', bin_name, 'pose'])
 
-        # bin vantage reference is top of bin (Y up in local coordinates)
+        # bin vantage reference is top of bin (Z up in local coordinates)
         xmed = (bounds[0][0] + bounds[1][0])/2.0
-        ymax = max(bounds[0][1], bounds[1][1])
-        zmed = (bounds[0][2] + bounds[1][2])/2.0
+        ymed = (bounds[0][1] + bounds[1][1])/2.0
+        zmax = max(bounds[0][2], bounds[1][2])
 
         # calculate transform
-        T = xyz(xmed, ymax + 0.45, zmed - 0.025) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, pi/6, 0) * rpy(0, -0.2, 0)
-        store.put(['vantage', bin_name], T)
+        T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, pi/6, 0) * rpy(0, -0.2, 0) * rpy(0, pi/2, 0)
+        store.put(['vantage', bin_name], pose.dot(T))
 
     # compute the order box and tote vantage points
     for entity in ['box', 'tote']:
         for name in store.get([entity], {}).keys():
             bounds = store.get([entity, name, 'bounds'])
+            pose = store.get([entity, name, 'pose'])
 
             if not bounds:
                 continue
@@ -247,7 +249,7 @@ def _load_vantage(store):
 
             # calculate transform
             T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, -pi/15 - pi, 0) * rpy(0, 0, pi)
-            store.put(['vantage', '{}_{}'.format(name, entity)], T)
+            store.put(['vantage', '{}_{}'.format(name, entity)], pose.dot(T))
 
 def _dims2bb(dims):
     return [
@@ -329,8 +331,8 @@ def setup_workcell(store, workcell):
 
     # update bin poses
     shelf_pose = store.get('/shelf/pose')
-    for b in store.get('/shelf/bin').items():
-        store.put(['shelf', 'bin', b, 'pose'], shelf_pose.dot(b['pose']))
+    for (name, data) in store.get('/shelf/bin').items():
+        store.put(['shelf', 'bin', name, 'pose'], shelf_pose.dot(data['pose']))
 
 def setup_pick(store, location, order, workcell=None, keep=True):
     '''

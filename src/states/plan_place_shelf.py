@@ -9,95 +9,75 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanPlaceShelf(State):
     def run(self):
+        # Get item and grasp info
         item = self.store.get('/robot/selected_item')
-        box = self.store.get('/robot/selected_box')
-#        alg = self.store.get('/robot/task')
-#        print "item is ", item, " in box ", box
+        # grasp = self.store.get('/robot/target_grasp')
+        # TODO: add to db (defaults to vacuum for now)
+        gripper = self.store.get('/robot/active_gripper', 'vacuum').lower()
+        if gripper not in ['vacuum', 'mechanical']:
+            raise RuntimeError('unrecognized gripper "{}"'.format(gripper))
 
-#        if not alg: raise RuntimeError("Task undefined")
+        logger.info('planning route for "{}" to stow tote'.format(item))
 
-        location = self.store.get(['item', item, 'location'])
+        target_T = self.store.get(['robot', 'placement', 'pose'])
+        # Get item location (must be stow tote)
+        # location = self.store.get(['item', item, 'location'])
+        # if location not in ['stow_tote', 'stow tote']:
+        #     raise RuntimeError('unrecognized item location: "{}"'.format(location))
+        # reference_pose = self.store.get('/tote/stow/pose')
 
-        logger.info('planning route for "{}" to "{}"'.format(item, box))
+        # Calculate item bounding box
+        # NOTE: single point for now
+        self.world = build_world(self.store)
+        # bounding_box = [grasp['center'][0], grasp['center'][0]]
+        # self.store.put('/robot/target_bounding_box', bounding_box)
+        # logger.debug('item bounding box: {}'.format(bounding_box))
 
-        world = build_world(self.store)
-        self.world = world
-
-        item_pose_local = self.store.get(['item', item, 'pose'])
-        item_pc_local = self.store.get(['item', item, 'point_cloud'])
-
-#        if location.startswith('bin'):
-#            reference_pose = self.store.get('/shelf/pose')
-        if location in ['stow_tote', 'stow tote']:
-            reference_pose = self.store.get('/tote/stow/pose')
-        else:
-            raise RuntimeError('unrecognized item location: "{}"'.format(location))
-
-        item_pose_world = reference_pose.dot(item_pose_local)
-        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
-
-        bounding_box = [
-            [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
-            [item_pc_world[:, 0].max(), item_pc_world[:, 1].max(), item_pc_world[:, 2].max()]
-        ]
-        logger.debug('item bounding box: {}'.format(bounding_box))
-        # item_position = [item_pc_world[:, 0].mean(), item_pc_world[:, 1].mean(), item_pc_world[:, 2].max()]
-        # logger.info('item center top: {}'.format(item_position))
-
+        # Construct arguments for planner
         target_item = {
             # 'bbox': [item_position, item_position],
-            'bbox': bounding_box,
+            # 'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
             'drop offset': [0, 0, 0.1],
-        } #TODO make sure this info is in db, not stored locally here
+        } #TODO make sure this info is in db, not stored locally here. why are these values selected?
 
-        self.store.put('/robot/target_bounding_box', bounding_box)
+        # Compute pose
+        # pose = numpy.eye(4)
+        # # normal vector points along Z
+        # pose[:3, 2] = normalize(grasp['orientation'])
+        # pose[:3, 0] = normalize(numpy.cross(rotate(rpy(pi / 2, 0, 0), pose[:3, 2]), pose[:3, 2]))
+        # pose[:3, 1] = normalize(numpy.cross(pose[:3, 2], pose[:3, 0]))
+        # # position is grasp center
+        # pose[:3, 3] = grasp['center']
 
         # compute route
         try:
             if self.store.get('/test/skip_planning', False):
-                motion_plan = [(1,{'robot': self.store.get('/robot/current_config')})]
+                motion_plan = [(1, {'robot': self.store.get('/robot/current_config')})]
                 logger.warn('skipped motion planning for testing')
-
-            else:
-                # XXX: this will actually need to be a shelf location eventually...
-
-                planner = StowPlanner(self.world, self.store)
-
-                shelf_pose = self.store.get(['shelf', 'pose'])
-                from master.world import xyz
-
-                target_bin = self.store.get(['robot', 'selected_bin'])
-                bin_pose_local = self.store.get(['shelf', 'bin', target_bin, 'pose'])
-                bin_pose_world = shelf_pose.dot(bin_pose_local)
-
-                bin_bounds_local = numpy.array(self.store.get(['shelf', 'bin', target_bin, 'bounds'])).T
-                bin_bounds_world = bin_pose_world[:3,:3].dot(bin_bounds_local) + bin_pose_world[:3, 3]
-                bin_target_world = numpy.matrix([bin_bounds_world[0].mean(), bin_bounds_world[1].mean(), bin_bounds_world[2].max()]).T
-
-                target_box = {
-                    'position': list(bin_target_world.flat),
-                    'drop position': list(bin_target_world.flat)
-                }
-                #target_box["box_limit"]=[[-0.2144207123374089, 0.55756321667681634, 0.02],[0.05442071233740891, 0.7024367833231837, 0.42065000000000001]]
-               
+            elif gripper == 'vacuum':
                 logger.info('requesting stow motion plan')
-                self.arguments = {'target_item': target_item, 'target_box': target_box}
+                self.arguments = {'target_item': target_item}
                 logger.debug('arguments\n{}'.format(self.arguments))
+                planner = StowPlanner(self.world, self.store)
+                motion_plan = planner.place_shelf(target_item, target_T)
+            else: #mechanical
+                #TODO: develop planner for mechanical gripper
+                raise NotImplementedError('Mechanical gripper planner does not exist')
 
-                motion_plan = planner.place_shelf(target_item, target_box, "item_"+item)
-
-            if not motion_plan:
+            # Check motion plan
+            if motion_plan is None:
+                self.setOutcome(False)
                 raise RuntimeError('motion plan is empty')
+            else:
+                milestone_map = [m.get_milestone() for m in motion_plan]
+                self.store.put('/robot/waypoints', milestone_map)
+                self.store.put('/robot/timestamp', time())
+                self.setOutcome(True)
+                logger.info('Route generated')
         except Exception:
             self.setOutcome(False)
             logger.exception('Failed to generate motion plan')
-        else:
-            milestone_map = [m.get_milestone() for m in motion_plan]
-            self.store.put('/robot/waypoints', milestone_map)
-            self.setOutcome(True)
-            self.store.put('/robot/timestamp', time())
-            logger.info('Route generated')
 
 if __name__ == '__main__':
     import argparse
