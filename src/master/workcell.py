@@ -247,7 +247,7 @@ def _load_vantage(store):
 
             # calculate transform
             T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, -pi/15 - pi, 0) * rpy(0, 0, pi)
-            store.put(['vantage', name], T)
+            store.put(['vantage', '{}_{}'.format(name, entity)], T)
 
 def _dims2bb(dims):
     return [
