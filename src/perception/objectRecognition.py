@@ -1,24 +1,14 @@
 import numpy as np
 import math
 import sys
-sys.path.append('..')
-import deepLearning as dl
+import perception.deepLearning as dl
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
 from time import sleep
 import json
 # configure the root logger to accept all records
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.NOTSET)
-
-formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
-
-# set up colored logging to console
-from rainbow_logging_handler import RainbowLoggingHandler
-console_handler = RainbowLoggingHandler(sys.stderr)
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+logger = logging.getLogger(__name__)
 
 class ObjectRecognition:
 

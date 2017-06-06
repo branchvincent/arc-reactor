@@ -1,4 +1,4 @@
-import realsense as rs
+from . import realsense as rs
 import numpy as np
 import time
 import logging
