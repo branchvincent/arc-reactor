@@ -179,10 +179,14 @@ class WorldViewerWindow(QMainWindow):
 
     def approve_plan(self, value):
         self.approved = True
+        self.ui.approve_button.setChecked(self.approved)
+        self.ui.reject_button.setChecked(not self.approved)
         logger.warn('user approved plan')
 
     def reject_plan(self):
         self.approved = False
+        self.ui.approve_button.setChecked(self.approved)
+        self.ui.reject_button.setChecked(not self.approved)
         logger.warn('user rejected plan')
 
     def toggle_pause(self):
