@@ -7,7 +7,10 @@ class InspectItem(State):
         #do stuff
 
         #and then set up where to go next
-        self.store.put('/robot/target_location', self.target_bin)
+        task = self.store.get('/robot/task', 'stow')
+        if task == 'stow':
+            self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
+        else: self.store.put('/robot/target_locations', 'stow_tote')
         self.setOutcome(True)
 
 
