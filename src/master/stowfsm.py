@@ -9,12 +9,15 @@ from states.check_item import CheckItem
 from states.check_select_item import CheckSelectItem
 from states.check_route import CheckRoute
 from states.plan_view_location import PlanViewLocation
-from states.capture_photo import CapturePhoto
+from states.capture_photo_stow import CapturePhotoStow
+from states.capture_photo_inspect import CapturePhotoInspect
+from states.capture_photo_bin import CapturePhotoBin
 from states.segment_photo import SegmentPhoto
 from states.recognize_photo import RecognizePhoto
 from states.evaluate_grasp import EvaluateGrasp
 from states.evaluate_placement import EvaluatePlacement
 from states.read_scales import ReadScales
+from states.inspect_item import InspectItem
 
 class StowStateMachine(StateMachine):
 
@@ -48,7 +51,7 @@ class StowStateMachine(StateMachine):
     def getStartState(self):
         #TODO put this action in separate state?
         self.store.put('/robot/target_location', 'stow_tote')
-        return 'cp'
+        return 'cps'
         #return 'si'
 
     def setupTransitions(self):
@@ -61,17 +64,18 @@ class StowStateMachine(StateMachine):
         self.setTransition('psg', 'er1', 'si', checkState='cr1')
         self.setTransition('cr1', 'er1', 'psg')
         self.setTransition('er1', 'cpi', 'psg')
-        self.setTransition('cpi', 'sp2', 'cpi')
-        self.setTransition('sp2', 'ii', 'sp2')
+        self.setTransition('cpi', 'ii', 'cpi')
+        #self.setTransition('sp2', 'ii', 'sp2')
         self.setTransition('ii', 'ep', 'ii')
-        #self.setTransition('pvl', 'er3', 'si', checkState='cr3') #TODO similar for failed route planning
-        #self.setTransition('er3', 'ep', 'pvl')
         self.setTransition('ep', 'pps', 'ep') #TODO need failure analysis
         self.setTransition('pps', 'er2', 'si', checkState='cr2')
         self.setTransition('cr2', 'er2', 'pps')
         self.setTransition('er2', 'rs', 'pps')
         self.setTransition('rs', 'ci', 'ci') #TODO handler for failed read scales
-        self.setTransition('ci', 'cpb', 'ci') #TODO handler for failed check item
+        self.setTransition('ci', 'pvl', 'ci') #TODO handler for failed check item
+        self.setTransition('pvl', 'er3', 'pvl', checkState='cr3') #TODO similar for failed route planning
+        self.setTransition('cr3', 'er3', 'pvl')
+        self.setTransition('er3', 'cpb', 'pvl')
         self.setTransition('cpb', 'cps', 'cpb')
 
     def isDone(self):
