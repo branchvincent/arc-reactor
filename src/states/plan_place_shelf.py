@@ -38,7 +38,7 @@ class PlanPlaceShelf(State):
             # 'bbox': [item_position, item_position],
             # 'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
-            'drop offset': [0, 0, 0.1],
+            'drop offset': [0, 0, 0.05],
         } #TODO make sure this info is in db, not stored locally here. why are these values selected?
 
         # Compute pose

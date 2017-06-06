@@ -50,7 +50,7 @@ class PlanStowGrab(State):
         target_item = {
             # 'bbox': [item_position, item_position],
             'bbox': bounding_box,
-            'vacuum_offset': [0, 0, -0.01],
+            'vacuum_offset': [0, 0, -0.02],
             'drop offset': [0, 0, 0.1],
         } #TODO make sure this info is in db, not stored locally here. why are these values selected?
 
