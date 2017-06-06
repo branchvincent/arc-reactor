@@ -6,7 +6,6 @@ class InspectItem(State):
 
         #do stuff
 
-
         #and then set up where to go next
         self.store.put('/robot/target_location', self.target_bin)
         self.setOutcome(True)

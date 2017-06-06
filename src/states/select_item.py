@@ -16,10 +16,7 @@ class SelectItem(State):
             self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
 
         elif self.alg == 'stow':
-            # XXX: copied from picking for testing purposes
-            #self.chosenItem = self.itemList.keys()[0]
-            #self.points =
-
+           
             self.url = self.store.get('/robot/target_photo_url')
 
             # get graspability vector from photo-url vacuum_grasps

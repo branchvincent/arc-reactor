@@ -20,9 +20,14 @@ class StowStateMachine(StateMachine):
 
     def loadStates(self):
         #self.add('fa', FindAll('fa', store=self.store))
-        self.add('cp', CapturePhoto('cp', store=self.store))
-        self.add('sp', SegmentPhoto('sp', store=self.store))
+        self.add('cps', CapturePhotoStow('cps', store=self.store))
+        self.add('cpi', CapturePhotoInspect('cpi', store=self.store))
+        self.add('cpb', CapturePhotoBin('cpb', store=self.store))
+        self.add('sp1', SegmentPhoto('sp1', store=self.store))
+        self.add('sp2', SegmentPhoto('sp2', store=self.store))
+        self.add('sp3', SegmentPhoto('sp3', store=self.store))
         self.add('rp', RecognizePhoto('rp', store=self.store))
+        self.add('ii', InspectItem('ii', store=self.store))
         self.add('eg', EvaluateGrasp('eg', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
         #self.add('fi', FindItem('fi', store=self.store))
@@ -47,24 +52,27 @@ class StowStateMachine(StateMachine):
         #return 'si'
 
     def setupTransitions(self):
-        self.setTransition('cp', 'sp', 'cp')
-        self.setTransition('sp', 'rp', 'sp') #TODO make handler for these failed states (hardware)
+        self.setTransition('cps', 'sp1', 'cps')
+        self.setTransition('sp1', 'rp', 'sp1') #TODO make handler for these failed states (hardware)
         self.setTransition('rp', 'eg', 'rp')
         self.setTransition('eg', 'si', 'eg')
         self.setTransition('si', 'psg', 'si', checkState='csi')
         self.setTransition('csi', 'psg', 'si')
         self.setTransition('psg', 'er1', 'si', checkState='cr1')
         self.setTransition('cr1', 'er1', 'psg')
-        self.setTransition('er1', 'pvl', 'psg')
-        self.setTransition('pvl', 'er3', 'si', checkState='cr3') #TODO similar for failed route planning
-        self.setTransition('er3', 'ep', 'pvl')
+        self.setTransition('er1', 'cpi', 'psg')
+        self.setTransition('cpi', 'sp2', 'cpi')
+        self.setTransition('sp2', 'ii', 'sp2')
+        self.setTransition('ii', 'ep', 'ii')
+        #self.setTransition('pvl', 'er3', 'si', checkState='cr3') #TODO similar for failed route planning
+        #self.setTransition('er3', 'ep', 'pvl')
         self.setTransition('ep', 'pps', 'ep') #TODO need failure analysis
         self.setTransition('pps', 'er2', 'si', checkState='cr2')
         self.setTransition('cr2', 'er2', 'pps')
         self.setTransition('er2', 'rs', 'pps')
         self.setTransition('rs', 'ci', 'ci') #TODO handler for failed read scales
-        self.setTransition('ci', 'pvl', 'ci') #TODO handler for failed check item
-        self.setTransition(' 
+        self.setTransition('ci', 'cpb', 'ci') #TODO handler for failed check item
+        self.setTransition('cpb', 'cps', 'cpb')
 
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write
