@@ -94,14 +94,16 @@ class LinearPlanner:
 
 
 class TimeScale:
-    def __init__(self, robot, type='linear', freq=20):
+    def __init__(self, robot, type='cubic', freq=20):
         self.robot = robot
         self.vmax = robot.getVelocityLimits()
         self.amax = robot.getAccelerationLimits()
         #HACK: incorrect a,v limits?
-        k = 8
-        self.vmax = [k*math.radians(vi) for vi in self.vmax]
-        self.amax = [k*math.radians(ai) for ai in self.amax]
+        # k = 8
+        # self.vmax = [k*math.radians(vi) for vi in self.vmax]
+        # self.amax = [k*math.radians(ai) for ai in self.amax]
+        self.vmax = [math.radians(60)]*len(self.vmax)
+        self.amax = [math.radians(60)]*len(self.amax)
         self.type = type
         self.freq = freq
         if self.type not in ['linear', 'cubic']:
@@ -123,7 +125,7 @@ class TimeScale:
             r = t/tf
         elif self.type == 'cubic':
             r = 3*(t/tf)**2 - 2*(t/tf)**3
-        return vops.add(q0, vops.mul(D, t/tf))
+        return vops.add(q0, vops.mul(D, r))
 
     def getMilestones(self, q0, qf):
         milestones = []
@@ -153,5 +155,5 @@ if __name__ == "__main__":
     s = PensiveClient().default()
     p = LinearPlanner()
     T = s.get('robot/inspect_pose')
-    q = p.getDesiredConfig(T)
-    p.interpolate(q=q)
+    # q = p.getDesiredConfig(T)
+    p.interpolate(T=T)
