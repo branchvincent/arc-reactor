@@ -66,10 +66,11 @@ class EvaluateGrasp(State):
         grasps = vacuum.compute(local_point_cloud, object_masks, aligned_color=full_color)
         #TODO create pass/fail criteria
 
-        for grasp in grasps:
+        for (i, grasp) in enumerate(grasps):
             grasp['segment_id'] = self.find_segment_by_point(local_point_cloud, labeled_image, grasp['center'])
             grasp['center'] = transform(bounds_pose, grasp['center'])
             grasp['orientation'] = rotate(bounds_pose, grasp['orientation'][:3])
+            grasp['index'] = i
 
         logger.info('found {} grasps'.format(len(grasps)))
         logger.debug('{}'.format(grasps))
