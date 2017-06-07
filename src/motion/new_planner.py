@@ -92,7 +92,7 @@ class Planner():
         return motion_milestones
 
     def check_placement(self,world,T,target_index):
-#only for item placement checking
+        #only for item placement checking
         world.rigidObject(target_index).setTransform(T[0],T[1])
         glist_target=[]
         glist_target.append(world.rigidObject(target_index).geometry())
@@ -493,12 +493,13 @@ class StowPlanner(Planner):
         if not self.motion_milestones:
             raise RuntimeError("Can't find a feasible path to pick up the item")
 
-#find and move to the inspection station
+        #find and move to the inspection station
         inspection_pose = self.store.get('/robot/inspect_pose');
         inspect_position = inspection_pose[:3,3]
 
-        curr_orientation,p=self.robot.link(self.ee_link).getTransform()
-        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,inspect_position,self.robot,1)
+        # NOTE: skip indirect motion to inspection station
+        # curr_orientation,p=self.robot.link(self.ee_link).getTransform()
+        # self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,inspect_position,self.robot,1)
 
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
