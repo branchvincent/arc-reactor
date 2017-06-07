@@ -4,7 +4,7 @@ import numpy
 
 from master.fsm import State
 
-from grasp.vacuum.evaluate import rate_plane
+from grasp import vacuum
 
 from util.math_helpers import transform, rotate, crop_with_aabb
 from util.location import location_bounds_url, location_pose_url
@@ -63,8 +63,7 @@ class EvaluateGrasp(State):
         logger.info('generated {} object masks'.format(len(object_masks)))
 
         # do not mask the full cloud because it must be structured
-        #grasps = vacuum.compute(local_point_cloud, object_masks, aligned_color=full_color)
-        grasps = rate_plane(local_point_cloud, masks=object_masks, img=full_color)
+        grasps = vacuum.compute(local_point_cloud, masks=object_masks, img=full_color)
         #TODO create pass/fail criteria
 
         for (i, grasp) in enumerate(grasps):
