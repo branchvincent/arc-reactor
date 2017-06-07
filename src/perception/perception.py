@@ -1,12 +1,9 @@
 import numpy as np
 import math
 import sys
-sys.path.append('../hardware/SR300/')
-sys.path.append('..')
-from depthCamera import DepthCameras
-import realsense as rs
-import segmentation
-import deepLearning as dl
+from hardware.SR300.depthCamera import DepthCameras
+import hardware.SR300.realsense as rs
+from . import segmentation
 import cv2
 import os
 import scipy.misc

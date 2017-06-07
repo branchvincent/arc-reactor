@@ -51,6 +51,8 @@ class EvaluatePlacement(State):
         # store result
         self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})
 
+        self.store.put('/robot/target_bin', pack_location)
+        self.store.put('/robot/target_location', pack_location)
         self.setOutcome(True)
         logger.info('find placement completed successfully')
 
@@ -113,6 +115,9 @@ class EvaluatePlacement(State):
         logger.info('using photo "{}" for location "{}"'.format(photo_url, location))
 
         photo_pose = self.store.get(photo_url + ['pose'])
+        if photo_pose is None:
+            return numpy.array([]).reshape((0, 3))
+
         container_pose = self.store.get(location_pose_url(location))
         container_aabb = self.store.get(location_bounds_url(location))
 

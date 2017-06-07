@@ -8,7 +8,7 @@ from perception import acquire_images
 
 from .common.capture_photo import capture_photo_handler
 
-class CapturePhotoStowTote(State):
+class CapturePhotoStow(State):
     '''
     Outputs: /robot/target_location <- 'stow_tote'
 
@@ -33,5 +33,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'cpst')
-    CapturePhotoStowTote(myname).run()
+    myname = (args.name or 'cps')
+    CapturePhotoStow(myname).run()

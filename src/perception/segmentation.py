@@ -1,21 +1,10 @@
 import numpy as np
 import cv2
 import sys
-sys.path.append('..')
-from normals.normals import compute_normals
-# configure the root logger to accept all records
+from .normals.normals import compute_normals
 import time
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.NOTSET)
-
-formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
-
-# set up colored logging to console
-from rainbow_logging_handler import RainbowLoggingHandler
-console_handler = RainbowLoggingHandler(sys.stderr)
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+logger = logging.getLogger(__name__)
 
 
 def maskRect(topleft, topright, botright, image):

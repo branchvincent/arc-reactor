@@ -66,6 +66,7 @@ class Ui_MotionPlanWindow(object):
         self.approve_button.setStyleSheet(_fromUtf8("color: green;\n"
 ""))
         self.approve_button.setObjectName(_fromUtf8("approve_button"))
+        self.approve_button.setCheckable(True)
         self.horizontalLayout_2.addWidget(self.approve_button)
         self.reject_button = QtGui.QPushButton(self.widget)
         font = QtGui.QFont()
@@ -74,6 +75,7 @@ class Ui_MotionPlanWindow(object):
         self.reject_button.setFont(font)
         self.reject_button.setStyleSheet(_fromUtf8("color: red;"))
         self.reject_button.setObjectName(_fromUtf8("reject_button"))
+        self.reject_button.setCheckable(True)
         self.horizontalLayout_2.addWidget(self.reject_button)
         self.verticalLayout.addWidget(self.widget)
         self.checker_results = QtGui.QPlainTextEdit(self.centralwidget)

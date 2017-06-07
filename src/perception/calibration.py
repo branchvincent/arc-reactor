@@ -7,27 +7,12 @@ import logging
 from scipy import optimize
 from multiprocessing import Lock
 import sys
-sys.path.append('../hardware/SR300/')
 import time
-import realsense as rs
-#for when we want to read the current position of the robot from the server
-sys.path.append('../')
+import hardware.SR300.realsense as rs
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
-
-
 logger = logging.getLogger(__name__)
-# configure the root logger to accept all records
-logger = logging.getLogger()
-logger.setLevel(logging.NOTSET)
 
-formatter = logging.Formatter('%(asctime)s\t[%(name)s] %(pathname)s:%(lineno)d\t%(levelname)s:\t%(message)s')
-
-# set up colored logging to console
-from rainbow_logging_handler import RainbowLoggingHandler
-console_handler = RainbowLoggingHandler(sys.stderr)
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
 
 class RealsenseCalibration(QtWidgets.QWidget):
     def __init__(self):
