@@ -7,10 +7,14 @@ class InspectItem(State):
         #do stuff
 
         #and then set up where to go next
-        task = self.store.get('/robot/task', 'stow')
-        if task == 'stow':
+        task = self.store.get('/robot/task')
+        if task is None:
+            raise RuntimeError("No task defined")
+        elif task == 'stow':
             self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
-        else: self.store.put('/robot/target_locations', 'stow_tote')
+        elif task=='pick':
+            self.store.put('/robot/target_locations', self.store.get('/robot/selected_box'))
+
         self.setOutcome(True)
 
 

@@ -22,6 +22,7 @@ class PickStateMachine(StateMachine):
         self.add('pvla', PlanViewLocation('pvla', store=self.store))
         self.add('pvlb', PlanViewLocation('pvlb', store=self.store))
         self.add('pvlc', PlanViewLocation('pvlc', store=self.store))
+        self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('cpba', CapturePhotoBin('cpba', store=self.store))
         self.add('cpbb', CapturePhotoBin('cpbb', store=self.store))
         self.add('cpbc', CapturePhotoBin('cpbc', store=self.store))
@@ -37,6 +38,8 @@ class PickStateMachine(StateMachine):
         self.add('csi', CheckSelectItem('csi', store=self.store))
         self.add('cr2', CheckRoute('cr2', store=self.store))
         self.add('cr3', CheckRoute('cr3', store=self.store))
+        self.add('cr4', CheckRoute('cr4', store=self.store))
+        self.add('cr5', CheckRoute('cr5', store=self.store))
         self.add('er3', ExecRoute('er3', store=self.store))
         self.add('sp1', SegmentPhoto('sp1', store=self.store))
         self.add('sp2', SegmentPhoto('sp2', store=self.store))
@@ -50,37 +53,43 @@ class PickStateMachine(StateMachine):
         return 'pvla'
 
     def setupTransitions(self):
+        #initial look. only needs to run once...
         self.setTransition('pvla', 'er1', 'pvla', checkState='cr1')
         self.setTransition('cr1', 'er1', 'pvla')
         self.setTransition('er1', 'cpba', 'pvla')
-        self.setTransition('cpba', 'sp1', 'cpba')
-        self.setTransition('sp1', 'rp1', 'sp1')
-        self.setTransition('rp1', 'pvlb', 'rp1')
+        self.setTransition('cpba', 'pvlb', 'cpba')
 
         self.setTransition('pvlb', 'er2', 'pvlb', checkState='cr2')
         self.setTransition('cr2', 'er2', 'pvlb')
         self.setTransition('er2', 'cpbb', 'pvlb')
-        self.setTransition('cpbb', 'sp2', 'cpbb')
-        self.setTransition('sp2', 'rp2', 'sp2')
-        self.setTransition('rp2', 'pvlc', 'rp2')
+        self.setTransition('cpbb', 'pvlc', 'cpbb')
 
         self.setTransition('pvlc', 'er3', 'pvlc', checkState='cr3')
         self.setTransition('cr3', 'er3', 'pvlc')
         self.setTransition('er3', 'cpbc', 'pvlc')
-        self.setTransition('cpbc', 'sp3', 'cpbc')
-        self.setTransition('sp3', 'rp3', 'sp3')
-        self.setTransition('rp3', 'si', 'rp3')
+        self.setTransition('cpbc', 'sp', 'cpbc')
 
-        self.setTransition('si', 'fi', 'si', checkState='csi')
-        self.setTransition('csi', 'fi', 'si')
-        self.setTransition('fi', 'ppi', 'csi')
-        self.setTransition('ppi', 'er1', 'fi', checkState='cr1')
-        self.setTransition('cr1', 'er1', 'ppi')
-        self.setTransition('er1', 'ppb', 'fi')
-        self.setTransition('ppb', 'er2', 'fi', checkState='cr2')
-        self.setTransition('cr2', 'er2', 'ppb')
-        self.setTransition('er2', 'ci', 'fi')
-        self.setTransition('ci', 'si', 'fi')
+        #then loop to updated pvlXXX and capture
+        self.setTransition('sp', 'rp', 'sp')
+        self.setTransition('rp', 'eg', 'rp')
+        self.setTransition('eg', 'si', 'eg')
+
+        self.setTransition('si', 'ppi', 'si', checkState='csi')
+        self.setTransition('csi', 'ppi', 'si')
+        self.setTransition('ppi', 'er4', 'ppi', checkState='cr4')
+        self.setTransition('cr4', 'er4', 'ppi')
+        self.setTransition('er4', 'ii', 'ppi')
+        self.setTransition('ii', 'ep', 'ii')
+        self.setTransition('ep', 'ppb', 'ep')
+        self.setTransition('ppb', 'er5', 'ppb', checkState='cr5')
+        self.setTransition('cr5', 'er5', 'ppb')
+        self.setTransition('er5', 'cpx', 'ppb')
+        self.setTransition('cpx', 'spx', 'cpx')
+        self.setTransition('spx', 'rpx', 'spx')
+        self.setTransition('rpx', 'ci', 'rpx') 
+        self.setTransition('ci', 'pvl', 'ci')
+        self.setTransition('pvl', 'cpbx', 'pvl')
+        self.setTransition('cpbx', 'sp', 'cpbx')
 
     def isDone(self):
         #if all items picked, all their point values are 0. Need to re-write
@@ -111,7 +120,7 @@ def runPickFSM():
     pick.store.put('/simulate/object_detection', True)
     pick.store.put('/simulate/cameras', True)
 
-    pick.setCurrentState('si')
+    pick.setCurrentState(pick.getStartState())
 
     pick.runStep()
     while(not pick.isDone()): pick.runOrdered(pick.getCurrentState())

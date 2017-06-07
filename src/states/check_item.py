@@ -33,6 +33,9 @@ class CheckItem(State):
                         self.points = (20 if self.store.get('/item/'+i+'/new_item') else 10)
                         self.points += 10/(self.number-len(self.filled))
                         self.store.put('/item/'+i+'/point_value', self.points)
+
+        elif alg=="stow":
+            #update location file
             
         self.setOutcome(True)
 
