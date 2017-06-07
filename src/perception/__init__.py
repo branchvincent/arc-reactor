@@ -7,10 +7,8 @@ from time import sleep
 
 logger = logging.getLogger(__name__)
 
-BASE_PATH = os.path.abspath(os.path.dirname(__file__))
-
 def _build_command(name):
-    return ['python3', os.path.join(BASE_PATH, 'perception.py'), '-f', name]
+    return ['python3', 'reactor', 'shell', 'perception.perception', '-f', name]
 
 def _build_args(prefix, args):
     return [prefix] + [str(a) for a in args]
@@ -20,7 +18,7 @@ def initialize_cameras(serials):
     args += _build_args('-sn', serials)
 
     logger.debug('invoking camera initialization: {}'.format(args))
-    check_call(args, cwd=BASE_PATH)
+    check_call(args)
 
 def acquire_images(serials, photo_urls):
     args = _build_command('acquire_images')
@@ -28,7 +26,7 @@ def acquire_images(serials, photo_urls):
     args += _build_args('-u', photo_urls)
 
     logger.debug('invoking camera acquisition: {}'.format(args))
-    check_call(args, cwd=BASE_PATH)
+    check_call(args)
 
 def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
     args = _build_command('segment_images')
@@ -37,7 +35,7 @@ def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
     args += _build_args('-x', bounds_pose_urls)
 
     logger.debug('invoking image segmentation: {}'.format(args))
-    check_call(args, cwd=BASE_PATH)
+    check_call(args)
 
 def recognize_objects(store, photo_urls, locations):
     # wait for prior recognition to end
