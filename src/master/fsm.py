@@ -53,7 +53,7 @@ class Transition():
             if self.checkState is None:
                 raise RuntimeError("Checkpoint asked for, but state is non-existent")
             return self.checkState.upper()
-        else: 
+        else:
             return self.toState
 
 class StateMachine():
@@ -140,7 +140,7 @@ class StateMachine():
 
         self.pastEvents.append(self.current)
         self.pastStorage.append(histStore)
-        
+
     def getLast(self):
         lastEvent = self.pastEvents.pop()
         self.pastStore = self.pastStorage.pop()
@@ -170,7 +170,7 @@ class StateMachine():
 
         self.setCurrentState(nameInit)
         #self.removeHistory() #TODO change this for runAll application?
-        
+
         while (self.current not in self.finStates) and (not self.store.get('/robot/stop_flag', False)):
             self.runStep()
 
@@ -185,7 +185,7 @@ class StateMachine():
         self.runCurrent()
 
         self.decideState = self.transitions[self.getCurrentState()].decideTransition()
-        self.setCurrentState(self.decideState)  
+        self.setCurrentState(self.decideState)
 
     def backStep(self):
         if not self.getCurrentState():

@@ -23,12 +23,20 @@ class CapturePhotoBin(State):
     '''
 
     def run(self):
+
         location = self.store.get('/robot/target_bin')
+
+        print "got location: ", location
 
         self.store.put('/robot/target_location', location)
         capture_photo_handler(self.store, location)
 
         self.setOutcome(True)
+
+    def setBin(self, myname):
+        if len(myname) == 4:
+            print "Taking photo of ", 'bin'+myname[-1].upper()
+            self.store.put('/robot/target_bin', 'bin'+myname[-1].upper())
 
 if __name__ == '__main__':
     import argparse
@@ -36,4 +44,6 @@ if __name__ == '__main__':
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
     myname = (args.name or 'cpb')
-    CapturePhotoBin(myname).run()
+    CPB = CapturePhotoBin(myname)
+    CPB.setBin(myname)
+    CPB.run()

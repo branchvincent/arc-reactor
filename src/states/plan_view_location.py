@@ -23,11 +23,24 @@ class PlanViewLocation(State):
             lp.interpolate(T=T)
             self.setOutcome(True)
 
+    def setLoc(self, myname):
+        if len(myname) == 4:
+            print "Moving to ", 'bin'+myname[-1].upper()
+            self.store.put('/robot/target_location', 'bin'+myname[-1].upper())
+        elif len(myname) == 5:
+            if myname[-2:]=='st':
+                print "Moving to stow tote"
+                self.store.put('/robot/target_location', 'stow_tote')
+            elif myname[-2:]=='at':
+                print "Moving to amnesty tote"
+                self.store.put('/robot/target_location', 'amnesty_tote')
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
     myname = (args.name or 'pvl')
-    PlanViewLocation(myname).run()
-
+    PVL = PlanViewLocation(myname)
+    PVL.setLoc(myname)
+    PVL.run()
