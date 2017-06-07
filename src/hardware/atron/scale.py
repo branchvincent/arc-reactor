@@ -30,16 +30,16 @@ class Scale:
         self.close()
 
     def open(self):
-        if not self.serial.is_open:
+        if not self._simulated() and not self.serial.is_open:
             self.serial.open()
 
     def close(self):
-         if self.serial.is_open:
+         if not self._simulated() and self.serial.is_open:
             self.serial.close()
 
     def read(self):
         # Read simulated or actual
-        if self.serial is None:
+        if self._simulated():
             return -1
         else:
             weight = self.command(WEIGH, read=True)
@@ -47,7 +47,7 @@ class Scale:
 
     def tare(self):
         # Tare, if not simulated
-        if self.serial is not None:
+        if not self._simulated():
             self.command(ZERO)
 
     def command(self, cmd, read=False):
@@ -64,10 +64,13 @@ class Scale:
         self.close()
         return val
 
-def debug():
+    def _simulated(self):
+        return self.serial is None
+
+def debug(scale):
     import time
-    s = Scale('/dev/ttyUSB1')
-    ser = s.serial
+    ser = scale.serial
+    scale.open()
     print 'Enter your commands below.\r\nInsert "exit" to leave the application.'
 
     input=1
@@ -90,6 +93,7 @@ def debug():
 if __name__ == '__main__':
     s = Scale('/dev/ttyUSB1')
     s.tare()
+    # debug(s)
     # weight = s.read()
     # print "Weight: {} kg".format(weight)
 
