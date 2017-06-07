@@ -11,7 +11,7 @@ class PlanPickItem(State):
 
     def run(self):
         item = self.store.get('/robot/selected_item')
-        box = self.store.get('/robot/target_box')
+        bin = self.store.get('/robot/target_bin')
 
         # Get item and grasp info
         item = self.store.get('/robot/selected_item')
@@ -21,7 +21,7 @@ class PlanPickItem(State):
         if gripper not in ['vacuum', 'mechanical']:
             raise RuntimeError('unrecognized gripper "{}"'.format(gripper))
 
-        logger.info('planning route for "{}" to "{}"'.format(item, box))
+        logger.info('planning route for "{}" to "{}"'.format(item, bin))
 
         # Get item location (must be a bin)
         location = self.store.get(['item', item, 'location'])
@@ -41,7 +41,7 @@ class PlanPickItem(State):
             'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
             'drop offset': [0, 0, 0.1]
-            # 'box_limit': self.store.get('/box/'+box+'/bounds')
+            # 'box_limit': self.store.get(['box', box, 'bounds'])
         } #TODO make sure this info is in db, not stored locally here. why are these values selected?
 
         # compute route
