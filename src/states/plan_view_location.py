@@ -7,20 +7,18 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class PlanViewLocation(State):
     def run(self):
         # Get location
-        # item = self.store.get('robot/selected_item')
-        # location = self.store.get(['item',item,'location'])
         self.loc_name = self.store.get('/robot/target_location')
-        self.store.put('/robot/target_xform', self.store.get('/vantage/'+self.loc_name))
-        T = self.store.get('/robot/target_xform')
+        vantage_T = self.store.get(['vantage', self.loc_name])
+        self.store.put('/robot/target_xform', vantage_T)
+        # T = self.store.get('/robot/target_xform') # or /robot/vantage_url?
 
-        if T is None:
+        if vantage_T is None:
             self.setOutcome(False)
             raise RuntimeError("no target is set to view")
-
         else:
             # Plan route
             lp = LinearPlanner()
-            lp.interpolate(T=T)
+            lp.interpolate(T=vantage_T)
             self.setOutcome(True)
 
     def setLoc(self, myname):
