@@ -24,7 +24,7 @@ class CapturePhotoStow(State):
 
     def run(self):
         self.store.put('/robot/target_location', 'stow_tote')
-        capture_photo_handler(self.store, 'stow_tote')
+        capture_photo_handler(self.store, ['stow_tote'])
 
         self.setOutcome(True)
 

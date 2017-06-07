@@ -29,7 +29,7 @@ class CapturePhotoBin(State):
         print "got location: ", location
 
         self.store.put('/robot/target_location', location)
-        capture_photo_handler(self.store, location)
+        capture_photo_handler(self.store, [location])
 
         self.setOutcome(True)
 
