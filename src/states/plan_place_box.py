@@ -8,89 +8,75 @@ from motion.new_planner import PickPlanner
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanPlaceBox(State):
+
     def run(self):
+        # Get item info
         item = self.store.get('/robot/selected_item')
-        box = self.store.get('/robot/selected_box')
-        #alg = self.store.get('/robot/task')
-        print "item is ", item, " in box ", box
+        # TODO: add to db (defaults to vacuum for now)
+        gripper = self.store.get('/robot/active_gripper', 'vacuum').lower()
+        if gripper not in ['vacuum', 'mechanical']:
+            raise RuntimeError('unrecognized gripper "{}"'.format(gripper))
 
-        #if not alg: raise RuntimeError("Task undefined")
-# for pick task, place item in box portion of the planner
+        # Get target location (must be a box)
+        box = self.store.get('/robot/target_box')
+        if not box.startswith('box'):
+            raise RuntimeError('unrecognized box: "{}"'.format(box))
+        reference_pose = self.store.get(['box', box, 'pose'])
+        reference_bounds = self.store.get(['box', box, 'bounds'])
 
-        location = self.store.get(['item', item, 'location'])
         logger.info('planning route for "{}" to "{}"'.format(item, box))
 
-        world = build_world(self.store)
-        self.world = world
+        # Calculate item bounding box
+        # NOTE: single point for now
+        self.world = build_world(self.store)
+        # bounding_box = [grasp['center'][0]] * 2
+        # self.store.put('/robot/target_bounding_box', bounding_box)
+        # logger.debug('item bounding box: {}'.format(bounding_box))
 
-        item_pose_local = self.store.get(['item', item, 'pose'])
-        item_pc_local = self.store.get(['item', item, 'point_cloud'])
-
-        if location.startswith('bin'):
-            reference_pose = self.store.get('/shelf/pose')
-       # elif location in ['stow_tote', 'stow tote']:
-       #     reference_pose = self.store.get('/tote/stow/pose')
-       # else:
-       #     raise RuntimeError('unrecognized item location: "{}"'.format(location))
-
-        item_pose_world = reference_pose.dot(item_pose_local)
-        item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
-
-        bounding_box = [
-            [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
-            [item_pc_world[:, 0].max(), item_pc_world[:, 1].max(), item_pc_world[:, 2].max()]
-        ]
-        logger.debug('item bounding box: {}'.format(bounding_box))
-        # item_position = [item_pc_world[:, 0].mean(), item_pc_world[:, 1].mean(), item_pc_world[:, 2].max()]
-        # logger.info('item center top: {}'.format(item_position))
-
+        # Construct arguments for planner
         target_item = {
-            # 'bbox': [item_position, item_position],
-            'bbox': bounding_box,
+            # 'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
             'drop offset': [0, 0, 0.1],
-        } #TODO make sure this info is in db, not stored locally here
+            'box_limit': reference_bounds
+        } #TODO make sure this info is in db, not stored locally here. why are these values selected?
 
-        self.store.put('/robot/target_bounding_box', bounding_box)
+        target_box = {
+            'name': box,
+            'position': list(reference_pose[:3, 3].flat),
+            'drop position': list(reference_pose[:3, 3].flat)
+        }
 
         # compute route
         try:
             if self.store.get('/test/skip_planning', False):
-                motion_plan = [(1,{'robot': self.store.get('/robot/current_config')})]
+                motion_plan = [(1, {'robot': self.store.get('/robot/current_config')})]
                 logger.warn('skipped motion planning for testing')
-
-        #    elif alg=='pick':
-            else:
-                planner = PickPlanner(self.world, self.store) 
-
-                box_pose = self.store.get(['box', box, 'pose'])
-                target_box = {
-                    'name': box,
-                    'position': list(box_pose[:3, 3].flat),
-                    'drop position': list(box_pose[:3, 3].flat)
-                }
-                #target_box["box_limit"]=world.rigidObject('{}_box'.format(box)).geometry().getBB()
-                target_box["box_limit"] = self.store.get('/box/'+box+'/bounds')
-
+            elif gripper == 'vacuum':
                 logger.info('requesting pick motion plan')
                 self.arguments = {'target_item': target_item, 'target_box': target_box}
                 logger.debug('arguments\n{}'.format(self.arguments))
-
+                planner = PickPlanner(self.world, self.store)
                 #assume already have item. moving to put item in box
                 motion_plan = planner.drop_item(target_item, target_box, 'item_{}'.format(item))
+            else: #mechanical
+                #TODO: develop planner for mechanical gripper
+                raise NotImplementedError('Mechanical gripper planner does not exist')
 
-
-            if not motion_plan:
+            # Check motion plan
+            if motion_plan is None:
+                self.setOutcome(False)
                 raise RuntimeError('motion plan is empty')
+            else:
+                milestone_map = [m.get_milestone() for m in motion_plan]
+                self.store.put('/robot/waypoints', milestone_map)
+                self.store.put('/robot/timestamp', time())
+                self.setOutcome(True)
+                logger.info('Route generated')
         except Exception:
             self.setOutcome(False)
             logger.exception('Failed to generate motion plan')
-        else:
-            milestone_map = [m.get_milestone() for m in motion_plan]
-            self.store.put('/robot/waypoints', milestone_map)
-            self.setOutcome(True)
-            self.store.put('/robot/timestamp', time())
-            logger.info('Route generated')
+
 
 if __name__ == '__main__':
     import argparse
