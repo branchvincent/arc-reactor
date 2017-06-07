@@ -30,7 +30,7 @@ class WorldViewer(GLRealtimeProgram):
         self.fps = 30.0
         self.dt = 1 / self.fps
 
-        self.select_grasp_index = store.get('/robot/target_grasp', {'index': None})['index']
+        self.select_grasp_index = store.get('/robot/target_grasp', {'index': None}).get('index', None)
         self.show_grasp_index = self.select_grasp_index
 
         point_cloud = store.get(photo_url + ['point_cloud_segmented'])
