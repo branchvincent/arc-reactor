@@ -7,9 +7,9 @@ from matplotlib import cm
 from math import pi
 
 from OpenGL.arrays import vbo
-from OpenGL.GL import glEnable, glDisable, glPushMatrix, glPopMatrix, glMultMatrixf, glMatrixMode
+from OpenGL.GL import glEnable, glDisable, glPushMatrix, glPopMatrix, glMultMatrixf, glMatrixMode, glClear
 from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glColorPointerf, glDrawArrays, glPointSize, glLineWidth, glColor
-from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS, GL_LINE_STRIP
+from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS, GL_LINE_STRIP, GL_DEPTH_BUFFER_BIT
 
 from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram, gldraw
@@ -236,6 +236,8 @@ class WorldViewer(GLRealtimeProgram):
         self.post_drawables = []
         self.extra_poses = []
 
+        self.view.camera.rot = [0, pi/4, pi/2 + pi/4]
+
     def display(self):
         for drawable in self.pre_drawables:
             drawable.draw()
@@ -250,7 +252,8 @@ class WorldViewer(GLRealtimeProgram):
         #     poses.append(robot.link(0).getTransform())
         #     poses.append(robot.link(robot.numLinks()-1).getTransform())
 
-        gldraw.xform_widget(se3.identity(), 0.1, 0.01, fancy=True)
+        glClear(GL_DEPTH_BUFFER_BIT)
+        gldraw.xform_widget(se3.identity(), 0.1, 0.01)
 
     def mousefunc(self,button,state,x,y):
         return GLRealtimeProgram.mousefunc(self,button,state,x,y)

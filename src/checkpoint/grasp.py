@@ -45,6 +45,8 @@ class WorldViewer(GLRealtimeProgram):
 
         self.grasps = store.get(photo_url + ['vacuum_grasps'])
 
+        self.view.camera.rot = [0, pi/4, pi/2 + pi/4]
+
     def display(self):
         self.world.drawGL()
 
