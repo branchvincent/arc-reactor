@@ -275,15 +275,17 @@ def clean(store):
 
     store.put('', output.get())
 
-def setup_workcell(store, workcell):
+def setup_workcell(store, workcell, dirty=False):
     '''
     Populate the workcell, which is common to both pick and stow tasks.
     '''
 
-    logger.info('initializing fresh workcell')
-
-    # start with a fresh database
-    store.delete('')
+    if dirty:
+        logger.warn('updating an existing workcell')
+    else:
+        logger.info('initializing fresh workcell')
+        # start with a fresh database
+        store.delete('')
 
     if isinstance(workcell, str):
         logger.debug('reading workcell from "{}"'.format(workcell))
@@ -477,6 +479,7 @@ def main(argv):
 
     setup_parser = subparsers.add_parser('setup', help='initialize workcell', description='initialize workcell', formatter_class=ArgumentDefaultsHelpFormatter)
     setup_parser.add_argument('workcell', metavar='WORKCELL', help='workcell file path or name')
+    setup_parser.add_argument('--dirty', action='store_true', help='do not clean before initializing')
 
     dump_parser = subparsers.add_parser('dump', help='build workcell file', description='build workcell file', formatter_class=ArgumentDefaultsHelpFormatter)
 
@@ -512,7 +515,7 @@ def main(argv):
         clean(store)
 
     elif args.action == 'setup':
-        setup_workcell(store, workcell)
+        setup_workcell(store, workcell, args.dirty)
 
     elif args.action == 'pick':
         setup_pick(
