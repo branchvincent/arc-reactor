@@ -192,19 +192,6 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
             cam = _get_rigid_object(world, name, 'data/objects/sr300.stl')
             _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
 
-    if 'items' not in ignore:
-        # update items
-        for name in db.get('/item', {}):
-            item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
-
-            location = db.get(['item', name, 'location'], 'shelf')
-            if location.startswith('bin'):
-                _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
-            elif location in ['stow_tote', 'stow tote']:
-                _sync(db, ['/tote/stow/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
-            else:
-                logger.error('unrecognized location for item "{}": {}'.format(name, location))
-
     return world
 
 if __name__ == '__main__':
