@@ -79,7 +79,8 @@ terrains = {
 rigid_objects = {
     'amnesty_tote': 'data/objects/tote.stl',
     'stow_tote': 'data/objects/tote.stl',
-    'shelf': 'data/objects/linear_shelf.stl'
+    'shelf': 'data/objects/linear_shelf.stl',
+    'frame': 'data/objects/frame.stl',
 }
 
 def _get_or_load(world, name, path, total, getter, loader):
@@ -155,6 +156,11 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
         # update shelf
         shelf = _get_rigid_object(world, 'shelf')
         _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
+
+    if 'frame' not in ignore:
+        # update shelf
+        frame = _get_rigid_object(world, 'frame')
+        _sync(db, '/frame/pose', lambda p: frame.setTransform(*numpy2klampt(p)))
 
     if 'totes' not in ignore:
         # update tote

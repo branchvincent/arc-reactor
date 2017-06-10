@@ -284,6 +284,7 @@ class WorldViewerWindow(QMainWindow):
             (3, '/item'),
             (3, '/box'),
             (3, '/tote'),
+            (3, '/frame'),
             (3, '/vantage'),
         ])
 
@@ -360,6 +361,7 @@ class WorldViewerWindow(QMainWindow):
             self._update_pose('vantage_{}'.format(name), [['vantage', name]])
 
         self._update_pose('shelf', [['shelf', 'pose']])
+        self._update_pose('frame', [['frame', 'pose']])
 
         self._update_pose('robot_base', [['robot', 'base_pose']])
         self._update_pose('robot_tcp', [['robot', 'tcp_pose']])
