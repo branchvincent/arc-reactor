@@ -12,20 +12,13 @@ class PlanPickItem(State):
     def run(self):
         # Get item and grasp info
         item = self.store.get('/robot/selected_item')
-        bin = self.store.get('/robot/target_bin')
         grasp = self.store.get('/robot/target_grasp')
         # TODO: add to db (defaults to vacuum for now)
         gripper = self.store.get('/robot/active_gripper', 'vacuum').lower()
         if gripper not in ['vacuum', 'mechanical']:
             raise RuntimeError('unrecognized gripper "{}"'.format(gripper))
 
-        logger.info('planning route for "{}" from "{}"'.format(item, bin))
-
-        # Get item location (must be a bin)
-        location = self.store.get(['item', item, 'location'])
-        if not location.startswith('bin'):
-            raise RuntimeError('unrecognized item location: "{}"'.format(location))
-        reference_pose = self.store.get('/shelf/pose')
+        logger.info('planning route for "{}" from "{}"'.format(item, grasp['location']))
 
         # Calculate item bounding box
         # NOTE: single point for now
