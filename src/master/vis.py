@@ -314,7 +314,7 @@ class WorldViewerWindow(QMainWindow):
 
             self.ready = True
 
-        update_world(self.db, self.program.world, self.timestamps, ignore=['items', 'obstacles'])
+        update_world(self.db, self.program.world, self.timestamps, ignore=['obstacles'])
 
         self._update_bounding_box('target', [], ['robot', 'target_bounding_box'])
 
