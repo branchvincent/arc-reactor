@@ -35,7 +35,7 @@ class EvaluatePlacement(State):
         container_aabbs = [self.store.get(location_bounds_url(location)) for location in locations]
 
         # attempt the packing
-        (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None, max_height=0.3)
+        (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None)
         pack_location = locations[idx]
         logger.info('found placement in "{}"'.format(pack_location))
         logger.debug('{}, {}'.format(position, orientation))
