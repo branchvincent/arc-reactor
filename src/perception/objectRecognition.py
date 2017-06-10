@@ -27,7 +27,7 @@ class ObjectRecognition:
 
         names = []
         #load in the items.json file
-        with open('../../db/items.json') as data_file:
+        with open('db/items.json') as data_file:
             jsonnames = json.load(data_file)
         for key,value in jsonnames.items():
             names.append(key)
@@ -166,5 +166,5 @@ class ObjectRecognition:
 
 
 if __name__ == '__main__':
-    o = ObjectRecognition('vgg_finetuned_05262017.pkl')
+    o = ObjectRecognition('db/vgg_finetuned_05262017.pkl')
     o.poll_database()

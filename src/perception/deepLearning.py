@@ -64,7 +64,7 @@ class DeepLearningRecognizer:
         return net
 
     def loadWeights(self,filename):
-        logger.info("Loading weights")
+        logger.info("Loading weights from {}".format(filename))
         # Load model weights and metadata
         d = pickle.load(open(filename, 'rb'),encoding='latin-1')
         logger.info("Weights loaded from file {}".format(filename))
@@ -78,7 +78,7 @@ class DeepLearningRecognizer:
         #check input
         if images.shape[0] != 224 or images.shape[1] !=224 or images.shape[2] !=3:
             logger.warning("Invalid numpy array passed to guessObject. Expecting 224x224x3xN, got {}".format(images.shape))
-        
+
         #make the images BGR
         images = images[:, :, ::-1]
 
