@@ -352,6 +352,7 @@ def check_flatness(segment):
 
     mode: the plane equation in a python list [a,b,c,d]
     cloud_plane: The fitted plane in .pcd
+    indices: indices of the segmented plane
 
     """
     global seg_pcd
@@ -361,11 +362,27 @@ def check_flatness(segment):
     seg.set_normal_distance_weight(0.1)
     seg.set_method_type(pcl.SAC_RANSAC)
     seg.set_max_iterations(100)
-    seg.set_distance_threshold(0.06)
+    seg.set_distance_threshold(0.05)
     indices, model = seg.segment()
     cloud_plane = segment.extract(indices, negative=False)
     seg_pcd=segment.extract(indices,negative=True)
-    return (model, cloud_plane)
+    return (model, cloud_plane,indices)
+
+
+def get_pc_points(edgepoints,plane_map,indices_plane,indices_segment):
+    """
+    map the points in the projected image back to the index into the original pointcloud
+    """
+    pixel_in_pointcloud=[]
+    for point in edgepoints:
+        indices=plane_map[point[1]][point[0]]
+        for indice in indices:
+            indice_pcl=indices_plane[indice]
+            indice_pc=[indices_segment[1][indice_pcl],indices_segment[0][indice_pcl]]
+            pixel_in_pointcloud.append(indice_pc)
+    return pixel_in_pointcloud
+
+
 
 
 def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
@@ -384,6 +401,9 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
     segments=[]
     global seg_pcd
     Plane_info=[]
+    mask_indices=[]
+    show_Segment=img.copy()
+    large_masks=[]
 
     #denoise pointcloud
     pointcloud=pc.astype(np.float32)
@@ -399,23 +419,25 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
         segments.append(segment_npy)
     pointcloud=pointcloud.reshape(pc_shape)
     for mask in masks:
-        segment_npy= pointcloud[mask.nonzero()]
-        #remove the all zero points from the segment first
-        mask0 = np.all(segment_npy == 0, axis=1)
-        segment_npy = segment_npy[~mask0]
+        seg_index=mask.nonzero()
+        segment_npy= pointcloud[seg_index]
         if len(segment_npy)>1000:
+            mask_indices.append(seg_index)
             segments.append(segment_npy)
+            large_masks.append(mask)
 
     candidate_planes=[]
     for maskNum,segment in enumerate(segments):
+        show_Segment=img.copy()
         #get the center of gravity for each segments
         mask_Size=len(segment)
         COG = [float(sum(col))/len(col) for col in zip(*segment)]
         seg_pcd=pcl.PointCloud(segment)
+        first_Segment=True
         while seg_pcd.size>1000:
             deductions = {'Orientation': 0, 'top_Coverage': 0, 'Side_coverage':0, 'Side_height':0, 'size':0, 'Solidity':0,'Off_center':0 }
             try:
-             plane_equation,plane_pcd=check_flatness(seg_pcd)
+             plane_equation,plane_pcd,indices_in_pc=check_flatness(seg_pcd)
 
              if plane_pcd.size == 0:
                  break
@@ -440,10 +462,13 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                     size_good,ratio, fitness=check_size(cnt,lengthPerPixel)
                     #find the pixels for the plane edge in the original pointcloud
                     edgepoints=np.reshape(cnt,(cnt.size/2,2))
-                    edge_Depths,pixel_in_pointcloud=mapPlane_pixel2Pointcloud_pixel(pointcloud,plane,edgepoints,plane_map)
+                    if first_Segment:
+                        pixel_in_pointcloud=get_pc_points(edgepoints,plane_map,indices_in_pc,mask_indices[maskNum])
+                    else:
+                        edge_Depths,pixel_in_pointcloud=mapPlane_pixel2Pointcloud_pixel(pointcloud,plane,edgepoints,plane_map)
                     #Check around the edge of the plane and detect if it is likely covered around the edge
                     edge_gap, edge_covered, edge_missing, edge_close, gap_Depth, converage_height=check_surroundings(pixel_in_pointcloud,pointcloud)
-
+                    first_Segment=False
                     #check if the top of the plane is likely covered
                     #Use those edge pixels to find all the enclosing pixels inside the contour
                     enclosing_pixels_pointcloud=find_enclosingPixels(pixel_in_pointcloud)
@@ -454,15 +479,16 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                     center=find_center(plane)
                     centerPlane2centerSeg=np.linalg.norm(center-COG)
                     percentage,average_distance=check_top(enclosing_pixels_pointcloud,plane_equation,pointcloud)
-
+                    if average_distance<0:
+                        center[2]+=average_distance
                     #Here are the priliminary scorings for each features
 
                     if ratio<1:
                         deductions['size']=(1/ratio)**2*20-20
                     if fitness<0.8:
-                        deductions['size']+=(0.8-fitness)*20
+                        deductions['size']+=(0.8-fitness)*10
 
-                    deductions['Side_coverage']=max(0,edge_close+edge_covered*converage_height*400-edge_gap*gap_Depth*100)
+                    deductions['Side_coverage']=max(0,edge_close+(edge_covered*10)**2*converage_height*40-edge_gap*gap_Depth*100)
 
 
                     if percentage>0.02 and average_distance>0 or average_distance<-0.02:
@@ -472,65 +498,69 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                         deductions['Orientation']=((angle-10)/10)**2*0.5
 
                     deductions['Off_center']=centerPlane2centerSeg*(1-plane_percentage)*100
-                    deductions['Solidity']=(intensity[0]/50.0)**2
+                    deductions['Solidity']=(intensity[0]/50.0)**3
                     Finalscore=Score-sum(deductions.values())
 
                     Plane_info.append({'segment': maskNum,'center':center.tolist(),'orientation':plane_equation, 'score':Finalscore, 'flatness':plane_percentage, 'tilting_angle': angle, 'size': ratio, 'convexity':fitness,'close_edge': edge_close, 'gap': edge_gap,'blockage': edge_covered, 'edge_inconclusive':edge_missing, 'gap_Depth':gap_Depth, 'blockage_height':converage_height,'top_coverage':percentage, 'cover_height': average_distance,'distance2COG':centerPlane2centerSeg,'percentageAsPlane':plane_percentage,'mean_intensity':intensity[0]})
+                    """
+                    #printing information to the terminal
 
-                    # printing information to the terminal
+                    print('Plane angle is {} degrees, taking {} points off.'.format(angle,deductions['Orientation']))
+                    print " "
+                    print('Plane intensity(solidity) is {} , taking {} points off.'.format(intensity[0],deductions['Solidity']))
+                    print " "
+                    print('The smaller dimension is {} required, its shape can be approximated as a rectangle or ellipse by {} %, taking {} off.'.format(ratio,fitness*100,deductions['size']))
+                    print " "
+                    print('Segmented plane is {}cm away from the segment center of the gravity , {} percent of the original can be approximated as a plane. Taking {} off.'.format(centerPlane2centerSeg,plane_percentage*100,deductions['Off_center']))
+                    print " "
+                    print('{} percent of surroundings are confirmed gaps, with an average dip of {} cm.  {} percent of surroundings are confirmed blockage, with an average height of {} cm. {} percent of surroundings have insufficient readings. {} percent of the surroundings have readings that are close to the edge. Taking {} points off'.format(edge_gap*100,gap_Depth*100,edge_covered*100,converage_height*100,edge_missing*100,edge_close*100, deductions['Side_coverage']))
+                    print " "
+                    print('{} percent of measurements is above the 1 cm thereshold, with an average displacement of {} cm. Taking {} points off.'.format(percentage*100,average_distance*100,deductions['top_Coverage']))
 
-                    # print('Plane angle is {} degrees, taking {} points off.'.format(angle,deductions['Orientation']))
-                    # print " "
-                    # print('Plane intensity(solidity) is {} , taking {} points off.'.format(intensity[0],deductions['Solidity']))
-                    # print " "
-                    # print('The smaller dimension is {} required, its shape can be approximated as a rectangle or ellipse by {} %, taking {} off.'.format(ratio,fitness*100,deductions['size']))
-                    # print " "
-                    # print('Segmented plane is {}cm away from the segment center of the gravity , {} percent of the original can be approximated as a plane. Taking {} off.'.format(centerPlane2centerSeg,plane_percentage*100,deductions['Off_center']))
-                    # print " "
-                    # print('{} percent of surroundings are confirmed gaps, with an average dip of {} cm.  {} percent of surroundings are confirmed blockage, with an average height of {} cm. {} percent of surroundings have insufficient readings. {} percent of the surroundings have readings that are close to the edge. Taking {} points off'.format(edge_gap*100,gap_Depth*100,edge_covered*100,converage_height*100,edge_missing*100,edge_close*100, deductions['Side_coverage']))
-                    # print " "
-                    # print('{} percent of measurements is above the 1 cm thereshold, with an average displacement of {} cm. Taking {} points off.'.format(percentage*100,average_distance*100,deductions['top_Coverage']))
-
-                    # print " "
-                    # print ("The final score for the plane is {}" .format(Finalscore))
-                    # print " "
-                    # print " "
-                    # print "                                                               Press 'Space' for the next plane                                                                              "
-                    # print " "
-
-
-                    # try:
-                    #     if Finalscore>-50000:
-
-                    #     #if uv map and color image exists, map depth pixels to RGB pixels for drawing segments on the original image
-                    #         ctr = np.array(pixel_in_pointcloud).reshape((-1,1,2)).astype(np.int32)
-                    #         img2=img
-
-                    #         M = cv2.moments(ctr)
-                    #         cX = int(M["m10"] / M["m00"])
-                    #         cY = int(M["m01"] / M["m00"])
-                    #         cv2.drawContours(img2,[ctr],0,(0,255,0),2)
-                    #         if Finalscore>1:
-                    #             cv2.putText(img2,str(Finalscore)[:4], (cX-10 , cY ),cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 3)
-
-                    #         cv2.imshow("image",img2)
-                    #         cv2.imshow("segments",image)
-                    #         k = cv2.waitKey(0)
-                    #         if k == 27:
-
-                    #             cv2.destroyAllWindows()
+                    print " "
+                    print ("The final score for the plane is {}" .format(Finalscore))
+                    print " "
+                    print " "
+                    print "                                                               Press 'Space' for the next plane                                                                              "
+                    print " "
 
 
-                    #         # Otherwise, just show images of the segments
+                    try:
+                        if Finalscore>-5:
 
-                    # except:
-                    #     # Otherwise, just show images of the segments
-                    #     cv2.imshow("segments",image)
-                    #     k = cv2.waitKey(0)
-                    #     if k == 27:         # wait for ESC key to exit
+                        #if uv map and color image exists, map depth pixels to RGB pixels for drawing segments on the original image
+                            ctr = np.array(pixel_in_pointcloud).reshape((-1,1,2)).astype(np.int32)
 
-                    #         cv2.destroyAllWindows()
+                            current_mask=large_masks[maskNum]
+                            current_mask=current_mask.astype(np.uint8)
+                            show_Segment=cv2.bitwise_and(show_Segment,show_Segment,mask=current_mask)
+                            img2=img
 
+                            M = cv2.moments(ctr)
+                            cX = int(M["m10"] / M["m00"])
+                            cY = int(M["m01"] / M["m00"])
+                            cv2.drawContours(img2,[ctr],0,(0,255,0),2)
+                            if Finalscore>-5:
+                                cv2.putText(img2,str(Finalscore)[:4], (cX-10 , cY ),cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 3)
+                            cv2.imshow("masked_Area",show_Segment)
+                            cv2.imshow("image",img2)
+                            cv2.imshow("segments",image)
+                            k = cv2.waitKey(0)
+                            if k == 27:
+
+                                cv2.destroyAllWindows()
+
+
+                            # Otherwise, just show images of the segments
+
+                    except:
+                        # Otherwise, just show images of the segments
+                        cv2.imshow("segments",image)
+                        k = cv2.waitKey(0)
+                        if k == 27:         # wait for ESC key to exit
+
+                            cv2.destroyAllWindows()
+                   """
                 else:
                     print " no contour founded,continue to the next segment"
                     continue
@@ -573,22 +603,26 @@ def find_contour(image):
 
 
 
+"""
+#Begin Checking
 
-# #Begin Checking
-# print " "
-# print "################################################################### RUNNING PLANE CHECKING #######################################################################################"
-# print " "
-# pointcloud=np.load("pc.npy")
+print " "
+print "################################################################### RUNNING PLANE CHECKING #######################################################################################"
+print " "
 
-# try:
-#     img = cv2.imread("bin.png")
-# except:
-#     print "UV map or RGB info not provided, cannot show contours of segments on the origianl image"
+pointcloud=np.load("pc.npy")
 
-# seg_masks=[]
+try:
+    img = cv2.imread("bin.png")
+except:
+    print "UV map or RGB info not provided, cannot show contours of segments on the origianl image"
 
-# for filename in glob.iglob('segments/*.npy'):
-#      seg_mask=np.load('%s' % filename)
-#      seg_masks.append(seg_mask)
+seg_masks=[]
 
-# plane_info=rate_plane(pointcloud,depth_threshold=0.4,masks=seg_masks,img=img)
+for filename in glob.iglob('perception/*.npy'):
+    seg_mask=np.load('%s' % filename)
+    seg_masks.append(seg_mask)
+
+plane_info=rate_plane(pointcloud,depth_threshold=0.4,masks=seg_masks,img=img)
+
+"""
