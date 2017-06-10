@@ -72,6 +72,7 @@ class EvaluateGrasp(State):
                 grasp['center'] = transform(bounds_pose, grasp['center'])
                 grasp['orientation'] = rotate(bounds_pose, grasp['orientation'][:3])
                 grasp['index'] = i
+                grasp['location'] = location
 
             logger.info('found {} grasps'.format(len(grasps)))
             logger.debug('{}'.format(grasps))
