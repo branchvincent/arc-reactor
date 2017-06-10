@@ -233,23 +233,39 @@ def _load_vantage(store):
         T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, pi/6, 0) * rpy(0, -0.2, 0) * rpy(0, pi/2, 0)
         store.put(['vantage', bin_name], pose.dot(T))
 
-    # compute the order box and tote vantage points
-    for entity in ['box', 'tote']:
-        for name in store.get([entity], {}).keys():
-            bounds = store.get([entity, name, 'bounds'])
-            pose = store.get([entity, name, 'pose'])
+    # # compute the order box vantage points
+    # for name in store.get(['box'], {}).keys():
+    #     bounds = store.get(['box', name, 'bounds'])
+    #     pose = store.get(['box', name, 'pose'])
 
-            if not bounds:
-                continue
+    #     if not bounds:
+    #         continue
 
-            # bin vantage reference is top of box (Z up in local coordinates)
-            xmed = (bounds[0][0] + bounds[1][0])/2.0
-            ymed = (bounds[0][1] + bounds[1][1])/2.0
-            zmax = max(bounds[0][2], bounds[1][2])
+    #     # bin vantage reference is top of box (Z up in local coordinates)
+    #     xmed = (bounds[0][0] + bounds[1][0])/2.0
+    #     ymed = (bounds[0][1] + bounds[1][1])/2.0
+    #     zmax = max(bounds[0][2], bounds[1][2])
 
-            # calculate transform
-            T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, pi/15 + pi, 0)
-            store.put(['vantage', '{}_{}'.format(name, entity)], pose.dot(T))
+    #     # calculate transform
+    #     T = xyz(xmed, ymed - 0.025, zmax + 0.55) * rpy(0, 0, pi/2) * rpy(0, pi/15 + pi, 0)
+    #     store.put(['vantage', name], pose.dot(T))
+
+    # # compute the tote vantage points
+    # for name in store.get(['tote'], {}).keys():
+    #     bounds = store.get(['tote', name, 'bounds'])
+    #     pose = store.get(['tote', name, 'pose'])
+
+    #     if not bounds:
+    #         continue
+
+    #     # bin vantage reference is top of box (Z up in local coordinates)
+    #     xmed = (bounds[0][0] + bounds[1][0])/2.0
+    #     ymed = (bounds[0][1] + bounds[1][1])/2.0
+    #     zmax = max(bounds[0][2], bounds[1][2])
+
+    #     # calculate transform
+    #     T = xyz(xmed, ymed - 0.025, zmax + 0.65) * rpy(0, 0, pi/2) * rpy(0, pi/15 + pi, 0)
+    #     store.put(['vantage', '{}_tote'], pose.dot(T))
 
 def _dims2bb(dims):
     return [
