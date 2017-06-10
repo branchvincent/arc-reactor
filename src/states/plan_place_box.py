@@ -17,14 +17,10 @@ class PlanPlaceBox(State):
         if gripper not in ['vacuum', 'mechanical']:
             raise RuntimeError('unrecognized gripper "{}"'.format(gripper))
 
-        # Get target location (must be a box)
-        box = self.store.get('/robot/target_box')
-        if not box.startswith('box'):
-            raise RuntimeError('unrecognized box: "{}"'.format(box))
-        reference_pose = self.store.get(['box', box, 'pose'])
-        reference_bounds = self.store.get(['box', box, 'bounds'])
+        target_T = self.store.get(['robot', 'placement', 'pose'])
+        target_location = self.store.get(['robot', 'placement', 'location'])
 
-        logger.info('planning route for "{}" to "{}"'.format(item, box))
+        logger.info('planning route for "{}" to "{}"'.format(item, target_location))
 
         # Calculate item bounding box
         # NOTE: single point for now
@@ -38,14 +34,14 @@ class PlanPlaceBox(State):
             # 'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.01],
             'drop offset': [0, 0, 0.1],
-            'box_limit': reference_bounds
+            #'box_limit': reference_bounds
         } #TODO make sure this info is in db, not stored locally here. why are these values selected?
 
-        target_box = {
-            'name': box,
-            'position': list(reference_pose[:3, 3].flat),
-            'drop position': list(reference_pose[:3, 3].flat)
-        }
+        # target_box = {
+        #     'name': box,
+        #     'position': list(reference_pose[:3, 3].flat),
+        #     'drop position': list(reference_pose[:3, 3].flat)
+        # }
 
         # compute route
         try:
@@ -54,11 +50,11 @@ class PlanPlaceBox(State):
                 logger.warn('skipped motion planning for testing')
             elif gripper == 'vacuum':
                 logger.info('requesting pick motion plan')
-                self.arguments = {'target_item': target_item, 'target_box': target_box}
+                self.arguments = {'target_item': target_item}
                 logger.debug('arguments\n{}'.format(self.arguments))
                 planner = PickPlanner(self.world, self.store)
                 #assume already have item. moving to put item in box
-                motion_plan = planner.drop_item(target_item, target_box, 'item_{}'.format(item))
+                motion_plan = planner.drop_item(target_item, target_T)
             else: #mechanical
                 #TODO: develop planner for mechanical gripper
                 raise NotImplementedError('Mechanical gripper planner does not exist')
