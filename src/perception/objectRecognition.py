@@ -59,6 +59,8 @@ class ObjectRecognition:
                     self.store.put('/object_recognition/done', 1)
                 else:
                     sleep(0.1)
+        except KeyboardInterrupt:
+            pass
         except:
             logger.exception('Inference failed!')
             raise
