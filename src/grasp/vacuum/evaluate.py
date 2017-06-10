@@ -2,6 +2,7 @@ import numpy as np
 import math
 import cv2
 from scipy.spatial import distance as dist
+from operator import itemgetter
 import pcl
 import glob
 import json
@@ -501,7 +502,9 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                     deductions['Solidity']=(intensity[0]/50.0)**3
                     Finalscore=Score-sum(deductions.values())
 
-                    Plane_info.append({'segment': maskNum,'center':center.tolist(),'orientation':plane_equation, 'score':Finalscore, 'flatness':plane_percentage, 'tilting_angle': angle, 'size': ratio, 'convexity':fitness,'close_edge': edge_close, 'gap': edge_gap,'blockage': edge_covered, 'edge_inconclusive':edge_missing, 'gap_Depth':gap_Depth, 'blockage_height':converage_height,'top_coverage':percentage, 'cover_height': average_distance,'distance2COG':centerPlane2centerSeg,'percentageAsPlane':plane_percentage,'mean_intensity':intensity[0]})
+                    #Load all plane information into a python list where each of the sublist is a python dictionary
+
+                    Plane_info.append({'segment': maskNum,'center':center.tolist(),'orientation':plane_equation, 'score':Finalscore, 'flatness':plane_percentage, 'tilting_angle': angle, 'size': ratio, 'convexity':fitness,'close_edge': edge_close, 'gap': edge_gap,'blockage': edge_covered, 'edge_inconclusive':edge_missing, 'gap_Depth':gap_Depth, 'blockage_height':converage_height,'top_coverage':percentage, 'cover_height': average_distance,'distance2COG':centerPlane2centerSeg,'percentageAsPlane':plane_percentage,'mean_intensity':intensity[0],'height':center[2]})
                     """
                     #printing information to the terminal
 
@@ -526,7 +529,7 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
 
 
                     try:
-                        if Finalscore>-5:
+                        if Finalscore>-500000:
 
                         #if uv map and color image exists, map depth pixels to RGB pixels for drawing segments on the original image
                             ctr = np.array(pixel_in_pointcloud).reshape((-1,1,2)).astype(np.int32)
@@ -560,7 +563,7 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                         if k == 27:         # wait for ESC key to exit
 
                             cv2.destroyAllWindows()
-                   """
+                    """
                 else:
                     print " no contour founded,continue to the next segment"
                     continue
@@ -568,7 +571,14 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
 
 
 
-    #Load all plane information into a python list where each of the sublist is a python dictionary
+    #for all planes with positive scores, arrange the planes in order of height and add punishment for lower planes
+    Plane_info = sorted(Plane_info, key=itemgetter('height'), reverse=True)
+    order_positive_plane=0
+    for order,rated_plane in enumerate(Plane_info):
+        if rated_plane['score']>0:
+            Plane_info[order]['score']-=order_positive_plane*0.5
+            #print('Plane is the {}th in height, taking {} off.'.format(order_positive_plane+1,order_positive_plane*0.5))
+            order_positive_plane+=1
 
     return Plane_info
 
@@ -602,8 +612,8 @@ def find_contour(image):
 
 
 
-
 """
+
 #Begin Checking
 
 print " "
@@ -624,5 +634,6 @@ for filename in glob.iglob('perception/*.npy'):
     seg_masks.append(seg_mask)
 
 plane_info=rate_plane(pointcloud,depth_threshold=0.4,masks=seg_masks,img=img)
+
 
 """
