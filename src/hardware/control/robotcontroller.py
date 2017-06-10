@@ -60,7 +60,7 @@ class RobotController:
 
     def updateDatabase(self):
         # Update tool pose
-        world = build_world(self.store)
+        world = build_world(self.store, ignore=['obstacles', 'camera', 'items', 'boxes', 'totes', 'shelf'])
         robot = world.robot('tx90l')
         T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
         self.store.put('/robot/tcp_pose', T_tcp)
