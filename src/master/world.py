@@ -151,30 +151,33 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
     _sync(db, '/robot/current_config', lambda q: tx90l.setConfig(q))
     tx90l.setConfig(tx90l.getConfig())
 
-    # update shelf
-    shelf = _get_rigid_object(world, 'shelf')
-    _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
+    if 'shelf' not in ignore:
+        # update shelf
+        shelf = _get_rigid_object(world, 'shelf')
+        _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
 
-    # update tote
-    if task in ['stow', 'final']:
-        amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
-        _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
+    if 'totes' not in ignore:
+        # update tote
+        if task in ['stow', 'final']:
+            amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
+            _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
 
-        stow_tote = _get_rigid_object(world, 'stow_tote')
-        _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
-    else:
-        _remove_rigid_object(world, 'amnesty_tote')
-        _remove_rigid_object(world, 'stow_tote')
-
-    # update boxes
-    for name in db.get('/box', []):
-        if task in ['pick', 'final']:
-            size = db.get('/box/{}/size_id'.format(name))
-            if size:
-                box = _get_rigid_object(world, '{}_box'.format(name), 'data/objects/box-{}.off'.format(size))
-                _sync(db, '/box/{}/pose'.format(name), lambda p: box.setTransform(*numpy2klampt(p)))
+            stow_tote = _get_rigid_object(world, 'stow_tote')
+            _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
         else:
-            _remove_rigid_object(world, '{}_box'.format(name))
+            _remove_rigid_object(world, 'amnesty_tote')
+            _remove_rigid_object(world, 'stow_tote')
+
+    if 'boxes' not in ignore:
+        # update boxes
+        for name in db.get('/box', []):
+            if task in ['pick', 'final']:
+                size = db.get('/box/{}/size_id'.format(name))
+                if size:
+                    box = _get_rigid_object(world, '{}_box'.format(name), 'data/objects/box-{}.off'.format(size))
+                    _sync(db, '/box/{}/pose'.format(name), lambda p: box.setTransform(*numpy2klampt(p)))
+            else:
+                _remove_rigid_object(world, '{}_box'.format(name))
 
     if 'camera' not in ignore:
         # update cameras
