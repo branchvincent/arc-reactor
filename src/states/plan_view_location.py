@@ -9,8 +9,8 @@ class PlanViewLocation(State):
         # Get location
         self.loc_name = self.store.get('/robot/target_location')
         vantage_T = self.store.get(['vantage', self.loc_name])
-        self.store.put('/robot/target_xform', vantage_T)
-        # T = self.store.get('/robot/target_xform') # or /robot/vantage_url?
+        self.store.put('/robot/target_pose', vantage_T)
+        # T = self.store.get('/robot/target_pose') # or /robot/vantage_url?
 
         if vantage_T is None:
             self.setOutcome(False)
