@@ -121,3 +121,31 @@ class Vacuum(object):
             return bool(self._rio.read(self._pin))
         else:
             return self._store.get('/vacuum/status')
+
+if __name__ == '__main__':
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
+    parser = ArgumentParser(description='vacuum, controller', formatter_class=ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+    parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+    parser.add_argument('-v', '--vacuum', metavar='VACUUM', help='vacuum server host')
+    parser.add_argument('command', metavar='COMMAND', type=float, help='vacuum command 0 (off) to 1 (on)')
+
+    args = parser.parse_args()
+
+    # connect to the database
+    from pensive.client import PensiveClient
+    client = PensiveClient(args.address)
+
+    # get the store
+    store = client.store(args.store)
+
+    host = None
+    port = None
+    if args.vacuum:
+        (host, port) = args.vacuum.partition(':')
+        if port:
+            port = int(port)
+
+    Vacuum(host, port).change(args.command > 0)
