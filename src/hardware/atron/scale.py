@@ -4,11 +4,11 @@ import logging; logger = logging.getLogger(__name__)
 import serial
 
 # Commands
-WEIGH = 'H'
-ZERO = 'Z'
+READ_ZERO = 'Z'
+READ_CURRENT = 'R'
 
 # Unit conversion
-IBS_2_KG = 0.453592
+RAW2KG = 6.713167e-5
 
 class Scale:
     def __init__(self, port, store=None):
@@ -23,10 +23,14 @@ class Scale:
 
     def connect(self, port):
         # Find by port
-        self.serial = serial.Serial(port=port, baudrate=9600, timeout=1,
-            bytesize=serial.SEVENBITS,
-            parity=serial.PARITY_EVEN,
-            stopbits=serial.STOPBITS_ONE)
+        self.serial = serial.Serial(
+            port=port,
+            baudrate=9600,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            timeout=1
+        )
         self.close()
 
     def open(self):
@@ -42,63 +46,31 @@ class Scale:
         if self._simulated():
             return -1
         else:
-            weight = self.command(WEIGH, read=True)
-            return weight #* IBS_2_KG
+            zero = self.command(READ_ZERO, read=True)
+            current = self.command(READ_CURRENT, read=True)
 
-    def tare(self):
-        # Tare, if not simulated
-        if not self._simulated():
-            self.command(ZERO)
+            return (current - zero) * RAW2KG
 
     def command(self, cmd, read=False):
         self.open()
         self.serial.write(cmd)
         val = self.serial.readline() if read else None
         self.close()
-        return val
 
-    def _read(self):
-        self.open()
-        val = self.serial.read(serial.SEVENBITS)
-        # val = self.serial.readline()
-        self.close()
+        if val:
+            val = int(val[1:])
+
         return val
 
     def _simulated(self):
         return self.serial is None
 
-def debug(scale):
-    import time
-    ser = scale.serial
-    scale.open()
-    print 'Enter your commands below.\r\nInsert "exit" to leave the application.'
-
-    input=1
-    while True:
-        # get keyboard input
-        input = raw_input(">> ")
-        if input == 'exit':
-            ser.close()
-            exit()
-        else:
-            ser.write(input + '\r\n')
-            out = ''
-            time.sleep(1)
-            while ser.inWaiting() > 0:
-                out += ser.read(1)
-
-            if out != '':
-                print ">>" + out
-
 if __name__ == '__main__':
-    s = Scale('/dev/ttyUSB1')
-    s.tare()
-    # debug(s)
-    # weight = s.read()
-    # print "Weight: {} kg".format(weight)
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
-    # N = 2
-    # start = time()
-    # for i in range(N):
-    #     s.command(WEIGH, read=True)
-    # print '{} s'.format(time() - start)
+    parser = ArgumentParser(description='scale utility', formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument('port', metavar='PORT', help='port to use')
+    args = parser.parse_args()
+
+    s = Scale(args.port)
+    print '{:.3f} kg'.format(s.read())
