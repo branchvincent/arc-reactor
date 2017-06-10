@@ -324,7 +324,7 @@ class PickPlanner(Planner):
             raise RuntimeError("Can't find a feasible path to pick up item")
 
         #find and move to the inspection station
-        inspection_pose = self.store.get('/robot/inspect_pose');
+        inspection_pose = self.store.get('/robot/inspect_pose')
         inspect_position = inspection_pose[:3,3]
 
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
@@ -336,8 +336,9 @@ class PickPlanner(Planner):
 
         start_T=copy.deepcopy(current_T)
         end_T=copy.deepcopy(current_T)
-        end_T[1][0]=inspect_position[0]
-        end_T[1][1]=inspect_position[1]
+        end_T[1][0]=inspect_position[0] - self.ee_local[0]
+        end_T[1][1]=inspect_position[1] - self.ee_local[1]
+        end_T[1][2]=inspect_position[2] - self.ee_local[2]
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
 
@@ -364,12 +365,14 @@ class PickPlanner(Planner):
             T = numpy2klampt(T)
         drop_position = T[1]
         #drop_position = self.find_placement(target_box, target_index)
-        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
+        #self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
 
-        curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
-        curr_orientation,p=self.robot.link(self.ee_link).getTransform()
-        current_T=[curr_orientation,curr_position]
-        self.check_points.append(current_T)
+        #self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,current_T,end_T,0,0,1)
+
+        #curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
+        #curr_orientation,p=self.robot.link(self.ee_link).getTransform()
+        #current_T=[curr_orientation,curr_position]
+        #self.check_points.append(current_T)
 
         # item_vacuum_offset=item['vacuum_offset']
         # drop_offset=item['drop offset']
@@ -388,7 +391,7 @@ class PickPlanner(Planner):
         # self.check_points.append(end_T)
         # l=vectorops.distance(current_T[1],end_T[1])
 
-        self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,current_T,end_T,0,0,1)
+        self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,current_T,end_T,1,1,1)
 
         if not self.motion_milestones:
             raise RuntimeError("Can't find a feasible path to start position")
@@ -402,13 +405,14 @@ class PickPlanner(Planner):
         drop_offset=item['drop offset']
         start_T=copy.deepcopy(end_T)
         # HACK: not sure why need to subtract ee_local off here...
-        end_T[1][0]=drop_position[0]
-        end_T[1][1]=drop_position[1]
+        end_T[1][0]=drop_position[0] - self.ee_local[0]
+        end_T[1][1]=drop_position[1] - self.ee_local[1]
         end_T[1][2]=drop_position[2] - self.ee_local[2]
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
         if not self.motion_milestones:
+            print self.check_points
             raise RuntimeError("Can't find a feasible path to lower the vacuum/item")
 
         #turn off the vacuum
