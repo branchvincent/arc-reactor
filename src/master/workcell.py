@@ -248,7 +248,7 @@ def _load_vantage(store):
             zmax = max(bounds[0][2], bounds[1][2])
 
             # calculate transform
-            T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, -pi/15 - pi, 0) * rpy(0, 0, pi)
+            T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, pi/15 + pi, 0)
             store.put(['vantage', '{}_{}'.format(name, entity)], pose.dot(T))
 
 def _dims2bb(dims):
@@ -292,6 +292,7 @@ def setup_workcell(store, workcell, dirty=False):
         workcell = json.load(open(workcell))
 
     _load(store, 'db/bins.json', '/shelf/bin')
+    _load(store, 'db/spots.json', '/system/spot')
 
     _load(store, 'db/cameras.json', '/system/cameras')
     _load(store, 'db/viewpoints.json', '/system/viewpoints')
@@ -406,7 +407,9 @@ def setup_pick(store, location, order, workcell=None, keep=True):
 
     # assign boxes to spots
     boxes = store.get('/box').keys()
-    boxes.sort(key=lambda b: store.get(['system', 'boxes', b[3:], 'priority']))
+    boxes.sort(key=lambda b: -store.get(['system', 'boxes', b[3:], 'priority']))
+
+    frame_pose = store.get(['frame', 'pose'])
 
     for spot in sorted(store.get(['system', 'spot']).keys()):
         if not boxes:
@@ -414,8 +417,17 @@ def setup_pick(store, location, order, workcell=None, keep=True):
 
         box = boxes.pop(0)
 
+        # compute the alignment offset
+        box_bounds = store.get(['box', box, 'bounds'])
+        box_dimensions = [max(x) - min(x) for x in zip(*box_bounds)]
+        spot_dimensions = store.get(['system', 'spot', spot, 'dimensions'])
+
+        alignment = store.get(['system', 'spot', spot, 'alignment'])
+        offset = xyz(*[(s - b) / f for (s, b, f) in zip(spot_dimensions, box_dimensions, alignment)])
+
         # pose the box
-        store.put(['box', box, 'pose'], store.get(['system', 'spot', spot, 'pose']))
+        spot_pose = store.get(['system', 'spot', spot, 'pose'])
+        store.put(['box', box, 'pose'], frame_pose.dot(spot_pose).dot(offset))
 
         # add the box viewpoint
         store.put(['system', 'viewpoints', box], store.get(['system', 'spot', spot, 'viewpoints']))
