@@ -109,26 +109,36 @@ class EvaluatePlacement(State):
             raise RuntimeError('no camera available for {}'.format(location))
         logger.debug('available cameras for "{}": {}'.format(location, available_cameras))
 
-        # TODO: choose camera a better way
-        camera = available_cameras[0]
-        photo_url = ['photos', location, camera]
-        logger.info('using photo "{}" for location "{}"'.format(photo_url, location))
+        container_clouds = []
+        container_colors = []
 
-        photo_pose = self.store.get(photo_url + ['pose'])
-        if photo_pose is None:
-            return numpy.array([]).reshape((0, 3))
+        # process the point cloud from each viewpoint
+        for camera in available_cameras:
+            photo_url = ['photos', location, camera]
+            logger.info('using photo "{}" for location "{}"'.format(photo_url, location))
 
-        container_pose = self.store.get(location_pose_url(location))
-        container_aabb = self.store.get(location_bounds_url(location))
+            photo_pose = self.store.get(photo_url + ['pose'])
+            if photo_pose is None:
+                return numpy.array([]).reshape((0, 3))
 
-        photo_aligned_color = self.store.get(photo_url + ['aligned_color'])
-        photo_cloud_camera = self.store.get(photo_url + ['point_cloud'])
-        photo_cloud_world = transform(photo_pose, photo_cloud_camera)
-        photo_cloud_container = transform(numpy.linalg.inv(container_pose), photo_cloud_world)
+            container_pose = self.store.get(location_pose_url(location))
+            container_aabb = self.store.get(location_bounds_url(location))
 
-        photo_valid_mask = (photo_cloud_camera[..., 2] > 0)
-        container_cloud = photo_cloud_container[photo_valid_mask]
-        container_color = photo_aligned_color[photo_valid_mask]
+            photo_aligned_color = self.store.get(photo_url + ['aligned_color'])
+            photo_cloud_camera = self.store.get(photo_url + ['point_cloud'])
+            photo_cloud_world = transform(photo_pose, photo_cloud_camera)
+            photo_cloud_container = transform(numpy.linalg.inv(container_pose), photo_cloud_world)
+
+            photo_valid_mask = (photo_cloud_camera[..., 2] > 0)
+            container_cloud = photo_cloud_container[photo_valid_mask]
+            container_color = photo_aligned_color[photo_valid_mask]
+
+            container_clouds.append(container_cloud)
+            container_colors.append(container_color)
+
+        # join the point clouds together
+        container_cloud = numpy.vstack(container_clouds)
+        container_color = numpy.vstack(container_colors)
 
         # save the point cloud for debugging
         self.store.multi_put({
