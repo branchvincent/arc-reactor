@@ -158,9 +158,12 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
         _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
 
     if 'frame' not in ignore:
-        # update shelf
-        frame = _get_rigid_object(world, 'frame')
-        _sync(db, '/frame/pose', lambda p: frame.setTransform(*numpy2klampt(p)))
+        if task in ['pick']:
+            # update shelf
+            frame = _get_rigid_object(world, 'frame')
+            _sync(db, '/frame/pose', lambda p: frame.setTransform(*numpy2klampt(p)))
+        else:
+            _remove_rigid_object(world, 'frame')
 
     if 'totes' not in ignore:
         # update tote
