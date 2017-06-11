@@ -34,7 +34,7 @@ class CapturePhotoBin(State):
         self.setOutcome(True)
 
     def setBox(self, myname):
-        if len(myname) == 6:
+        if len(myname) in [5, 6]:
             print "Taking photo of ", 'box'+myname[3:].upper()
             self.store.put('/robot/target_box', 'box'+myname[3:].upper())
 
