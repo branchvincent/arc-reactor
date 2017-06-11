@@ -580,13 +580,13 @@ def main(argv):
         for s in store.get('/system/spot').keys():
             urls.append('/system/spot/{}/pose'.format(s))
 
-        for t in store.get('/system/totes').keys():
-            urls.append('/system/totes/{}/pose'.format(t))
-
         cell = dict([(url, store.get(url)) for url in urls])
         cell.update({
             '/robot/current_config': [0, 0, -0.5, 1, 0, 1, -2]
         })
+
+        for t in store.get('/system/totes').keys():
+            cell['/system/totes/{}/pose'.format(t)] = store.get(['tote', t, 'pose']) or store.get(['system', 'totes', t, 'pose'])
 
         from pensive.client import json_encode
         print json_encode(cell, indent=4)
