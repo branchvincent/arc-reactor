@@ -1,4 +1,12 @@
 {
     "dymo0": "1",
-    "dymo1": "2"
+    "dymo1": "2",
+    "atron0" : {
+        "port": "/dev/serial/by-path/pci-0000:00:1d.0-usb-0:1.6:1.0-port0",
+        "factor": 6.74919e-05
+    },
+    "atron1" : {
+        "port": "/dev/serial/by-path/pci-0000:00:1d.0-usb-0:1.5:1.0-port0",
+        "factor": 6.67309e-05
+    }
 }

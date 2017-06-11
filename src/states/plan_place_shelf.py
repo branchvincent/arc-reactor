@@ -17,9 +17,11 @@ class PlanPlaceShelf(State):
         if gripper not in ['vacuum', 'mechanical']:
             raise RuntimeError('unrecognized gripper "{}"'.format(gripper))
 
-        logger.info('planning route for "{}" to stow tote'.format(item))
-
         target_T = self.store.get(['robot', 'placement', 'pose'])
+        target_location = self.store.get(['robot', 'placement', 'location'])
+
+        logger.info('planning route for "{}" to "{}"'.format(item, target_location))
+
         # Get item location (must be stow tote)
         # location = self.store.get(['item', item, 'location'])
         # if location not in ['stow_tote', 'stow tote']:

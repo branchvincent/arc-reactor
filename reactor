@@ -10,6 +10,8 @@ Launcher for the reactor system.
 import sys
 sys.path.append('src')
 
+import os
+
 from pensive import DEFAULT_PORT as PENSIVE_DEFAULT_PORT
 from log import DEFAULT_RECORD_PORT as LOG_DEFAULT_RECORD_PORT, DEFAULT_WEB_PORT as LOG_DEFAULT_WEB_PORT
 
@@ -80,7 +82,7 @@ logger.addHandler(console_handler)
 # set up logging to file for all records
 log_path = args.log_file
 if not log_path:
-    import os, datetime
+    import datetime
     name = '{}-{:%Y%m%d-%H%M%S}.log'.format(
         os.path.basename(__file__), datetime.datetime.now())
     log_path = os.path.join('log', name)
@@ -112,11 +114,27 @@ if not register_numpy():
     logger.warn('failed to load numpy database coders')
 
 # process logging verbosity flags
-for m in args.verbose or []:
-    lf.add(m, logging.INFO)
+verbose = args.verbose or []
+try:
+    verbose += os.environ['REACTOR_VERBOSE'].split(';')
+except KeyError:
+    pass
 
-for m in args.debug or []:
-    lf.add(m, logging.DEBUG)
+if verbose:
+    os.environ['REACTOR_VERBOSE'] = ';'.join(verbose)
+    for m in verbose:
+        lf.add(m, logging.INFO)
+
+debug = args.debug or []
+try:
+    debug += os.environ['REACTOR_DEBUG'].split(';')
+except KeyError:
+    pass
+
+if debug:
+    os.environ['REACTOR_DEBUG'] = ';'.join(debug)
+    for m in debug:
+        lf.add(m, logging.DEBUG)
 
 # launch the target command
 if args.command == 'db':

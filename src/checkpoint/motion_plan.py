@@ -61,6 +61,8 @@ class WorldViewer(GLRealtimeProgram):
         self.pause = False
         self.update_callback = update_callback
 
+        self.view.camera.rot = [0, pi/4, pi/2 + pi/4]
+
     def trace_link(self, plan, link):
         trace = []
 

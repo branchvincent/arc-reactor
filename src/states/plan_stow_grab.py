@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanStowGrab(State):
     def run(self):
-
         # Get item and grasp info
         item = self.store.get('/robot/selected_item')
         grasp = self.store.get('/robot/target_grasp')
@@ -32,23 +31,13 @@ class PlanStowGrab(State):
         # Calculate item bounding box
         # NOTE: single point for now
         self.world = build_world(self.store)
-        bounding_box = [grasp['center'][0], grasp['center'][0]]
-        # item_pose_local = self.store.get(['item', item, 'pose'])
-        # item_pc_local = self.store.get(['item', item, 'point_cloud'])
-        #
-        # item_pose_world = reference_pose.dot(item_pose_local)
-        # item_pc_world = item_pc_local.dot(item_pose_world[:3, :3].T) + item_pose_world[:3, 3].T
-        #
-        # bounding_box = [
-        #     [item_pc_world[:, 0].min(), item_pc_world[:, 1].min(), item_pc_world[:, 2].max()],
-        #     [item_pc_world[:, 0].max(), item_pc_world[:, 1].max(), item_pc_world[:, 2].max()]
-        # ]
+        bounding_box = [grasp['center'][0]] * 2
+
         self.store.put('/robot/target_bounding_box', bounding_box)
         logger.debug('item bounding box: {}'.format(bounding_box))
 
         # Construct arguments for planner
         target_item = {
-            # 'bbox': [item_position, item_position],
             'bbox': bounding_box,
             'vacuum_offset': [0, 0, -0.02],
             'drop offset': [0, 0, 0.1],
@@ -88,6 +77,7 @@ class PlanStowGrab(State):
                 self.store.put('/robot/timestamp', time())
                 self.setOutcome(True)
                 logger.info('Route generated')
+
         except Exception:
             self.setOutcome(False)
             logger.exception('Failed to generate motion plan')

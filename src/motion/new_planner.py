@@ -92,7 +92,7 @@ class Planner():
         return motion_milestones
 
     def check_placement(self,world,T,target_index):
-#only for item placement checking
+        #only for item placement checking
         world.rigidObject(target_index).setTransform(T[0],T[1])
         glist_target=[]
         glist_target.append(world.rigidObject(target_index).geometry())
@@ -324,7 +324,7 @@ class PickPlanner(Planner):
             raise RuntimeError("Can't find a feasible path to pick up item")
 
         #find and move to the inspection station
-        inspection_pose = self.store.get('/robot/inspect_pose');
+        inspection_pose = self.store.get('/robot/inspect_pose')
         inspect_position = inspection_pose[:3,3]
 
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
@@ -336,8 +336,9 @@ class PickPlanner(Planner):
 
         start_T=copy.deepcopy(current_T)
         end_T=copy.deepcopy(current_T)
-        end_T[1][0]=inspect_position[0]
-        end_T[1][1]=inspect_position[1]
+        end_T[1][0]=inspect_position[0] - self.ee_local[0]
+        end_T[1][1]=inspect_position[1] - self.ee_local[1]
+        end_T[1][2]=inspect_position[2] - self.ee_local[2]
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
 
@@ -350,7 +351,7 @@ class PickPlanner(Planner):
         print "Returning motion plan to inspection station"
         return self.motion_milestones
 
-    def drop_item(self, item, target_box, target_index):
+    def drop_item(self, item, T):#target_box, target_index):
         #initial setup
         self.current_config=self.robot.getConfig()
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
@@ -360,24 +361,37 @@ class PickPlanner(Planner):
         self.check_points.append(current_T)
 
         #get end point
-        drop_position = self.find_placement(target_box, target_index)
-        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
+        if isinstance(T, np.ndarray):
+            T = numpy2klampt(T)
+        drop_position = T[1]
+        #drop_position = self.find_placement(target_box, target_index)
+        #self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
 
-        curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
-        curr_orientation,p=self.robot.link(self.ee_link).getTransform()
-        current_T=[curr_orientation,curr_position]
-        self.check_points.append(current_T)
+        #self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,current_T,end_T,0,0,1)
 
-        item_vacuum_offset=item['vacuum_offset']
-        drop_offset=item['drop offset']
+        #curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
+        #curr_orientation,p=self.robot.link(self.ee_link).getTransform()
+        #current_T=[curr_orientation,curr_position]
+        #self.check_points.append(current_T)
 
-        start_position=vectorops.add(drop_position,[0,0,0.4])
-        start_position[2]=min(0.4,start_position[2])
-        end_T=[[1,0,0,0,-1,0,0,0,-1],start_position]
-        self.check_points.append(end_T)
-        l=vectorops.distance(current_T[1],end_T[1])
+        # item_vacuum_offset=item['vacuum_offset']
+        # drop_offset=item['drop offset']
 
-        self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,current_T,end_T,0,0,1)
+        start_T=copy.deepcopy(current_T)
+        end_T=copy.deepcopy(current_T)
+        end_T[0] = T[0]
+        end_T[1][0]=drop_position[0]
+        end_T[1][1]=drop_position[1]
+        end_T[1][2]=start_T[1][2]
+        hover_T = copy.deepcopy(end_T)
+        l=vectorops.distance(start_T[1],end_T[1])
+        # start_position=vectorops.add(drop_position,[0,0,0.4])
+        # start_position[2]=min(0.4,start_position[2])
+        # end_T=[[1,0,0,0,-1,0,0,0,-1],start_position]
+        # self.check_points.append(end_T)
+        # l=vectorops.distance(current_T[1],end_T[1])
+
+        self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,current_T,end_T,1,1,1)
 
         if not self.motion_milestones:
             raise RuntimeError("Can't find a feasible path to start position")
@@ -386,12 +400,19 @@ class PickPlanner(Planner):
 
 
         #lower the item
+        #start_T=copy.deepcopy(end_T)
+        #end_T[1]=vectorops.add(drop_position,drop_offset)
+        drop_offset=item['drop offset']
         start_T=copy.deepcopy(end_T)
-        end_T[1]=vectorops.add(drop_position,drop_offset)
+        # HACK: not sure why need to subtract ee_local off here...
+        end_T[1][0]=drop_position[0] - self.ee_local[0]
+        end_T[1][1]=drop_position[1] - self.ee_local[1]
+        end_T[1][2]=drop_position[2] - self.ee_local[2]
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,1,1,1)
         if not self.motion_milestones:
+            print self.check_points
             raise RuntimeError("Can't find a feasible path to lower the vacuum/item")
 
         #turn off the vacuum
@@ -399,7 +420,7 @@ class PickPlanner(Planner):
 
         #raise the robot
         start_T=copy.deepcopy(end_T)
-        end_T[1][2]=0.45
+        end_T[1] = hover_T[1]
         self.check_points.append(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
         self.motion_milestones=self.add_milestones(test_cspace,self.robot,self.motion_milestones,l/self.max_end_effector_v,self.control_rate,start_T,end_T,0,0,0)
@@ -493,12 +514,13 @@ class StowPlanner(Planner):
         if not self.motion_milestones:
             raise RuntimeError("Can't find a feasible path to pick up the item")
 
-#find and move to the inspection station
+        #find and move to the inspection station
         inspection_pose = self.store.get('/robot/inspect_pose');
         inspect_position = inspection_pose[:3,3]
 
-        curr_orientation,p=self.robot.link(self.ee_link).getTransform()
-        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,inspect_position,self.robot,1)
+        # NOTE: skip indirect motion to inspection station
+        # curr_orientation,p=self.robot.link(self.ee_link).getTransform()
+        # self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,inspect_position,self.robot,1)
 
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()

@@ -30,7 +30,7 @@ class WorldViewer(GLRealtimeProgram):
         self.fps = 30.0
         self.dt = 1 / self.fps
 
-        self.select_grasp_index = store.get('/robot/target_grasp', {'index': None})['index']
+        self.select_grasp_index = store.get('/robot/target_grasp', {'index': None}).get('index', None)
         self.show_grasp_index = self.select_grasp_index
 
         point_cloud = store.get(photo_url + ['point_cloud_segmented'])
@@ -44,6 +44,8 @@ class WorldViewer(GLRealtimeProgram):
         self.pc.update(point_cloud[mask], full_color[mask], camera_pose)
 
         self.grasps = store.get(photo_url + ['vacuum_grasps'])
+
+        self.view.camera.rot = [0, pi/4, pi/2 + pi/4]
 
     def display(self):
         self.world.drawGL()
@@ -107,9 +109,10 @@ class WorldViewerWindow(QMainWindow):
         self.select_buttons = []
 
         for (i, grasp) in enumerate(store.get(self.photo_url + ['vacuum_grasps'])):
-            label = QLabel('{0}: ({1[0]:.3f}, {1[1]:.3f} {1[2]:.3f})'.format(
+            label = QLabel('{0} {2}: ({1[0]:.3f}, {1[1]:.3f} {1[2]:.3f})'.format(
                 i,
-                list(grasp['center'].flat)
+                list(grasp['center'].flat),
+                grasp['score']
             ))
             self.ui.grasp_panel_layout.addWidget(label, i, 0, 1, 1)
 

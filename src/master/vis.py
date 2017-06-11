@@ -7,9 +7,9 @@ from matplotlib import cm
 from math import pi
 
 from OpenGL.arrays import vbo
-from OpenGL.GL import glEnable, glDisable, glPushMatrix, glPopMatrix, glMultMatrixf, glMatrixMode
+from OpenGL.GL import glEnable, glDisable, glPushMatrix, glPopMatrix, glMultMatrixf, glMatrixMode, glClear
 from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glColorPointerf, glDrawArrays, glPointSize, glLineWidth, glColor
-from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS, GL_LINE_STRIP
+from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY, GL_POINTS, GL_LINE_STRIP, GL_DEPTH_BUFFER_BIT
 
 from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram, gldraw
@@ -236,6 +236,8 @@ class WorldViewer(GLRealtimeProgram):
         self.post_drawables = []
         self.extra_poses = []
 
+        self.view.camera.rot = [0, pi/4, pi/2 + pi/4]
+
     def display(self):
         for drawable in self.pre_drawables:
             drawable.draw()
@@ -250,7 +252,8 @@ class WorldViewer(GLRealtimeProgram):
         #     poses.append(robot.link(0).getTransform())
         #     poses.append(robot.link(robot.numLinks()-1).getTransform())
 
-        gldraw.xform_widget(se3.identity(), 0.1, 0.01, fancy=True)
+        glClear(GL_DEPTH_BUFFER_BIT)
+        gldraw.xform_widget(se3.identity(), 0.1, 0.01)
 
     def mousefunc(self,button,state,x,y):
         return GLRealtimeProgram.mousefunc(self,button,state,x,y)
@@ -284,6 +287,7 @@ class WorldViewerWindow(QMainWindow):
             (3, '/item'),
             (3, '/box'),
             (3, '/tote'),
+            (3, '/frame'),
             (3, '/vantage'),
         ])
 
@@ -314,7 +318,7 @@ class WorldViewerWindow(QMainWindow):
 
             self.ready = True
 
-        update_world(self.db, self.program.world, self.timestamps, ignore=['items', 'obstacles'])
+        update_world(self.db, self.program.world, self.timestamps, ignore=['obstacles'])
 
         self._update_bounding_box('target', [], ['robot', 'target_bounding_box'])
 
@@ -360,6 +364,7 @@ class WorldViewerWindow(QMainWindow):
             self._update_pose('vantage_{}'.format(name), [['vantage', name]])
 
         self._update_pose('shelf', [['shelf', 'pose']])
+        self._update_pose('frame', [['frame', 'pose']])
 
         self._update_pose('robot_base', [['robot', 'base_pose']])
         self._update_pose('robot_tcp', [['robot', 'tcp_pose']])
@@ -367,7 +372,7 @@ class WorldViewerWindow(QMainWindow):
 
         self._update_pose('robot_placement', [['robot', 'placement', 'pose']])
 
-        self._update_pose('robot_target', [['robot', 'target_xform']])
+        self._update_pose('robot_target', [['robot', 'target_pose']])
 
         self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
 

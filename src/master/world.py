@@ -79,7 +79,8 @@ terrains = {
 rigid_objects = {
     'amnesty_tote': 'data/objects/tote.stl',
     'stow_tote': 'data/objects/tote.stl',
-    'shelf': 'data/objects/linear_shelf.stl'
+    'shelf': 'data/objects/linear_shelf.stl',
+    'frame': 'data/objects/frame.stl',
 }
 
 def _get_or_load(world, name, path, total, getter, loader):
@@ -151,30 +152,38 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
     _sync(db, '/robot/current_config', lambda q: tx90l.setConfig(q))
     tx90l.setConfig(tx90l.getConfig())
 
-    # update shelf
-    shelf = _get_rigid_object(world, 'shelf')
-    _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
+    if 'shelf' not in ignore:
+        # update shelf
+        shelf = _get_rigid_object(world, 'shelf')
+        _sync(db, '/shelf/pose', lambda p: shelf.setTransform(*numpy2klampt(p)))
 
-    # update tote
-    if task in ['stow', 'final']:
-        amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
-        _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
+    if 'frame' not in ignore:
+        # update shelf
+        frame = _get_rigid_object(world, 'frame')
+        _sync(db, '/frame/pose', lambda p: frame.setTransform(*numpy2klampt(p)))
 
-        stow_tote = _get_rigid_object(world, 'stow_tote')
-        _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
-    else:
-        _remove_rigid_object(world, 'amnesty_tote')
-        _remove_rigid_object(world, 'stow_tote')
+    if 'totes' not in ignore:
+        # update tote
+        if task in ['stow', 'final']:
+            amnesty_tote = _get_rigid_object(world, 'amnesty_tote')
+            _sync(db, '/tote/amnesty/pose', lambda p: amnesty_tote.setTransform(*numpy2klampt(p)))
 
-    # update boxes
-    for name in db.get('/box', []):
-        if task in ['pick', 'final']:
-            size = db.get('/box/{}/size_id'.format(name))
-            if size:
-                box = _get_rigid_object(world, '{}_box'.format(name), 'data/objects/box-{}.off'.format(size))
-                _sync(db, '/box/{}/pose'.format(name), lambda p: box.setTransform(*numpy2klampt(p)))
+            stow_tote = _get_rigid_object(world, 'stow_tote')
+            _sync(db, '/tote/stow/pose', lambda p: stow_tote.setTransform(*numpy2klampt(p)))
         else:
-            _remove_rigid_object(world, '{}_box'.format(name))
+            _remove_rigid_object(world, 'amnesty_tote')
+            _remove_rigid_object(world, 'stow_tote')
+
+    if 'boxes' not in ignore:
+        # update boxes
+        for name in db.get('/box', []):
+            if task in ['pick', 'final']:
+                size = db.get('/box/{}/size_id'.format(name))
+                if size:
+                    box = _get_rigid_object(world, '{}_box'.format(name), 'data/objects/box-{}.off'.format(size))
+                    _sync(db, '/box/{}/pose'.format(name), lambda p: box.setTransform(*numpy2klampt(p)))
+            else:
+                _remove_rigid_object(world, '{}_box'.format(name))
 
     if 'camera' not in ignore:
         # update cameras
@@ -188,19 +197,6 @@ def update_world(db=None, world=None, timestamps=None, ignore=None):
 
             cam = _get_rigid_object(world, name, 'data/objects/sr300.stl')
             _sync(db, '/camera/{}/pose'.format(name), lambda p: cam.setTransform(*numpy2klampt(p)))
-
-    if 'items' not in ignore:
-        # update items
-        for name in db.get('/item', {}):
-            item = _get_rigid_object(world, 'item_{}'.format(name), 'data/objects/10cm_cube.off')
-
-            location = db.get(['item', name, 'location'], 'shelf')
-            if location.startswith('bin'):
-                _sync(db, ['/shelf/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
-            elif location in ['stow_tote', 'stow tote']:
-                _sync(db, ['/tote/stow/pose', '/item/{}/pose'.format(name)], lambda p1, p2: item.setTransform(*numpy2klampt(p1.dot(p2))))
-            else:
-                logger.error('unrecognized location for item "{}": {}'.format(name, location))
 
     return world
 

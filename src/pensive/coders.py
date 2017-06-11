@@ -54,6 +54,9 @@ def register_numpy():
     JSON_ENCODERS[numpy.ndarray] = lambda obj: {'__numpy.ndarray__': encode(obj)}
     JSON_ENCODERS[numpy.matrix] = lambda obj: {'__numpy.matrix__': encode(obj)}
 
+    JSON_ENCODERS[numpy.float32] = float
+    JSON_ENCODERS[numpy.float64] = float
+
     def decode_ndarray(obj):
         if 'list' in obj:
             return numpy.array(obj['list'], dtype=obj['dtype'])

@@ -2,6 +2,7 @@ import numpy as np
 import math
 import cv2
 from scipy.spatial import distance as dist
+from operator import itemgetter
 import pcl
 import glob
 import json
@@ -20,7 +21,6 @@ def pcd2image(plane):
     A 2D map as python list with the same dimension of image that contains the index to the original point to the numpy array for the plane
 
     """
-    global plane_image,plane_map,lengthPerPixel
 
     #remove all the (0,0,0) readings from the plane segments
     mask = np.all(plane == 0, axis=1)
@@ -41,7 +41,7 @@ def pcd2image(plane):
     image_dimension=2*max(pixelLength_x, pixelLength_y)
 
     lengthPerPixel=(x_max-x_min)/pixelLength_x
-    plane_image=np.full((image_dimension,image_dimension,3),220,dtype="uint8")
+    plane_image=np.full((image_dimension,image_dimension),220,dtype="uint8")
     plane_map= [[[] for j in xrange(image_dimension)] for i in xrange(image_dimension)]
 
     #find out the minimum x and y value on the image
@@ -52,13 +52,13 @@ def pcd2image(plane):
     for index,point in enumerate(plane):
         pixel_X=max(0,int((point[0]-x_edge)/lengthPerPixel)-1)
         pixel_Y=max(0,int((point[1]-y_edge)/lengthPerPixel)-1)
-        plane_image[pixel_Y][pixel_X]=np.array([50,0,70],dtype="uint8")
+        plane_image[pixel_Y][pixel_X]=np.uint8(0)
         plane_map[pixel_Y][pixel_X].append(index)
 
 
-    return (plane_image,plane_map)
+    return (plane_image,plane_map,lengthPerPixel)
 
-def check_size(contour):
+def check_size(contour,lengthPerPixel):
     """
     Check if the size of the plane is large enough for the vacuum hose, currently the thereshold is set at 5cm
     Input:
@@ -69,7 +69,7 @@ def check_size(contour):
     Fullness: The extent the given contour fits a rectangle or Ellipse
 
     """
-    MIN_DIAMETER = 0.035
+    MIN_DIAMETER = 0.05
     MIN_FILL = 0.8
     #compute if the shape is close to a rectangle or circle enough, set 80% as threshold
     center_rect,dimension_rect,rotation_rect=cv2.minAreaRect(contour)
@@ -85,7 +85,7 @@ def check_size(contour):
     else:
         return (False,ratio,max(FitRect,FitCircle))
 
-def check_top(surfacePoints,coeficients):
+def check_top(surfacePoints,coeficients,pointcloud):
 
     """
     check if the top surface of the object is covered by something else by intergrating the depth of the surface point to the plane
@@ -125,7 +125,7 @@ def check_top(surfacePoints,coeficients):
          return (1,1)
 
 
-def mapPlane_pixel2Pointcloud_pixel(edgepoints):
+def mapPlane_pixel2Pointcloud_pixel(pointcloud,plane,edgepoints,plane_map):
 
     """
     Map the contour pixels founded on the 2d projection of the plane back to the corresponding pixels
@@ -139,17 +139,13 @@ def mapPlane_pixel2Pointcloud_pixel(edgepoints):
     pixel_in_pointcloud: pixel values for the plane edges in the original pointcloud in a python list
 
     """
-    global edge_Depths, pixel_in_pointcloud
     edge_Depths=[]
     pixel_in_pointcloud=[]
     for point in edgepoints:
         pixels=plane_map[point[1]][point[0]]
         if len(pixels)>0:
             edge_Depths.append(plane[pixels[0]])
-    #print edge_Depths
-
     #find the catersian coordinates of the edge points in the original point cloud
-
     for coordinate in edge_Depths:
         indice = np.where(np.all(pointcloud == coordinate, axis=-1))
 
@@ -172,7 +168,6 @@ def find_enclosingPixels(contour):
     in python list
 
     """
-    global enclosing_pixels_pointcloud
     enclosing_pixels_pointcloud=[]
 
 
@@ -193,13 +188,29 @@ def find_enclosingPixels(contour):
                 enclosing_pixels_pointcloud.append([i,j])
     return enclosing_pixels_pointcloud
 
+def get_enclosingPixels(contour,image):
+
+    cnt= np.array(contour).reshape((-1,1,2)).astype(np.int32)
+    mask=np.zeros(image.shape[:2],np.uint8)
+    cv2.drawContours(mask,[cnt],0,255,-1)
+    pixelpoints = cv2.findNonZero(mask)
+    pixelpoints=pixelpoints.flatten()
+    pixelpoints=np.reshape(pixelpoints,(pixelpoints.size/2,2))
+    return pixelpoints
+
+def get_mean_intensity(image,contour):
+    mask=np.zeros(image.shape[:2],np.uint8)
+    cv2.drawContours(mask,[contour],0,255,-1)
+    mean_val = cv2.mean(image,mask = mask)
+
+    return mean_val
 
 def find_center(points):
 
 
     return np.mean(points, axis=0)
 
-def check_surroundings(contour):
+def check_surroundings(contour,pointcloud):
 
     """
     check  depths along the edge of the segmented plane in the original pointcloud
@@ -217,6 +228,8 @@ def check_surroundings(contour):
 
     """
     #convert the python list to a contour format opencv recgonizes
+
+
 
     percentage_covered=0
     percentage_gap=0
@@ -338,9 +351,9 @@ def check_flatness(segment):
 
     Output:
 
-    plane_percentage: the percentage of the input pointcloud that can fit inside a plane
     mode: the plane equation in a python list [a,b,c,d]
     cloud_plane: The fitted plane in .pcd
+    indices: indices of the segmented plane
 
     """
     global seg_pcd
@@ -350,187 +363,277 @@ def check_flatness(segment):
     seg.set_normal_distance_weight(0.1)
     seg.set_method_type(pcl.SAC_RANSAC)
     seg.set_max_iterations(100)
-    seg.set_distance_threshold(0.03)
+    seg.set_distance_threshold(0.05)
     indices, model = seg.segment()
     cloud_plane = segment.extract(indices, negative=False)
     seg_pcd=segment.extract(indices,negative=True)
-    plane_percentage=1.0*cloud_plane.size/segment.size
-    return (plane_percentage, model, cloud_plane)
+    return (model, cloud_plane,indices)
 
+
+def get_pc_points(edgepoints,plane_map,indices_plane,indices_segment):
+    """
+    map the points in the projected image back to the index into the original pointcloud
+    """
+    pixel_in_pointcloud=[]
+    for point in edgepoints:
+        indices=plane_map[point[1]][point[0]]
+        for indice in indices:
+            indice_pcl=indices_plane[indice]
+            indice_pc=[indices_segment[1][indice_pcl],indices_segment[0][indice_pcl]]
+            pixel_in_pointcloud.append(indice_pc)
+    return pixel_in_pointcloud
+
+
+
+
+def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
+    """
+    Find graspable sites inside the masked region of the pointcloud and rate graspbility with vacuum gripper for each identified plane.
+
+    Input:
+    pc: Structured pointcloud in numpy array
+    depth_threshold: maximum depth considered in the bin, anything above that depth will be considered noise.
+    masks: A python list of numpy arrays where each arry is a mask of the object segment where only the area of interest is represented as 1 and everywhere else is 0. The size of the mask should be the same as the pointcloud. If no mask is provided, the code will segment all the planes it could find and rate them
+    img: rgb image alligned to the depth of the scene,if provided, will show visualization of the plane rating on the image, if not provided, will show visualization of the segments alone.
+    output: a python dictionary of extracted features of the plane, along with the center coordinates, surface normals, and ratings for graspbility
+    format {'segment': filename,'center':center.tolist(),'orientation':plane_equation, 'score':Finalscore, 'flatness':plane_percentage, 'tilting_angle': angle, 'size': ratio, 'convexity':fitness,'close_edge': edge_close, 'gap': edge_gap,'blockage': edge_covered, 'edge_inconclusive':edge_missing, 'gap_Depth':gap_Depth, 'blockage_height':converage_height,'top_coverage':percentage, 'cover_height': average_distance }
+
+    """
+    segments=[]
+    global seg_pcd
+    Plane_info=[]
+    mask_indices=[]
+    show_Segment=img.copy()
+    large_masks=[]
+
+    #denoise pointcloud
+    pointcloud=pc.astype(np.float32)
+    pc_shape=pointcloud.shape
+    pointcloud=pointcloud.flatten()
+    pointcloud=np.reshape(pointcloud,(pointcloud.size/3,3))
+    pointcloud[pointcloud[:,2]>0.4]=np.array([0,0,0],dtype='float32')
+    if masks is None:
+        segment_npy=pointcloud
+        #remove the all zero points from the segment first
+        mask0 = np.all(segment_npy == 0, axis=1)
+        segment_npy = segment_npy[~mask0]
+        segments.append(segment_npy)
+    pointcloud=pointcloud.reshape(pc_shape)
+    for mask in masks:
+        seg_index=mask.nonzero()
+        segment_npy= pointcloud[seg_index]
+        if len(segment_npy)>1000:
+            mask_indices.append(seg_index)
+            segments.append(segment_npy)
+            large_masks.append(mask)
+
+    candidate_planes=[]
+    for maskNum,segment in enumerate(segments):
+        show_Segment=img.copy()
+        #get the center of gravity for each segments
+        mask_Size=len(segment)
+        COG = [float(sum(col))/len(col) for col in zip(*segment)]
+        seg_pcd=pcl.PointCloud(segment)
+        first_Segment=True
+        while seg_pcd.size>1000:
+            deductions = {'Orientation': 0, 'top_Coverage': 0, 'Side_coverage':0, 'Side_height':0, 'size':0, 'Solidity':0,'Off_center':0 }
+            try:
+             plane_equation,plane_pcd,indices_in_pc=check_flatness(seg_pcd)
+
+             if plane_pcd.size == 0:
+                 break
+            except:
+                break
+            if plane_pcd.size>500:
+
+                plane = np.asarray(plane_pcd)
+                plane=plane.astype(np.float32)
+                plane_percentage=len(plane)*1.0/mask_Size
+                image,plane_map,lengthPerPixel = pcd2image(plane)
+                #get the angle from the plane equation
+                angle=math.acos(plane_equation[2])
+                angle=angle*180.0/math.pi
+                if abs(angle)>90:
+                    angle=180-abs(angle)
+
+                Found_Contour,cnt,image=find_contour(image)
+                if Found_Contour:
+                    intensity=get_mean_intensity(image,cnt)
+                    cv2.drawContours(image,cnt, -1, (100), 3)
+                    size_good,ratio, fitness=check_size(cnt,lengthPerPixel)
+                    #find the pixels for the plane edge in the original pointcloud
+                    edgepoints=np.reshape(cnt,(cnt.size/2,2))
+                    if first_Segment:
+                        pixel_in_pointcloud=get_pc_points(edgepoints,plane_map,indices_in_pc,mask_indices[maskNum])
+                    else:
+                        edge_Depths,pixel_in_pointcloud=mapPlane_pixel2Pointcloud_pixel(pointcloud,plane,edgepoints,plane_map)
+                    #Check around the edge of the plane and detect if it is likely covered around the edge
+                    edge_gap, edge_covered, edge_missing, edge_close, gap_Depth, converage_height=check_surroundings(pixel_in_pointcloud,pointcloud)
+                    first_Segment=False
+                    #check if the top of the plane is likely covered
+                    #Use those edge pixels to find all the enclosing pixels inside the contour
+                    enclosing_pixels_pointcloud=find_enclosingPixels(pixel_in_pointcloud)
+                    #print enclosing_pixels_pointcloud
+                    #Todos: optimize the enclosing pixels function
+                    #enclosing_pixels_pointcloud=get_enclosingPixels(pixel_in_pointcloud,pointcloud)
+
+                    center=find_center(plane)
+                    centerPlane2centerSeg=np.linalg.norm(center-COG)
+                    percentage,average_distance=check_top(enclosing_pixels_pointcloud,plane_equation,pointcloud)
+                    if average_distance<0:
+                        center[2]+=average_distance
+                    #Here are the priliminary scorings for each features
+
+                    if ratio<1:
+                        deductions['size']=(1/ratio)**2*20-20
+                    if fitness<0.8:
+                        deductions['size']+=(0.8-fitness)*10
+
+                    deductions['Side_coverage']=max(0,edge_close+(edge_covered*10)**2*converage_height*40-edge_gap*gap_Depth*100)
+
+
+                    if percentage>0.02 and average_distance>0 or average_distance<-0.02:
+                        deductions['top_Coverage']=abs(average_distance)*1000*percentage*100*0.5
+
+                    if angle>10:
+                        deductions['Orientation']=((angle-10)/10)**2*0.5
+
+                    deductions['Off_center']=centerPlane2centerSeg*(1-plane_percentage)*100
+                    deductions['Solidity']=(intensity[0]/50.0)**3
+                    Finalscore=Score-sum(deductions.values())
+
+                    #Load all plane information into a python list where each of the sublist is a python dictionary
+
+                    Plane_info.append({'segment': maskNum,'center':center.tolist(),'orientation':plane_equation, 'score':Finalscore, 'flatness':plane_percentage, 'tilting_angle': angle, 'size': ratio, 'convexity':fitness,'close_edge': edge_close, 'gap': edge_gap,'blockage': edge_covered, 'edge_inconclusive':edge_missing, 'gap_Depth':gap_Depth, 'blockage_height':converage_height,'top_coverage':percentage, 'cover_height': average_distance,'distance2COG':centerPlane2centerSeg,'percentageAsPlane':plane_percentage,'mean_intensity':intensity[0],'height':center[2]})
+                    """
+                    #printing information to the terminal
+
+                    print('Plane angle is {} degrees, taking {} points off.'.format(angle,deductions['Orientation']))
+                    print " "
+                    print('Plane intensity(solidity) is {} , taking {} points off.'.format(intensity[0],deductions['Solidity']))
+                    print " "
+                    print('The smaller dimension is {} required, its shape can be approximated as a rectangle or ellipse by {} %, taking {} off.'.format(ratio,fitness*100,deductions['size']))
+                    print " "
+                    print('Segmented plane is {}cm away from the segment center of the gravity , {} percent of the original can be approximated as a plane. Taking {} off.'.format(centerPlane2centerSeg,plane_percentage*100,deductions['Off_center']))
+                    print " "
+                    print('{} percent of surroundings are confirmed gaps, with an average dip of {} cm.  {} percent of surroundings are confirmed blockage, with an average height of {} cm. {} percent of surroundings have insufficient readings. {} percent of the surroundings have readings that are close to the edge. Taking {} points off'.format(edge_gap*100,gap_Depth*100,edge_covered*100,converage_height*100,edge_missing*100,edge_close*100, deductions['Side_coverage']))
+                    print " "
+                    print('{} percent of measurements is above the 1 cm thereshold, with an average displacement of {} cm. Taking {} points off.'.format(percentage*100,average_distance*100,deductions['top_Coverage']))
+
+                    print " "
+                    print ("The final score for the plane is {}" .format(Finalscore))
+                    print " "
+                    print " "
+                    print "                                                               Press 'Space' for the next plane                                                                              "
+                    print " "
+
+
+                    try:
+                        if Finalscore>-500000:
+
+                        #if uv map and color image exists, map depth pixels to RGB pixels for drawing segments on the original image
+                            ctr = np.array(pixel_in_pointcloud).reshape((-1,1,2)).astype(np.int32)
+
+                            current_mask=large_masks[maskNum]
+                            current_mask=current_mask.astype(np.uint8)
+                            show_Segment=cv2.bitwise_and(show_Segment,show_Segment,mask=current_mask)
+                            img2=img
+
+                            M = cv2.moments(ctr)
+                            cX = int(M["m10"] / M["m00"])
+                            cY = int(M["m01"] / M["m00"])
+                            cv2.drawContours(img2,[ctr],0,(0,255,0),2)
+                            if Finalscore>-5:
+                                cv2.putText(img2,str(Finalscore)[:4], (cX-10 , cY ),cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 3)
+                            cv2.imshow("masked_Area",show_Segment)
+                            cv2.imshow("image",img2)
+                            cv2.imshow("segments",image)
+                            k = cv2.waitKey(0)
+                            if k == 27:
+
+                                cv2.destroyAllWindows()
+
+
+                            # Otherwise, just show images of the segments
+
+                    except:
+                        # Otherwise, just show images of the segments
+                        cv2.imshow("segments",image)
+                        k = cv2.waitKey(0)
+                        if k == 27:         # wait for ESC key to exit
+
+                            cv2.destroyAllWindows()
+                    """
+                else:
+                    print " no contour founded,continue to the next segment"
+                    continue
+
+
+
+
+    #for all planes with positive scores, arrange the planes in order of height and add punishment for lower planes
+    Plane_info = sorted(Plane_info, key=itemgetter('height'), reverse=True)
+    order_positive_plane=0
+    for order,rated_plane in enumerate(Plane_info):
+        if rated_plane['score']>0:
+            Plane_info[order]['score']-=order_positive_plane*0.5
+            #print('Plane is the {}th in height, taking {} off.'.format(order_positive_plane+1,order_positive_plane*0.5))
+            order_positive_plane+=1
+
+    return Plane_info
+
+
+
+
+
+def find_contour(image):
+    find_contour=False
+    gray = cv2.GaussianBlur(image, (7, 7), 0)
+
+    # perform edge detection, then perform a dilation + erosion to
+    # close gaps in between object edges
+    edged = cv2.Canny(gray, 70, 240)
+    edged = cv2.dilate(edged, None, iterations=1)
+    edged = cv2.erode(edged, None, iterations=1)
+
+    #save a copy of image after contour, we will later use to obtain all points enclosed in the contour
+
+    frame=edged.copy()
+    cnts, hierarchy = cv2.findContours(frame, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)[-2:]
+
+    #obtain the outmost contour for the plane
+    if len(cnts)>0:
+        find_contour=True
+        cnt=max(cnts,key=cv2.contourArea)
+
+        return (find_contour,cnt,image)
+    else:
+        return (find_contour,0,None)
+
+
+
+"""
 
 #Begin Checking
+
 print " "
 print "################################################################### RUNNING PLANE CHECKING #######################################################################################"
 print " "
-pointcloud=np.load("pc.npy").astype(np.float32)
+
+pointcloud=np.load("pc.npy")
+
 try:
     img = cv2.imread("bin.png")
 except:
     print "UV map or RGB info not provided, cannot show contours of segments on the origianl image"
-filecount=0
-seg_pcd=None
-Plane_info=[]
 
-for filename in glob.iglob('segments/*.npy'):
-     print filename
-     mask=np.load('%s' % filename)
-     segment_npy= pointcloud[mask.nonzero()]
-     segment_npy=segment_npy.astype(np.float32)
-     seg_pcd=pcl.PointCloud(segment_npy)
-     while seg_pcd.size>1000:
-         deductions = {'Orientation': 0, 'top_Coverage': 0, 'Side_coverage':0, 'side_height':0, 'size':0}
-         global plane_equation
-         try:
-             plane_percentage,plane_equation,plane_pcd=check_flatness(seg_pcd)
-             if plane_pcd.size == 0:
-                 break
-         except:
-             break
+seg_masks=[]
 
-         if plane_pcd.size>500:
+for filename in glob.iglob('perception/*.npy'):
+    seg_mask=np.load('%s' % filename)
+    seg_masks.append(seg_mask)
 
-             plane = np.asarray(plane_pcd)
-             image,plane_map = pcd2image(plane)
+plane_info=rate_plane(pointcloud,depth_threshold=0.4,masks=seg_masks,img=img)
 
 
-             #calculate the orientation of the plane using plane equation
-
-             angle=math.acos(plane_equation[2])
-             angle=angle*180.0/math.pi
-             if abs(angle)>90:
-                 angle=180-abs(angle)
-
-                 #For orientation greater than 20 degree, take 0.5 point per 10 degree on top of that
-
-             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-             gray = cv2.GaussianBlur(gray, (7, 7), 0)
-
-             # perform edge detection, then perform a dilation + erosion to
-             # close gaps in between object edges
-             edged = cv2.Canny(gray, 70, 240)
-             edged = cv2.dilate(edged, None, iterations=1)
-             edged = cv2.erode(edged, None, iterations=1)
-
-             #save a copy of image after contour, we will later use to obtain all points enclosed in the contour
-
-             frame=edged.copy()
-             cnts, hierarchy = cv2.findContours(frame, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)[-2:]
-
-             #obtain the outmost contour for the plane
-             if len(cnts)>0:
-                 cnt=max(cnts,key=cv2.contourArea)
-                 cv2.drawContours(image,cnt, -1, (0, 255, 0), 2)
-
-                 #check if the size of the plane can fit in the suction nozzle
-                 size_good,ratio, fitness=check_size(cnt)
-
-                 #find the pixels for the plane edge in the original pointcloud
-                 edgepoints=np.reshape(cnt,(cnt.size/2,2))
-                 edge_Depths,pixel_in_pointcloud=mapPlane_pixel2Pointcloud_pixel(edgepoints)
-
-                 #Check around the edge of the plane and detect if it is likely covered around the edge
-                 edge_gap, edge_covered, edge_missing, edge_close, gap_Depth, converage_height=check_surroundings(pixel_in_pointcloud)
-
-                 #check if the top of the plane is likely covered
-                 #Use those edge pixels to find all the enclosing pixels inside the contour
-                 enclosing_pixels_pointcloud=find_enclosingPixels(pixel_in_pointcloud)
-
-                 center=find_center(plane)
-                 percentage,average_distance=check_top(enclosing_pixels_pointcloud,plane_equation)
-
-                 Collision=True
-                 if percentage<0.02 and ratio>1:
-                     Collision=False
-
-
-
-
-                 #Here are the priliminary scorings for each features
-
-                 if ratio<1:
-                     deductions['size']=(1/ratio)**2*20-20
-                 if fitness<0.8:
-                     deductions['size']+=(0.8-fitness)*20
-
-                 deductions['Side_coverage']=max(0,edge_close+edge_covered*converage_height*400-edge_gap*gap_Depth*100)
-
-
-                 if percentage>0.02 and average_distance>0:
-                     deductions['top_Coverage']=average_distance*1000*percentage*100*0.5
-
-                 if angle>10:
-                     deductions['Orientation']=((angle-10)/10)**2*0.5
-
-                 Finalscore=Score-sum(deductions.values())
-
-                 Plane_info.append({'segment': filename,'center':center.tolist(),'orientation':plane_equation, 'score':Finalscore, 'flatness':plane_percentage, 'tilting_angle': angle, 'size': ratio, 'convexity':fitness,'close_edge': edge_close, 'gap': edge_gap,'blockage': edge_covered, 'edge_inconclusive':edge_missing, 'gap_Depth':gap_Depth, 'blockage_height':converage_height,'top_coverage':percentage, 'cover_height': average_distance })
-
-                 # printing information to the terminal
-
-                #  print('Plane angle is {} degrees, taking {} points off.'.format(angle,deductions['Orientation']))
-                #  print " "
-                #  if Collision is True:
-                #      print "No valid placement for the suction cup found"
-                #  else:
-                #      print "Valid placement for the suction cup found"
-                #  print " "
-                #  print('{} percent of the original can be approximated as a plane.'.format(plane_percentage))
-                #  print " "
-                #  print('The smaller dimension is {} required, its shape can be approximated as a rectangle or ellipse by {} %, taking {} off.'.format(ratio,fitness*100,deductions['size']))
-                #  print " "
-                #  print('The side of the plane is clean, {} percent of surroundings are confirmed gaps, with an average dip of {} cm.  {} percent of surroundings are confirmed blockage, with an average height of {} cm. {} percent of surroundings have insufficient readings. {} percent of the surroundings have readings that are close to the edge. Taking {} points off'.format(edge_gap*100,gap_Depth*100,edge_covered*100,converage_height*100,edge_missing*100,edge_close*100, deductions['Side_coverage']))
-                #  print " "
-                #  print('The top of the plane should be clean, {} percent of measurements is above the 1 cm thereshold, with an average displacement of {} cm. Taking {} points off.'.format(percentage*100,average_distance*100,deductions['top_Coverage']))
-
-                #  print " "
-                #  print ("The final score for the plane is {}" .format(Finalscore))
-                #  print " "
-                #  print " "
-                #  print "                                                               Press 'Space' for the next plane                                                                              "
-                #  print " "
-
-
-                # #  try:
-
-                #      #if uv map and color image exists, map depth pixels to RGB pixels for drawing segments on the original image
-                #      ctr = np.array(pixel_in_pointcloud).reshape((-1,1,2)).astype(np.int32)
-                #      img2=img.copy()
-
-                #      M = cv2.moments(ctr)
-                #      cX = int(M["m10"] / M["m00"])
-                #      cY = int(M["m01"] / M["m00"])
-                #      cv2.drawContours(img2,[ctr],0,(0,255,0),2)
-                #      cv2.putText(img2, str(Finalscore)[:4], (cX-10 , cY ),cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 50, 255), 3)
-
-                #      cv2.imshow("image",img2)
-                #      k = cv2.waitKey(0)
-                #      if k == 27:
-
-                #          cv2.destroyAllWindows()
-
-
-                #      # Otherwise, just show images of the segments
-
-                #  except:
-                #      # Otherwise, just show images of the segments
-                #      cv2.imshow("segments",image)
-                #      k = cv2.waitKey(0)
-                #      if k == 27:         # wait for ESC key to exit
-
-                #          cv2.destroyAllWindows()
-
-             else:
-                 print " no contour founded,continue to the next segment"
-                 continue
-
-
-
-
-#Load all plane information into a python list where each of the sublist is a python dictionary
-
-
-data_file="planes.txt"
-with open(data_file, 'wb') as dump:
-    dump.write(json.dumps(Plane_info))
-
-    print"All plane information has been succesfully recorded!"
+"""

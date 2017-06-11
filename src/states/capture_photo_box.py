@@ -8,9 +8,9 @@ from perception import acquire_images
 
 from .common.capture_photo import capture_photo_handler
 
-class CapturePhotoStow(State):
+class CapturePhotoBin(State):
     '''
-    Outputs: /robot/target_location <- 'stow_tote'
+    Outputs: /robot/target_location <- /robot/target_box
 
              /photos/<location>/<camera>/* for all cameras viewing location
              point_cloud
@@ -23,15 +23,27 @@ class CapturePhotoStow(State):
     '''
 
     def run(self):
-        self.store.put('/robot/target_location', 'stow_tote')
-        capture_photo_handler(self.store, ['stow_tote'])
+
+        location = self.store.get('/robot/target_box')
+
+        print "got location: ", location
+
+        self.store.put('/robot/target_location', location)
+        capture_photo_handler(self.store, [location])
 
         self.setOutcome(True)
+
+    def setBox(self, myname):
+        if len(myname) in [5, 6]:
+            print "Taking photo of ", 'box'+myname[3:].upper()
+            self.store.put('/robot/target_box', 'box'+myname[3:].upper())
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'cps')
-    CapturePhotoStow(myname).run()
+    myname = (args.name or 'cpb')
+    CPB = CapturePhotoBin(myname)
+    CPB.setBox(myname)
+    CPB.run()

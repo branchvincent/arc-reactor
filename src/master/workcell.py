@@ -233,23 +233,39 @@ def _load_vantage(store):
         T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, pi/6, 0) * rpy(0, -0.2, 0) * rpy(0, pi/2, 0)
         store.put(['vantage', bin_name], pose.dot(T))
 
-    # compute the order box and tote vantage points
-    for entity in ['box', 'tote']:
-        for name in store.get([entity], {}).keys():
-            bounds = store.get([entity, name, 'bounds'])
-            pose = store.get([entity, name, 'pose'])
+    # # compute the order box vantage points
+    # for name in store.get(['box'], {}).keys():
+    #     bounds = store.get(['box', name, 'bounds'])
+    #     pose = store.get(['box', name, 'pose'])
 
-            if not bounds:
-                continue
+    #     if not bounds:
+    #         continue
 
-            # bin vantage reference is top of box (Z up in local coordinates)
-            xmed = (bounds[0][0] + bounds[1][0])/2.0
-            ymed = (bounds[0][1] + bounds[1][1])/2.0
-            zmax = max(bounds[0][2], bounds[1][2])
+    #     # bin vantage reference is top of box (Z up in local coordinates)
+    #     xmed = (bounds[0][0] + bounds[1][0])/2.0
+    #     ymed = (bounds[0][1] + bounds[1][1])/2.0
+    #     zmax = max(bounds[0][2], bounds[1][2])
 
-            # calculate transform
-            T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi/2) * rpy(0, -pi/15 - pi, 0) * rpy(0, 0, pi)
-            store.put(['vantage', '{}_{}'.format(name, entity)], pose.dot(T))
+    #     # calculate transform
+    #     T = xyz(xmed, ymed - 0.025, zmax + 0.55) * rpy(0, 0, pi/2) * rpy(0, pi/15 + pi, 0)
+    #     store.put(['vantage', name], pose.dot(T))
+
+    # # compute the tote vantage points
+    # for name in store.get(['tote'], {}).keys():
+    #     bounds = store.get(['tote', name, 'bounds'])
+    #     pose = store.get(['tote', name, 'pose'])
+
+    #     if not bounds:
+    #         continue
+
+    #     # bin vantage reference is top of box (Z up in local coordinates)
+    #     xmed = (bounds[0][0] + bounds[1][0])/2.0
+    #     ymed = (bounds[0][1] + bounds[1][1])/2.0
+    #     zmax = max(bounds[0][2], bounds[1][2])
+
+    #     # calculate transform
+    #     T = xyz(xmed, ymed - 0.025, zmax + 0.65) * rpy(0, 0, pi/2) * rpy(0, pi/15 + pi, 0)
+    #     store.put(['vantage', '{}_tote'], pose.dot(T))
 
 def _dims2bb(dims):
     return [
@@ -275,21 +291,24 @@ def clean(store):
 
     store.put('', output.get())
 
-def setup_workcell(store, workcell):
+def setup_workcell(store, workcell, dirty=False):
     '''
     Populate the workcell, which is common to both pick and stow tasks.
     '''
 
-    logger.info('initializing fresh workcell')
-
-    # start with a fresh database
-    store.delete('')
+    if dirty:
+        logger.warn('updating an existing workcell')
+    else:
+        logger.info('initializing fresh workcell')
+        # start with a fresh database
+        store.delete('')
 
     if isinstance(workcell, str):
         logger.debug('reading workcell from "{}"'.format(workcell))
         workcell = json.load(open(workcell))
 
     _load(store, 'db/bins.json', '/shelf/bin')
+    _load(store, 'db/spots.json', '/system/spot')
 
     _load(store, 'db/cameras.json', '/system/cameras')
     _load(store, 'db/viewpoints.json', '/system/viewpoints')
@@ -404,7 +423,9 @@ def setup_pick(store, location, order, workcell=None, keep=True):
 
     # assign boxes to spots
     boxes = store.get('/box').keys()
-    boxes.sort(key=lambda b: store.get(['system', 'boxes', b[3:], 'priority']))
+    boxes.sort(key=lambda b: -store.get(['system', 'boxes', b[3:], 'priority']))
+
+    frame_pose = store.get(['frame', 'pose'])
 
     for spot in sorted(store.get(['system', 'spot']).keys()):
         if not boxes:
@@ -412,8 +433,17 @@ def setup_pick(store, location, order, workcell=None, keep=True):
 
         box = boxes.pop(0)
 
+        # compute the alignment offset
+        box_bounds = store.get(['box', box, 'bounds'])
+        box_dimensions = [max(x) - min(x) for x in zip(*box_bounds)]
+        spot_dimensions = store.get(['system', 'spot', spot, 'dimensions'])
+
+        alignment = store.get(['system', 'spot', spot, 'alignment'])
+        offset = xyz(*[(s - b) / f for (s, b, f) in zip(spot_dimensions, box_dimensions, alignment)])
+
         # pose the box
-        store.put(['box', box, 'pose'], store.get(['system', 'spot', spot, 'pose']))
+        spot_pose = store.get(['system', 'spot', spot, 'pose'])
+        store.put(['box', box, 'pose'], frame_pose.dot(spot_pose).dot(offset))
 
         # add the box viewpoint
         store.put(['system', 'viewpoints', box], store.get(['system', 'spot', spot, 'viewpoints']))
@@ -477,6 +507,7 @@ def main(argv):
 
     setup_parser = subparsers.add_parser('setup', help='initialize workcell', description='initialize workcell', formatter_class=ArgumentDefaultsHelpFormatter)
     setup_parser.add_argument('workcell', metavar='WORKCELL', help='workcell file path or name')
+    setup_parser.add_argument('--dirty', action='store_true', help='do not clean before initializing')
 
     dump_parser = subparsers.add_parser('dump', help='build workcell file', description='build workcell file', formatter_class=ArgumentDefaultsHelpFormatter)
 
@@ -490,6 +521,9 @@ def main(argv):
     stow_parser.add_argument('--workcell', metavar='WORKCELL', help='workcell file path or name')
     stow_parser.add_argument('--clean', action='store_true', help='clean before initializing')
     stow_parser.add_argument('location', metavar='LOCATION', help='item location file path')
+
+    camera_parser = subparsers.add_parser('camera', help='update camera parameters', description='update camera parameters')
+    camera_parser.add_argument('name', metavar='NAME', nargs='?', help='camera names or none if all')
 
     summary_parser = subparsers.add_parser('summary', help='print workcell summary', description='print workcell summary')
 
@@ -512,7 +546,7 @@ def main(argv):
         clean(store)
 
     elif args.action == 'setup':
-        setup_workcell(store, workcell)
+        setup_workcell(store, workcell, args.dirty)
 
     elif args.action == 'pick':
         setup_pick(
@@ -538,7 +572,8 @@ def main(argv):
             '/robot/inspect_bounds',
             '/robot/camera_xform',
             '/robot/target_xform',
-            '/shelf/pose'
+            '/shelf/pose',
+            '/frame/pose',
         ]
 
         for c in store.get('camera').keys():
@@ -546,19 +581,26 @@ def main(argv):
             urls.append('/camera/{}/color'.format(c))
             urls.append('/camera/{}/depth'.format(c))
 
-        for s in store.get('/system/spot').keys():
-            urls.append('/system/spot/{}/pose'.format(s))
-
-        for t in store.get('/system/totes').keys():
-            urls.append('/system/totes/{}/pose'.format(t))
-
         cell = dict([(url, store.get(url)) for url in urls])
         cell.update({
             '/robot/current_config': [0, 0, -0.5, 1, 0, 1, -2]
         })
 
+        for t in store.get('/system/totes').keys():
+            cell['/system/totes/{}/pose'.format(t)] = store.get(['tote', t, 'pose']) or store.get(['system', 'totes', t, 'pose'])
+
         from pensive.client import json_encode
         print json_encode(cell, indent=4)
+
+    elif args.action == 'camera':
+        name2serial = store.get('/system/cameras')
+        if args.name:
+            serials = [name2serial[n] for n in args.name]
+        else:
+            serials = name2serial.values()
+
+        from perception import initialize_cameras
+        initialize_cameras(serials)
 
 if __name__ == '__main__':
     import sys

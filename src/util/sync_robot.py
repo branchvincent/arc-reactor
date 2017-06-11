@@ -2,23 +2,13 @@ from time import sleep
 
 from hardware.control.robotcontroller import RobotController
 
-from master.world import update_world, klampt2numpy
-
 def sync(db, continuous=False):
     rc = RobotController()
-    world = None
 
     while True:
         # update the robot config
         rc.updateCurrentConfig()
         rc.updateDatabase()
-
-        # build the world
-        world = update_world(db, world)
-
-        # update the robot tool pose
-        robot = world.robot('tx90l')
-        db.put('/robot/tcp_pose', klampt2numpy(robot.link(robot.numLinks() - 1).getTransform()))
 
         if continuous:
             sleep(0.25)

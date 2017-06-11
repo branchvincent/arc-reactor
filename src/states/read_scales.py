@@ -1,7 +1,7 @@
 import logging
 from master.fsm import State
 from hardware.dymo.scale import Scale as DymoScale
-from hardware.atron.scale import Scale as AtronScale
+from hardware.atron.scale import AtronScale
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class ReadScales(State):
@@ -10,18 +10,19 @@ class ReadScales(State):
         scales = []
         for key, val in self.store.get('system/scales', {}).iteritems():
             if key.startswith('dymo'):
-                scales.append(DymoScale(port=val))
+                #scales.append(DymoScale(port=val))
+                pass
             elif key.startswith('atron'):
-                scales.append(AtronScale(port=val))
-                # scales.append(AtronScale(serial=scale[:-1], port=scale[-1]))
+                scales.append(AtronScale(key, self.store))
 
         # Read total weight
-        weight = 0
-        for scale in scales:
-            weight += scale.read()
+        weights = [scale.read() for scale in scales]
+        total_weight = sum(weights)
+
+        logger.info('weight {} = {:.3f} kg'.format(weights, total_weight))
 
         # Update database
-        self.store.put('scales/weight', weight)
+        self.store.put('scales/weight', total_weight)
         #TODO fail if scales hardware produces an error
         self.setOutcome(True)
 

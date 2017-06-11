@@ -11,7 +11,7 @@ import pcl
 import glob
 
 
-def pack(bins,pointcloud,BBs,layer_map,margin=0.005,max_height=0.5,pixel_length=0.001,rotate=False,stability=False,layer=True):
+def pack(bins,pointcloud,BBs,layer_map=None,margin=0.005,max_height=0.5,pixel_length=0.001,rotate=False,stability=False,layer=False):
     """
     pack a item into a selected number of bins and return the center coordinate of the objects when packed
 
@@ -50,7 +50,7 @@ def pack(bins,pointcloud,BBs,layer_map,margin=0.005,max_height=0.5,pixel_length=
     layer_map_candidates=[]
     orders=[]
 
-    item,offset=get_object_dimension(pointcloud)
+    item,offset,rotate_angle=get_object_dimension(pointcloud,pixel_length)
     #initialize the layer_map if one doesn't exsist
     #or if the length of the layer map is different from the number of bins current evaluating(likely forgot to clear layer_map after one run)
     if layer_map is None or len(layer_map)!=len(bins):
@@ -87,17 +87,17 @@ def pack(bins,pointcloud,BBs,layer_map,margin=0.005,max_height=0.5,pixel_length=
         order=orders[best_index]
         layer_map[order]=layermap2update
 
-        tool_location=get_location(location,orientation,offset)
+        tool_location=get_location(location,orientation-rotate_angle,offset)
         # cv2.imshow("denoised",image_show)
         # k = cv2.waitKey(0)
         # if k == 27:         # wait for ESC key to exit
         #     cv2.destroyAllWindows()
 
-        print (best_index, location,tool_location,-orientation)
-        return (best_index, tool_location,-orientation,layer_map)
+        print (order, location,tool_location,-orientation+rotate_angle)
+        return (order, tool_location,-orientation+rotate_angle,layer_map)
 
     else:
-        return (None,None,layer_map)
+        return (None,None,None,layer_map)
 
 def get_location(center,angle,offset):
     """
@@ -106,15 +106,15 @@ def get_location(center,angle,offset):
 
     theta=math.radians(-angle)
 
-    X=center[0]+offset[0]*math.cos(theta) - offset[1]*math.sin(theta)
-    Y=center[1]-offset[0]*math.sin(theta) - offset[1]*math.cos(theta)
+    X=center[0]+offset[0]*math.cos(theta) + offset[1]*math.sin(theta)
+    Y=center[1]+offset[0]*math.sin(theta) - offset[1]*math.cos(theta)
     Z=center[2]-offset[2]
 
     return [X,Y,Z]
 
 
 
-def get_object_dimension(pointcloud):
+def get_object_dimension(pointcloud,pixel_length):
     """
     use a structured or unstructured pointcloud collected at the inspection station to estimate object goemetry
 
@@ -145,8 +145,64 @@ def get_object_dimension(pointcloud):
     z_min=np.amin(z_filtered)
     z_max=np.amax(z_filtered)
 
-    center_offset=(-(x_min+x_max)/2.0,-(y_min+y_max)/2.0,-(z_min+z_max)/2.0)
-    return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset)
+
+
+    height=z_max-z_min
+
+    #map the pointcloud into a 2d imagee
+    num_pixels_x=int((x_max-x_min)/pixel_length)
+    num_pixels_y=int((y_max-y_min)/pixel_length)
+    #save 20 pixels margin(for finding contours)
+    image=np.full((num_pixels_y+40,num_pixels_x+40),255,dtype="uint8")
+    points2map=pointcloud[(pointcloud[:,0] >x_min) & (pointcloud[:,0] <x_max)  & (pointcloud[:,1] > y_min)  & (pointcloud[:,1] < y_max)][:,[0,1]]
+    points2map[:,0]-=x_min
+    points2map[:,1]-=y_min
+    points2map[:,0]/=pixel_length
+    points2map[:,1]/=pixel_length
+    points2map[:,0]+=20
+    points2map[:,1]+=20
+
+    center_coordinate=[int((0-x_min)/pixel_length+20),int((0-y_min)/pixel_length+20)]
+
+    #(points2map[:,0]-x_min)/pixel_length+20
+    #(points2map[:,1]-y_min)/pixel_length+20
+
+    points2map=points2map.astype(int)
+    #flip the order to serve as indexes for an array
+
+    points2map=[[t[1], t[0]] for t in points2map]
+
+    image[tuple(np.array(points2map).T)]=np.uint8(0)
+
+
+    gray = cv2.GaussianBlur(image, (7, 7), 0)
+
+    # perform edge detection, then perform a dilation + erosion to
+    # close gaps in between object edges
+    edged = cv2.Canny(gray, 70, 240)
+    edged = cv2.dilate(edged, None, iterations=1)
+    edged = cv2.erode(edged, None, iterations=1)
+
+    #save a copy of image after contour, we will later use to obtain all points enclosed in the contour
+
+    frame=edged.copy()
+    im1, cnts, hierarchy = cv2.findContours(frame, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+
+    if len(cnts)>0:
+        cnt=max(cnts,key=cv2.contourArea)
+        center_rect,dimension_rect,rotation_rect=cv2.minAreaRect(cnt)
+
+        center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,-(z_min+z_max)/2.0)
+
+        return ([dimension_rect[0]*pixel_length,dimension_rect[1]*pixel_length,z_max-z_min],center_offset,-rotation_rect)
+
+
+    else:
+
+
+
+        center_offset=(-(x_min+x_max)/2.0,-(y_min+y_max)/2.0,-(z_min+z_max)/2.0)
+        return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
 
 
 def reject_outliers(data, m = 3.5):
@@ -554,22 +610,21 @@ def updatescore(score,layer_score,depth_rotated,stability,item_dimension,layer, 
 # random.shuffle(cubes)
 
 
+"""
 
-# """
-# map=None
-# pointcloud=[]
-# pc=np.load("pc_masked.py.npy")
-# for i in range(3):
-#     pointcloud.append(pc)
-# """
-# for cube in cubes:
-#     print cube
-# """
-# for filename in glob.iglob('test_pointclouds/*.pcd'):
+map=None
+pointcloud=[]
+pc=np.load("pc_masked.py.npy")
+for i in range(3):
+    pointcloud.append(pc)
+#for cube in cubes:
+#   print cube
+for filename in glob.iglob('test_pointclouds/*.pcd'):
 
-#     seg_pcd=pcl.load('%s' % filename)
-#     item=np.asarray(seg_pcd)
-#     print filename
+    seg_pcd=pcl.load('%s' % filename)
+    item=np.asarray(seg_pcd)
+    print filename
 
-#     location,angle,layer_map=pack(pointcloud,item, [[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]],[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]],[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]]],map,rotate=True )
-#     map=layer_map
+    best_index,location,angle,layer_map=pack(pointcloud,item, [[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]],[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]],[[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]]],map,rotate=True )
+    map=layer_map
+"""

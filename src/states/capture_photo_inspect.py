@@ -24,7 +24,7 @@ class CapturePhotoInspect(State):
 
     def run(self):
         self.store.put('/robot/target_location', 'inspect')
-        capture_photo_handler(self.store, 'inspect')
+        capture_photo_handler(self.store, ['inspect'])
 
         self.setOutcome(True)
 
