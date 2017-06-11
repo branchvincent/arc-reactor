@@ -19,16 +19,18 @@ class EvaluatePlacement(State):
     '''
     Inputs:  /robot/target_locations (e.g., ['binA'])
 
-    Outputs: /robot/placements: a dictionary of location names to 4x4 numpy matrix of end-effector pose
+    Outputs: /robot/placement/pose: a 4x4 numpy matrix of end-effector pose
+             /robot/placement/location: location name of placement
+             /robot/target_bin and /robot/target_location: set to location of placement
     '''
 
     def run(self):
-        logger.info('finding placements')
+        locations = self.store.get('/robot/target_locations')
+        logger.info('finding placement in {}'.format(locations))
 
         # obtain item point cloud from inspection station in tool coordinates
         item_cloud = self._build_item_point_cloud()
 
-        locations = self.store.get('/robot/target_locations')
 
         # obtain container point cloud and bounding box in container local coordinates
         container_clouds = [self._build_container_point_cloud(location) for location in locations]
@@ -36,25 +38,43 @@ class EvaluatePlacement(State):
 
         # attempt the packing
         (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None)
-        pack_location = locations[idx]
-        logger.info('found placement in "{}"'.format(pack_location))
-        logger.debug('{}, {}'.format(position, orientation))
 
-        # transform placement into world coordinate system
-        robot_tcp_pose = self.store.get('/robot/tcp_pose')
-        robot_tcp_pose[:3, 3] = [[0], [0], [0]]
+        if idx is None and locations == ['amnesty_tote']:
+            # always succeed for amnesty tote
+            logger.warn('amnesty_tote packing failed -> use default placement above center')
 
-        local_placement = xyz(*position).dot(robot_tcp_pose).dot(rpy(0, 0, orientation * 180.0 / pi))
-        container_pose = self.store.get(location_pose_url(pack_location))
-        world_placement = container_pose.dot(local_placement)
+            idx = 0
+            position = self.store.get('/planner/fallback_amnesty_drop', [0, 0, 0.8])
+            orientation = 0
 
-        # store result
-        self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})
+        if idx is not None:
+            # packing succeeded
+            pack_location = locations[idx]
+            logger.info('found placement in "{}"'.format(pack_location))
+            logger.debug('{}, {}'.format(position, orientation))
 
-        self.store.put('/robot/target_bin', pack_location)
-        self.store.put('/robot/target_location', pack_location)
-        self.setOutcome(True)
-        logger.info('find placement completed successfully')
+            # transform placement into world coordinate system
+            robot_tcp_pose = self.store.get('/robot/tcp_pose')
+            robot_tcp_pose[:3, 3] = [[0], [0], [0]]
+
+            local_placement = xyz(*position).dot(robot_tcp_pose).dot(rpy(0, 0, orientation * 180.0 / pi))
+            container_pose = self.store.get(location_pose_url(pack_location))
+            world_placement = container_pose.dot(local_placement)
+
+            # store result
+            self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})
+
+            self.store.put('/robot/target_bin', pack_location)
+            self.store.put('/robot/target_location', pack_location)
+            self.setOutcome(True)
+            logger.info('find placement succeeded')
+        else:
+            # packing failed
+            self.store.delete('/robot/target_bin')
+            self.store.delete('/robot/target_location')
+            self.store.delete('/robot/placement')
+            self.setOutcome(False)
+            logger.error('find placement failed')
 
     def _build_item_point_cloud(self):
         inspect_cloud_world = numpy.array([]).reshape((0, 3))
