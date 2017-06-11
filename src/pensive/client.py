@@ -62,7 +62,7 @@ class JSONClientMixin(object):
             base_url = 'http://' + base_url
 
         self._base_url = base_url.rstrip('/') + '/'
-        self._client = client or HTTPClient()
+        self._client = client or HTTPClient(max_buffer_size=1024*1024*1024)
 
     def _fetch(self, path, method, body=None, args=None, schema=None):
         '''
