@@ -17,7 +17,7 @@ class PlanViewLocation(State):
             raise RuntimeError("no target is set to view")
         else:
             # Plan route
-            lp = LinearPlanner()
+            lp = LinearPlanner(store=self.store)
             lp.interpolate(T=vantage_T)
             self.setOutcome(True)
 

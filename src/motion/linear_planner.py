@@ -48,7 +48,7 @@ class LinearPlanner:
         else:
             raise RuntimeError('Must specify either p or T')
 
-        if ik.solve(goal):
+        if ik.solve_global(goal):
             return self.robot.getConfig()
         else:
             logger.warn('Could not find feasible configuration')
