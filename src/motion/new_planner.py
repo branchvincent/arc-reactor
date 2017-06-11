@@ -328,7 +328,7 @@ class PickPlanner(Planner):
         inspect_position = inspection_pose[:3,3]
 
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
-        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,inspect_position,self.robot,1)
+        #self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,inspect_position,self.robot,1)
 
         curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
         curr_orientation,p=self.robot.link(self.ee_link).getTransform()
