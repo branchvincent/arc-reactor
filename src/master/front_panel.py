@@ -143,10 +143,10 @@ class FrontPanel(QMainWindow):
 
             checkbox.stateChanged.connect(_call(self._put_checkbox, prefix + name, checkbox))
 
-    def _update_toggle_list(self, view, paths, prefix):
+    def _update_toggle_list(self, view, paths, prefix, default=False):
         for (name, checkbox) in paths.iteritems():
             checkbox.blockSignals(True)
-            checkbox.setChecked(view.get(prefix + name, default=False))
+            checkbox.setChecked(view.get(prefix + name, default))
             checkbox.blockSignals(False)
             checkbox.setEnabled(view.get('/robot/run_mode') != 'full_auto')
 
@@ -275,7 +275,7 @@ class FrontPanel(QMainWindow):
         # update toggle UIs
         self._update_toggle_list(self.db, self.checkpoints, '/checkpoint/')
         self._update_toggle_list(self.db, self.faults, '/fault/')
-        self._update_toggle_list(self.db, self.simulations, '/simulate/')
+        self._update_toggle_list(self.db, self.simulations, '/simulate/', default=True)
 
         alert = any([self.db.get('/checkpoint/{}'.format(k), 0) for k in self.checkpoints])
         self.ui.checkpoints_label.setStyleSheet(alert_style if alert else '')
