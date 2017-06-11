@@ -8,7 +8,7 @@ from perception import acquire_images
 
 from .common.capture_photo import capture_photo_handler
 
-class CapturePhotoBin(State):
+class CapturePhotoBox(State):
     '''
     Outputs: /robot/target_location <- /robot/target_box
 
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'cpb')
-    CPB = CapturePhotoBin(myname)
-    CPB.setBox(myname)
-    CPB.run()
+    myname = (args.name or 'cpx')
+    CPX = CapturePhotoBox(myname)
+    CPX.setBox(myname)
+    CPX.run()

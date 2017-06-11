@@ -9,6 +9,8 @@ from states.check_route import CheckRoute
 from states.check_select_item import CheckSelectItem
 from states.plan_view_location import PlanViewLocation
 from states.capture_photo_bin import CapturePhotoBin
+from states.capture_photo_box import CapturePhotoBox
+from states.capture_photo_inspect import CapturePhotoInspect
 from states.segment_photo import SegmentPhoto
 from states.recognize_photo import RecognizePhoto
 from states.evaluate_grasp import EvaluateGrasp
@@ -26,8 +28,10 @@ class PickStateMachine(StateMachine):
         self.add('cpba', CapturePhotoBin('cpba', store=self.store))
         self.add('cpbb', CapturePhotoBin('cpbb', store=self.store))
         self.add('cpbc', CapturePhotoBin('cpbc', store=self.store))
+        self.add('cpbx', CapturePhotoBin('cpbx', store=self.store))
+        self.add('cpx', CapturePhotoBox('cpx', store=self.store))
+        self.add('cpi', CapturePhotoInspect('cpi', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
-        self.add('fi', FindItem('fi', store=self.store))
         self.add('ppi', PlanPickItem('ppi', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
         self.add('pvl', PlanViewLocation('pvl', store=self.store))
@@ -51,6 +55,9 @@ class PickStateMachine(StateMachine):
 
     def getStartState(self):
         return 'pvla'
+
+    def setupOther(self):
+        self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
 
     def setupTransitions(self):
         #initial look. only needs to run once...
@@ -78,7 +85,9 @@ class PickStateMachine(StateMachine):
         self.setTransition('csi', 'ppi', 'si')
         self.setTransition('ppi', 'er4', 'ppi', checkState='cr4')
         self.setTransition('cr4', 'er4', 'ppi')
-        self.setTransition('er4', 'ii', 'ppi')
+        self.setTransition('er4', 'cpi', 'ppi')
+        #throw in read scales somewhere here
+        self.setTransition('cpi', 'ii', 'cpi')
         self.setTransition('ii', 'ep', 'ii')
         self.setTransition('ep', 'ppb', 'ep')
         self.setTransition('ppb', 'er5', 'ppb', checkState='cr5')

@@ -215,6 +215,7 @@ class FrontPanel(QMainWindow):
 
         self.fsm.loadStates()
         self.fsm.setupTransitions()
+        self.fsm.setupOther()
         self.fsm.removeHistory()
         self.fsm.setCurrentState(self.fsm.getStartState())
         self.db.put('/robot/stop_flag', False)

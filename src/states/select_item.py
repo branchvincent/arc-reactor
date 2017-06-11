@@ -14,11 +14,11 @@ class SelectItem(State):
 
             # find the best grasp from all the bins
             for name in ['binA', 'binB', 'binC']:
-                self.url = ['photos', name, 'tcp']
+                url = ['photos', name, 'tcp']
 
                 # get graspability vector from photo-url vacuum_grasps
                 #TODO expand to other grasps
-                self.grasps = self.store.get(self.url + ['vacuum_grasps'])
+                self.grasps = self.store.get(url + ['vacuum_grasps'])
 
                 maxGrasp = max(self.grasps, key=lambda l: l['score'])
 
@@ -27,19 +27,19 @@ class SelectItem(State):
                         continue
 
                 self.maxGrasp = maxGrasp
-                print "max grasp is ", maxGrasp
+                self.url = url
+                print "max grasp is ", self.maxGrasp, " at ", self.url
                 self.maxGraspSeg = self.maxGrasp['segment_id'] - 1
 
-                # match greatest graspability segment to the highest likely item ID
-                self.idSeg = self.store.get(self.url + ['detections'])[self.maxGraspSeg]
-                self.chosenItem = max(self.idSeg, key=lambda l: self.idSeg[l])
+            # match greatest graspability segment to the highest likely item ID
+            self.idSeg = self.store.get(self.url + ['detections'])[self.maxGraspSeg]
+            self.chosenItem = max(self.idSeg, key=lambda l: self.idSeg[l])
 
-                #TODO move this outside of if statement
-                self.store.put('/robot/target_grasp', self.maxGrasp)
-                self.store.put('/robot/grasp_location', 'stow_tote')
+            #TODO move this outside of if statement
+            self.store.put('/robot/target_grasp', self.maxGrasp)
 
-                self.store.put('/robot/selected_box', self.store.get('/item/'+self.chosenItem+'/order').replace('order', 'box'))
-                self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
+            self.store.put('/robot/target_box', self.store.get('/item/'+self.chosenItem+'/order').replace('order', 'box'))
+            self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
 
         elif self.alg == 'stow':
 

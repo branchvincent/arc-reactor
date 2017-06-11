@@ -49,10 +49,10 @@ class StowStateMachine(StateMachine):
         self.add('ep', EvaluatePlacement('ep', store=self.store))
 
     def getStartState(self):
-        #TODO put this action in separate state?
-        self.store.put('/robot/target_location', 'stow_tote')
         return 'cps'
-        #return 'si'
+
+    def setupOther(self):
+        self.store.put('/robot/target_location', 'stow_tote')
 
     def setupTransitions(self):
         self.setTransition('cps', 'sp1', 'cps')

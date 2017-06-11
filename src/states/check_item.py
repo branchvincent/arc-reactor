@@ -34,11 +34,15 @@ class CheckItem(State):
                         self.points += 10/(self.number-len(self.filled))
                         self.store.put('/item/'+i+'/point_value', self.points)
 
+            #setup re-imaging of bin from which item was picked
+            self.store.put('/robot/target_location', self.store.get('/robot/selected_bin'))
+
+
         elif alg=="stow":
             #update location file
-            
-        self.setOutcome(True)
+            pass
 
+        self.setOutcome(True)
     
 if __name__ == '__main__':
     import argparse

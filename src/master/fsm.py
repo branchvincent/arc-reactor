@@ -72,6 +72,9 @@ class StateMachine():
     def getStartState(self):
         raise NotImplementedError
 
+    def setupOther(self):
+        raise NotImplementedError
+
     def getStore(self):
         return self.store
 
