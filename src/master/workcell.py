@@ -522,6 +522,9 @@ def main(argv):
     stow_parser.add_argument('--clean', action='store_true', help='clean before initializing')
     stow_parser.add_argument('location', metavar='LOCATION', help='item location file path')
 
+    camera_parser = subparsers.add_parser('camera', help='update camera parameters', description='update camera parameters')
+    camera_parser.add_argument('name', metavar='NAME', nargs='?', help='camera names or none if all')
+
     summary_parser = subparsers.add_parser('summary', help='print workcell summary', description='print workcell summary')
 
     args = parser.parse_args(argv[1:])
@@ -569,16 +572,14 @@ def main(argv):
             '/robot/inspect_bounds',
             '/robot/camera_xform',
             '/robot/target_xform',
-            '/shelf/pose'
+            '/shelf/pose',
+            '/frame/pose',
         ]
 
         for c in store.get('camera').keys():
             urls.append('/camera/{}/pose'.format(c))
             urls.append('/camera/{}/color'.format(c))
             urls.append('/camera/{}/depth'.format(c))
-
-        for s in store.get('/system/spot').keys():
-            urls.append('/system/spot/{}/pose'.format(s))
 
         cell = dict([(url, store.get(url)) for url in urls])
         cell.update({
@@ -590,6 +591,16 @@ def main(argv):
 
         from pensive.client import json_encode
         print json_encode(cell, indent=4)
+
+    elif args.action == 'camera':
+        name2serial = store.get('/system/cameras')
+        if args.name:
+            serials = [name2serial[n] for n in args.name]
+        else:
+            serials = name2serial.values()
+
+        from perception import initialize_cameras
+        initialize_cameras(serials)
 
 if __name__ == '__main__':
     import sys
