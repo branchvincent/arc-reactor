@@ -20,6 +20,9 @@ class RecognizePhoto(State):
         recognize_objects(self.store, photo_urls, locations)
         #TODO give pass/fail criteria
 
+        # HACK: clear the target photos
+        self.store.put('/robot/target_photos', [])
+
         self.setOutcome(True)
 
 if __name__ == '__main__':
