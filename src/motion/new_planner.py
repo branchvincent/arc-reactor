@@ -560,7 +560,7 @@ class StowPlanner(Planner):
             T = numpy2klampt(T)
         drop_position = T[1]
         # drop_position = self.find_placement(target_box, target_index)
-        self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
+        #self.motion_milestones=self.joint_space_rotate(self.motion_milestones,p,drop_position,self.robot,1)
 
         # while drop_position[0]*p[1]>p[0]*drop_position[1]:
         #     q=self.robot.getConfig()
@@ -572,11 +572,11 @@ class StowPlanner(Planner):
         #     curr_orientation,p=self.robot.link(self.ee_link).getTransform()
 
 
-        #move the item to the start position for dropping
-        curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
-        curr_orientation,p=self.robot.link(self.ee_link).getTransform()
-        current_T=[curr_orientation,curr_position]
-        self.check_points.append(current_T)
+        # #move the item to the start position for dropping
+        # curr_position=self.robot.link(self.ee_link).getWorldPosition(self.ee_local)
+        # curr_orientation,p=self.robot.link(self.ee_link).getTransform()
+        # current_T=[curr_orientation,curr_position]
+        # self.check_points.append(current_T)
 
         start_T=copy.deepcopy(current_T)
         end_T=copy.deepcopy(current_T)
@@ -584,6 +584,16 @@ class StowPlanner(Planner):
         end_T[1][0]=drop_position[0]
         end_T[1][1]=drop_position[1]
         end_T[1][2]=start_T[1][2]
+
+        # from motion.linear_planner import LinearPlanner
+        # lp = LinearPlanner(self.store)
+        # milestones = lp.interpolate(T=end_T, global_solve=True, put=False)
+        # for m in milestones:
+        #     m.set_vacuum([1])
+        # self.motion_milestones.extend(milestones)
+        # self.robot.setConfig(self.motion_milestones[-1].get_robot())
+        # print 'start', self.robot.getConfig()
+
         hover_T = copy.deepcopy(end_T)
         l=vectorops.distance(start_T[1],end_T[1])
 
