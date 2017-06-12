@@ -587,7 +587,7 @@ def main(argv):
         })
 
         for t in store.get('/system/totes').keys():
-            cell['/system/totes/{}/pose'.format(t)] = store.get(['tote', t, 'pose']) or store.get(['system', 'totes', t, 'pose'])
+            cell['/system/totes/{}/pose'.format(t)] = store.get(['tote', t, 'pose'], store.get(['system', 'totes', t, 'pose']))
 
         from pensive.client import json_encode
         print json_encode(cell, indent=4)
