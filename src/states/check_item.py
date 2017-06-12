@@ -3,7 +3,7 @@ import logging; logger = logging.getLogger(__name__)
 
 class CheckItem(State):
 
-    #Confirm item was picked correctly (temp state).
+    #Confirm item was picked correctly
     def run(self):
         #assume it succeeded for now
         self.chosenItem = self.store.get('/robot/selected_item')
@@ -36,14 +36,15 @@ class CheckItem(State):
 
             #setup re-imaging of bin from which item was picked
             self.store.put('/robot/target_location', self.store.get('/robot/selected_bin'))
+            self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
 
 
         elif alg=="stow":
-            #update location file
-            pass
+            self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_bin'))
+            self.store.put('/robot/target_locations', ['stow_tote'])
 
         self.setOutcome(True)
-    
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
