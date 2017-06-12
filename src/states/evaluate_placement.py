@@ -76,6 +76,9 @@ class EvaluatePlacement(State):
             self.setOutcome(False)
             logger.error('find placement failed')
 
+        from util import db
+        db.dump(self.store, '/tmp/placement-{}'.format('-'.join(locations)))
+
     def _build_item_point_cloud(self):
         inspect_cloud_world = numpy.array([]).reshape((0, 3))
         inspect_cloud_color = numpy.array([]).reshape((0, 3))

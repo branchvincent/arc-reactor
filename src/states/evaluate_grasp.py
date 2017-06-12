@@ -83,6 +83,9 @@ class EvaluateGrasp(State):
         self.setOutcome(True)
         logger.info('evaluate vacuum grasp completed successfully')
 
+        from util import db
+        db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))
+
     def find_segment_by_point(self, point_cloud, labeled_image, grasp_center):
         # find the closest point in the point cloud
         distance = ((point_cloud - grasp_center)**2).sum(axis=2)

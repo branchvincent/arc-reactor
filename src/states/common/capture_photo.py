@@ -53,4 +53,8 @@ def capture_photo_handler(store, locations):
     logger.info('acquired images completed')
 
     # set up the target photos for later segmentation/recognition
-    store.put('/robot/target_photos', photo_urls)
+    prior_photo_urls = store.get('/robot/target_photos', [])
+    store.put('/robot/target_photos', prior_photo_urls + photo_urls)
+
+    from util import db
+    db.dump(store, '/tmp/photo-{}'.format('-'.join(locations)))
