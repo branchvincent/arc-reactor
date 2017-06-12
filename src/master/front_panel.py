@@ -119,6 +119,8 @@ class FrontPanel(QMainWindow):
             'vacuum',
             'cameras',
             'object_detection',
+            'scales',
+            'vacuum',
         ])
         self._load_toggle_list('/simulate/', self.simulations, self.ui.simulationLayout)
 
