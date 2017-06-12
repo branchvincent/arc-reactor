@@ -28,7 +28,7 @@ class PickStateMachine(StateMachine):
         self.add('cpba', CapturePhotoBin('cpba', store=self.store))
         self.add('cpbb', CapturePhotoBin('cpbb', store=self.store))
         self.add('cpbc', CapturePhotoBin('cpbc', store=self.store))
-        self.add('cpbx', CapturePhotoBin('cpbx', store=self.store))
+        self.add('cpb', CapturePhotoBin('cpb', store=self.store))
         self.add('cpx', CapturePhotoBox('cpx', store=self.store))
         self.add('cpi', CapturePhotoInspect('cpi', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
@@ -45,7 +45,7 @@ class PickStateMachine(StateMachine):
         self.add('cr4', CheckRoute('cr4', store=self.store))
         self.add('cr5', CheckRoute('cr5', store=self.store))
         self.add('er3', ExecRoute('er3', store=self.store))
-        self.add('sp', SegmentPhoto('sp', store=self.store))
+        self.add('sp1', SegmentPhoto('sp1', store=self.store))
         self.add('sp2', SegmentPhoto('sp2', store=self.store))
         self.add('sp3', SegmentPhoto('sp3', store=self.store))
         self.add('rp1', RecognizePhoto('rp1', store=self.store))
@@ -53,6 +53,7 @@ class PickStateMachine(StateMachine):
         self.add('rp3', RecognizePhoto('rp3', store=self.store))
         self.add('eg', EvaluateGrasp('eg', store=self.store))
         self.add('ii', InspectItem('ii', store=self.store))
+        self.add('rs2', ReadScales('rs2', store=self.store))
         self.add('rs1', ReadScales('rs1', store=self.store))
         self.add('ep', EvaluatePlacement('ep', store=self.store))
 
@@ -77,10 +78,11 @@ class PickStateMachine(StateMachine):
         self.setTransition('pvlc', 'er3', 'pvlc', checkState='cr3')
         self.setTransition('cr3', 'er3', 'pvlc')
         self.setTransition('er3', 'cpbc', 'pvlc')
-        self.setTransition('cpbc', 'sp', 'cpbc')
+        self.setTransition('cpbc', 'rs2', 'cpbc')
+        self.setTransition('rs2', 'sp1', 'sp1') # initial read scales
 
         #then loop to updated pvlXXX and capture
-        self.setTransition('sp', 'rp1', 'sp')
+        self.setTransition('sp1', 'rp1', 'sp1')
         self.setTransition('rp1', 'eg', 'rp1')
         self.setTransition('eg', 'si', 'cpbc') #if eval grasp fails, try to take another photo
 
@@ -92,7 +94,8 @@ class PickStateMachine(StateMachine):
         self.setTransition('er4', 'rs1', 'ppi')
 
         self.setTransition('rs1', 'cpi', 'cpi')
-        self.setTransition('cpi', 'rp2', 'ii')
+        self.setTransition('cpi', 'sp2', 'ii')
+        self.setTransition('sp2', 'rp2', 'ii')
         self.setTransition('rp2', 'ii', 'ii')
         self.setTransition('ii', 'ep', 'ii')
 
@@ -101,12 +104,14 @@ class PickStateMachine(StateMachine):
         self.setTransition('cr5', 'er5', 'ppb')
         self.setTransition('er5', 'cpx', 'ppb')
 # when we have more scales, use read scales here
-        self.setTransition('cpx', 'spx', 'cpx')
-        self.setTransition('spx', 'rpx', 'rpx')
-        self.setTransition('rpx', 'ci', 'ci')
+
+        self.setTransition('cpx', 'sp3', 'cpx')
+        self.setTransition('sp3', 'rp3', 'rp3')
+        self.setTransition('rp3', 'ci', 'ci')
+
         self.setTransition('ci', 'pvl', 'ci')
-        self.setTransition('pvl', 'cpbx', 'pvl')
-        self.setTransition('cpbx', 'sp', 'cpbx')
+        self.setTransition('pvl', 'cpb', 'pvl')
+        self.setTransition('cpb', 'sp1', 'cpb')
 
     def isDone(self):
         #if all items picked, all their point values are 0. Need to re-write

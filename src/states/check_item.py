@@ -36,6 +36,7 @@ class CheckItem(State):
 
             #setup re-imaging of bin from which item was picked
             self.store.put('/robot/target_location', self.store.get('/robot/selected_bin'))
+            self.store.put('/robot/target_bin', self.store.get('/robot/selected_bin'))
             self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
 
 

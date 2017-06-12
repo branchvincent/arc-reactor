@@ -81,6 +81,7 @@ class EvaluateGrasp(State):
             self.store.put(photo_url + ['vacuum_grasps'], grasps)
 
         self.setOutcome(True)
+
         logger.info('evaluate vacuum grasp completed successfully')
 
         from util import db
