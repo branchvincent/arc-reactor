@@ -57,7 +57,7 @@ class EvaluatePlacement(State):
             robot_tcp_pose = self.store.get('/robot/tcp_pose')
             robot_tcp_pose[:3, 3] = [[0], [0], [0]]
 
-            local_placement = xyz(*position).dot(robot_tcp_pose).dot(rpy(0, 0, orientation * 180.0 / pi))
+            local_placement = xyz(*position).dot(robot_tcp_pose).dot(rpy(0, 0, orientation * pi / 180.0))
             container_pose = self.store.get(location_pose_url(pack_location))
             world_placement = container_pose.dot(local_placement)
 
