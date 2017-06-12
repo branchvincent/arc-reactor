@@ -1,0 +1,79 @@
+{
+    "bins": [
+        {
+            "bin_id": "A",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "B",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "C",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "A",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "B",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "C",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "A",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "B",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "C",
+            "contents": [
+            ]
+        },
+        {
+            "bin_id": "A",
+            "contents": [
+            ]
+        }
+    ],
+    "boxes": [
+    ],
+    "tote": {
+        "contents": [
+            "ice_cube_tray",
+            "hanes_socks",
+            "white_facecloth",
+            "robots_everywhere",
+            "balloons",
+            "expo_eraser",
+            "speed_stick",
+            "colgate_toothbrush_4pk",
+            "tissue_box",
+            "table_cloth",
+            "scotch_sponges",
+            "burts_bees_baby_wipes",
+            "laugh_out_loud_jokes",
+            "tennis_ball_container",
+            "irish_spring_soap",
+            "glue_sticks",
+            "robots_dvd",
+            "band_aid_tape",
+            "hinged_ruled_index_cards"
+        ]
+    }
+}

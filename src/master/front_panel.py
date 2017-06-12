@@ -200,7 +200,7 @@ class FrontPanel(QMainWindow):
             workcell.setup_pick(
                 self.fsm.store,
                 location='db/item_location_file_pick.json',
-                order='db/order_file.json',
+                order='db/order_file_061017.json',
                 keep=True
             )
         elif job_type == 'stow':
@@ -208,7 +208,7 @@ class FrontPanel(QMainWindow):
             self.fsm = StowStateMachine()
             workcell.setup_stow(
                 self.fsm.store,
-                location='db/item_location_file_stow.json',
+                location='db/item_location_file_stow_061117.json',
                 keep=True
             )
         else:

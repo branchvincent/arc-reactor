@@ -45,14 +45,16 @@ class PickStateMachine(StateMachine):
         self.add('cr4', CheckRoute('cr4', store=self.store))
         self.add('cr5', CheckRoute('cr5', store=self.store))
         self.add('er3', ExecRoute('er3', store=self.store))
-        self.add('sp1', SegmentPhoto('sp1', store=self.store))
+        self.add('sp', SegmentPhoto('sp', store=self.store))
         self.add('sp2', SegmentPhoto('sp2', store=self.store))
         self.add('sp3', SegmentPhoto('sp3', store=self.store))
         self.add('rp1', RecognizePhoto('rp1', store=self.store))
         self.add('rp2', RecognizePhoto('rp2', store=self.store))
         self.add('rp3', RecognizePhoto('rp3', store=self.store))
+        self.add('eg', EvaluateGrasp('eg', store=self.store))
         self.add('ii', InspectItem('ii', store=self.store))
         self.add('rs1', ReadScales('rs1', store=self.store))
+        self.add('ep', EvaluatePlacement('ep', store=self.store))
 
     def getStartState(self):
         return 'pvla'
@@ -101,7 +103,7 @@ class PickStateMachine(StateMachine):
 # when we have more scales, use read scales here
         self.setTransition('cpx', 'spx', 'cpx')
         self.setTransition('spx', 'rpx', 'rpx')
-        self.setTransition('rpx', 'ci', 'ci') 
+        self.setTransition('rpx', 'ci', 'ci')
         self.setTransition('ci', 'pvl', 'ci')
         self.setTransition('pvl', 'cpbx', 'pvl')
         self.setTransition('cpbx', 'sp', 'cpbx')
