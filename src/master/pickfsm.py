@@ -52,6 +52,7 @@ class PickStateMachine(StateMachine):
         self.add('rp2', RecognizePhoto('rp2', store=self.store))
         self.add('rp3', RecognizePhoto('rp3', store=self.store))
         self.add('ii', InspectItem('ii', store=self.store))
+        self.add('rs1', ReadScales('rs1', store=self.store))
 
     def getStartState(self):
         return 'pvla'
@@ -77,25 +78,30 @@ class PickStateMachine(StateMachine):
         self.setTransition('cpbc', 'sp', 'cpbc')
 
         #then loop to updated pvlXXX and capture
-        self.setTransition('sp', 'rp', 'sp')
-        self.setTransition('rp', 'eg', 'rp')
-        self.setTransition('eg', 'si', 'eg')
+        self.setTransition('sp', 'rp1', 'sp')
+        self.setTransition('rp1', 'eg', 'rp1')
+        self.setTransition('eg', 'si', 'cpbc') #if eval grasp fails, try to take another photo
 
         self.setTransition('si', 'ppi', 'si', checkState='csi')
         self.setTransition('csi', 'ppi', 'si')
-        self.setTransition('ppi', 'er4', 'ppi', checkState='cr4')
+
+        self.setTransition('ppi', 'er4', 'si', checkState='cr4')
         self.setTransition('cr4', 'er4', 'ppi')
-        self.setTransition('er4', 'cpi', 'ppi')
-        #throw in read scales somewhere here
-        self.setTransition('cpi', 'ii', 'cpi')
+        self.setTransition('er4', 'rs1', 'ppi')
+
+        self.setTransition('rs1', 'cpi', 'cpi')
+        self.setTransition('cpi', 'rp2', 'ii')
+        self.setTransition('rp2', 'ii', 'ii')
         self.setTransition('ii', 'ep', 'ii')
-        self.setTransition('ep', 'ppb', 'ep')
+
+        self.setTransition('ep', 'ppb', 'cpi')
         self.setTransition('ppb', 'er5', 'ppb', checkState='cr5')
         self.setTransition('cr5', 'er5', 'ppb')
         self.setTransition('er5', 'cpx', 'ppb')
+# when we have more scales, use read scales here
         self.setTransition('cpx', 'spx', 'cpx')
-        self.setTransition('spx', 'rpx', 'spx')
-        self.setTransition('rpx', 'ci', 'rpx') 
+        self.setTransition('spx', 'rpx', 'rpx')
+        self.setTransition('rpx', 'ci', 'ci') 
         self.setTransition('ci', 'pvl', 'ci')
         self.setTransition('pvl', 'cpbx', 'pvl')
         self.setTransition('cpbx', 'sp', 'cpbx')

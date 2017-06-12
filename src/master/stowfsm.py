@@ -29,7 +29,9 @@ class StowStateMachine(StateMachine):
         self.add('sp1', SegmentPhoto('sp1', store=self.store))
         self.add('sp2', SegmentPhoto('sp2', store=self.store))
         self.add('sp3', SegmentPhoto('sp3', store=self.store))
-        self.add('rp', RecognizePhoto('rp', store=self.store))
+        self.add('rp1', RecognizePhoto('rp1', store=self.store))
+        self.add('rp2', RecognizePhoto('rp2', store=self.store))
+        self.add('rp3', RecognizePhoto('rp3', store=self.store))
         self.add('ii', InspectItem('ii', store=self.store))
         self.add('eg', EvaluateGrasp('eg', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
@@ -45,6 +47,7 @@ class StowStateMachine(StateMachine):
         self.add('cr1', CheckRoute('cr1', store=self.store))
         self.add('cr2', CheckRoute('cr2', store=self.store))
         self.add('cr3', CheckRoute('cr3', store=self.store)) #TODO create check states on the fly?
+        self.add('rs1', ReadScales('rs1', store=self.store))
         self.add('rs', ReadScales('rs', store=self.store))
         self.add('ep', EvaluatePlacement('ep', store=self.store))
 
@@ -55,18 +58,22 @@ class StowStateMachine(StateMachine):
         self.store.put('/robot/target_location', 'stow_tote')
 
     def setupTransitions(self):
-        self.setTransition('cps', 'sp1', 'cps')
-        self.setTransition('sp1', 'rp', 'sp1') #TODO make handler for these failed states (hardware)
-        self.setTransition('rp', 'eg', 'rp')
-        self.setTransition('eg', 'si', 'eg')
-        self.setTransition('si', 'psg', 'si', checkState='csi')
+        self.setTransition('cps', 'sp1', 'sp1') #TODO need failure for cameras
+        self.setTransition('sp1', 'rp1', 'rp1') #TODO make handler for these failed states (hardware)
+        self.setTransition('rp1', 'eg', 'eg')
+
+        self.setTransition('eg', 'si', 'cps') # If eval grasp fails, re-take photo
+        self.setTransition('si', 'psg', 'si', checkState='csi') #si should never fail..
         self.setTransition('csi', 'psg', 'si')
-        self.setTransition('psg', 'er1', 'si', checkState='cr1')
+        self.setTransition('psg', 'er1', 'si', checkState='cr1') #if plan fails, redo SI and mark failure
         self.setTransition('cr1', 'er1', 'psg')
-        self.setTransition('er1', 'cpi', 'psg')
-        self.setTransition('cpi', 'ii', 'cpi')
-        #self.setTransition('sp2', 'ii', 'sp2')
-        self.setTransition('ii', 'ep', 'ii')
+        self.setTransition('er1', 'rs1', 'psg') 
+
+        self.setTransition('rs1', 'cpi', 'cpi') #if scales fail continue anyway
+        self.setTransition('cpi', 'rp2', 'ii')
+        self.setTransition('rp2', 'ii', 'ii')
+        self.setTransition('ii', 'ep', 'ii') #ii should never fail...
+
         self.setTransition('ep', 'pps', 'ep') #TODO need failure analysis
         self.setTransition('pps', 'er2', 'si', checkState='cr2')
         self.setTransition('cr2', 'er2', 'pps')

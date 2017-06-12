@@ -69,6 +69,8 @@ class PlanStowGrab(State):
 
             # Check motion plan
             if motion_plan is None:
+                #TODO why did it fail? mark grasp unviable and move on
+                self.store.put('/grasp/failed_grasps', self.store.get('/grasp/failed_grasps', []).append(grasp))
                 self.setOutcome(False)
                 raise RuntimeError('motion plan is empty')
             else:
@@ -81,6 +83,7 @@ class PlanStowGrab(State):
         except Exception:
             self.setOutcome(False)
             logger.exception('Failed to generate motion plan')
+            #TODO why did it fail?
 
 if __name__ == '__main__':
     import argparse

@@ -52,6 +52,7 @@ class PlanPickItem(State):
 
             # Check motion plan
             if motion_plan is None:
+                self.store.put('/grasp/failed_grasps', self.store.get('/grasp/failed_grasps', []).append(grasp))
                 self.setOutcome(False)
                 raise RuntimeError('motion plan is empty')
             else:
