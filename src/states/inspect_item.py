@@ -22,7 +22,7 @@ class InspectItem(State):
             #probability that the item we ID'd now is correct (ish)
         print "nowID ", self.nowID
 
-        self.readWeight = self.store.get('/scales/change')
+        self.readWeight = abs(self.store.get('/scales/change'))
         if self.readWeight is not None:
             # compare to origItemID weight and then nowItem weight
             self.origItemWeight = self.store.get('/item/'+self.origItem+'/mass')

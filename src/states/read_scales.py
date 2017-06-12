@@ -6,6 +6,8 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class ReadScales(State):
     def run(self):
+
+        self.store.put('scales/last_weight', self.store.get('scales/weight', 0))
         # Get scales
         scales = []
         for key, val in self.store.get('system/scales', {}).iteritems():
@@ -23,6 +25,7 @@ class ReadScales(State):
 
         # Update database
         self.store.put('scales/weight', total_weight)
+        self.store.put('scales/change', total_weight-self.store.get('scales/last_weight', 0))
         #TODO fail if scales hardware produces an error
         self.setOutcome(True)
 
