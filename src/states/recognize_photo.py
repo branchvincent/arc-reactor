@@ -14,7 +14,7 @@ class RecognizePhoto(State):
         # use the grasp source for recognition
         for (i, location) in enumerate(locations):
             if location == 'inspect':
-                location[i] = self.store.get('/robot/grasp_location')
+                locations[i] = self.store.get('/robot/grasp_location')
 
         # recognize segments
         recognize_objects(self.store, photo_urls, locations)
