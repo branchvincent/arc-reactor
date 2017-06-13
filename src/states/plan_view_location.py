@@ -18,7 +18,7 @@ class PlanViewLocation(State):
         else:
             # Plan route
             lp = LinearPlanner(store=self.store)
-            lp.interpolate(T=vantage_T)
+            lp.interpolate(T=vantage_T, global_solve=True)
             self.setOutcome(True)
 
     def setLoc(self, myname):

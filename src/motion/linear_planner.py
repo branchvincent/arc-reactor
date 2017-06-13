@@ -35,7 +35,7 @@ class LinearPlanner:
             return False
         return True
 
-    def getDesiredConfig(self, T=None, p=None):
+    def getDesiredConfig(self, T=None, p=None, global_solve=False):
         """Plans desired configuration to reach the specified ee transform"""
         ee_link = self.robot.link(6)
 
@@ -48,30 +48,35 @@ class LinearPlanner:
         else:
             raise RuntimeError('Must specify either p or T')
 
-        if ik.solve_global(goal):
+        if global_solve:
+            result = ik.solve_global(goal)
+        else:
+            result = ik.solve(goal)
+
+        if result:
             return self.robot.getConfig()
         else:
             logger.warn('Could not find feasible configuration')
             raise RuntimeError('Could not find feasible configuration')
             # return self.robot.getConfig()
 
-    def interpolate(self, q=None, T=None, p=None): #, rads=True):
-        if (q is None and T is None and p is None):
-            raise RuntimeError('Cannot interpolate nothing')
+    def interpolate(self, q=None, T=None, p=None, global_solve=False, put=True):
+        # if (q is None and T is None and p is None):
+        #     raise RuntimeError('Cannot interpolate nothing')
 
         """Jogs the robot to the specified configuration, in radians"""
         # Get initial configuration
         q0 = self.store.get('/robot/current_config')
-        print "T is ", T
+        # print "T is ", T
+        print 'Joint limits', self.robot.getJointLimits()
+
         if T is not None:
-            q = self.getDesiredConfig(T=T)
-            print "T is not none so q is ", q
+            q = self.getDesiredConfig(T=T, global_solve=global_solve)
+            # print "T is not none so q is ", q
         elif p is not None:
-            q = self.getDesiredConfig(p=p)
-        elif q is not None:
+            q = self.getDesiredConfig(p=p, global_solve=global_solve)
+        elif q is None:
             raise RuntimeError('Must specify either p, q, or T')
-        # if not rads:
-        #     q = [math.radians(qi) for qi in q]
 
         print "q is ", q
         # Get milestones and check feasibility
@@ -82,16 +87,19 @@ class LinearPlanner:
             if not feasible:
                 break
 
+        milestoneMap = [m.get_milestone() for m in milestones]
+        if put:
+            self.store.put('/robot/waypoints', milestoneMap)
+            self.store.put('/robot/timestamp', time.time())
+
         # Update database
         if feasible:
-            milestoneMap = [m.get_milestone() for m in milestones]
-            self.store.put('/robot/waypoints', milestoneMap)
             self.store.put('/status/route_plan', True)
-            self.store.put('/robot/timestamp', time.time())
         else:
             self.store.put('/status/route_plan', False)
             logger.warn('Could not find feasible path')
 
+        return milestones
 
 class TimeScale:
     def __init__(self, robot, type='cubic', freq=20):
@@ -152,8 +160,49 @@ class TimeScale:
         return milestones
 
 if __name__ == "__main__":
+    from hardware.control.robotcontroller import RobotController
+    from hardware.control.simulatedrobotcontroller import SimulatedRobotController
+
+    def executePlan():
+        # Query
+        question = lambda: str(raw_input("Execute path? (y/n): ")).lower().strip()[0]
+        execute = question()
+        while execute not in ['y','n']:
+            execute = question()
+
+        # Execute
+        if execute == 'y':
+            print "Executing..."
+            SimulatedRobotController().run()
+        else:
+            print "Not executing..."
+
     s = PensiveClient().default()
     p = LinearPlanner()
+
     T = s.get('robot/inspect_pose')
     # q = p.getDesiredConfig(T)
     p.interpolate(T=T)
+
+    # T = s.get('shelf/bin/binC/vantage')
+    # # p.interpolate(T=T)
+    # # executePlan()
+
+    # # Get image
+    # from hardware.SR300 import DepthCameras
+    # from states.find_item import FindItem
+    # import cv2
+    # import numpy
+    # state = FindItem('fi')
+
+    # # connect cameras
+    # cameras = DepthCameras()
+    # if not cameras.connect():
+    #     raise RuntimeError('failed accessing cameras')
+    # camera_serials = state.store.get('system/cameras')
+    # camera = 'tcp'
+
+    # c,ac,pc = state.acquire_image(cameras, camera, camera_serials)
+    # cv2.imwrite('data/simulation/color-{}-0.png'.format(camera), c[:, :, ::-1])
+    # cv2.imwrite('data/simulation/aligned-{}-0.png'.format(camera), ac[:, :, ::-1])
+    # numpy.save('data/simulation/pc-{}-0.npy'.format(camera), pc)
