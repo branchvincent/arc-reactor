@@ -9,10 +9,11 @@ from matplotlib import cm
 
 from OpenGL.arrays import vbo
 from OpenGL.GL import glEnable, glDisable
-from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glDrawArrays, glColor, glLineWidth
-from OpenGL.GL import GL_LIGHTING, GL_VERTEX_ARRAY, GL_LINE_STRIP, GL_STATIC_DRAW
+from OpenGL.GL import glEnableClientState, glDisableClientState, glVertexPointerf, glDrawArrays, glColor, glLineWidth, glClear
+from OpenGL.GL import GL_LIGHTING, GL_VERTEX_ARRAY, GL_LINE_STRIP, GL_STATIC_DRAW, GL_DEPTH_BUFFER_BIT
 
-from klampt.vis import GLRealtimeProgram
+from klampt.vis import GLRealtimeProgram, gldraw
+from klampt.math import se3
 
 from PyQt4.QtGui import QMainWindow
 
@@ -118,6 +119,10 @@ class WorldViewer(GLRealtimeProgram):
         glDisableClientState(GL_VERTEX_ARRAY)
 
         glEnable(GL_LIGHTING)
+
+        glClear(GL_DEPTH_BUFFER_BIT)
+        gldraw.xform_widget(se3.identity(), 0.1, 0.01)
+        gldraw.xform_widget(self.robot.link(self.robot.numLinks() - 1).getTransform(), 0.1, 0.01)
 
     def idle(self):
         if not self.commands:
