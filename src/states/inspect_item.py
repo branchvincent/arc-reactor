@@ -7,7 +7,7 @@ class InspectItem(State):
         #TODO check for errors from hardware
 
         #TODO use vector calc to look at many possible items, not just 2
-        
+
         #check ID of item and weight from read_scales
         self.origItem = self.store.get('/robot/selected_item')
         self.newItemIDs = self.store.get('/photos/inspect/inspect_side/detections')[0] #only 1 seg?
@@ -26,12 +26,14 @@ class InspectItem(State):
         if self.readWeight is not None:
             # compare to origItemID weight and then nowItem weight
             self.origItemWeight = self.store.get('/item/'+self.origItem+'/mass')
+            print "origWeight ", self.origItemWeight
             self.nowItemWeight = self.store.get('/item/'+self.nowItem+'/mass')
+            print "nowItemWeight ", self.nowItemWeight
 
             # smaller value is better (closest to expect item value)
             self.origWeightError = abs(self.origItemWeight-self.readWeight)/self.origItemWeight
             self.nowWeightError = abs(self.nowItemWeight - self.readWeight)/self.nowItemWeight
-            
+
         else: # don't consider weight a factor
             self.origWeightError = 0
             self.nowWeightError = 0
@@ -50,8 +52,8 @@ class InspectItem(State):
                 self.likelyItem = self.nowItem
                 print "going with new ID"
 
-        self.itemisright = (self.likelyItem == self.origItem)  
-        print "likelyItem is ", self.likelyItem 
+        self.itemisright = (self.likelyItem == self.origItem)
+        print "likelyItem is ", self.likelyItem
 
         task = self.store.get('/robot/task')
         if task is None:
@@ -62,19 +64,23 @@ class InspectItem(State):
             self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
 
         elif task == 'pick':
-                    
+
 
             if(self.itemisright): #proceeding to order box
                 self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
+                self.store.put('/robot/target_box', self.store.get('/robot/selected_box'))
+                self.setOutcome(True)
             elif(self.store.get('/item/'+self.likelyItem+'/order') is not None): #fills an order
                 self.store.put('/robot/selected_item', self.likelyItem)
                 self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
                 self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
+                self.setOutcome(True)
             else: # go to amnesty tote
-                self.store.put('/robot/target_locations', ['amnesty_tote'])
-
-        self.setOutcome(True)
-
+                self.store.put('/robot/target_locations', ['boxK3'])
+                self.store.put('/robot/target_box', 'boxK3')
+                self.store.put('/robot/selected_box', 'boxK3')
+#                self.setOutcome(False)
+                self.setOutcome(True)
 
 if __name__ == '__main__':
     import argparse

@@ -45,6 +45,9 @@ class PickStateMachine(StateMachine):
         self.add('cr4', CheckRoute('cr4', store=self.store))
         self.add('cr5', CheckRoute('cr5', store=self.store))
         self.add('er3', ExecRoute('er3', store=self.store))
+        self.add('er4', ExecRoute('er4', store=self.store))
+        self.add('er5', ExecRoute('er5', store=self.store))
+        self.add('er6', ExecRoute('er6', store=self.store))
         self.add('sp1', SegmentPhoto('sp1', store=self.store))
         self.add('sp2', SegmentPhoto('sp2', store=self.store))
         self.add('sp3', SegmentPhoto('sp3', store=self.store))
@@ -86,7 +89,7 @@ class PickStateMachine(StateMachine):
         self.setTransition('rp1', 'eg', 'rp1')
         self.setTransition('eg', 'si', 'cpbc') #if eval grasp fails, try to take another photo
 
-        self.setTransition('si', 'ppi', 'si', checkState='csi')
+        self.setTransition('si', 'ppi', 'pvla', checkState='csi')
         self.setTransition('csi', 'ppi', 'si')
 
         self.setTransition('ppi', 'er4', 'si', checkState='cr4')
@@ -100,7 +103,7 @@ class PickStateMachine(StateMachine):
         self.setTransition('ii', 'ep', 'ii')
 
         self.setTransition('ep', 'ppb', 'cpi')
-        self.setTransition('ppb', 'er5', 'ppb', checkState='cr5')
+        self.setTransition('ppb', 'er5', 'ep', checkState='cr5')
         self.setTransition('cr5', 'er5', 'ppb')
         self.setTransition('er5', 'cpx', 'ppb')
 # when we have more scales, use read scales here
@@ -110,7 +113,8 @@ class PickStateMachine(StateMachine):
         self.setTransition('rp3', 'ci', 'ci')
 
         self.setTransition('ci', 'pvl', 'ci')
-        self.setTransition('pvl', 'cpb', 'pvl')
+        self.setTransition('pvl', 'er6', 'pvl')
+        self.setTransition('er6', 'cpb', 'pvl')
         self.setTransition('cpb', 'sp1', 'cpb')
 
     def isDone(self):

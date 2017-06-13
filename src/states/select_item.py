@@ -23,7 +23,7 @@ class SelectItem(State):
                 #TODO expand to other grasps
                 self.grasps = self.store.get(url + ['vacuum_grasps'])
                 # exlcude prior grasps from consideration
-                self.grasps = [g for g in self.grasps if not self.check_similar_grasp(failed_grasps, g)]
+                #self.grasps = [g for g in self.grasps if not self.check_similar_grasp(failed_grasps, g)]
 
                 maxGrasp = max(self.grasps, key=lambda l: l['score'])
 
@@ -42,9 +42,15 @@ class SelectItem(State):
 
             #TODO move this outside of if statement
             self.store.put('/robot/target_grasp', self.maxGrasp)
+            self.store.put('/robot/grasp_location', self.maxGrasp['location'])
 
-            self.store.put('/robot/target_box', self.store.get('/item/'+self.chosenItem+'/order').replace('order', 'box'))
-            self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
+            if(self.store.get('/item/'+self.chosenItem+'/order') is not None):
+                self.store.put('/robot/target_box', self.store.get('/item/'+self.chosenItem+'/order').replace('order', 'box'))
+                self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
+            #HACK to put something in a bpx for now
+            else:
+                self.store.put('/robot/target_box', 'boxK3')
+                self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
 
         elif self.alg == 'stow':
 
