@@ -199,8 +199,8 @@ class FrontPanel(QMainWindow):
             self.fsm = PickStateMachine()
             workcell.setup_pick(
                 self.fsm.store,
-                location='db/item_location_file_pick.json',
-                order='db/order_file_061017.json',
+                location='db/item_location_file_pick_061217.json',
+                order='db/order_file_061217.json',
                 keep=True
             )
         elif job_type == 'stow':

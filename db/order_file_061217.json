@@ -1,0 +1,29 @@
+{
+    "orders": [
+        {
+            "size_id": "1B2",
+            "contents": [
+                "scotch_sponges",
+                "irish_spring_soap"
+            ]
+        },
+        {
+            "size_id": "1A5",
+            "contents": [
+                "tennis_ball_container",
+                "glue_sticks",
+                "band_aid_tape"
+            ]
+        },
+        {
+            "size_id": "K3",
+            "contents": [
+                "robots_dvd",
+                "speed_stick",
+                "colgate_toothbrush_4pk",
+                "ice_cube_tray",
+                "white_facecloth"
+            ]
+        }
+    ]
+}
