@@ -361,7 +361,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             if dl_tuple is None:
                 raise RuntimeError("Unable to create image for deep learning.")
             else:
-                store.put(url + "DL_images", [dl_tuple[2]])
+                store.put(url + "DL_images", [dl_tuple[1]])
         else:
             ret = segmentation.graphSegmentation(d_image, c_image, depth_in_3d_cam_local, seg_params)
             #write out results to database
