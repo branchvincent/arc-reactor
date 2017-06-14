@@ -2,11 +2,8 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-import skimage.transform
 import pickle
 import os
-import scipy.ndimage.interpolation as sn
-from scipy.misc import imresize
 import lasagne
 from lasagne.layers import InputLayer
 from lasagne.layers import Conv2DLayer as ConvLayer
