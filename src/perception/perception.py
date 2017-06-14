@@ -266,7 +266,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
 
 
         #get the 3d point by deprojecting pixel to get camera local
-        depth_in_3d_cam_local = np.zeros((480,640,3))
+        depth_in_3d_cam_local = np.zeros((d_image.shape[0],d_image.shape[1],3))
         [xs, ys] = np.meshgrid(range(depth_in_3d_cam_local.shape[1]), range(depth_in_3d_cam_local.shape[0]))
         xs = (xs - intrins_ppx)/intrins_fx
         ys = (ys - intrins_ppy)/intrins_fy
@@ -278,10 +278,10 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         depth_in_3d_cam_local = transform(extrinsics, depth_in_3d_cam_local).astype(np.float64)
 
         #get the transform from world to reflocal
-        ref_world_xform = np.linalg.inv(ref_world_xform)
+        ref_world_xform_inv = np.linalg.inv(ref_world_xform)
 
         #compose these transforms
-        cam_local_to_ref_local = np.array(ref_world_xform.dot(cam_pose_world))
+        cam_local_to_ref_local = np.array(ref_world_xform_inv.dot(cam_pose_world))
 
         # apply transformation to get to ref local coordinates
         depth_in_ref_local = (depth_in_3d_cam_local.reshape((-1, 3)).dot(cam_local_to_ref_local[:3, :3].T) + cam_local_to_ref_local[:3, 3].T).reshape(depth_in_3d_cam_local.shape)
@@ -297,12 +297,43 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         maxz = max(bin_bounds[0][2],bin_bounds[1][2])
 
         #check to see if point is within bounds by masking
-        maskx = np.logical_and(depth_in_ref_local[:,:,0] > minx, depth_in_ref_local[:,:,0] < maxx)
-        masky = np.logical_and(depth_in_ref_local[:,:,1] > miny, depth_in_ref_local[:,:,1] < maxy)
-        mask = np.logical_and(maskx, masky)
-        # maskz = np.logical_and(depth_in_ref_local[:,:,2] > minz, depth_in_ref_local[:,:,2] < maxz)
-        # mask = np.logical_and(np.logical_and(maskx, masky),maskz)
+        maskx_volume = np.logical_and(depth_in_ref_local[:,:,0] > minx, depth_in_ref_local[:,:,0] < maxx)
+        masky_volume = np.logical_and(depth_in_ref_local[:,:,1] > miny, depth_in_ref_local[:,:,1] < maxy)
+        maskz_volume = np.logical_and(depth_in_ref_local[:,:,2] > minz, depth_in_ref_local[:,:,2] < maxz)
+        maskz_volume_invalid = d_image == 0
+        mask_volume = np.logical_and(np.logical_and(maskx_volume, masky_volume),maskz_volume)
 
+        bin_bounds_local = []
+
+        bin_bounds_local.append([minx,miny,minz,1])
+        bin_bounds_local.append([minx,miny,maxz,1])
+        bin_bounds_local.append([minx,maxy,minz,1])
+        bin_bounds_local.append([minx,maxy,maxz,1])
+
+        bin_bounds_local.append([maxx,miny,minz,1])
+        bin_bounds_local.append([maxx,miny,maxz,1])
+        bin_bounds_local.append([maxx,maxy,minz,1])
+        bin_bounds_local.append([maxx,maxy,maxz,1])
+
+        #put bin bounds local into camera local
+        bin_bounds_in_camera_local = []
+        for point in bin_bounds_local:
+            bin_bounds_in_camera_local.append(np.linalg.inv(cam_local_to_ref_local).dot(np.array(point)))
+
+        #project these points onto the 2d image
+        pixel_bounds = []
+        for point in bin_bounds_in_camera_local:
+            tx = point[0]/point[2]
+            ty = point[1]/point[2]
+            p_x = tx * intrins_fx + intrins_ppx
+            p_y = ty * intrins_fy + intrins_ppy
+            pixel_bounds.append([p_x,p_y])
+
+        hull = cv2.convexHull(np.array(pixel_bounds).astype('float32'))
+        mask_project = cv2.fillConvexPoly(np.zeros(d_image.shape), hull.astype('int32'), 1)
+        mask_project = np.logical_and(mask_project, d_image == 0)
+        mask = np.logical_or(mask_project, mask_volume)
+        
         # for bounding box debugging
         store.put(url + 'bounds_mask', mask)
 
