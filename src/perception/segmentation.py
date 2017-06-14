@@ -7,24 +7,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def maskRect(topleft, topright, botright, image):
-    imageH = image.shape[0]
-    imageW = image.shape[1]
-    #create rectangle to remove any unwatned points
-    mask = np.zeros((imageH,imageW))
-    a = np.array(topleft)
-    b = np.array(topright)
-    c = np.array(botright)
-    AB = b-a
-    BC = c-b
-    [xs, ys] = np.meshgrid(range(imageW), range(imageH))
-    c = np.zeros((imageH,imageW,2))
-    c[:,:,0] = xs
-    c[:,:,1] = ys
-    c = c-a
-    mask = np.logical_and(np.logical_and(c.dot(AB) > 0, c.dot(AB) < AB.dot(AB)), np.logical_and(c.dot(BC) > 0, c.dot(BC) < BC.dot(BC)))
-    return mask
-
 class GraphSegmentationParams():
     def __init__(self):
 
@@ -65,12 +47,12 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     depth = depthImage.astype('uint16')
 
     #create the normals
-    point_cloud_list = point_cloud[point_cloud[:,:,2] != 0]
-    point_cloud_list = point_cloud_list.tolist()
-    pc_norms = compute_normals(point_cloud_list, 10, 0.01)
-    good_ind = np.where(point_cloud[:,:,2] != 0)
+    # point_cloud_list = point_cloud[point_cloud[:,:,2] != 0]
+    # point_cloud_list = point_cloud_list.tolist()
+    # pc_norms = compute_normals(point_cloud_list, 10, 0.01)
+    # good_ind = np.where(point_cloud[:,:,2] != 0)
     n_array = np.zeros(point_cloud.shape)
-    n_array[good_ind] = pc_norms
+    # n_array[good_ind] = pc_norms
 
     #create a 4D array of full color in lab space and the last channel is the depth image alligned to the full color
     #convert to LAB
@@ -78,7 +60,6 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     #mean shift filter to remove texture
     labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
-    return_values['lab_filter'] = labcolor.copy()
 
     color_depth_image = np.zeros((imageH, imageW, 7))
     #fill the first three channels with the LAB image, 4th with depth, 5-7 normals
@@ -111,16 +92,14 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     segments = []
 
     #extract the sub image for each label based on the minimum bounding rectangle
-    tinyColorImgs = []
     imagesForDL = []
     for i in range(numObj):
         #find element in labeled_image == i
-        dl_tuple = create_deep_learing_image(fcolor, labeled_image, i)
+        dl_tuple = create_deep_learing_image(fcolor, labeled_image, i, True, False)
         if dl_tuple is None:
             continue
         else:
-            ind, tiny_img, dl_im = dl_tuple
-        tinyColorImgs.append(tiny_img)
+            ind, dl_im = dl_tuple
         segments.append(ind)
         imagesForDL.append(dl_im)
 
@@ -135,88 +114,77 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
-    return_values['small_images'] = tinyColorImgs
     return_values['pixel_locations'] = segments
     return_values['labeled_image'] = labeled_image.astype(np.int)
 
     return return_values
 
-def create_deep_learing_image(fullcolor, labeled_image, index):
+def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf):
     '''
-    Given a full color image, a labeled image and index of the desired object,
-    this function returns a tuple
-    (indices, cropped image, 224x224 image suitable for input into deep learning)
+    Given a full color image, a labeled image, an index of the desired object,
+    whether or not the tote appears in this image, and whether or not the shelf
+    appears in this images, this function returns a tuple
+    (indices, 224x224 image suitable for input into deep learning)
     Returns none if the image is not good for input into DL
     '''
-    #find element in labeld image == index
-    indices = np.array((labeled_image == index).nonzero())
+    #given inputs, returns segmented image 
+    #object coordinates:
+    indices = np.array((labeled_image == index).nonzero()).transpose()
     if not indices.shape[1] > 0:
         return None
-    indices = np.transpose(indices.astype('float32'))
+    #isolate the object
+    mask=np.zeros_like(fullcolor)
+    mask[indices[:,0],indices[:,1]]=1
+
     labcolor = cv2.cvtColor(fullcolor, cv2.COLOR_RGB2LAB)
-    #axis aligned rect
-    axisrect = cv2.boundingRect(indices)
-    maskeditem = np.zeros(fullcolor.shape)
-    maskeditem[:,:,0] = np.where(labeled_image == index, fullcolor[:,:,0], 0)
-    maskeditem[:,:,1] = np.where(labeled_image == index, fullcolor[:,:,1], 0)
-    maskeditem[:,:,2] = np.where(labeled_image == index, fullcolor[:,:,2], 0)
+    tote_mask = np.ones(labcolor.shape)
+    #remove pixels that are similar to the tote if requested
+    if isTote:
+        t = (labcolor - [80,175,175])
+        t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
+        tote_mask[:,:,0] = np.where(t2 < 50, 0, 1)
+        tote_mask[:,:,1] = np.where(t2 < 50, 0, 1)
+        tote_mask[:,:,2] = np.where(t2 < 50, 0, 1)
 
-    maskeditemlab = np.zeros(fullcolor.shape)#to decide if this is the tote
-    maskeditemlab[:,:,0] = np.where(labeled_image == index, labcolor[:,:,0], 0)
-    maskeditemlab[:,:,1] = np.where(labeled_image == index, labcolor[:,:,1], 0)
-    maskeditemlab[:,:,2] = np.where(labeled_image == index, labcolor[:,:,2], 0)
+    masked=fullcolor*mask*tote_mask
 
-    startY = axisrect[0]
-    endY = axisrect[0] + axisrect[2]
-    startX = axisrect[1]
-    endX = axisrect[1] + axisrect[3]
-    img_crop = maskeditem[startY:endY, startX:endX]
-    img_crop_lab = maskeditemlab[startY:endY, startX:endX]
+    #coordinates of corners of the bounding box (unrotated)
+    y1,x1=np.min(indices,0)
+    y2,x2=np.max(indices,0)
 
-    #is this segment the tote?
-    cnt = 0
-    #number of nonzero pixels
-    cntnonzero = np.logical_and(np.logical_and(img_crop_lab[:,:,0] != 0, img_crop_lab[:,:,1] != 0), img_crop_lab[:,:,2] != 0)
-    cntnonzero = len(cntnonzero.nonzero()[0])
-    t = (img_crop_lab - [80,175,175])
-    t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
-    t2 = t2[t2 < 50]
-    cnt = len(t2)
+    cropped_masked_image=masked[y1:y2,x1:x2]
 
-    if cnt/cntnonzero > 0.5:
-        logger.debug("Found tote in image label {}".format(index))
+    #count the number of valid pixels after removing the tote
+    cntnonzero = np.where(tote_mask*mask)
+    cntnonzero = len(cntnonzero[0])
+    if cntnonzero < 200:
+        logger.info("Index {} in segmentation was mostly tote. Ignoring".format(index))
         return None
 
-    #make image for deep learning
-    if (img_crop.shape[0] > 224 or img_crop.shape[1] > 224) and (img_crop.shape[0] < 512 and img_crop.shape[1] < 512):
-        #large image, put it in 512, 512
-        bg = np.zeros((512,512, 3)).astype('uint8')
-        startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
-        startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
-        if startX < 0:
-            startX = 0
-        if startY < 0:
-            startY = 0
-        bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
-        #shrink to 224 x 224
-        im = cv2.resize(bg,(224, 224))
-
-    elif img_crop.shape[0] <= 224 and img_crop.shape[1] <= 224:
-        #small image put it in 224, 224
-        bg = np.zeros((224,224, 3)).astype('uint8')
-        startY = int(bg.shape[0]/2 - img_crop.shape[0]/2)
-        startX = int(bg.shape[1]/2 - img_crop.shape[1]/2)
-        if startX < 0:
-            startX = 0
-        if startY < 0:
-            startY = 0
-        bg[startY:startY +img_crop.shape[0], startX:startX+img_crop.shape[1]] = img_crop
-        im = bg
-    else:
+    #create image for deep learning
+    h,w,_=cropped_masked_image.shape
+    if h > 512 or w > 512:
         #image was really big and is probably the entire image or some mistake, so we are not adding it
-        logger.warn("Segment {} was larger than 512x512. This is probably a mistake, not adding to identification set".format(index))
+        logger.warn("Segment {} was larger than 512x512. Not adding to identification set".format(index))
         return None
+    if h>224:
+        w=int(w*224./h)
+        h=224
+    if w>224:
+        h=int(h*224./w)
+        w=224
 
-    return (indices.astype('int32'), img_crop.astype('uint8'), im)
+    #create new image
+    cropped_masked_image_resized = cv2.resize(cropped_masked_image, (w,h))
+    
+    image_for_DL=np.zeros((224,224,3)).astype('uint8')
+    image_for_DL[112-h//2:112-h//2+h,112-w//2:112-w//2+w]=cropped_masked_image_resized
+
+    #only keep the indices that were not removed by color matching tote/shelf
+    y_ind, x_ind, _ = np.where(cropped_masked_image != [0,0,0])
+    indices = np.zeros((len(y_ind),2))
+    indices[:,0] = y_ind
+    indices[:,1] = x_ind
+    return (indices.astype('int32'), image_for_DL)
 
 
