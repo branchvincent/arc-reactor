@@ -3,9 +3,9 @@ import sys
 import time
 from OpenGL import GL, GLU
 import numpy as np
-import realsense as rs
+import hardware.SR300.realsense as rs
 import os
-from calibration import VideoThread
+from perception.calibration import VideoThread
 import logging
 logger = logging.getLogger(__name__)
 class TakeImagesGUI(QtWidgets.QWidget):
