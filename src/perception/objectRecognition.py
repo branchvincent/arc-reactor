@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class ObjectRecognition:
 
-    def __init__(self, network_name):
+    def __init__(self, network_name, color_histogram_name):
         #try to connect to the database
         self.store = None
         try:
@@ -20,8 +20,7 @@ class ObjectRecognition:
             self.store = db_client.default()
             register_numpy()
         except:
-            logger.exception('Could not connect to the database. Cannot function')
-            return
+            raise RuntimeError('Could not connect to the database. Cannot function')
 
         self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,40)
 
@@ -38,13 +37,17 @@ class ObjectRecognition:
         #given a location returns a list of items in the location
         self.items_in_location = {}
 
-
-
-    '''
-    Polls the database at a specific URL until a flag is set.
-    Once the flag is set run inference and return to polling
-    '''
+        try:
+            self.item_hist_sum = np.load(color_histogram_name)
+        except:
+            raise RuntimeError("Could not load in color histogram file {}".format(color_histogram_name))
+            
+    
     def poll_database(self):
+        '''
+        Polls the database at a specific URL until a flag is set.
+        Once the flag is set run inference and return to polling
+        '''
         try:
             while True:
                 should_run = self.store.get('/object_recognition/run')
@@ -65,12 +68,12 @@ class ObjectRecognition:
             logger.exception('Inference failed!')
             raise
 
-    '''
-    Given a list of urls and a list of locations infer what each image is at the URL
-    and post the entire list of confidences. Set confidence of object not at location to zero
-    '''
-    def infer_objects(self, list_of_urls, list_of_locations):
 
+    def infer_objects(self, list_of_urls, list_of_locations):
+        '''
+        Given a list of urls and a list of locations infer what each image is at the URL
+        and post the entire list of confidences. Set confidence of object not at location to zero
+        '''
         if len(list_of_urls) != len(list_of_locations):
             logger.warning("Length mismatch of url list and location list. Not guessing objects")
             return
@@ -91,28 +94,79 @@ class ObjectRecognition:
                 logger.error("No deep learning images were found at the URL {}".format(url))
                 continue
 
-            #guess all objects at once
-            im = np.zeros((224,224,3,len(dl_images)))
-            for num,img in enumerate(dl_images):
-                im[:,:,:,num] = img
-
-            #infer
-            logger.info("Runing {} images through network".format(len(dl_images)))
-            confidences = self.deep_learning_recognizer.guessObject(im)
-
-            #store all confidences for each image
-            list_of_list_of_confidences = []
-            for list_of_conf in confidences:
-                #see if a valid location was passed in
-                try:
-                    items_at_location = self.items_in_location[list_of_locations[i]]
-                except KeyError:
-                    logger.warning("Bad location name {}. Sending all confidences".format(list_of_locations[i]))
-                    items_at_location = None
-
-                item_name_confidence = self.make_name_confidence_list(list_of_conf, items_at_location)
-                list_of_list_of_confidences.append(dict(item_name_confidence))
+            #store all deep learning confidences for each image
+            confidences = self.infer_objects_deep(dl_images)
+            list_of_list_of_confidences = self.filter_confidences(confidences, list_of_locations[i])
             self.store.put(url + 'detections', list_of_list_of_confidences)
+
+
+            #store all confidences for color histogram
+            confidences = self.infer_objects_color(dl_images)
+            list_of_list_of_confidences = self.filter_confidences(confidences, list_of_locations[i])
+            self.store.put(url + 'detections_color', list_of_list_of_confidences)
+
+
+    def infer_objects_color(self, list_of_dl_images):
+        '''
+        Get confidence level of all items for all images using color histogram matching
+        '''
+        num_bins = 16
+        confidences = [] #list of lists
+        
+        for img in list_of_dl_images:
+            #reset the scores
+            score_list = []
+
+            #mask out the black
+            mask = img != 0
+
+            #get the histogram
+            histRGB,_ = np.histogramdd(img[mask],[num_bins,num_bins,num_bins], [[0,256],[0,256],[0,256]])
+
+            #compare to stored histograms
+            for k in range(len(self.item_hist_sum)):
+                score = 2 * np.minimum(self.item_hist_sum[k][:,:], histRGB).sum() - np.maximum(self.item_hist_sum[k][:,:], histRGB).sum()
+                
+                score_list.append(score)
+            
+            confidences.append(score_list)
+
+        return confidences
+
+    def infer_objects_deep(self, list_of_dl_images):
+        '''
+        Get confidence level of all items for all images using deep learning
+        '''
+        #guess all objects at once
+        im = np.zeros((224,224,3,len(list_of_dl_images)))
+        for num,img in enumerate(list_of_dl_images):
+            im[:,:,:,num] = img
+
+        #infer
+        logger.info("Runing {} images through network".format(len(list_of_dl_images)))
+        confidences = self.deep_learning_recognizer.guessObject(im)
+        return confidences
+
+    def filter_confidences(self, confidences, location):
+        '''
+        Filter the list of list of confidences by assigning zero
+        to items that are not in the location. If no location is provided,
+        or is incorrect don't filter
+        '''
+        list_of_list_of_confidences_out = []
+        
+        for list_of_conf in confidences:
+            #see if a valid location was passed in
+            try:
+                items_at_location = self.items_in_location[location]
+            except KeyError:
+                logger.warning("Bad location name {}. Sending all confidences".format(location))
+                items_at_location = None
+
+            item_name_confidence = self.make_name_confidence_list(list_of_conf, items_at_location)
+            list_of_list_of_confidences_out.append(dict(item_name_confidence))
+
+        return list_of_list_of_confidences_out
 
     def make_name_confidence_list(self, list_of_conf, valid_items):
         res = []
@@ -168,5 +222,5 @@ class ObjectRecognition:
 
 
 if __name__ == '__main__':
-    o = ObjectRecognition('db/vgg_finetuned_05262017.pkl')
+    o = ObjectRecognition('db/resnet_finetuned_06132017_combined_test.pkl', 'db/item_sum_hist.npy')
     o.poll_database()
