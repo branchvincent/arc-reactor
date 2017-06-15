@@ -18,6 +18,11 @@ from cyvlfeat.sift import dsift, sift
 from cyvlfeat.gmm import gmm
 from cyvlfeat.fisher import fisher
 
+
+import logging
+logger = logging.getLogger(__name__)
+
+
 class LocalFeatureClassifier:
     '''
     LocalFeatureClassifier define a image classifier based on local feature extractor. The local keypoints are encoded into a fisher vector to represent the entire image.
@@ -39,6 +44,7 @@ clf.test(path/to/test/data/)
 pred = clf.predict(img)
 # to see the label
 label = clf.CATEGORIES[pred]
+----------
     '''
     def __init__(self, feature_extractor):
         self.feature_extractor=feature_extractor
@@ -65,14 +71,14 @@ label = clf.CATEGORIES[pred]
         if not os.path.exists(self.tmp_dir):
             os.mkdir(self.tmp_dir)
 
-        print(self.nowStr_() + "training started")
+        logger.info(self.nowStr_() + "training started")
         # load data
         data, labels, self.CATEGORIES = self.dataLoader_()
 
         self.REV_CATEGORIES = {v:k for (k,v) in self.CATEGORIES.items()}
         # extract local features
         features_train = self.stack_feature_extractor_(data)
-        print(self.nowStr_() + "features extraction completed")
+        logger.info(self.nowStr_() + "features extraction completed")
 
         # postpreprocessing
         # If the image contains no keypoints at all, although this is not likely with dsift.
@@ -81,7 +87,7 @@ label = clf.CATEGORIES[pred]
         # filter out images #keypoints < #components of gmm
         labels = [label for i, label in enumerate(labels) if len(features_train[i]) > self.ngmm]
         features_train = [feat for feat in features_train if len(feat) > self.ngmm]
-        print(self.nowStr_() + "%d samples are used for training" %len(features_train))
+        logger.info(self.nowStr_() + "%d samples are used for training" %len(features_train))
 
         gc.collect()
         labels = np.array(labels)
@@ -91,47 +97,47 @@ label = clf.CATEGORIES[pred]
         self.pca.fit(np.concatenate(features_train))
         features_train_compressed = np.array([self.pca.transform(np.array(feat)) for feat in features_train])
 
-        print(self.nowStr_() + "PCA completed")
+        logger.info(self.nowStr_() + "PCA completed")
 
         # gmm
         gmm_pkl = "gmm{}p{}k{}.pkl".format(self.ngmm, self.npca,  len(self.CATEGORIES))
 
-        print(self.nowStr_() + "train gmm")
+        logger.info(self.nowStr_() + "train gmm")
         self.gmm_model = self.train_gmm_(np.concatenate(features_train_compressed))
-        print(self.nowStr_() + gmm_pkl + " is trained")
+        logger.info(self.nowStr_() + gmm_pkl + " is trained")
         
         X_train = np.array(self.fisher_vector_encoder_(features_train_compressed))
         y_train = labels
-        print(self.nowStr_() + "gmm training completed")
+        logger.info(self.nowStr_() + "gmm training completed")
 
         self.clf = OneVsRestClassifier(LinearSVC()).fit(X_train, y_train)
-        print(self.nowStr_() + "classifier is trained")
+        logger.info(self.nowStr_() + "classifier is trained")
 
         if ifValidate:
-            print(self.nowStr_() + "validation started")
+            logger.info(self.nowStr_() + "validation started")
             self.validate(offset=self.gap//2)            
         return
 
     def validate(self, offset):
         data, labels, _ = self.dataLoader_(offset)
         features_test = self.stack_feature_extractor_(data)
-        print(self.nowStr_() + "features extraction completed")
+        logger.info(self.nowStr_() + "features extraction completed")
 
         labels = [label for i, label in enumerate(labels) if features_test[i] is not None]
         features_test = [feat for i, feat in enumerate(features_test) if features_test[i] is not None]
 
         labels = [label for i, label in enumerate(labels) if len(features_test[i]) > self.ngmm]
         features_test = [feat for i, feat in enumerate(features_test) if len(features_test[i]) > self.ngmm]
-        print(self.nowStr_() + "%d samples are used for testing" %len(features_test))
+        logger.info(self.nowStr_() + "%d samples are used for testing" %len(features_test))
 
         gc.collect()
         features_test_compressed = np.array([self.pca.transform(np.array(feat)) for feat in features_test])
-        print(self.nowStr_() + "PCA completed")
+        logger.info(self.nowStr_() + "PCA completed")
         X_test = np.array(self.fisher_vector_encoder_(features_test_compressed))
         y_test = labels
 
         preds = self.clf.predict(X_test).astype(np.uint8)
-        print(self.nowStr_() + "validation accuracy= {}".format(accuracy_score(y_test, preds)))
+        logger.info(self.nowStr_() + "validation accuracy= {}".format(accuracy_score(y_test, preds)))
         return
     
     def test(self, test_dir=None):
@@ -149,13 +155,13 @@ label = clf.CATEGORIES[pred]
                     preds.append(self.predict(img))
                     labels = np.array(labels)
                     preds = np.array(preds)
-                    print(img)
-        # print(preds)
-        # print(labels)
-        # print("Accuracy: {}".format(accuracy_score(labels, preds)))
-        # print("")
-        # print("Confusion Matrix:")
-        # print(confusion_matrix(labels, preds))
+                    logger.info(img)
+        # logger.info(preds)
+        # logger.info(labels)
+        # logger.info("Accuracy: {}".format(accuracy_score(labels, preds)))
+        # logger.info("")
+        # logger.info("Confusion Matrix:")
+        # logger.info(confusion_matrix(labels, preds))
         return
     
     def predict(self, img):
@@ -191,12 +197,12 @@ label = clf.CATEGORIES[pred]
                 data.append(self.prep_image_stacks_(stack))
                 labels.append(CATEGORIES[cat] * np.ones(stack.shape[0]))
 
-        print(self.nowStr_() + "training images loaded")
+        logger.info(self.nowStr_() + "training images loaded")
         return np.concatenate(data), np.concatenate(labels), CATEGORIES
 
     def testLoader_(self, test_dir):
         files = glob(test_dir + "/*.npy")
-        print(self.nowStr_() + "%d test images loaded" %len(files))
+        logger.info(self.nowStr_() + "%d test images loaded" %len(files))
         fname_list = os.listdir(test_dir)
         for f in files:
             if "seg" not in f:
@@ -273,7 +279,7 @@ label = clf.CATEGORIES[pred]
         model["clf"] = self.clf
         with open(os.path.join(self.tmp_dir, "model.pkl"), "wb") as f:
             pickle.dump(model, f)
-            print(self.nowStr_() + "model.pkl is saved in " + self.tmp_dir)
+            logger.info(self.nowStr_() + "model.pkl is saved in " + self.tmp_dir)
     def load(self, tmp_dir):
         with open(os.path.join(tmp_dir, "model.pkl"), "rb") as f:
             model = pickle.load(f)
@@ -281,7 +287,7 @@ label = clf.CATEGORIES[pred]
             self.pca = model["pca"]
             self.gmm_model = model["gmm"]
             self.clf = model["clf"]
-            print(self.nowStr_() + "model.pkl is loaded from " + tmp_dir)
+            logger.info(self.nowStr_() + "model.pkl is loaded from " + tmp_dir)
     def nowStr_(self):
         now = datetime.now()
         return ("-- [%02d:%02d:%02d]  " %(now.hour, now.minute, now.second))
