@@ -42,9 +42,9 @@ def register_numpy():
             else:
                 data = numpy.ascontiguousarray(obj).data
 
-            if len(data) > 1024:
-                data = zlib.compress(data)
-                out['compress'] = True
+            # if len(data) > 1024:
+            #     data = zlib.compress(data)
+            #     out['compress'] = True
 
             out['data'] = b64encode(data).decode('ascii')
 
