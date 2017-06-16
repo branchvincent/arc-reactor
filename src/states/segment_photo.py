@@ -10,11 +10,19 @@ from perception import segment_images
 
 class SegmentPhoto(State):
     '''
-    Inputs:  /robot/target_photos (e.g., ['/photos/stow_tote/stow', '/photos/binA/shelf0'])
+    Inputs:
+     - /robot/target_photos (e.g., ['/photos/stow_tote/stow', '/photos/binA/shelf0'])
 
-    Outputs: segmentation output for each photo
-             labeled_image
-             DL_images
+    Outputs:
+     - photo_url + /point_cloud_segmented
+     - photo_url + /labeled_image
+     - photo_url + /DL_images
+
+    Failures:
+     - photo has not been taken
+
+    Dependencies:
+     - CapturePhoto of some type
     '''
 
     def run(self):
