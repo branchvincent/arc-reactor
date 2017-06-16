@@ -4,6 +4,7 @@ from master.fsm import State
 
 logger = logging.getLogger(__name__)
 
+from .common import NoViewingCameraError, CameraAcquisitionError
 from .common.capture_photo import capture_photo_handler
 
 class CapturePhotoBin(State):
@@ -34,15 +35,21 @@ class CapturePhotoBin(State):
     '''
 
     def run(self):
-
         location = self.store.get('/robot/target_bin')
-
         print "got location: ", location
-
         self.store.put('/robot/target_location', location)
-        capture_photo_handler(self.store, [location])
 
-        self.setOutcome(True)
+        try:
+            capture_photo_handler(self.store, [location])
+        except NoViewingCameraError:
+            logger.exception()
+            self.store.put(['failure', self.getFullName()], 'missing camera')
+        except CameraAcquisitionError:
+            logger.exception()
+            self.store.put(['failure', self.getFullName()], 'camera error')
+        else:
+            self.store.delete(['failure', self.getFullName()])
+            self.setOutcome(True)
 
     def setBin(self, myname):
         if len(myname) == 4:

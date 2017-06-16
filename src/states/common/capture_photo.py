@@ -2,7 +2,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from perception import acquire_images
+from perception import acquire_images, CameraAcquisitionError
+
+from . import NoViewingCameraError
 
 def capture_photo_handler(store, locations):
     '''
@@ -27,7 +29,7 @@ def capture_photo_handler(store, locations):
         # figure out which cameras to use
         selected_cameras = store.get(['system', 'viewpoints', location], None)
         if selected_cameras is None:
-            raise RuntimeError('no camera available for {}'.format(location))
+            raise NoViewingCameraError('no camera available for {}'.format(location))
         logger.debug('using cameras: {}'.format(selected_cameras))
 
         name2serial = store.get('/system/cameras')

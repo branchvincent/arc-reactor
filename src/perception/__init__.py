@@ -1,11 +1,14 @@
 import logging
 
-from subprocess import check_call
+from subprocess import check_call, CalledProcessError
 import os
 
 from time import sleep
 
 logger = logging.getLogger(__name__)
+
+class CameraAcquisitionError(Exception):
+    pass
 
 def _build_command(name):
     return ['python3', 'reactor', 'shell', 'perception.perception', '-f', name]
@@ -26,7 +29,12 @@ def acquire_images(serials, photo_urls):
     args += _build_args('-u', photo_urls)
 
     logger.debug('invoking camera acquisition: {}'.format(args))
-    check_call(args)
+
+    try:
+        check_call(args)
+    except CalledProcessError:
+        logger.exception()
+        raise CameraAcquisitionError()
 
 def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
     args = _build_command('segment_images')
