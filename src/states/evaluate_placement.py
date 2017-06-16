@@ -13,9 +13,12 @@ from packing import heightmap
 from util.math_helpers import transform, crop_with_aabb
 from util.location import location_bounds_url, location_pose_url
 
-from .common import MissingPhotoError, NoViewingCameraError
+from .common import NoViewingCameraError, MissingPhotoError
 
 logger = logging.getLogger(__name__)
+
+class NoPlacementFound(Exception):
+    pass
 
 class EvaluatePlacement(State):
     '''
@@ -37,27 +40,31 @@ class EvaluatePlacement(State):
     '''
 
     def run(self):
-        locations = self.store.get('/robot/target_locations')
+        locations = self.store.get('/robot/target_locations', [])
         logger.info('finding placement in {}'.format(locations))
 
-        # obtain item point cloud from inspection station in tool coordinates
         try:
-            item_cloud = self._build_item_point_cloud()
-        except MissingPhotoError:
+            self._handler(locations)
+        except (NoViewingCameraError, MissingPhotoError, NoPlacementFound) as e:
+            self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception()
-            self.store.put(['failure', self.getFullName()], 'missing photo')
-            self.setOutcome(False)
-            return
+        else:
+            self.store.delete(['failure', self.getFullName()])
+            self.setOutcome(True)
+
+        logger.info('finished placement evaluation')
+
+        from util import db
+        db.dump(self.store, '/tmp/placement-{}'.format('-'.join(locations)))
+        logger.info('database dump completed')
+
+    def _handler(self, locations):
+        # obtain item point cloud from inspection station in tool coordinates
+        item_cloud = self._build_item_point_cloud()
 
         # obtain container point cloud and bounding box in container local coordinates
-        try:
-            container_clouds = [self._build_container_point_cloud(location) for location in locations]
-            container_aabbs = [self.store.get(location_bounds_url(location)) for location in locations]
-        except NoViewingCameraError:
-            logger.exception()
-            self.store.put(['failure', self.getFullName()], 'missing camera')
-            self.setOutcome(False)
-            return
+        container_clouds = [self._build_container_point_cloud(location) for location in locations]
+        container_aabbs = [self.store.get(location_bounds_url(location)) for location in locations]
 
         # attempt the packing
         (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None)
@@ -98,13 +105,7 @@ class EvaluatePlacement(State):
             self.store.delete('/robot/target_location')
             self.store.delete('/robot/placement')
 
-            self.store.put(['failure', self.getFullName()], 'placement')
-            self.setOutcome(False)
-
-            logger.error('find placement failed')
-
-        from util import db
-        db.dump(self.store, '/tmp/placement-{}'.format('-'.join(locations)))
+            raise NoPlacementFound(locations)
 
     def _build_item_point_cloud(self):
         inspect_cloud_world = numpy.array([]).reshape((0, 3))
@@ -112,11 +113,11 @@ class EvaluatePlacement(State):
 
         for photo_url in ['/photos/inspect/inspect_side', '/photos/inspect/inspect_below']:
             camera_pose = self.store.get(photo_url + '/pose')
-            if camera_pose is None:
-                raise MissingPhotoError(photo_url)
-
             cloud_camera = self.store.get(photo_url + '/point_cloud')
             aligned_color = self.store.get(photo_url + '/aligned_color')
+            if any([ x is None for x in [camera_pose, cloud_camera, aligned_color]]):
+                raise MissingPhotoError('missing photo data for inspection: {}'.format(photo_url))
+
             cloud_world = transform(camera_pose, cloud_camera)
             valid_mask = cloud_camera[..., 2] > 0
 
