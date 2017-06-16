@@ -7,6 +7,24 @@ logger = logging.getLogger(__name__)
 from perception import recognize_objects
 
 class RecognizePhoto(State):
+    '''
+    Inputs:
+     - /robot/target_photos (e.g., ['/photos/stow_tote/stow', '/photos/binA/shelf0'])
+     - /robot/grasp_location if location of any photo is inspect
+
+    Outputs:
+     - photo_url + /detections
+     - /robot/target_photos is erased (HACK?)
+
+    Failures:
+     - photo has not been taken
+     - photo has not been segmented
+
+    Dependencies:
+     - CapturePhoto of some type
+     - SegmentPhoto
+    '''
+
     def run(self):
         photo_urls = [url + '/' for url in self.store.get('/robot/target_photos')]
         locations = [self.store.get(url + '/location') for url in photo_urls]
