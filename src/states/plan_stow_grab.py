@@ -11,22 +11,44 @@ from math import pi
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanStowGrab(State):
+    """
+    Input:
+        - /robot/selected_item: name of item to be picked
+        - /robot/target_grasp: dictionary containing item's grasp information
+        - /robot/<selected_item>/location: location of item (NOTE: needed? sanity check only)
+        - /robot/active_gripper: name of gripper to be used (vacuum or mechanical) (NOTE: not yet used)
+    Output:
+        - /robot/target_bounding_box: bounding box of target item (NOTE: not used?)
+        - /robot/waypoints: list of milestones
+        - /robot/timestamp: time of route generation
+        - /failure/plan_pick_item: failure string
+    Failure Cases:
+        - infeasible: /robot/target_grasp is not a feasible grasp
+    Dependencies:
+        - selected_item
+    """
+
     def run(self):
-        # Get item and grasp info
+        # Get inputs
         item = self.store.get('/robot/selected_item')
         grasp = self.store.get('/robot/target_grasp')
-        # TODO: add to db (defaults to vacuum for now)
+        # TODO: add to db
         gripper = self.store.get('/robot/active_gripper', 'vacuum').lower()
-        if gripper not in ['vacuum', 'mechanical']:
-            raise RuntimeError('unrecognized gripper "{}"'.format(gripper))
 
-        logger.info('planning route for "{}" to stow tote'.format(item))
+        # Check inputs
+        if item is None:
+            raise RuntimeError('/robot/selected_item is none')
+        elif grasp is None:
+            raise RuntimeError('/robot/target_grasp is none')
+        elif gripper not in ['vacuum', 'mechanical']:
+            raise RuntimeError('/robot/active_gripper is not unrecognized: "{}"'.format(gripper))
 
         # Get item location (must be stow tote)
         location = self.store.get(['item', item, 'location'])
         if location not in ['stow_tote', 'stow tote']:
-            raise RuntimeError('unrecognized item location: "{}"'.format(location))
-        reference_pose = self.store.get('/tote/stow/pose')
+            raise RuntimeError('/item/{}/location is not recognized: "{}"'.format(item, location))
+
+        logger.info('planning route for "{}" to stow tote'.format(item))
 
         # Calculate item bounding box
         # NOTE: single point for now
@@ -70,8 +92,11 @@ class PlanStowGrab(State):
             # Check motion plan
             if motion_plan is None:
                 #TODO why did it fail? mark grasp unviable and move on
-                self.store.put('/grasp/failed_grasps', self.store.get('/grasp/failed_grasps', []).append(grasp))
+                failed_grasps = self.store.get('/grasp/failed_grasps', [])
+                failed_grasps.append(grasp)
+                self.store.put('/grasp/failed_grasps', failed_grasps)
                 self.setOutcome(False)
+                self.store.put('failure/plan_stow_grab', 'infeasible')
                 raise RuntimeError('motion plan is empty')
             else:
                 milestone_map = [m.get_milestone() for m in motion_plan]
