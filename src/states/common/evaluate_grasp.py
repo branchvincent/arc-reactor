@@ -21,10 +21,13 @@ class EvaluateGraspBase(State):
             for location in locations:
                 self._common(location)
         except (NoViewingCameraError, MissingPhotoError, MissingSegmentationError, GraspNotInSegmentError) as e:
-            logger.exception()
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
+            logger.exception()
         else:
-            logger.info('finished vacuum grasp evaluation for {}'.format(locations))
+            self.store.delete(['failure', self.getFullName()])
+            self.setOutcome(True)
+
+        logger.info('finished vacuum grasp evaluation')
 
         from util import db
         db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))

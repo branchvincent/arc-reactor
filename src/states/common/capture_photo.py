@@ -23,21 +23,24 @@ class CapturePhotoBase(State):
     '''
 
     def _common(self, locations):
+        logger.info('starting image acquisition for {}'.format(locations))
+
         try:
             self._handle(locations)
-        except NoViewingCameraError:
+        except (NoViewingCameraError, CameraAcquisitionError) as e:
             logger.exception()
-            self.store.put(['failure', self.getFullName()], 'missing camera')
-        except CameraAcquisitionError:
-            logger.exception()
-            self.store.put(['failure', self.getFullName()], 'camera error')
+            self.store.put(['failure', self.getFullName()], e.__class__.__name__)
         else:
             self.store.delete(['failure', self.getFullName()])
             self.setOutcome(True)
 
-    def _handle(self, locations):
-        logger.info('acquiring images for {}'.format(locations))
+        logger.info('finished image acquisition')
 
+        from util import db
+        db.dump(self.store, '/tmp/photo-{}'.format('-'.join(locations)))
+        logger.info('database dump completed')
+
+    def _handle(self, locations):
         all_serials = []
         all_photo_urls = []
 
@@ -68,15 +71,10 @@ class CapturePhotoBase(State):
         # acquire images
         acquire_images(all_serials, all_photo_urls)
 
-        logger.info('acquired images completed')
-
         # set up the target photos for later segmentation/recognition
         prior_photo_urls = self.store.get('/robot/target_photos', [])
         self.store.put('/robot/target_photos', prior_photo_urls + photo_urls)
 
-        # setup up target locations
+        # set up up target locations
         self.store.put('/robot/target_location', locations[-1])
         self.store.put('/robot/target_locations', locations)
-
-        from util import db
-        db.dump(self.store, '/tmp/photo-{}'.format('-'.join(locations)))
