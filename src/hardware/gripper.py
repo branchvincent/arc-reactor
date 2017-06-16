@@ -15,6 +15,10 @@ GRIPPER_DEFAULT_PORT = 5004
 GRIPPER_DEFAULT_MINIMUM = 0
 GRIPPER_DEFAULT_MAXIMUM = 8000
 
+POSITION_CONTROL    = 1
+STRENGTH_CONTROL    = 2
+SWIVEL_CONTROL      = 3
+
 logger = logging.getLogger(__name__)
 
 class ConnectionError(RuntimeError):
@@ -103,28 +107,55 @@ class Gripper(object):
         else:
             return payload
 
-    def command(self, cmd):
+    def command(self, pinch=None, swivel=None, strength=None):
         '''
         Change the gripper state and update the database.
         '''
 
-        if cmd > 1 or cmd < 0:
-            raise RuntimeError('command is out of range [0, 1]: {}'.format(cmd))
+        if pinch is not None:
+            if pinch > 1 or pinch < 0:
+                raise RuntimeError('pinch is out of range [0, 1]: {}'.format(pinch))
 
-        q = int(round(cmd * (self._max - self._min) + self._min))
-        logger.debug('gripper command: {}'.format(q))
+            q = int(round(pinch * (self._max - self._min) + self._min))
+            logger.debug('gripper pinch: {}'.format(q))
 
-        # check if real or simulated gripper
-        if self._socket:
-            self._send_packet(1, 1, '!l', q)
-            success = self._recv_packet('!b')[0] == 1
-        else:
-            success = True
+            # check if real or simulated gripper
+            if self._socket:
+                self._send_packet(1, POSITION_CONTROL, '!l', q)
+                if self._recv_packet('!b')[0] != 1:
+                    raise RuntimeError('gripper pinch failed')
 
-        if not success:
-            raise RuntimeError('gripper command failed')
+            self._store.put('/gripper/pinch', pinch)
 
-        self._store.put('/gripper/status', cmd)
+        if strength is not None:
+            if strength > 3 or strength < 1:
+                raise RuntimeError('strength is out of range [1, 3]: {}'.format(strength))
+
+            q = int(round(strength))
+            logger.debug('gripper strength: {}'.format(q))
+
+            # check if real or simulated gripper
+            if self._socket:
+                self._send_packet(1, STRENGTH_CONTROL, '!b', q)
+                if self._recv_packet('!b')[0] != 1:
+                    raise RuntimeError('gripper strength failed')
+
+            self._store.put('/gripper/strength', swivel)
+
+        if swivel is not None:
+            if swivel > 95 or swivel < -5:
+                raise RuntimeError('swivel is out of range [-5, 95]: {}'.format(swivel))
+
+            q = int(round(swivel))
+            logger.debug('gripper swivel: {}'.format(q))
+
+            # check if real or simulated gripper
+            if self._socket:
+                self._send_packet(1, SWIVEL_CONTROL, '!b', q)
+                if self._recv_packet('!b')[0] != 1:
+                    raise RuntimeError('gripper swivel failed')
+
+            self._store.put('/gripper/swivel', swivel)
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
