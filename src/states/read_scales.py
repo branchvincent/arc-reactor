@@ -34,11 +34,14 @@ class ReadScales(State):
         weights = [scale.read() for scale in scales]
         total_weight = sum(weights)
 
+        weight_change = total_weight - self.store.get('scales/last_weight', 0)
+
         logger.info('weight {} = {:.3f} kg'.format(weights, total_weight))
+        logger.info('change = {:.3f} kg'.format(weight_change))
 
         # Update database
         self.store.put('scales/weight', total_weight)
-        self.store.put('scales/change', total_weight-self.store.get('scales/last_weight', 0))
+        self.store.put('scales/change', weight_change)
         #TODO fail if scales hardware produces an error
         # self.store.put('failure/read_scales', 'scale_error')
         self.setOutcome(True)
