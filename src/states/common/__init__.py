@@ -4,3 +4,9 @@ class NoViewingCameraError(Exception):
 
 class MissingPhotoError(Exception):
     pass
+
+class MissingSegmentationError(Exception):
+    pass
+
+class GraspNotInSegmentError(Exception):
+    pass

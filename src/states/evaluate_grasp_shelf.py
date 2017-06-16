@@ -1,12 +1,9 @@
 import logging
 
-from master.fsm import State
+from .common.evaluate_grasp import EvaluateGraspBase
 
-from .common.evaluate_grasp import evaluate_grasp_handler
 
-logger = logging.getLogger(__name__)
-
-class EvaluateGraspShelf(State):
+class EvaluateGraspShelf(EvaluateGraspBase):
     '''
     Inputs:
      - /photos/binA/tcp/*
@@ -22,27 +19,17 @@ class EvaluateGraspShelf(State):
      - /robot/target_photo_url set to /photos/binC/tcp/vacuum_grasps (HACK?)
 
     Failures:
-     - photos from end-effector camera for any of binA/binB/binC missing
-     - end-effector camera not configured to view bins
-     - any of found grasps do not lie within segment from photo
+     - NoViewingCameraError: end-effector camera not configured to view bins
+     - MissingPhotoError: photos from end-effector camera for any of binA/binB/binC missing
+     - MissingSegmentationError: segmentation not run
+     - GraspNotInSegmentError: any of found grasps do not lie within segment from photo
 
     Dependencies:
      - SegmentPhoto to produce segments for each bin photo
     '''
 
     def run(self):
-        logger.info('starting vacuum grasp evaluation for shelf')
-
-        locations = ['binA', 'binB', 'binC']
-        for location in locations:
-            evaluate_grasp_handler(self.store, location)
-
-        self.setOutcome(True)
-
-        logger.info('evaluate vacuum grasp for shelf completed successfully')
-
-        from util import db
-        db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))
+        self._common(['binA', 'binB', 'binC'])
 
 if __name__ == '__main__':
     import argparse

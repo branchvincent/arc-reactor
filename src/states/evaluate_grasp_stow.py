@@ -1,12 +1,10 @@
 import logging
 
-from master.fsm import State
-
-from .common.evaluate_grasp import evaluate_grasp_handler
+from .common.evaluate_grasp import EvaluateGraspBase
 
 logger = logging.getLogger(__name__)
 
-class EvaluateGraspStow(State):
+class EvaluateGraspStow(EvaluateGraspBase):
     '''
     Inputs:
      - /photos/stow_tote/<camera>/* for all cameras viewing stow tote
@@ -18,27 +16,17 @@ class EvaluateGraspStow(State):
      - /robot/target_photo_url set to /photos/stow_tote/<camera>/vacuum_grasps for last camera viewing tote (HACK?)
 
     Failures:
-     - photos from any camera viewing stow tote missing
-     - no camera configured to view bins
-     - any of found grasps do not lie within segment from photo
+     - NoViewingCameraError: end-effector camera not configured to view bins
+     - MissingPhotoError: photos from end-effector camera for any of binA/binB/binC missing
+     - MissingSegmentationError: segmentation not run
+     - GraspNotInSegmentError: any of found grasps do not lie within segment from photo
 
     Dependencies:
-     - SegmentPhoto need to segment the point cloud from each camera
+     - SegmentPhoto to segment the point cloud from each camera
     '''
 
     def run(self):
-        logger.info('starting vacuum grasp evaluation for stow tote')
-
-        locations = ['stow_tote']
-        for location in locations:
-            evaluate_grasp_handler(self.store, location)
-
-        self.setOutcome(True)
-
-        logger.info('evaluate vacuum grasp for stow tote completed successfully')
-
-        from util import db
-        db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))
+        self._common(['stow_tote'])
 
 if __name__ == '__main__':
     import argparse
