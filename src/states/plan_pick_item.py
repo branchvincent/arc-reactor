@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class PlanPickItem(State):
     """
     Input:
-        - /robot/selected_item: item name to be picked
+        - /robot/selected_item: name of item to be picked
         - /robot/target_grasp: dictionary containing item's grasp information
-        - /robot/active_gripper: gripper to be used (vacuum or mechanical) (NOTE: not yet used)
+        - /robot/active_gripper: name of gripper to be used (vacuum or mechanical) (NOTE: not yet used)
     Output:
         - /robot/target_bounding_box: bounding box of target item (NOTE: not used?)
         - /robot/waypoints: list of milestones

@@ -5,21 +5,40 @@ from hardware.control.robotcontroller import RobotController
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanViewLocation(State):
-    def run(self):
-        # Get location
-        self.loc_name = self.store.get('/robot/target_location')
-        vantage_T = self.store.get(['vantage', self.loc_name])
-        self.store.put('/robot/target_pose', vantage_T)
-        # T = self.store.get('/robot/target_pose') # or /robot/vantage_url?
+    """
+    Input:
+        - /robot/target_location: name of location to view
+        - /vantage/<target_location>: end-effector's pose for viewing location
+    Output:
+        - /robot/target_pose: same as /vantage/<target_location> (NOTE: needed?)
+        - /robot/waypoints: list of milestones
+        - /robot/timestamp: time of route generation
+        - /status/route_plan: boolean of motion plan's success
+        - /failure/plan_pick_item: failure string
+    Failure Cases:
+        - infeasible: /vantage/<target_location> is not a feasible pose
+    Dependencies
+        - None
+    """
 
+    def run(self):
+        # Get inputs
+        self.loc_name = self.store.get('/robot/target_location')
+        if self.loc_name is None:
+            raise RuntimeError('/robot/target_location is none')
+
+        vantage_T = self.store.get(['vantage', self.loc_name])
         if vantage_T is None:
-            self.setOutcome(False)
-            raise RuntimeError("no target is set to view")
-        else:
-            # Plan route
-            lp = LinearPlanner(store=self.store)
-            lp.interpolate(T=vantage_T, global_solve=True)
-            self.setOutcome(True)
+            raise RuntimeError('/vantage/{} is none'.format(vantage_T))
+        self.store.put('/robot/target_pose', vantage_T)
+
+        # Plan route
+        lp = LinearPlanner(store=self.store)
+        lp.interpolate(T=vantage_T, global_solve=True)
+        success = self.store.get('status/route_plan')
+        if not success:
+            self.store.put('failure/plan_view_location', 'infeasible')
+        self.setOutcome(success)
 
     def setLoc(self, myname):
         if len(myname) == 4:

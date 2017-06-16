@@ -5,8 +5,21 @@ from hardware.atron.scale import AtronScale
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class ReadScales(State):
-    def run(self):
+    """
+    Input:
+        - /system/scales: dictionary of scale names
+        - /scales/last_weight (optional): last recorded weight
+    Output:
+        - /scales/weight: current weight
+        - /scales/change: difference between current weight and last weight
+        - /failure/read_scales: failure string
+    Failure Cases:
+        - scale_error: error reading from scale (TODO: classify errors)
+    Dependencies:
+        - None
+    """
 
+    def run(self):
         self.store.put('scales/last_weight', self.store.get('scales/weight', 0))
         # Get scales
         scales = []
@@ -27,6 +40,7 @@ class ReadScales(State):
         self.store.put('scales/weight', total_weight)
         self.store.put('scales/change', total_weight-self.store.get('scales/last_weight', 0))
         #TODO fail if scales hardware produces an error
+        # self.store.put('failure/read_scales', 'scale_error')
         self.setOutcome(True)
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class PlanPlaceBox(State):
     """
     Input:
-        - /robot/selected_item: item name to be placed
+        - /robot/selected_item: name of item to be placed
         - /robot/placement/pose: end-effector's pose for item placement
         - /robot/placement/location: name of target box (NOTE: needed?)
         - /robot/active_gripper: gripper to be used (vacuum or mechanical) (NOTE: not yet used)
