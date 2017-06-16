@@ -8,17 +8,37 @@ from motion.new_planner import PickPlanner
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanPlaceBox(State):
+    """
+    Input:
+        - /robot/selected_item: item name to be placed
+        - /robot/placement/pose: end-effector's pose for item placement
+        - /robot/placement/location: name of target box (NOTE: needed?)
+        - /robot/active_gripper: gripper to be used (vacuum or mechanical) (NOTE: not yet used)
+    Output:
+        - /failure/plan_place_box: failure string
+    Failure Cases:
+        - infeasible: /robot/placement/pose is not a feasible placement
+    Dependencies:
+        - evaluate_placement
+    """
 
     def run(self):
-        # Get item info
+        # Get inputs
         item = self.store.get('/robot/selected_item')
-        # TODO: add to db (defaults to vacuum for now)
-        gripper = self.store.get('/robot/active_gripper', 'vacuum').lower()
-        if gripper not in ['vacuum', 'mechanical']:
-            raise RuntimeError('unrecognized gripper "{}"'.format(gripper))
-
         target_T = self.store.get(['robot', 'placement', 'pose'])
         target_location = self.store.get(['robot', 'placement', 'location'])
+        # TODO: add to db
+        gripper = self.store.get('/robot/active_gripper', 'vacuum').lower()
+
+        # Check inputs
+        if item is None:
+            raise RuntimeError('/robot/selected_item is none')
+        elif target_T is None:
+            raise RuntimeError('/robot/placement/pose is none')
+        elif target_location is None:
+            raise RuntimeError('/robot/placement/location is none')
+        elif gripper not in ['vacuum', 'mechanical']:
+            raise RuntimeError('/robot/active_gripper is not unrecognized: "{}"'.format(gripper))
 
         logger.info('planning route for "{}" to "{}"'.format(item, target_location))
 
@@ -62,6 +82,7 @@ class PlanPlaceBox(State):
             # Check motion plan
             if motion_plan is None:
                 self.setOutcome(False)
+                self.store.put('/failure/plan_place_box', 'infeasible')
                 raise RuntimeError('motion plan is empty')
             else:
                 milestone_map = [m.get_milestone() for m in motion_plan]
