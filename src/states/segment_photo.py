@@ -4,9 +4,11 @@ from master.fsm import State
 
 from util.location import location_bounds_url, location_pose_url
 
-logger = logging.getLogger(__name__)
-
 from perception import segment_images
+
+from .common import MissingPhotoError
+
+logger = logging.getLogger(__name__)
 
 class SegmentPhoto(State):
     '''
@@ -19,15 +21,35 @@ class SegmentPhoto(State):
      - photo_url + /DL_images
 
     Failures:
-     - photo has not been taken
+     - MissingPhotoError: photo has not been taken
 
     Dependencies:
      - CapturePhoto of some type
     '''
 
     def run(self):
-        photo_urls = [url + '/' for url in self.store.get('/robot/target_photos')]
-        locations = [self.store.get(url + '/location') for url in photo_urls]
+        photo_urls = [url + '/' for url in self.store.get('/robot/target_photos', [])]
+        logger.info('segmenting photos {}'.format(photo_urls))
+
+        try:
+            self._handler(photo_urls)
+        except (MissingPhotoError,) as e:
+            self.store.put(['failure', self.getFullName()], e.__class__.__name__)
+            logger.exception()
+        else:
+            self.store.delete(['failure', self.getFullName()])
+            self.setOutcome(True)
+
+        logger.info('finished segmenting photo')
+
+    def _handler(self, photo_urls):
+        locations = []
+        # extract location for bounds estimation
+        for url in photo_urls:
+            try:
+                locations.append(self.store.get(url + '/location', strict=True))
+            except KeyError:
+                raise MissingPhotoError(url)
 
         # compute the bounds and pose URLs for each photo
         bounds_urls = [location_bounds_url(location) for location in locations]
@@ -36,8 +58,6 @@ class SegmentPhoto(State):
         # segment images
         segment_images(photo_urls, bounds_urls, pose_urls)
         #TODO give pass/fail criteria
-
-        self.setOutcome(True)
 
 if __name__ == '__main__':
     import argparse

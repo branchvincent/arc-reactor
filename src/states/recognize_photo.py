@@ -2,9 +2,14 @@ import logging
 
 from master.fsm import State
 
+from perception import recognize_objects
+
+from .common import MissingPhotoError, MissingSegmentationError
+
 logger = logging.getLogger(__name__)
 
-from perception import recognize_objects
+class MissingGraspLocationError(Exception):
+    pass
 
 class RecognizePhoto(State):
     '''
@@ -17,8 +22,9 @@ class RecognizePhoto(State):
      - /robot/target_photos is erased (HACK?)
 
     Failures:
-     - photo has not been taken
-     - photo has not been segmented
+     - MissingPhotoError: photo has not been taken
+     - MissingSegmentationError: photo has not been segmented
+     - MissingGraspLocationError: /robot/grasp_location is not valid
 
     Dependencies:
      - CapturePhoto of some type
@@ -26,13 +32,43 @@ class RecognizePhoto(State):
     '''
 
     def run(self):
-        photo_urls = [url + '/' for url in self.store.get('/robot/target_photos')]
-        locations = [self.store.get(url + '/location') for url in photo_urls]
+        photo_urls = [url + '/' for url in self.store.get('/robot/target_photos', [])]
+        logger.info('recognizing photos {}'.format(photo_urls))
+
+        try:
+            self._handler(photo_urls)
+        except (MissingPhotoError, MissingSegmentationError, MissingGraspLocationError) as e:
+            self.store.put(['failure', self.getFullName()], e.__class__.__name__)
+            logger.exception()
+        else:
+            self.store.delete(['failure', self.getFullName()])
+            self.setOutcome(True)
+
+        logger.info('finished recognizing photo')
+
+    def _handler(self, photo_urls):
+        locations = []
+        for url in photo_urls:
+            # extract location from photo for restricting recognitions
+            try:
+                locations.append(self.store.get(url + '/location', strict=True))
+            except KeyError:
+                raise MissingPhotoError(url)
+
+            # check that segmentation is ready
+            try:
+                self.store.get(url + '/labeled_image', strict=True)
+                self.store.get(url + '/DL_images', strict=True)
+            except KeyError:
+                raise MissingSegmentationError(url)
 
         # use the grasp source for recognition
         for (i, location) in enumerate(locations):
             if location == 'inspect':
-                locations[i] = self.store.get('/robot/grasp_location')
+                try:
+                    locations[i] = self.store.get('/robot/grasp_location', strict=True)
+                except KeyError:
+                    raise MissingGraspLocationError()
 
         # recognize segments
         recognize_objects(self.store, photo_urls, locations)
@@ -40,8 +76,6 @@ class RecognizePhoto(State):
 
         # HACK: clear the target photos
         self.store.put('/robot/target_photos', [])
-
-        self.setOutcome(True)
 
 if __name__ == '__main__':
     import argparse
