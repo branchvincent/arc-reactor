@@ -17,11 +17,21 @@ logger = logging.getLogger(__name__)
 
 class EvaluatePlacement(State):
     '''
-    Inputs:  /robot/target_locations (e.g., ['binA'])
+    Inputs:
+     - /robot/target_locations (e.g., ['binA'])
+     - photos for each target location
 
-    Outputs: /robot/placement/pose: a 4x4 numpy matrix of end-effector pose
-             /robot/placement/location: location name of placement
-             /robot/target_bin and /robot/target_location: set to location of placement
+    Outputs:
+     - /robot/placement/pose: a 4x4 numpy matrix of end-effector pose
+     - /robot/placement/location: location name of placement
+     - /robot/target_bin and /robot/target_location: set to location of placement
+
+    Failures:
+     - missing photos
+     - cannot find placement
+
+    Dependencies:
+     - CapturePhoto for each location
     '''
 
     def run(self):
@@ -30,7 +40,6 @@ class EvaluatePlacement(State):
 
         # obtain item point cloud from inspection station in tool coordinates
         item_cloud = self._build_item_point_cloud()
-
 
         # obtain container point cloud and bounding box in container local coordinates
         container_clouds = [self._build_container_point_cloud(location) for location in locations]
