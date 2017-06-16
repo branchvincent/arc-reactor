@@ -13,6 +13,8 @@ from packing import heightmap
 from util.math_helpers import transform, crop_with_aabb
 from util.location import location_bounds_url, location_pose_url
 
+from .common import MissingPhotoError, NoViewingCameraError
+
 logger = logging.getLogger(__name__)
 
 class EvaluatePlacement(State):
@@ -27,7 +29,7 @@ class EvaluatePlacement(State):
      - /robot/target_bin and /robot/target_location: set to location of placement
 
     Failures:
-     - missing photos
+     - missing photo from inspection station only
      - cannot find placement
 
     Dependencies:
@@ -39,11 +41,23 @@ class EvaluatePlacement(State):
         logger.info('finding placement in {}'.format(locations))
 
         # obtain item point cloud from inspection station in tool coordinates
-        item_cloud = self._build_item_point_cloud()
+        try:
+            item_cloud = self._build_item_point_cloud()
+        except MissingPhotoError:
+            logger.exception()
+            self.store.put(['failure', self.getFullName()], 'missing photo')
+            self.setOutcome(False)
+            return
 
         # obtain container point cloud and bounding box in container local coordinates
-        container_clouds = [self._build_container_point_cloud(location) for location in locations]
-        container_aabbs = [self.store.get(location_bounds_url(location)) for location in locations]
+        try:
+            container_clouds = [self._build_container_point_cloud(location) for location in locations]
+            container_aabbs = [self.store.get(location_bounds_url(location)) for location in locations]
+        except NoViewingCameraError:
+            logger.exception()
+            self.store.put(['failure', self.getFullName()], 'missing camera')
+            self.setOutcome(False)
+            return
 
         # attempt the packing
         (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None)
@@ -75,6 +89,7 @@ class EvaluatePlacement(State):
 
             self.store.put('/robot/target_bin', pack_location)
             self.store.put('/robot/target_location', pack_location)
+
             self.setOutcome(True)
             logger.info('find placement succeeded')
         else:
@@ -82,7 +97,10 @@ class EvaluatePlacement(State):
             self.store.delete('/robot/target_bin')
             self.store.delete('/robot/target_location')
             self.store.delete('/robot/placement')
+
+            self.store.put(['failure', self.getFullName()], 'placement')
             self.setOutcome(False)
+
             logger.error('find placement failed')
 
         from util import db
@@ -94,6 +112,9 @@ class EvaluatePlacement(State):
 
         for photo_url in ['/photos/inspect/inspect_side', '/photos/inspect/inspect_below']:
             camera_pose = self.store.get(photo_url + '/pose')
+            if camera_pose is None:
+                raise MissingPhotoError(photo_url)
+
             cloud_camera = self.store.get(photo_url + '/point_cloud')
             aligned_color = self.store.get(photo_url + '/aligned_color')
             cloud_world = transform(camera_pose, cloud_camera)
@@ -138,7 +159,7 @@ class EvaluatePlacement(State):
                 available_cameras.remove('tcp')
 
         if not available_cameras:
-            raise RuntimeError('no camera available for {}'.format(location))
+            raise NoViewingCameraError('no camera available for {}'.format(location))
         logger.debug('available cameras for "{}": {}'.format(location, available_cameras))
 
         container_clouds = []
