@@ -55,10 +55,11 @@ class EvaluateGraspBase(State):
             self.store.put('/robot/target_photo_url', photo_url)
 
             # retrieve the photo
-            camera_pose = self.store.get(photo_url + ['pose'])
-            point_cloud = self.store.get(photo_url + ['point_cloud_segmented'])
-            full_color = self.store.get(photo_url + ['full_color'])
-            if any([ x is None for x in [camera_pose, point_cloud, full_color]]):
+            try:
+                camera_pose = self.store.get(photo_url + ['pose'], strict=True)
+                point_cloud = self.store.get(photo_url + ['point_cloud_segmented'], strict=True)
+                full_color = self.store.get(photo_url + ['full_color'], strict=True)
+            except KeyError:
                 raise MissingPhotoError('missing photo data for location {}: {}'.format(location, photo_url))
 
             labeled_image = self.store.get(photo_url + ['labeled_image'])

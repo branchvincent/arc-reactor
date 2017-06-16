@@ -32,8 +32,9 @@ class EvaluatePlacement(State):
      - /robot/target_bin and /robot/target_location: set to location of placement
 
     Failures:
-     - missing photo from inspection station only
-     - cannot find placement
+     - NoViewingCameraError: no camera viewing packing locations
+     - MissingPhotoError: missing photo from inspection station only
+     - NoPlacementFound: cannot find placement
 
     Dependencies:
      - CapturePhoto for each location
@@ -112,10 +113,11 @@ class EvaluatePlacement(State):
         inspect_cloud_color = numpy.array([]).reshape((0, 3))
 
         for photo_url in ['/photos/inspect/inspect_side', '/photos/inspect/inspect_below']:
-            camera_pose = self.store.get(photo_url + '/pose')
-            cloud_camera = self.store.get(photo_url + '/point_cloud')
-            aligned_color = self.store.get(photo_url + '/aligned_color')
-            if any([ x is None for x in [camera_pose, cloud_camera, aligned_color]]):
+            try:
+                camera_pose = self.store.get(photo_url + '/pose', strict=True)
+                cloud_camera = self.store.get(photo_url + '/point_cloud', strict=True)
+                aligned_color = self.store.get(photo_url + '/aligned_color', strict=True)
+            except KeyError:
                 raise MissingPhotoError('missing photo data for inspection: {}'.format(photo_url))
 
             cloud_world = transform(camera_pose, cloud_camera)
