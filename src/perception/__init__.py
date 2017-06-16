@@ -23,7 +23,7 @@ def initialize_cameras(serials):
     logger.debug('invoking camera initialization: {}'.format(args))
     check_call(args)
 
-def acquire_images(serials, photo_urls):
+def acquire_images(store, serials, photo_urls):
     args = _build_command('acquire_images')
     args += _build_args('-sn', serials)
     args += _build_args('-u', photo_urls)
@@ -35,6 +35,32 @@ def acquire_images(serials, photo_urls):
     except CalledProcessError:
         logger.exception()
         raise CameraAcquisitionError()
+
+def acquire_images_new(store, serials, photo_urls):
+    # wait for prior acquisition to end
+    while store.get('/acquire_images/run', False):
+        logger.warn('waiting for acquire images idle')
+        sleep(0.5)
+
+    # update parameters
+    store.put('/acquire_images/serial_numbers', serials)
+    store.put('/acquire_images/urls', photo_urls)
+
+    # trigger recognition
+    store.put('/acquire_images/done', False)
+    store.put('/acquire_images/run', True)
+
+    logger.debug('acquire images started')
+
+    # wait for completion
+    while not store.get('/acquire_images/done', False):
+        sleep(0.1)
+
+    error = store.get('/acquire_images/error')
+    if error:
+        raise RuntimeError('image acquisition failed: {}'.format(error))
+
+    logger.debug('acquire images finished')
 
 def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
     args = _build_command('segment_images')
