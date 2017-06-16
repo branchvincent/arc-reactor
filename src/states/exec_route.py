@@ -6,10 +6,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ExecRoute(State):
-    def run(self):
-        # self.waypoints = self.store.get('/robot/waypoints')
-        # self.speed = self.store.get('/robot/speed_scale', 1)
+    """
+    Input:
+        - /robot/waypoints (optional): list of milestones
+        - /robot/speed_scale (optional): speed scale for milestones
+        - /robot/camera_xform: local pose of end effector camera
+    Output:
+        - /robot/tcp_pose: updated pose of end effector
+        - /camera/tcp/pose: updated pose of end effector camera
+        - /robot/current_config: udpated robot configuration
+        - /failure/exec_route: failure string
+    Failure Cases:
+        - connection_error: could not connect to robot (TODO: classify)
+    Dependencies:
+        - a planning state
+    """
 
+    def run(self):
         #check if in simulation mode
         if self.store.get('/simulate/robot_motion', True):
             try:
@@ -17,7 +30,6 @@ class ExecRoute(State):
                 controllerSim.run()
             except RuntimeError as e:
                 print "Runtime error: ", e
-            completed = True  #always pass in sim mode for now
             self.setOutcome(True)
         else:
             try:
@@ -26,14 +38,10 @@ class ExecRoute(State):
                 completed = controller.trajectory.complete
                 self.setOutcome(True)
             except RuntimeError:
-                self.setOutcome(False)
+                # TODO: this may not be the error (we should add a timeout feature to controller)
+                self.store.put('failure/exec_route', 'connection_error')
                 logger.exception('Robot controller had an exception.')
-                completed = False
-
-        #update history
-        # if completed:
-        #     self.store.put('/robot/waypoints', None)
-        #     self.store.put('/robot/history', self.waypoints)
+                self.setOutcome(False)
 
 if __name__ == '__main__':
     import argparse

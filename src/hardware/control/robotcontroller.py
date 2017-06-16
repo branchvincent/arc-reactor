@@ -12,6 +12,7 @@ from time import sleep
 import logging; logger = logging.getLogger(__name__)
 
 # List of robot IP addresses
+# TODO: add ip to db
 bufferSize = 100
 robots = {  'left':  '10.10.1.202',
             'right': '10.10.1.203',
