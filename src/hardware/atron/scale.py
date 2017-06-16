@@ -37,7 +37,7 @@ class AtronScale:
             stopbits=serial.STOPBITS_ONE,
             timeout=1
         )
-        self.close()
+        self.open()
 
     def open(self):
         if not self._simulated() and not self.serial.is_open:
@@ -58,10 +58,8 @@ class AtronScale:
             return (current - zero) * (self.factor if not raw else 1)
 
     def command(self, cmd, read=False):
-        self.open()
         self.serial.write(cmd)
         val = self._read_until('\r') if read else None
-        self.close()
 
         if val:
             val = int(val[1:])
