@@ -71,6 +71,38 @@ class Gripper(object):
     #         logger.info('gripper disconnected')
     #         self._socket.close()
 
+    def _readall(self, n):
+        data = ''
+        while len(data) < n:
+            chunk = self._socket.recv(n - len(data))
+            if len(chunk) == 0:
+                return None
+            else:
+                data += chunk
+
+        return data
+
+    def _send_packet(self, version, type_, fmt, *fields):
+        payload = struct.pack(fmt, *fields)
+        header = struct.pack('!BBB', version, type_, len(payload))
+
+        packet = header + payload
+        # check if real or simulated gripper
+        if self._socket:
+            logger.debug('gripper send: {} {}'.format(fmt, repr(payload)))
+            self._socket.sendall(packet)
+
+    def _recv_packet(self, fmt=None):
+        header = self._readall(3)
+        (version, type_, length) = struct.unpack('!BBB', header)
+
+        payload = self._readall(length)
+        if fmt:
+            logger.debug('gripper recv: {} {}'.format(fmt, repr(payload)))
+            return struct.unpack(fmt, payload)
+        else:
+            return payload
+
     def command(self, cmd):
         '''
         Change the gripper state and update the database.
@@ -80,10 +112,17 @@ class Gripper(object):
             raise RuntimeError('command is out of range [0, 1]: {}'.format(cmd))
 
         q = int(round(cmd * (self._max - self._min) + self._min))
+        logger.debug('gripper command: {}'.format(q))
 
         # check if real or simulated gripper
         if self._socket:
-            self._socket.sendall(struct.pack('!BBBl', 1, 1, 4, q))
+            self._send_packet(1, 1, '!l', q)
+            success = self._recv_packet('!b')[0] == 1
+        else:
+            success = True
+
+        if not success:
+            raise RuntimeError('gripper command failed')
 
         self._store.put('/gripper/status', cmd)
 
@@ -94,7 +133,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
     parser.add_argument('-s', '--store', metavar='STORE', help='database store')
-    parser.add_argument('-g', '--gripper', metavar='GRIPPER', help='gripper server host')
+    parser.add_argument('-g', '--gripper', metavar='GRIPPER', help='gripper server host[:port]')
     parser.add_argument('command', metavar='COMMAND', type=float, help='gripper command 0 (open) to 1 (closed)')
 
     args = parser.parse_args()
@@ -109,8 +148,18 @@ if __name__ == '__main__':
     host = None
     port = None
     if args.gripper:
-        (host, port) = args.gripper.partition(':')
-        if port:
-            port = int(port)
+        parts = args.gripper.split(':')
+        if len(parts) == 1:
+            host = parts[0]
+            port = None
+        elif len(parts) == 2:
+            host = parts[0]
+            port = int(parts[1])
+        else:
+            raise RuntimeError('unrecognized host:port string: {}'.format(args.gripper))
 
-    Gripper(host, port).command(args.command)
+    try:
+        Gripper(host, port).command(args.command)
+    except:
+        logger.exception('gripper command failed')
+        raise SystemExit(-1)
