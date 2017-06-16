@@ -1,13 +1,10 @@
 import logging
 
-from master.fsm import State
+from .common.capture_photo import CapturePhotoBase
 
 logger = logging.getLogger(__name__)
 
-from .common import NoViewingCameraError, CameraAcquisitionError
-from .common.capture_photo import capture_photo_handler
-
-class CapturePhotoInspect(State):
+class CapturePhotoInspect(CapturePhotoBase):
     '''
     Takes photo from each camera viewing the inspection station.
 
@@ -36,22 +33,7 @@ class CapturePhotoInspect(State):
     '''
 
     def run(self):
-        location = 'inspect'
-
-        self.store.put('/robot/target_location', location)
-        self.store.put('/robot/target_locations', [location])
-
-        try:
-            capture_photo_handler(self.store, [location])
-        except NoViewingCameraError:
-            logger.exception()
-            self.store.put(['failure', self.getFullName()], 'missing camera')
-        except CameraAcquisitionError:
-            logger.exception()
-            self.store.put(['failure', self.getFullName()], 'camera error')
-        else:
-            self.store.delete(['failure', self.getFullName()])
-            self.setOutcome(True)
+        self._common(['inspect'])
 
 if __name__ == '__main__':
     import argparse

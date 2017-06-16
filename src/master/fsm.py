@@ -8,7 +8,7 @@ import time
 
 import logging; logger = logging.getLogger(__name__)
 
-class State():
+class State(object):
     def __init__(self, name, store=None):
         self.fullname = name
         self.name = name.upper()

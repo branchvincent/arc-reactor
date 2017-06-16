@@ -1,12 +1,14 @@
 import logging
 
-logger = logging.getLogger(__name__)
+from master.fsm import State
 
 from perception import acquire_images, CameraAcquisitionError
 
 from . import NoViewingCameraError
 
-def capture_photo_handler(store, locations):
+logger = logging.getLogger(__name__)
+
+class CapturePhotoBase(State):
     '''
     Inputs:  locations (e.g., ['binA', 'binB'])
 
@@ -20,43 +22,61 @@ def capture_photo_handler(store, locations):
              location
     '''
 
-    logger.info('acquiring images for {}'.format(locations))
+    def _common(self, locations):
+        try:
+            self._handle(locations)
+        except NoViewingCameraError:
+            logger.exception()
+            self.store.put(['failure', self.getFullName()], 'missing camera')
+        except CameraAcquisitionError:
+            logger.exception()
+            self.store.put(['failure', self.getFullName()], 'camera error')
+        else:
+            self.store.delete(['failure', self.getFullName()])
+            self.setOutcome(True)
 
-    all_serials = []
-    all_photo_urls = []
+    def _handle(self, locations):
+        logger.info('acquiring images for {}'.format(locations))
 
-    for location in locations:
-        # figure out which cameras to use
-        selected_cameras = store.get(['system', 'viewpoints', location], None)
-        if selected_cameras is None:
-            raise NoViewingCameraError('no camera available for {}'.format(location))
-        logger.debug('using cameras: {}'.format(selected_cameras))
+        all_serials = []
+        all_photo_urls = []
 
-        name2serial = store.get('/system/cameras')
-        serials  = [name2serial[n] for n in selected_cameras]
-        photo_urls = ['/photos/{}/{}/'.format(location, cam) for cam in selected_cameras]
-        logger.debug('using URLs: {}'.format(photo_urls))
+        for location in locations:
+            # figure out which cameras to use
+            selected_cameras = self.store.get(['system', 'viewpoints', location], None)
+            if selected_cameras is None:
+                raise NoViewingCameraError('no camera available for location {}'.format(location))
+            logger.debug('using cameras: {}'.format(selected_cameras))
 
-        for (cam, photo_url) in zip(selected_cameras, photo_urls):
-            # erase existing data
-            store.delete(photo_url)
+            name2serial = self.store.get('/system/cameras')
+            serials  = [name2serial[n] for n in selected_cameras]
+            photo_urls = ['/photos/{}/{}/'.format(location, cam) for cam in selected_cameras]
+            logger.debug('using URLs: {}'.format(photo_urls))
 
-            # store ancillary information
-            store.put(photo_url + 'pose', store.get(['camera', cam, 'pose']))
-            store.put(photo_url + 'camera', cam)
-            store.put(photo_url + 'location', location)
+            for (cam, photo_url) in zip(selected_cameras, photo_urls):
+                # erase existing data
+                self.store.delete(photo_url)
 
-        all_serials.extend(serials)
-        all_photo_urls.extend(photo_urls)
+                # self.store ancillary information
+                self.store.put(photo_url + 'pose', self.store.get(['camera', cam, 'pose']))
+                self.store.put(photo_url + 'camera', cam)
+                self.store.put(photo_url + 'location', location)
 
-    # acquire images
-    acquire_images(all_serials, all_photo_urls)
+            all_serials.extend(serials)
+            all_photo_urls.extend(photo_urls)
 
-    logger.info('acquired images completed')
+        # acquire images
+        acquire_images(all_serials, all_photo_urls)
 
-    # set up the target photos for later segmentation/recognition
-    prior_photo_urls = store.get('/robot/target_photos', [])
-    store.put('/robot/target_photos', prior_photo_urls + photo_urls)
+        logger.info('acquired images completed')
 
-    from util import db
-    db.dump(store, '/tmp/photo-{}'.format('-'.join(locations)))
+        # set up the target photos for later segmentation/recognition
+        prior_photo_urls = self.store.get('/robot/target_photos', [])
+        self.store.put('/robot/target_photos', prior_photo_urls + photo_urls)
+
+        # setup up target locations
+        self.store.put('/robot/target_location', locations[-1])
+        self.store.put('/robot/target_locations', locations)
+
+        from util import db
+        db.dump(self.store, '/tmp/photo-{}'.format('-'.join(locations)))
