@@ -127,7 +127,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf):
     (indices, 224x224 image suitable for input into deep learning)
     Returns none if the image is not good for input into DL
     '''
-    #given inputs, returns segmented image 
+    #given inputs, returns segmented image
     #object coordinates:
     indices = np.array((labeled_image == index).nonzero()).transpose()
     if not indices.shape[1] > 0:
@@ -176,7 +176,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf):
 
     #create new image
     cropped_masked_image_resized = cv2.resize(cropped_masked_image, (w,h))
-    
+
     image_for_DL=np.zeros((224,224,3)).astype('uint8')
     image_for_DL[112-h//2:112-h//2+h,112-w//2:112-w//2+w]=cropped_masked_image_resized
 

@@ -41,8 +41,8 @@ class ObjectRecognition:
             self.item_hist_sum = np.load(color_histogram_name)
         except:
             raise RuntimeError("Could not load in color histogram file {}".format(color_histogram_name))
-            
-    
+
+
     def poll_database(self):
         '''
         Polls the database at a specific URL until a flag is set.
@@ -112,7 +112,7 @@ class ObjectRecognition:
         '''
         num_bins = 16
         confidences = [] #list of lists
-        
+
         for img in list_of_dl_images:
             #reset the scores
             score_list = []
@@ -126,9 +126,9 @@ class ObjectRecognition:
             #compare to stored histograms
             for k in range(len(self.item_hist_sum)):
                 score = 2 * np.minimum(self.item_hist_sum[k][:,:], histRGB).sum() - np.maximum(self.item_hist_sum[k][:,:], histRGB).sum()
-                
+
                 score_list.append(score)
-            
+
             confidences.append(score_list)
 
         return confidences
@@ -154,7 +154,7 @@ class ObjectRecognition:
         or is incorrect don't filter
         '''
         list_of_list_of_confidences_out = []
-        
+
         for list_of_conf in confidences:
             #see if a valid location was passed in
             try:
@@ -222,5 +222,5 @@ class ObjectRecognition:
 
 
 if __name__ == '__main__':
-    o = ObjectRecognition('db/resnet_finetuned_06132017_combined_test.pkl', 'db/item_sum_hist.npy')
+    o = ObjectRecognition('db/resnet_finetuned_06132017_combined.pkl', 'db/item_sum_hist.npy')
     o.poll_database()
