@@ -1,3 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env python3
 
-exec /usr/bin/env python3 reactor "$@"
+if __name__ == '__main__':
+    import runpy
+    runpy.run_path('reactor', run_name='__main__')
