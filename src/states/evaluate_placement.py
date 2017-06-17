@@ -68,7 +68,8 @@ class EvaluatePlacement(State):
         container_aabbs = [self.store.get(location_bounds_url(location)) for location in locations]
 
         # attempt the packing
-        (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None)
+        margin = self.store.get('/packing/margin', 0.02)
+        (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None, margin=margin)
 
         if idx is None and locations == ['amnesty_tote']:
             # always succeed for amnesty tote
