@@ -15,8 +15,8 @@ GRIPPER_DEFAULT_PORT = 5004
 GRIPPER_DEFAULT_MINIMUM = 0
 GRIPPER_DEFAULT_MAXIMUM = 6000
 
-POSITION_CONTROL    = 1
-CLOSURE_CONTROL     = 2
+PINCH_CONTROL       = 1
+CLOSE_CONTROL       = 2
 SWIVEL_CONTROL      = 3
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ class Gripper(object):
         else:
             return payload
 
-    def command(self, pinch=None, swivel=None, closure=None):
+    def command(self, pinch=None, swivel=None, close=None):
         '''
         Change the gripper state and update the database.
         '''
@@ -121,26 +121,26 @@ class Gripper(object):
 
             # check if real or simulated gripper
             if self._socket:
-                self._send_packet(1, POSITION_CONTROL, '!l', q)
+                self._send_packet(1, PINCH_CONTROL   , '!l', q)
                 if self._recv_packet('!b')[0] != 1:
                     raise RuntimeError('gripper pinch failed')
 
             self._store.put('/gripper/pinch', pinch)
 
-        if closure is not None:
-            if closure > 3 or closure < 1:
-                raise RuntimeError('closure is out of range [1, 3]: {}'.format(closure))
+        if close is not None:
+            if close > 3 or close < 1:
+                raise RuntimeError('close is out of range [1, 3]: {}'.format(close))
 
-            q = int(round(closure))
-            logger.debug('gripper closure: {}'.format(q))
+            q = int(round(close))
+            logger.debug('gripper close: {}'.format(q))
 
             # check if real or simulated gripper
             if self._socket:
-                self._send_packet(1, CLOSURE_CONTROL , '!b', q)
+                self._send_packet(1, CLOSE_CONTROL , '!b', q)
                 if self._recv_packet('!b')[0] != 1:
-                    raise RuntimeError('gripper closure failed')
+                    raise RuntimeError('gripper close failed')
 
-            self._store.put('/gripper/closure', swivel)
+            self._store.put('/gripper/close', swivel)
 
         if swivel is not None:
             if swivel > 95 or swivel < -5:
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
     parser.add_argument('-s', '--store', metavar='STORE', help='database store')
     parser.add_argument('-g', '--gripper', metavar='GRIPPER', help='gripper server host[:port]')
-    parser.add_argument('command', metavar='COMMAND', choices=['pinch', 'swivel', 'closure'], help='gripper command')
+    parser.add_argument('command', metavar='COMMAND', choices=['pinch', 'swivel', 'close'], help='gripper command')
     parser.add_argument('value', metavar='VALUE', type=float, help='command value')
 
     args = parser.parse_args()
