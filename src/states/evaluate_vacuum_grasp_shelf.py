@@ -1,9 +1,9 @@
 import logging
 
-from .common.evaluate_grasp import EvaluateGraspBase
+from .common.evaluate_vacuum_grasp import EvaluateVacuumGraspBase
 
 
-class EvaluateGraspShelf(EvaluateGraspBase):
+class EvaluateVacuumGraspShelf(EvaluateVacuumGraspBase):
     '''
     Inputs:
      - /photos/binA/tcp/*
@@ -37,4 +37,4 @@ if __name__ == '__main__':
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
     myname = (args.name or 'eg')
-    EvaluateGraspShelf(myname).run()
+    EvaluateVacuumGraspShelf(myname).run()

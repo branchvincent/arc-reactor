@@ -1,10 +1,10 @@
 import logging
 
-from .common.evaluate_grasp import EvaluateGraspBase
+from .common.evaluate_vacuum_grasp import EvaluateVacuumGraspBase
 
 logger = logging.getLogger(__name__)
 
-class EvaluateGraspStow(EvaluateGraspBase):
+class EvaluateVacuumGraspStow(EvaluateVacuumGraspBase):
     '''
     Inputs:
      - /photos/stow_tote/<camera>/* for all cameras viewing stow tote
@@ -34,4 +34,4 @@ if __name__ == '__main__':
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
     myname = (args.name or 'eg')
-    EvaluateGraspStow(myname).run()
+    EvaluateVacuumGraspStow(myname).run()

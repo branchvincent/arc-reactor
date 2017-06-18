@@ -13,7 +13,7 @@ from . import NoViewingCameraError, MissingPhotoError, MissingSegmentationError,
 
 logger = logging.getLogger(__name__)
 
-class EvaluateGraspBase(State):
+class EvaluateVacuumGraspBase(State):
     def _common(self, locations):
         logger.info('starting vacuum grasp evaluation for {}'.format(locations))
 
