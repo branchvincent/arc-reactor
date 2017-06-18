@@ -1,0 +1,1 @@
+from .gripper import select_grasp as compute

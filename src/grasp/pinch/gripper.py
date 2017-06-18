@@ -13,7 +13,7 @@ def select_grasp(pc,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThick
     """
     Return a list of top down grasp locations with grasability score
     Input:
-    pc: pointcloud of the original scene in a structured numpy array 
+    pc: pointcloud of the original scene in a structured numpy array
     masks: A python list of masks as numpy arrays, each mask has the same dimension as the pointcloud as represent one single segment(areas where value equals True(1)), the length of the list should be equal to the number of the segments to be evaluated
     image: color aligned depth image, if provided, visualization of the grasp sites will be plotted on the color image, otherwise it will be plotted on the depth map
     gripperOpenning, gripperWidth, jawThickness: Pysical character of the parallel gripper, in m
@@ -21,16 +21,16 @@ def select_grasp(pc,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThick
     threshold: maximum height to be considered(everything above will be considered the same height as the threshold
 
     Output:
-    center: Coordinate where the center of the jaw edges 
+    center: Coordinate where the center of the jaw edges
 
     *********
     *       *
     *<----->*  Opening
     *   *   *
   center=(x,y,z)
-    
+
     Openning: Opening of the gripper before closing around the objects
-    
+
     angle: angle of rotation, in degrees
 
     """
@@ -42,7 +42,7 @@ def select_grasp(pc,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThick
         img,segment_points,COG=mask2image(pc,mask,corner,depth_map,length_per_pixel,threshold)
         window_dimension=int(gripperOpenning/length_per_pixel/1.414)
         sampleDistance=int(0.01/length_per_pixel)
- 
+
         check_depth=graspingDepth/threshold*255
         length_per_pixel_V=threshold/255
         length_per_pixel_H=length_per_pixel
@@ -51,11 +51,11 @@ def select_grasp(pc,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThick
         all_Grasp.append(grasps)
         grasps_physical.append(grasp_physical)
         show=depth_map.copy()*3
-        
+
     for i,grasps_mask in enumerate(all_Grasp):
         for j,grasp in enumerate(grasps_mask):
             cv2.line(show, (int(grasp[0][0]),int(grasp[0][1])), (int(grasp[1][0]),int(grasp[1][1])), 255)
-            grasp_info={'index':grasps_physical[i][j][8],'center':grasps_physical[i][j][0],'openning':grasps_physical[i][j][1],'tip_height':grasps_physical[i][j][2],'rotation':-grasps_physical[i][j][3],'score':grasps_physical[i][j][4],'max_Grasp_depth':grasps_physical[i][j][5],'distance_from_COG':grasps_physical[i][j][6],'Blockage_percent':grasps_physical[i][j][7]}
+            grasp_info={'index':grasps_physical[i][j][8],'center':grasps_physical[i][j][0],'opening':grasps_physical[i][j][1],'tip_height':grasps_physical[i][j][2],'rotation':-grasps_physical[i][j][3],'score':grasps_physical[i][j][4],'max_Grasp_depth':grasps_physical[i][j][5],'distance_from_COG':grasps_physical[i][j][6],'Blockage_percent':grasps_physical[i][j][7]}
             grasps_info.append(grasp_info)
             print grasp_info
             cv2.imshow("Original", show)
@@ -83,22 +83,22 @@ def getlocations(grasps,corner,length_per_pixel,threshold,COG):
         grasp_list.append([(center_X,center_Y),openning,tip_height,rotation,score,max_Grasp_depth,distancefromCOG,blockage_percent,mask_num])
 
     return grasp_list
-            
-        
-        
-    
-        
+
+
+
+
+
 
 def getgrasp(depth_map,img,segment_points,sampleDistance,window_dimension,check_depth,length_per_pixel_H,length_per_pixel_V,gripperWidth,jawThickness,external_L,external_W,mask_num):
 
     #get the windows with more than 100 points
     image=img.copy()
     grasps=[]
- 
+
     image[image>0]=np.uint8(1)
     rollingwindows=rolling_window(image,(window_dimension,window_dimension),asteps=(sampleDistance,sampleDistance))
     point_sum=rollingwindows.sum((3,2))
-     
+
     allwindows=np.nonzero(point_sum > 500)
 
     for i in range(len(allwindows[0])):
@@ -107,14 +107,14 @@ def getgrasp(depth_map,img,segment_points,sampleDistance,window_dimension,check_
         window=img[y_Start:y_Start+window_dimension,x_Start:x_Start+window_dimension]
         max_height=np.max(reject_outliers(window[np.nonzero(window)]))
         min_height=np.min(reject_outliers(window[np.nonzero(window)]))
-        increment=int(check_depth/10.0)                                             
+        increment=int(check_depth/10.0)
         for depth_evaluating in np.arange(min_height,max_height-increment,increment):
 
             #create a image where only points above certain height in a sliding window is visible
             a=np.full((window_dimension,window_dimension),220,dtype="uint8")
             indices_window=(window > depth_evaluating).nonzero()
             a[indices_window]=np.uint8(60)
-      
+
             cnt_exist,contour=get_contour(a)
             if cnt_exist:
                 rect = cv2.minAreaRect(contour)
@@ -124,28 +124,28 @@ def getgrasp(depth_map,img,segment_points,sampleDistance,window_dimension,check_
                 if grasp_found:
                     grasps.append((pixel_top,pixel_bottom,rotation,max_Grasp_depth,depth_evaluating-max_Grasp_depth,blockage_percent,mask_num))
     return grasps
-                    
 
-    
-                
-            
+
+
+
+
 def rate_grasp(depth_map,rect,depth,pixel_length_horizontal,pixel_length_vertical,gripperWidth,jawThickness,max_Depth,external_L,external_W):
     """
     rate a grasp at the selected minimum area rectangle position
     """
-    
+
     (center_x,center_y),(length,width),rotation=rect
     #rotate the depth map so that the grasping position will be horizontal in the depth map
     #the gripper position being evaluated is at the center of the minimum bounding rectangle, one holding in the
     if length<width:
         rotation=90+rotation
-        #switch up length and width 
+        #switch up length and width
         a=length
         length=width
         width=a
 
     M = cv2.getRotationMatrix2D((center_x, center_y), rotation, 1.0)
-    
+
     (h, w) = depth_map.shape[:2]
     rotated_map = cv2.warpAffine(depth_map, M, (w, h))
     tip_length=int(gripperWidth/pixel_length_horizontal)
@@ -155,7 +155,7 @@ def rate_grasp(depth_map,rect,depth,pixel_length_horizontal,pixel_length_vertica
     #allow the gripper to extend 2cm to check if there is room to grasp
     extend=int(0.02/pixel_length_horizontal)
     checkarea=rotated_map[int(center_y-width/2-tip_width-extend):int(center_y+width/2+tip_width+extend),int(center_x-tip_length/2):int(center_x+tip_length/2)]
-    
+
     try:
         M=tip_width
 
@@ -165,8 +165,8 @@ def rate_grasp(depth_map,rect,depth,pixel_length_horizontal,pixel_length_vertica
 
         #maxes=rolling_window(checkarea,(tip_width,checkarea.shape[1])).max((2,3))
         maxes=maxes.flatten()
-    
-    except: 
+
+    except:
         maxes=np.array([0])
 
     max_withinfingers=np.amax(maxes)
@@ -177,7 +177,7 @@ def rate_grasp(depth_map,rect,depth,pixel_length_horizontal,pixel_length_vertica
     if reachable:
         #check for area taller the depth evaluating
         max_Tall=maxes.copy()
-        max_Tall[max_Tall>depth]=0 
+        max_Tall[max_Tall>depth]=0
         #check for low area that is 5mm below the depth evaluating(handle)
         max_Low=maxes.copy()
         max_Low[max_Low<depth-0.01/pixel_length_vertical]=0
@@ -210,18 +210,18 @@ def rate_grasp(depth_map,rect,depth,pixel_length_horizontal,pixel_length_vertica
                     #if the gripper can extend freely from the closing position outward
                     if handle[1]<location_tall[0][0] and handle[0]>=handle_index_top and handle[1]-handle[0]>0.01/pixel_length_horizontal:
                         handle_index_top=handle[0]
-                        handle_top_bottom_index=handle[1] 
+                        handle_top_bottom_index=handle[1]
                         handle_top+=1
                     if handle[0]>location_tall[0][1] and handle[0]<=handle_index_bottom and handle[1]-handle[0]>0.01/pixel_length_horizontal:
                         handle_index_bottom=handle[0]
                         handle_bottom+=1
 
                 if handle_top*handle_bottom>0:
-                 
+
                     max_Grasp_depth=min(max_graspDepth,depth-max(max(maxes[handle_top_bottom_index-int(0.007/pixel_length_horizontal):handle_top_bottom_index-int(0.002/pixel_length_horizontal)]),max(maxes[handle_index_bottom+int(0.002/pixel_length_horizontal):handle_index_bottom+int(0.007/pixel_length_horizontal)])))
                     #max_Grasp_depth*=pixel_length_vertical
-                    
-                    
+
+
                     pixel_top_rotated=np.array([int(center_x),int(center_y-width/2-extend-int(0.005/pixel_length_horizontal)+handle_top_bottom_index)])
                     pixel_bottom_rotated=np.array([int(center_x),int(center_y-width/2-extend+int(0.005/pixel_length_horizontal)+handle_index_bottom)])
 
@@ -235,8 +235,8 @@ def rate_grasp(depth_map,rect,depth,pixel_length_horizontal,pixel_length_vertica
                     pixel_bottom_original=np.array([center_x, center_y])+np.dot(displacement_bottom, M_inv)
 
                     return (True,pixel_top_original,pixel_bottom_original,-rotation,max_Grasp_depth,blockage_percent)
-                
-    
+
+
     return (False,None,None,None,None,None)
 
 def getblockage(rotated_map,max_withinfingers,center,pixel_length,external_L,external_W):
@@ -251,11 +251,11 @@ def getblockage(rotated_map,max_withinfingers,center,pixel_length,external_L,ext
         blockage=np.nonzero(checkarea > max_withinfingers)
         block_percentage=len(blockage[0])*1.0/area_height/area_length
         return block_percentage
-        
 
 
 
-    
+
+
 def zero_runs(a):
     # Create an array that is 1 where a is 0, and pad each end with an extra 0.
     iszero = np.concatenate(([0], np.equal(a, 0).view(np.int8), [0]))
@@ -263,8 +263,8 @@ def zero_runs(a):
     # Runs start and end where absdiff is 1.
     ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
     return ranges
-        
-    
+
+
 def get_contour(image):
     """
     for an given gary scale image, find the contour points of the largest contour
@@ -281,9 +281,9 @@ def get_contour(image):
     edged = cv2.Canny(image, 70, 240)
     edged = cv2.dilate(edged, None, iterations=1)
     edged = cv2.erode(edged, None, iterations=1)
-    
+
     #save a copy of image after contour, we will later use to obtain all points enclosed in the contour
-    im1, cnts, hierarchy = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+    cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)[1]
     if len(cnts)>0:
         isContour=True
 
@@ -308,46 +308,46 @@ def mask2image(pc,mask,corner,depth_map,length_per_pixel,threshold):
     for point in segment_npy:
         x=(point[0]-x_min)/length_per_pixel
         y=(y_max-point[1])/length_per_pixel
-        
-        x=int(min(max(0,x),num_pixels_X-1)) 
+
+        x=int(min(max(0,x),num_pixels_X-1))
         y=int(min(max(0,y),num_pixels_Y-1))
         img[y][x]=np.uint8(point[2]*1.00/threshold*255)
-        
+
     return (img,segment_npy,COG)
-        
-    
-    
-    
-    
+
+
+
+
+
 def pc2depthmap(pointcloud,length_per_pixel,threshold):
     """
     Convert a pointcloud(Structured or unstructured,2D or 3D) into a depth map where each pixel length is specified by length per pixel
-    
+
     Input:
 
     pointcloud:pointcloud(Structured or unstructured,2D or 3D) in a numpy array
 
     length_per_pixel: x, y increment in meter from 1 pixel to the next pixel, suggest using 0.001m for a 0.3m*0.3m bin entirely enclosed in a 480*640 array
 
-    Output: 
+    Output:
     depth_map: A de-noised depth map of the dimension x=(x_max-x_min)/length_per_pixel,y=(y_max-y_min)/length_per_pixel, where (x_min,y_min) x,y value for the first pixel in the depth map
     (x_min,y_max) x,y value for the first pixel in the depth map,depth image is arranged as the robot tool is looking over it
 
     ******************************************************************
-    *(x_min,y_max)                                                   *                     
-    *                                                                *  
-    *                                                                *  
-    *                                                                *  
-    *                                                                *  
-    *                     ** (gripper)                               *  
-    *                     **                                         *  
-    *                     **                           (x_max,y_min) *  
+    *(x_min,y_max)                                                   *
+    *                                                                *
+    *                                                                *
+    *                                                                *
+    *                                                                *
+    *                     ** (gripper)                               *
+    *                     **                                         *
+    *                     **                           (x_max,y_min) *
     ******************************************************************
                           **
                         *robot*
                         *******
 
-    
+
     """
     #use a hard threshold to filter out noises above the threshold
     #flatten and reshape the array to a list of points
@@ -360,7 +360,7 @@ def pc2depthmap(pointcloud,length_per_pixel,threshold):
     y_raw=pointcloud[:,1]
     x_filtered=reject_outliers(x_raw, m = 3.5)
     y_filtered=reject_outliers(y_raw, m = 3.5)
-    
+
     x_min=np.amin(x_filtered)
     x_max=np.amax(x_filtered)
     y_min=np.amin(y_filtered)
@@ -378,7 +378,7 @@ def pc2depthmap(pointcloud,length_per_pixel,threshold):
     for point in pointcloud:
         x=int((point[0]-x_min)/length_per_pixel)
         y=int((y_max-point[1])/length_per_pixel)
-          
+
         try:
             depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
         except:
@@ -386,10 +386,10 @@ def pc2depthmap(pointcloud,length_per_pixel,threshold):
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,10,7,21)
     #convert the denoised depth_map back to the original scale
-    
+
     return (depth_map,(x_min,y_max))
 
-    
+
 
 def reject_outliers(data, m = 3.5):
     d = np.abs(data - np.median(data))
@@ -401,7 +401,7 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
     """Create a view of `array` which for every point gives the n-dimensional
     neighbourhood of size window. New dimensions are added at the end of
     `array` or after the corresponding original dimension.
-    
+
     Parameters
     ----------
     array : array_like
@@ -419,19 +419,19 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
     axes: int or tuple
         If given, must have the same size as window. In this case window is
         interpreted as the size in the dimension given by axes. IE. a window
-        of (2, 1) is equivalent to window=2 and axis=-2.       
+        of (2, 1) is equivalent to window=2 and axis=-2.
     toend : bool
         If False, the new dimensions are right after the corresponding original
         dimension, instead of at the end of the array. Adding the new axes at the
         end makes it easier to get the neighborhood, however toend=False will give
         a more intuitive result if you view the whole array.
-    
+
     Returns
     -------
     A view on `array` which is smaller to fit the windows and has windows added
     dimensions (0s not counting), ie. every point of `array` is an array of size
     window.
-    
+
     Examples
     --------
     >>> a = np.arange(9).reshape(3,3)
@@ -444,23 +444,23 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
              [6, 7]],
             [[4, 5],
              [7, 8]]]])
-    
+
     Or to create non-overlapping windows, but only along the first dimension:
     >>> rolling_window(a, (2,0), asteps=(2,1))
     array([[[0, 3],
             [1, 4],
             [2, 5]]])
-    
+
     Note that the 0 is discared, so that the output dimension is 3:
     >>> rolling_window(a, (2,0), asteps=(2,1)).shape
     (1, 3, 2)
-    
+
     This is useful for example to calculate the maximum in all (overlapping)
     2x2 submatrixes:
     >>> rolling_window(a, (2,2)).max((2,3))
     array([[4, 5],
            [7, 8]])
-           
+
     Or delay embedding (3D embedding with delay 2):
     >>> x = np.arange(10)
     >>> rolling_window(x, 3, wsteps=2)
@@ -474,21 +474,21 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
     array = np.asarray(array)
     orig_shape = np.asarray(array.shape)
     window = np.atleast_1d(window).astype(int) # maybe crude to cast to int...
-    
+
     if axes is not None:
         axes = np.atleast_1d(axes)
         w = np.zeros(array.ndim, dtype=int)
         for axis, size in zip(axes, window):
             w[axis] = size
         window = w
-    
+
     # Check if window is legal:
     if window.ndim > 1:
         raise ValueError("`window` must be one-dimensional.")
     if np.any(window < 0):
         raise ValueError("All elements of `window` must be larger then 1.")
     if len(array.shape) < len(window):
-        raise ValueError("`window` length must be less or equal `array` dimension.") 
+        raise ValueError("`window` length must be less or equal `array` dimension.")
 
     _asteps = np.ones_like(orig_shape)
     if asteps is not None:
@@ -499,11 +499,11 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
             raise ValueError("`asteps` cannot be longer then the `array` dimension.")
         # does not enforce alignment, so that steps can be same as window too.
         _asteps[-len(asteps):] = asteps
-        
+
         if np.any(asteps < 1):
              raise ValueError("All elements of `asteps` must be larger then 1.")
     asteps = _asteps
-    
+
     _wsteps = np.ones_like(window)
     if wsteps is not None:
         wsteps = np.atleast_1d(wsteps)
@@ -521,22 +521,22 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
         raise ValueError("`window` * `wsteps` larger then `array` in at least one dimension.")
 
     new_shape = orig_shape # just renaming...
-    
+
     # For calculating the new shape 0s must act like 1s:
     _window = window.copy()
     _window[_window==0] = 1
-    
+
     new_shape[-len(window):] += wsteps - _window * wsteps
     new_shape = (new_shape + asteps - 1) // asteps
     # make sure the new_shape is at least 1 in any "old" dimension (ie. steps
     # is (too) large, but we do not care.
     new_shape[new_shape < 1] = 1
     shape = new_shape
-    
+
     strides = np.asarray(array.strides)
     strides *= asteps
     new_strides = array.strides[-len(window):] * wsteps
-    
+
     # The full new shape and strides:
     if toend:
         new_shape = np.concatenate((shape, window))
@@ -547,58 +547,58 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
         _window = _.copy()
         _[-len(window):] = new_strides
         _new_strides = _
-        
+
         new_shape = np.zeros(len(shape)*2, dtype=int)
         new_strides = np.zeros(len(shape)*2, dtype=int)
-        
+
         new_shape[::2] = shape
         new_strides[::2] = strides
         new_shape[1::2] = _window
         new_strides[1::2] = _new_strides
-    
+
     new_strides = new_strides[new_shape != 0]
     new_shape = new_shape[new_shape != 0]
-    
+
     return np.lib.stride_tricks.as_strided(array, shape=new_shape, strides=new_strides)
 
-    
-masks=[]    
-image=cv2.imread("bin.png")
-pointcloud=np.load("pc.npy")
-pointcloud=pointcloud.astype(np.float32)
 
-try:
-    for filename in glob.iglob('perception/*.npy'):
-        mask=np.load('%s' % filename)
-        masks.append(mask)
-        print "doing mask"
-except:
-    print "no numpy masks provided,converting pcd files to masks"
+# masks=[]
+# image=cv2.imread("bin.png")
+# pointcloud=np.load("pc.npy")
+# pointcloud=pointcloud.astype(np.float32)
 
-if len(masks)==0:
-    
-    for filename in glob.iglob('segments/*.pcd'):
-        seg_pcd=pcl.load('%s' % filename)
-        seg_pcd=np.asarray(seg_pcd)
-        seg_pixels_pc=[]
-        for coordinate in seg_pcd:
-            indice = np.where(np.all(pointcloud == coordinate, axis=-1))
-        
-            try:
-                seg_pixels_pc.append([int(indice[1]),int(indice[0])])
-            except:
-                continue
-            
-        mask=np.full((480,640),0,dtype="uint8")
-        for index in seg_pixels_pc:
-            mask[index[1]][index[0]]=np.uint8(1)
-        np.save('%s.npy' % filename,mask)
-        masks.append(mask)
-        print "doing pcd"
+# try:
+#     for filename in glob.iglob('perception/*.npy'):
+#         mask=np.load('%s' % filename)
+#         masks.append(mask)
+#         print "doing mask"
+# except:
+#     print "no numpy masks provided,converting pcd files to masks"
 
-#mask=np.full((480,640),1,dtype="uint8")
-#masks.append(mask)
-select_grasp(pointcloud,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThickness=0.01,length_per_pixel=0.002)
+# if len(masks)==0:
 
-        
-        
+#     for filename in glob.iglob('segments/*.pcd'):
+#         seg_pcd=pcl.load('%s' % filename)
+#         seg_pcd=np.asarray(seg_pcd)
+#         seg_pixels_pc=[]
+#         for coordinate in seg_pcd:
+#             indice = np.where(np.all(pointcloud == coordinate, axis=-1))
+
+#             try:
+#                 seg_pixels_pc.append([int(indice[1]),int(indice[0])])
+#             except:
+#                 continue
+
+#         mask=np.full((480,640),0,dtype="uint8")
+#         for index in seg_pixels_pc:
+#             mask[index[1]][index[0]]=np.uint8(1)
+#         np.save('%s.npy' % filename,mask)
+#         masks.append(mask)
+#         print "doing pcd"
+
+# #mask=np.full((480,640),1,dtype="uint8")
+# #masks.append(mask)
+# select_grasp(pointcloud,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThickness=0.01,length_per_pixel=0.002)
+
+
+
