@@ -118,7 +118,11 @@ class ObjectRecognition:
             score_list = []
 
             #mask out the black
-            mask = img != 0
+            mask0 = img[:,:,0] != 0
+            mask1 = img[:,:,1] != 0
+            mask2 = img[:,:,2] != 0
+
+            mask = np.logical_and(np.logical_and(mask0, mask1),mask2)
 
             #get the histogram
             histRGB,_ = np.histogramdd(img[mask],[num_bins,num_bins,num_bins], [[0,256],[0,256],[0,256]])

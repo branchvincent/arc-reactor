@@ -2,7 +2,7 @@ import cv2
 import time
 import sys
 import hardware.SR300.realsense as rs
-from PyQt5 import QtGui, QtOpenGL, QtCore, QtWidgets
+from PyQt5 import QtGui, QtCore, QtWidgets
 import numpy as np
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
@@ -26,6 +26,14 @@ class CameraServer(QtWidgets.QWidget):
         self.db_poll_thread.signal.connect(self.take_image)
         self.db_poll_thread.start()
         self.show()
+
+
+    def closeEvent(self, closeEv):
+        self.video_thread.keepRunning = False
+        logger.info("Stopping cameras")
+        while self.video_thread.isRunning():
+            time.sleep(0.001)
+        logger.info("Cameras stopped")
 
     def initUI(self):
         #split the screen into two halves
@@ -128,7 +136,7 @@ class CameraServer(QtWidgets.QWidget):
                 cam.set_option(rs.option_f200_confidence_threshold, 4)
                 cam.set_option(rs.option_f200_accuracy, 1)
                 cam.set_option(rs.option_f200_motion_range, 10)
-                cam.set_option(rs.option_f200_laser_power, 0) #turn the laser off for all cameras
+                cam.set_option(rs.option_f200_laser_power, 16) #turn the laser on for all cameras
             except:
                 logger.warning("Unable to set options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
 
@@ -208,46 +216,27 @@ class CameraServer(QtWidgets.QWidget):
 
 
     def take_image(self, camera_serial, url):
-        try:
-            cam = self.context.get_device(self.camera_sn_to_number[camera_serial])
-        except:
-            error_string = "Unable to get camera with serial number {}".format(camera_serial)
-            logger.error(error_string)
-            self.db_poll_thread.image_aquired = True
-            self.db_poll_thread.error_string = error_string
-            return
         
-        logger.info("Taking image for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
+        cam_num = self.camera_sn_to_number[camera_serial]
+        logger.info("Taking image for camera {}".format(cam_num))
         
-        #turn the laser on
-        try:
-            cam.set_option(rs.option_f200_laser_power,16)
-        except:
-            error_string = "Could not turn laser on for camera {}".format(cam.get_info(rs.camera_info_serial_number))
-            logger.critical(error_string)
-            self.db_poll_thread.error_string = error_string
+        self.video_thread.camera_sn_q.append(camera_serial)
+
         cur_time = time.time()
-        while (self.video_thread.list_of_image_dictionaries[self.current_settings_camera]["time_stamp"] - cur_time) < 0.1:
+        while (self.video_thread.list_of_image_dictionaries[cam_num]["time_stamp"] - cur_time) < 0.1:
             time.sleep(0.01)
             #timeout 
             if(time.time() - cur_time > 3):
-                error_string = "Unable to get new images from camera {}".format(cam.get_info(rs.camera_info_serial_number))
-                logger.critical(error_string)
+                error_string = "Unable to get new images from camera {}".format(camera_serial)
+                logger.error(error_string)
                 self.db_poll_thread.error_string = error_string
                 self.db_poll_thread.image_aquired = True
                 break
-        try:
-            cam.set_option(rs.option_f200_laser_power,0)
-        except:
-            error_string = "Could not turn laser off for camera {}".format(cam.get_info(rs.camera_info_serial_number))
-            logger.critical(error_string)
-            self.db_poll_thread.error_string = error_string
-        
-    
             
-        self.db_poll_thread.image_dictionary = self.video_thread.list_of_image_dictionaries[self.current_settings_camera]
+        self.db_poll_thread.image_dictionary = self.video_thread.list_of_image_dictionaries[cam_num]
         self.db_poll_thread.url = url
         self.db_poll_thread.image_aquired = True
+        logger.info("Image acquired")
 
     def update_camera_view(self, color_image, camera_num):
         label = self.list_of_camera_displays[camera_num]
@@ -292,21 +281,25 @@ class PollDBThread(QtCore.QThread):
                     #check inputs
                     if list_of_urls is None or list_of_serial_nums is None:
                         self.store.put('/acquire_images/error/',"Arguments cant be None")
+                        logger.error("Arguments cant be None")
                         self.store.put('/acquire_images/done', 1)
                         continue
                     #check to make sure the length of the urls == len of serial nums
                     elif len(list_of_urls) != len(list_of_serial_nums):
                         self.store.put('/acquire_images/error/',"Length mismatch of url list and serial number list. Not acquiring")
+                        logger.error("Length mismatch of url list and serial number list. Not acquiring")
                         self.store.put('/acquire_images/done', 1)
                         continue
 
                     elif len(list_of_urls) == 0:
                         self.store.put('/acquire_images/error/',"No URLs were passed. Need at least one. Not acquiring")
+                        logger.error("No URLs were passed. Need at least one. Not acquiring")
                         self.store.put('/acquire_images/done', 1)
                         continue
 
                     elif len(list_of_serial_nums) == 0:
                         self.store.put('/acquire_images/error/',"No serial numbers were passed. Need at least one. Not acquiring")
+                        logger.error("No serial numbers were passed. Need at least one. Not acquiring")
                         self.store.put('/acquire_images/done', 1)
                         continue
 
@@ -315,16 +308,24 @@ class PollDBThread(QtCore.QThread):
                         self.signal.emit(list_of_serial_nums[i], list_of_urls[i])
                         while not self.image_aquired:
                             time.sleep(0.01)
+                        logger.info("Starting write to DB")
                         #image was acquired write stuff out to the database
-                        for key in self.image_dictionary.keys():
-                            if key != 'number' and key != 'error':
-                                db_key = self.url + "/" + key
-                                self.store.put(db_key, self.image_dictionary[key])
-                            elif key == 'error' and self.image_dictionary[key] != None
-                                self.error_string = self.image_dictionary[key]
-                                
+
+                        send_dict = {key: value for (key, value) in self.image_dictionary.items() if key not in ['error', 'number']}
+                        self.store.multi_put(send_dict,root=self.url)
+                        #TODO multiput all dictionaries into one
+                        # for key in sorted(self.image_dictionary.keys()):
+                        #     if key != 'number' and key != 'error':
+                        #         db_key = self.url + "/" + key
+                        #         self.store.put(db_key, self.image_dictionary[key])
+                        #     elif key == 'error' and self.image_dictionary[key] != None:
+                        #         self.error_string = self.image_dictionary[key]
+                        logger.info("Ending write to DB")
                     self.store.put('/acquire_images/done', 1)
                     self.store.put('acquire_images/error', self.error_string)
+                    if not self.error_string is None:
+                        #log the error
+                        logger.error(self.error_string)
                     logger.info("Saving images complete")
                 else:
                     time.sleep(0.1)
@@ -340,14 +341,18 @@ class VideoThread(QtCore.QThread):
         QtCore.QThread.__init__(self)
         self.context = context
         self.keepRunning = True
+        self.cameras = []
         self.list_of_image_dictionaries = []
-    def run(self):
+        self.sn_to_number = {}
+        self.camera_sn_q = [] #list of serial numbers to get images from
+        self.initCameras()
+        
+    def initCameras(self):
         num_cams = self.context.get_device_count()            
         if num_cams == 0:
             logger.warn("No cameras attached")
             return
         #enable all of the cameras
-        cameras = []
         for i in range(num_cams):
             cam = self.context.get_device(i)
             try:
@@ -357,74 +362,95 @@ class VideoThread(QtCore.QThread):
             except:
                 logger.exception("Could not enable the stream")
                 return
-
-            cam.set_option(rs.option_f200_laser_power, 0)
-            cam.start()
-            cameras.append(cam)
+            self.cameras.append(cam)
             self.list_of_image_dictionaries.append({})
+            self.list_of_image_dictionaries[i]['time_stamp'] = time.time()
+            self.sn_to_number[cam.get_info(rs.camera_info_serial_number)] = i
 
+    def run(self):
         while self.keepRunning:
-            for num,cam in enumerate(cameras):
-                image_dictionary = {}
-                #if there is a new frame send it out
-                if cam.poll_for_frames():
-                    error_string = None
-                    imageFullColor = cam.get_frame_data_u8(rs.stream_color)
-                    if imageFullColor.size == 1:
-                        #something went wrong
-                        error_string = "Could not capture the full color image. Size of requested stream did not match" 
-                        logger.error(error_string)
-                        imageFullColor = None
-                    else:
-                        width = cam.get_stream_width(rs.stream_color)
-                        height = cam.get_stream_height(rs.stream_color)
-                        imageFullColor = np.reshape(imageFullColor, (height, width, 3) )
+            #check to see if we need to acquire an image from a camera
+            if len(self.camera_sn_q) != 0:
+                for sn in self.camera_sn_q:
+                    self.captureImage(self.cameras[self.sn_to_number[sn]])
 
-                    color_to_depth = cam.get_frame_data_u8(rs.stream_color_aligned_to_depth)
-                    if color_to_depth.size == 1:
-                        #something went wrong
-                        error_string = "Could not capture the depth alinged image. Size of requested stream did not match"
-                        logger.error(error_string)
-                        color_to_depth = None
-                    else:
-                        width = cam.get_stream_width(rs.stream_color_aligned_to_depth)
-                        height = cam.get_stream_height(rs.stream_color_aligned_to_depth)
-                        color_to_depth = np.reshape(color_to_depth, (height, width, 3) )
+                self.camera_sn_q = []
+            else:
+                time.sleep(0.05)
 
-                    depth_to_color = cam.get_frame_data_u16(rs.stream_depth_aligned_to_color)
-                    if depth_to_color.size == 1:
-                        #something went wrong
-                        error_string = "Could not capture the depth alinged image. Size of requested stream did not match"
-                        logger.error(error_string)
-                        depth_to_color = None
-                    else:
-                        width = cam.get_stream_width(rs.stream_depth_aligned_to_color)
-                        height = cam.get_stream_height(rs.stream_depth_aligned_to_color)
-                        depth_to_color = np.reshape(depth_to_color, (height, width) )
 
-                    points = cam.get_frame_data_f32(rs.stream_points)
-                    if points.size == 1:
-                        #something went wrong
-                        error_string = "Could not capture the point cloud. Size of requested stream did not match"
-                        logger.error(error_string)
-                        points = None
-                    else:
-                        width = cam.get_stream_width(rs.stream_points)
-                        height = cam.get_stream_height(rs.stream_points)
-                        points = np.reshape(points, (height, width, 3) )
+    def captureImage(self, cam):
+        cam.start()
+        image_dictionary = {}
+        imageFullColor = None
+        color_to_depth = None
+        depth_to_color = None
+        points = None
+        error_string = None
+        num = self.cameras.index(cam)
+        #if there is a new frame send it out
+        try:
+            cam.wait_for_frames()  
+            imageFullColor = cam.get_frame_data_u8(rs.stream_color)
+            if imageFullColor.size == 1:
+                #something went wrong
+                error_string = "Could not capture the full color image. Size of requested stream did not match" 
+                logger.error(error_string)
+                imageFullColor = None
+            else:
+                width = cam.get_stream_width(rs.stream_color)
+                height = cam.get_stream_height(rs.stream_color)
+                imageFullColor = np.reshape(imageFullColor, (height, width, 3) )
 
-                    image_dictionary['full_color'] = imageFullColor
-                    image_dictionary['aligned_color'] = color_to_depth
-                    image_dictionary['aligned_depth'] = depth_to_color
-                    image_dictionary['point_cloud'] = points
-                    image_dictionary['number'] = cameras.index(cam)
-                    image_dictionary['time_stamp'] = time.time()
-                    image_dictionary['error'] = error_string
-                    self.signal.emit(image_dictionary)
-                    self.list_of_image_dictionaries[num] = image_dictionary
+            color_to_depth = cam.get_frame_data_u8(rs.stream_color_aligned_to_depth)
+            if color_to_depth.size == 1:
+                #something went wrong
+                error_string = "Could not capture the depth alinged image. Size of requested stream did not match"
+                logger.error(error_string)
+                color_to_depth = None
+            else:
+                width = cam.get_stream_width(rs.stream_color_aligned_to_depth)
+                height = cam.get_stream_height(rs.stream_color_aligned_to_depth)
+                color_to_depth = np.reshape(color_to_depth, (height, width, 3) )
 
-        for cam in cameras:
-            cam.stop()       
+            depth_to_color = cam.get_frame_data_u16(rs.stream_depth_aligned_to_color)
+            if depth_to_color.size == 1:
+                #something went wrong
+                error_string = "Could not capture the depth alinged image. Size of requested stream did not match"
+                logger.error(error_string)
+                depth_to_color = None
+            else:
+                width = cam.get_stream_width(rs.stream_depth_aligned_to_color)
+                height = cam.get_stream_height(rs.stream_depth_aligned_to_color)
+                depth_to_color = np.reshape(depth_to_color, (height, width) )
+
+            points = cam.get_frame_data_f32(rs.stream_points)
+            if points.size == 1:
+                #something went wrong
+                error_string = "Could not capture the point cloud. Size of requested stream did not match"
+                logger.error(error_string)
+                points = None
+            else:
+                width = cam.get_stream_width(rs.stream_points)
+                height = cam.get_stream_height(rs.stream_points)
+                points = np.reshape(points, (height, width, 3) )
+
+        except Exception as e:
+            error_string = "Error in waiting for frames. {}".format(e)
+            logger.error(error_string)
+            
+            
+
+        image_dictionary['full_color'] = imageFullColor
+        image_dictionary['aligned_color'] = color_to_depth
+        image_dictionary['aligned_depth'] = depth_to_color
+        image_dictionary['point_cloud'] = points
+        image_dictionary['number'] = num
+        image_dictionary['time_stamp'] = time.time()
+        image_dictionary['error'] = error_string
+        self.signal.emit(image_dictionary)
+        self.list_of_image_dictionaries[num] = image_dictionary
+        cam.stop()
 
 
 if __name__ == '__main__':
