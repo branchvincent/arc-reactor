@@ -2,20 +2,40 @@ from master.fsm import State
 import logging; logger = logging.getLogger(__name__)
 
 class CheckItem(State):
-
+    """
+    Input:
+        - /robot/selected_item: selected/chosen Item
+    (pick):
+        - /item/[item name]/order: if item ordered, which box
+        - /order/[order name]/filled_items
+        - /order/[order name]/number
+    (stow):
+        - 
+    Output:
+        - /item/[item name]/location: if found, current item location
+        - /robot/target_locations: array of target locations for next states (HACK?)
+        - /failure/check_item: failure string
+    (pick):
+        - /order/[order name]/filled_items: updated list
+        - /item/[all items]/point_value: updated point value for all items
+        - /robot/target_location: (HACK)
+        - /robot/target_bin: value from item/[]/selected_bin. use past knowledge.
+    Failure Cases:
+        - [connection to db?]
+    Dependencies:
+        - something was placed somewhere
+    """
     #Confirm item was picked correctly
     def run(self):
         #assume it succeeded for now
         self.chosenItem = self.store.get('/robot/selected_item')
-        self.store.put('/item/'+self.chosenItem+'/point_value', 0)
-        #for i, n in self.store.get('/outcome/').items():
-        #    self.store.put('/outcome/'+i, False)
 
+        #TODO get outcome from location?
+        self.store.put('/item/'+self.chosenItem+'/point_value', 0)
         logger.info("{} item was moved successfully".format(self.chosenItem))
 
         alg = self.store.get('/robot/task')
         if alg=="pick":
-
             self.orderUp = self.store.get('/item/'+self.chosenItem+'/order')
             self.filled = self.store.get('/order/'+self.orderUp+'/filled_items')
             if self.filled == None:

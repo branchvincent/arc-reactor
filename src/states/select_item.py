@@ -2,6 +2,29 @@ from master.fsm import State
 import logging; logger = logging.getLogger(__name__)
 
 class SelectItem(State):
+    """
+    Input:
+        - /robot/task: pick, stow, final
+        - /item/: list of all items
+        - /robot/failed_grasps: list of old grasps or []
+        - [list of photo urls]/vacuum_grasps: grasps ID'd in that photo
+        - [list of photo urls]/detections: likely item IDs in the segment
+    (stow):
+        - /robot/target_photo_url: to get list of photo urls
+    Output:
+        - /robot/target_grasp: grasps selected to grab item
+        - /robot/grasp_location: location (eg binA) where grasp is selected
+        - /robot/failed_grasps: updated list of old grasps
+        - /robot/selected_item: item we think we're picking up
+        - /failure/select_item: failure string
+    (pick):
+        - /robot/target_box: where to put item eventually
+        - /robot/selected_bin: value from item/[]/selected_bin. use past knowledge.
+    Failure Cases:
+        - RuntimeError if /robot/task is incorrect
+    Dependencies:
+        - EvalGrasp was run
+    """
     def run(self):
         self.alg = self.store.get('/robot/task')
         self.itemList = self.store.get('/item/')

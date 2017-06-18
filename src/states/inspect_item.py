@@ -2,6 +2,32 @@ from master.fsm import State
 import logging; logger = logging.getLogger(__name__)
 
 class InspectItem(State):
+     """
+    Input:
+        - /robot/selected_item: selected/chosen Item we think we have
+        - /photos/inspect/inspect_side/detections: likely IDs of held item
+        - /scales/change: change in weight after item picked up
+        - /item/[item name]/mass: masses of considered items
+        - /robot/task: pick, stow, final
+    (pick):
+        - /item/[item name]/order: if item ordered, which box
+        - /order/[order name]/filled_items
+        - /order/[order name]/number
+    (stow):
+        - 
+    Output:
+        - /failure/inspect_item: failure string
+    (pick):
+        - /robot/target_locations: if ordered, box ID
+        - /robot/target_box: if ordered, box ID
+        - /robot/selected_box: where we put the item
+    (stow):
+        - /robot/target_location: (HACK) binA, binB, binC
+    Failure Cases:
+        - RuntimeError if no task defined
+    Dependencies:
+        - item at the inspection station
+    """
     def run(self):
 
         #TODO check for errors from hardware
