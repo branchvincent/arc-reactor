@@ -19,7 +19,7 @@ class EvaluateGraspBase(State):
 
         try:
             for location in locations:
-                self._common(location)
+                self._handle(location)
         except (NoViewingCameraError, MissingPhotoError, MissingSegmentationError, GraspNotInSegmentError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception()
