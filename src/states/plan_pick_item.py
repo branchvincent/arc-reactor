@@ -2,8 +2,9 @@ import logging
 import numpy
 from time import time
 from master.fsm import State
-from master.world import build_world
+from master.world import build_world, xyz
 from motion.new_planner import PickPlanner
+from motion.linear_planner import Planner
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -43,17 +44,19 @@ class PlanPickItem(State):
 
         # Calculate item bounding box
         # NOTE: single point for now
-        self.world = build_world(self.store)
+        # self.world = build_world(self.store)
+        T_item = xyz(*grasp['center'][0])
+        # T_item = numpy.asarray(se3.identity()[0]), grasp['center'][0]
         bounding_box = [grasp['center'][0]] * 2
-        self.store.put('/robot/target_bounding_box', bounding_box)
-        logger.debug('item bounding box: {}'.format(bounding_box))
+        # self.store.put('/robot/target_bounding_box', bounding_box)
+        # logger.debug('item bounding box: {}'.format(bounding_box))
 
         # Construct arguments for planner
-        target_item = {
-            'bbox': bounding_box,
-            'vacuum_offset': [0, 0, -0.01],
-            'drop offset': [0, 0, 0.1]
-        } #TODO make sure this info is in db, not stored locally here. why are these values selected?
+        # target_item = {
+        #     'bbox': bounding_box,
+        #     'vacuum_offset': [0, 0, -0.01],
+        #     'drop offset': [0, 0, 0.1]
+        # } #TODO make sure this info is in db, not stored locally here. why are these values selected?
 
         # compute route
         try:
@@ -62,11 +65,13 @@ class PlanPickItem(State):
                 logger.warn('skipped motion planning for testing')
             elif gripper == 'vacuum':
                 logger.info('requesting pick motion plan')
-                self.arguments = {'target_item': target_item}
-                logger.debug('arguments\n{}'.format(self.arguments))
-                planner = PickPlanner(self.world, self.store)
-                #assume already near item (?)
-                motion_plan = planner.pick_up(target_item)
+                # self.arguments = {'target_item': target_item}
+                # logger.debug('arguments\n{}'.format(self.arguments))
+                # planner = PickPlanner(self.world, self.store)
+                # #assume already near item (?)
+                # motion_plan = planner.pick_up(target_item)
+                planner = Planner(store=self.store)
+                motion_plan = planner.pick_up(T_item)
             else: #mechanical
                 #TODO: develop planner for mechanical gripper
                 raise NotImplementedError('Mechanical gripper planner does not exist')

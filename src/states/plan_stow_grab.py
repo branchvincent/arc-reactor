@@ -1,6 +1,6 @@
 from master.fsm import State
 from master.world import build_world, rpy
-from motion.new_planner import StowPlanner
+from motion.linear_planner import Planner
 from util.math_helpers import build_pose, transform, rotate, normalize
 
 import logging
@@ -52,7 +52,7 @@ class PlanStowGrab(State):
 
         # Calculate item bounding box
         # NOTE: single point for now
-        self.world = build_world(self.store)
+        # self.world = build_world(self.store)
         bounding_box = [grasp['center'][0]] * 2
 
         self.store.put('/robot/target_bounding_box', bounding_box)
@@ -81,9 +81,11 @@ class PlanStowGrab(State):
                 logger.warn('skipped motion planning for testing')
             elif gripper == 'vacuum':
                 logger.info('requesting stow motion plan')
-                self.arguments = {'target_item': target_item}
-                logger.debug('arguments\n{}'.format(self.arguments))
-                planner = StowPlanner(self.world, self.store)
+                # self.arguments = {'target_item': target_item}
+                # logger.debug('arguments\n{}'.format(self.arguments))
+                # planner = StowPlanner(self.world, self.store)
+                # motion_plan = planner.stow_grab(target_item)
+                planner = Planner(self.store)
                 motion_plan = planner.stow_grab(target_item)
             else: #mechanical
                 #TODO: develop planner for mechanical gripper
