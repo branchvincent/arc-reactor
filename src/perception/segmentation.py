@@ -181,7 +181,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf):
     image_for_DL[112-h//2:112-h//2+h,112-w//2:112-w//2+w]=cropped_masked_image_resized
 
     #only keep the indices that were not removed by color matching tote/shelf
-    y_ind, x_ind, _ = np.where(cropped_masked_image != [0,0,0])
+    y_ind, x_ind, _ = np.where(masked != [0,0,0])
     indices = np.zeros((len(y_ind),2))
     indices[:,0] = y_ind
     indices[:,1] = x_ind
