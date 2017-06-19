@@ -32,7 +32,7 @@ class Planner:
 
     def __init__(self, store=None):
         self.store = store or PensiveClient().default()
-        self.ee_local = [0, 0, 0.4]
+        self.ee_local = [0, 0, 0.39]
         self.movement_plane = 1
         self.reset()
 
