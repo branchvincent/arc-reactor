@@ -34,6 +34,7 @@ class DeepLearningRecognizer:
         self.pred_fn = theano.function([self.X_sym], self.prediction)
 
     def build_model(self, num_classes):
+        logger.info("Building model...")
         net = {}
         net['input'] = InputLayer((None, 3, 224, 224))
         sub_net, parent_layer_name = build_simple_block(
@@ -80,7 +81,7 @@ class DeepLearningRecognizer:
                                 mode='average_exc_pad', ignore_border=False)
         net['fc1000'] = DenseLayer(net['pool5'], num_units=num_classes, nonlinearity=None)
         net['prob'] = NonlinearityLayer(net['fc1000'], nonlinearity=softmax)
-
+        logger.info("Model built")
         return net
 
     def loadWeights(self,filename):
