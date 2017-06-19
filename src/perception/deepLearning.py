@@ -13,6 +13,7 @@ from lasagne.layers import NonlinearityLayer
 from lasagne.layers import ElemwiseSumLayer
 from lasagne.layers import DenseLayer
 from lasagne.nonlinearities import rectify, softmax
+from lasagne.utils import floatX
 import logging
 logger = logging.getLogger(__name__)
 
