@@ -65,7 +65,7 @@ class PlanPutItem(State):
 
             elif alg=='pick':
 
-                planner = PickPlanner(self.world, self.store) 
+                planner = PickPlanner(self.world, self.store)
 
                 box_pose = self.store.get(['box', box, 'pose'])
 
@@ -87,7 +87,7 @@ class PlanPutItem(State):
             elif alg=='stow':
                 # XXX: this will actually need to be a shelf location eventually...
 
-                planner = PickPlanner(self.world, self.store) 
+                planner = PickPlanner(self.world, self.store)
 
                 shelf_pose = self.store.get(['shelf', 'pose'])
                 from master.world import xyz
@@ -105,7 +105,7 @@ class PlanPutItem(State):
                     'drop position': list(bin_target_world.flat)
                 }
                 #target_box["box_limit"]=[[-0.2144207123374089, 0.55756321667681634, 0.02],[0.05442071233740891, 0.7024367833231837, 0.42065000000000001]]
-               
+
                 logger.info('requesting stow motion plan')
                 self.arguments = {'target_item': target_item, 'target_box': target_box}
                 logger.debug('arguments\n{}'.format(self.arguments))

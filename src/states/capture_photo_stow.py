@@ -9,7 +9,7 @@ class CapturePhotoStow(CapturePhotoBase):
     Takes photo from each camera viewing the stow tote.
 
     Inputs:
-     - /robot/target_location
+     - none
 
     Outputs:
      - /photos/<location>/<camera>/* for all cameras viewing location

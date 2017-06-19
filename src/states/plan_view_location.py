@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class PlanViewLocation(State):
     """
     Input:
-        - /robot/target_location: name of location to view
+        - /robot/target_view_location: name of location to view
         - /vantage/<target_location>: end-effector's pose for viewing location
     Output:
         - /robot/target_pose: same as /vantage/<target_location> (NOTE: needed?)
@@ -23,9 +23,9 @@ class PlanViewLocation(State):
 
     def run(self):
         # Get inputs
-        self.loc_name = self.store.get('/robot/target_location')
+        self.loc_name = self.store.get('/robot/target_view_location')
         if self.loc_name is None:
-            raise RuntimeError('/robot/target_location is none')
+            raise RuntimeError('/robot/target_view_location is none')
 
         vantage_T = self.store.get(['vantage', self.loc_name])
         if vantage_T is None:
@@ -43,14 +43,14 @@ class PlanViewLocation(State):
     def setLoc(self, myname):
         if len(myname) == 4:
             print "Moving to ", 'bin'+myname[-1].upper()
-            self.store.put('/robot/target_location', 'bin'+myname[-1].upper())
+            self.store.put('/robot/target_view_location', 'bin'+myname[-1].upper())
         elif len(myname) == 5:
             if myname[-2:]=='st':
                 print "Moving to stow tote"
-                self.store.put('/robot/target_location', 'stow_tote')
+                self.store.put('/robot/target_view_location', 'stow_tote')
             elif myname[-2:]=='at':
                 print "Moving to amnesty tote"
-                self.store.put('/robot/target_location', 'amnesty_tote')
+                self.store.put('/robot/target_view_location', 'amnesty_tote')
 
 if __name__ == '__main__':
     import argparse

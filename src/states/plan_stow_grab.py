@@ -15,7 +15,6 @@ class PlanStowGrab(State):
     Input:
         - /robot/selected_item: name of item to be picked
         - /robot/target_grasp: dictionary containing item's grasp information
-        - /robot/<selected_item>/location: location of item (NOTE: needed? sanity check only)
         - /robot/active_gripper: name of gripper to be used (vacuum or mechanical) (NOTE: not yet used)
     Output:
         - /robot/target_bounding_box: bounding box of target item (NOTE: not used?)

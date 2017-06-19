@@ -41,6 +41,10 @@ class CapturePhotoBin(CapturePhotoBase):
             print "Taking photo of ", 'bin'+myname[-1].upper()
             self.store.put('/robot/target_bin', 'bin'+myname[-1].upper())
 
+    def checkInput(self):
+        input = self.store.get('/myinput/', False)
+        return input
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
