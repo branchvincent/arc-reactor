@@ -34,8 +34,7 @@ class MotionPlanner:
     def __init__(self, store=None):
         self.store = store or PensiveClient().default()
         self.ee_local = [0, 0, 0.39]    # length of gripper
-        self.movement_plane = 1.19      # assumed height of collision-free motion
-        # self.vacuum = [0]
+        self.z_movement = 1.19          # assumed height of collision-free motion
         self.reset()
 
     def reset(self):
@@ -57,11 +56,11 @@ class MotionPlanner:
         self.plan.putFeasible()
 
     def getTAbove(self, x):
-        x_over = x[0:2] + [self.movement_plane]
+        x_over = x[0:2] + [self.z_movement]
         Rz = atan2(x_over[1], x_over[0]) - pi
         return numpy2klampt(xyz(*x_over) * rpy(pi,0,0) * rpy(0,0,-Rz))
 
-    def pick_to_inspect(self, T_item, pick_time=1):
+    def pick_to_inspect(self, T_item, delay=1):
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
         # self.store.put('vantage/item', klampt2numpy(T_item))
@@ -71,8 +70,10 @@ class MotionPlanner:
         self.setVacuum(False)
         x_item = T_item[1]
         T_over_item = self.getTAbove(x_item)
-        # self.store.put('vantage/overhead', klampt2numpy(T_over_item))
+        self.store.put('vantage/item_above', klampt2numpy(T_over_item))
         milestones = self.planToTransform(T_over_item, space='joint', solvers=['local', 'global'])
+        if milestones is None:
+            return None
 
         # Lower ee
         logger.debug('Lowering end effector')
@@ -80,6 +81,8 @@ class MotionPlanner:
         q0 = milestones[-1].get_robot()
         T_item = T_over_item[0], vops.add(x_item, self.ee_local)
         milestones = self.planToTransform(T_item, q0=q0, space='task', solvers=['nearby', 'local'])
+        if milestones is None:
+            return None
 
         # Pick up
         logger.debug('Picking end effector')
@@ -90,16 +93,20 @@ class MotionPlanner:
         logger.debug('Raising end effector')
         q0 = milestones[-1].get_robot()
         milestones = self.planToTransform(T_over_item, q0=q0, space='task', solvers=['nearby', 'local'])
+        if milestones is None:
+            return None
 
         # Move to inspection station
         logger.debug('Moving to inspection station')
         T_inspect = self.store.get('/robot/inspect_pose')
         q0 = milestones[-1].get_robot()
         milestones = self.planToTransform(T_inspect, q0=q0, space='task', solvers=['nearby', 'local'])
+        if milestones is None:
+            return None
         self.put()
         return self.plan.milestones
 
-    def place_to_inspect(self, T_drop, drop_time=1):
+    def place_to_inspect(self, T_drop, delay=1):
         if isinstance(T_drop, np.ndarray):
             T_drop = numpy2klampt(T_drop)
 
@@ -109,11 +116,15 @@ class MotionPlanner:
         T_over_drop = self.getTAbove(x_drop)
         # self.store.put('vantage/overhead', klampt2numpy(T_over_drop))
         milestones = self.planToTransform(T_over_drop, space='joint', solvers=['local', 'global'])
+        if milestones is None:
+            return None
 
         # Move to drop position
         q0 = milestones[-1].get_robot()
         T_item = T_over_drop[0], vops.add(x_drop, self.ee_local)
         milestones = self.planToTransform(T_drop, q0=q0, space='task', solvers=['nearby', 'local'])
+        if milestones is None:
+            return None
 
         # Release
         self.setVacuum(False)
@@ -123,6 +134,8 @@ class MotionPlanner:
         # Raise
         q0 = milestones[-1].get_robot()
         milestones = self.planToTransform(T_over_drop, q0=q0, space='task', solvers=['local', 'global'])
+        if milestones is None:
+            return None
         self.put()
         return self.plan.milestones
 
@@ -151,7 +164,7 @@ class MotionPlanner:
                     return None
                 else:
                     logger.warning(
-                        'IK {} solver could not find feasible configuration. Trying {} solver...'.format(solver, solvers[i+1]))
+                        'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i+1]))
         logger.info('Created {} milestones'.format(len(self.plan.milestones)))
         return self.plan.milestones
 
@@ -181,7 +194,7 @@ class MotionPlanner:
                     return None
                 else:
                     logger.warning(
-                        'IK {} solver could not find feasible configuration. Trying {} solver...'.format(solver, solvers[i+1]))
+                        'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i+1]))
         logger.info('Created {} milestones'.format(len(self.plan.milestones)))
         return self.plan.milestones
 
@@ -258,10 +271,9 @@ class JointPlanner(LowLevelPlanner):
 
     def reset(self, space):
         self.space = space
-        # Update v, a limits
         avmax = [pi / 3] * self.robot.numLinks()
-        self.space.setAccelerationLimits(avmax)
-        self.space.setVelocityLimits(avmax)
+        self.robot.setAccelerationLimits(avmax)
+        self.robot.setVelocityLimits(avmax)
 
     def planToTransform(self, T, q0=None, solver='local', eps=None):
         q0 = q0 or self.store.get('/robot/current_config')
@@ -410,12 +422,6 @@ class CSpace:
                                  self.noSelfCollision,
                                  self.noEnvCollision]
 
-    def setVelocityLimits(self, vmax):
-        self.robot.setVelocityLimits(vmax)
-
-    def setAccelerationLimits(self, amax):
-        self.robot.setAccelerationLimits(amax)
-
     def getGeodesic(self, q0, qf):
         """Returns a new goal configuration that follows along a geodesic"""
         qnew = qf[:]
@@ -437,16 +443,16 @@ class CSpace:
         r = t / tf
         if profile == 'linear':
             u = r
-            return self._interpolate(q0, qf, u)
+            return self.robot.interpolate(q0, qf, u)
         elif profile == 'cubic':
             u = 3 * r**2 - 2 * r**3
-            return self._interpolate(q0, qf, u)
+            return self.robot.interpolate(q0, qf, u)
         elif profile == 'quintic':
             u = 10 * r**3 - 15 * r**4 + 6 * r**5
-            return self._interpolate(q0, qf, u)
+            return self.robot.interpolate(q0, qf, u)
         elif profile == 'bang-bang':
             u = 2 * r**2 if 0 <= r <= 0.5 else -1 + 4 * r - 2 * r**2
-            return self._interpolate(q0, qf, u)
+            return self.robot.interpolate(q0, qf, u)
         # elif profile == 'trapeze':
         #     D = vops.sub(qf, q0)
         #     vmax = vmax or self.robot.getVelocityLimits()
@@ -466,13 +472,13 @@ class CSpace:
                 'Unrecognized interpolation profile: {}'.format(profile))
         # return vops.add(q0, vops.mul(D, r))
 
-    def _interpolate(self, q0, qf, u):
-        D = vops.sub(qf, q0)
-        # logger.info('Is {} == {}'.format(self.robot.interpolate(
-        #     q0, qf, u), vops.add(q0, vops.mul(D, u))))
-        assert sum(vops.sub(self.robot.interpolate(
-            q0, qf, u), vops.add(q0, vops.mul(D, u)))) <= 0.1
-        return vops.add(q0, vops.mul(D, u))
+    # def _interpolate(self, q0, qf, u):
+    #     D = vops.sub(qf, q0)
+    #     # logger.info('Is {} == {}'.format(self.robot.interpolate(
+    #     #     q0, qf, u), vops.add(q0, vops.mul(D, u))))
+    #     assert sum(vops.sub(self.robot.interpolate(
+    #         q0, qf, u), vops.add(q0, vops.mul(D, u)))) <= 0.1
+    #     return vops.add(q0, vops.mul(D, u))
 
     def getMinPathTime(self, q0, qf, vmax=None, amax=None, profile='linear'):
         """
@@ -557,7 +563,6 @@ class SE3Space:
     def __init__(self, world):
         self.world = world
         self.robot = world.robot('tx90l')
-        self.collider = WorldCollider(world)
 
     def interpolate(self, T0, Tf, t, tf, profile='linear'):
         """Interpolates between T0 and Tf, with the specified profile"""
@@ -628,15 +633,15 @@ class SE3Space:
 
 
 def checkGeodesic():
-    p = HighLevelPlanner()
+    p = MotionPlanner()
     q0 = [0, 0, -0.5, 1, 0, 1, 0]
     qf = q0[:]; qf[-1] = 3 * pi / 2
-    p.planToConfiq(qf, q0=q0)
+    # p.planToConfiq(qf, q0=q0)
 
 if __name__ == "__main__":
     # checkGeodesic()
     s = PensiveClient().default()
-    p = Planner()
+    p = MotionPlanner()
     T_binA = s.get('vantage/binA')
     T_binB = s.get('vantage/binB')
     T_binC = s.get('vantage/binC')
