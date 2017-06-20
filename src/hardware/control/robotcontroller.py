@@ -11,12 +11,7 @@ from master.world import build_world, klampt2numpy
 from time import sleep
 import logging; logger = logging.getLogger(__name__)
 
-# List of robot IP addresses
-# TODO: add ip to db
 bufferSize = 100
-robots = {  'left':  '10.10.1.202',
-            'right': '10.10.1.203',
-            'local': 'localhost'    }
 
 # Helper functions
 def Assert(condition, message):
@@ -145,11 +140,13 @@ class Trajectory:
 
 class Robot:
     """A robot defined by its trajectory client"""
-    def __init__(self, robot='left', port=1000, store=None):
+    def __init__(self, robot='right', port=1000, store=None):
+        self.store = store or PensiveClient().default()
+        robots = self.store.get('/system/robots', {})
         Assert(robot in robots, 'Unrecognized robot {}'.format(robot))
+        logger.warn('Connecting to {} at {}'.format(robot, robots[robot]))
         self.client = TrajClient(host=robots[robot], port=port)
         # self.name = self.client.name
-        self.store = store or PensiveClient().default()
         self.receivedMilestones = []
         self.startIndex = None
 
