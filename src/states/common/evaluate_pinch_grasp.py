@@ -87,9 +87,9 @@ class EvaluatePinchGraspBase(State):
             #TODO create pass/fail criteria
 
             for (i, grasp) in enumerate(grasps):
-                grasp['segment_id'] = self._find_segment_by_point(local_point_cloud, labeled_image, grasp['center'])
-                grasp['center'] = transform(bounds_pose, grasp['center'])
+                grasp['center'] = transform(bounds_pose, [grasp['center'][0], grasp['center'][1], grasp['tip_height']])
                 grasp['orientation'] = bounds_pose.dot(rpy(0, 0, grasp['rotation']))
+                grasp['segment_id'] = self._find_segment_by_point(local_point_cloud, labeled_image, grasp['center'])
                 grasp['index'] = i
                 grasp['location'] = location
                 grasp['camera'] = camera

@@ -58,7 +58,8 @@ def select_grasp(pc,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThick
             grasp_info={'index':grasps_physical[i][j][8],'center':grasps_physical[i][j][0],'opening':grasps_physical[i][j][1],'tip_height':grasps_physical[i][j][2],'rotation':-grasps_physical[i][j][3],'score':grasps_physical[i][j][4],'max_Grasp_depth':grasps_physical[i][j][5],'distance_from_COG':grasps_physical[i][j][6],'Blockage_percent':grasps_physical[i][j][7]}
             grasps_info.append(grasp_info)
             print grasp_info
-            cv2.imshow("Original", show)
+            #cv2.imshow("Original", show)
+	    #cv2.imshow("color",image)
             k = cv2.waitKey(0)
             if k == 27:         # wait for ESC key to exit
                 cv2.destroyAllWindows()
@@ -69,8 +70,8 @@ def getlocations(grasps,corner,length_per_pixel,threshold,COG):
     for grasp in grasps:
         pixel_top,pixel_bottom,rotation,max_Grasp_depth,tip_height,blockage_percent,mask_num=grasp
         center=(pixel_top+pixel_bottom)/2
-        center_X=corner[0]+center[0]*length_per_pixel
-        center_Y=corner[1]-center[1]*length_per_pixel
+        center_X=corner[0]-center[0]*length_per_pixel
+        center_Y=corner[1]+center[1]*length_per_pixel
         distancefromCOG=math.sqrt((center_X-COG[0])**2+(center_Y-COG[1])**2)
         tip_height=tip_height*1.0/255*threshold
         max_Grasp_depth=max_Grasp_depth*1.0/255*threshold
@@ -294,7 +295,7 @@ def mask2image(pc,mask,corner,depth_map,length_per_pixel,threshold):
     """
     Conver the masked area on the pointcloud into 2d image with white background and black only on the object of interest
     """
-    x_min,y_max=corner
+    x_max,y_min=corner
     segment_npy= pc[mask.nonzero()]
 
     #remove the all 0 points from the segment
@@ -306,8 +307,8 @@ def mask2image(pc,mask,corner,depth_map,length_per_pixel,threshold):
     num_pixels_Y,num_pixels_X=depth_map.shape
     img=np.full((num_pixels_Y,num_pixels_X),0,dtype="uint8")
     for point in segment_npy:
-        x=(point[0]-x_min)/length_per_pixel
-        y=(y_max-point[1])/length_per_pixel
+        x=(x_max-point[0])/length_per_pixel
+        y=(point[1]-y_min)/length_per_pixel
 
         x=int(min(max(0,x),num_pixels_X-1))
         y=int(min(max(0,y),num_pixels_Y-1))
@@ -334,14 +335,14 @@ def pc2depthmap(pointcloud,length_per_pixel,threshold):
     (x_min,y_max) x,y value for the first pixel in the depth map,depth image is arranged as the robot tool is looking over it
 
     ******************************************************************
-    *(x_min,y_max)                                                   *
+    *(x_max,y_min)                                                   *
     *                                                                *
     *                                                                *
     *                                                                *
     *                                                                *
     *                     ** (gripper)                               *
     *                     **                                         *
-    *                     **                           (x_max,y_min) *
+    *                     **                           (x_min,y_max) *
     ******************************************************************
                           **
                         *robot*
@@ -358,8 +359,8 @@ def pc2depthmap(pointcloud,length_per_pixel,threshold):
     #filter the x and y readings of the pointcloud
     x_raw=pointcloud[:,0]
     y_raw=pointcloud[:,1]
-    x_filtered=reject_outliers(x_raw, m = 3.5)
-    y_filtered=reject_outliers(y_raw, m = 3.5)
+    x_filtered=reject_outliers(x_raw, m = 6)
+    y_filtered=reject_outliers(y_raw, m = 6)
 
     x_min=np.amin(x_filtered)
     x_max=np.amax(x_filtered)
@@ -376,8 +377,8 @@ def pc2depthmap(pointcloud,length_per_pixel,threshold):
     pointcloud=pointcloud[pointcloud[:,2]<threshold]
     #fill in the depth map
     for point in pointcloud:
-        x=int((point[0]-x_min)/length_per_pixel)
-        y=int((y_max-point[1])/length_per_pixel)
+        x=int((x_max-point[0])/length_per_pixel)
+        y=int((point[1]-y_min)/length_per_pixel)
 
         try:
             depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
@@ -387,15 +388,18 @@ def pc2depthmap(pointcloud,length_per_pixel,threshold):
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,10,7,21)
     #convert the denoised depth_map back to the original scale
 
-    return (depth_map,(x_min,y_max))
+    return (depth_map,(x_max,y_min))
 
 
 
-def reject_outliers(data, m = 3.5):
+def reject_outliers(data, m = 6):
     d = np.abs(data - np.median(data))
     mdev = np.median(d)
     s = d/mdev if mdev else 0.
-    return data[s<m]
+    try:
+    	return data[s<m]
+    except:
+	    return 0
 
 def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toend=True):
     """Create a view of `array` which for every point gives the n-dimensional
@@ -599,6 +603,5 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
 # #mask=np.full((480,640),1,dtype="uint8")
 # #masks.append(mask)
 # select_grasp(pointcloud,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThickness=0.01,length_per_pixel=0.002)
-
 
 
