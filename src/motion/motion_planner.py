@@ -16,6 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # TODO: for se3, scale t if out of a/v limits
+# TODO: do not return error if plan is []
 
 class InfeasibleGoalError(Exception):
     pass
@@ -33,7 +34,7 @@ class Planner:
     def __init__(self, store=None):
         self.store = store or PensiveClient().default()
         self.ee_local = [0, 0, 0.39]
-        self.movement_plane = 1
+        self.movement_plane = 1.19
         self.reset()
 
     def reset(self):
@@ -59,7 +60,7 @@ class Planner:
         Rz = atan2(x_over[1], x_over[0]) - pi
         return numpy2klampt(xyz(*x_over) * rpy(pi,0,0) * rpy(0,0,-Rz))
 
-    def pick_up(self, T_item, pick_time=0.5):
+    def pick_to_inspect(self, T_item, pick_time=1):
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
         logger.info('T_item {}'.format(T_item))
@@ -80,7 +81,7 @@ class Planner:
 
         # Pick up
         q0 = milestones[-1].get_robot()
-        self.plan.addMilestone(Milestone(t=pick_time, robot=q0, vacuum=[0]))
+        self.plan.addMilestone(Milestone(t=pick_time, robot=q0, vacuum=[1]))
 
         # Raise ee
         logger.info('Raising end effector')
