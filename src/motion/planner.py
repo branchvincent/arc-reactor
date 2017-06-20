@@ -26,15 +26,16 @@ class JointLimitError(Exception):
     pass
 
 
-class Planner:
+class MotionPlanner:
     """
-    High level planner to plan motions to goal transforms and configurations
+    High level motion planner to plan motions to goal transforms and configurations
     """
 
     def __init__(self, store=None):
         self.store = store or PensiveClient().default()
-        self.ee_local = [0, 0, 0.39]
-        self.movement_plane = 1.19
+        self.ee_local = [0, 0, 0.39]    # length of gripper
+        self.movement_plane = 1.19      # assumed height of collision-free motion
+        # self.vacuum = [0]
         self.reset()
 
     def reset(self):
@@ -63,57 +64,61 @@ class Planner:
     def pick_to_inspect(self, T_item, pick_time=1):
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
-        logger.info('T_item {}'.format(T_item))
         # self.store.put('vantage/item', klampt2numpy(T_item))
 
         # Move over item
         logger.info('Moving over item')
+        self.setVacuum(False)
         x_item = T_item[1]
         T_over_item = self.getTAbove(x_item)
         # self.store.put('vantage/overhead', klampt2numpy(T_over_item))
         milestones = self.planToTransform(T_over_item, space='joint', solvers=['local', 'global'])
 
         # Lower ee
-        logger.info('Lowering end effector')
+        logger.debug('Lowering end effector')
+        self.setVacuum(True)
         q0 = milestones[-1].get_robot()
         T_item = T_over_item[0], vops.add(x_item, self.ee_local)
-        milestones = self.planToTransform(T_item, q0=q0, vacuum=[1], space='task', solvers=['nearby', 'local'])
+        milestones = self.planToTransform(T_item, q0=q0, space='task', solvers=['nearby', 'local'])
 
         # Pick up
+        logger.debug('Picking end effector')
         q0 = milestones[-1].get_robot()
-        self.plan.addMilestone(Milestone(t=pick_time, robot=q0, vacuum=[1]))
+        self.plan.addMilestone(Milestone(t=pick_time, robot=q0))
 
         # Raise ee
-        logger.info('Raising end effector')
+        logger.debug('Raising end effector')
         q0 = milestones[-1].get_robot()
-        milestones = self.planToTransform(T_over_item, q0=q0, vacuum=[1], space='task', solvers=['nearby', 'local'])
+        milestones = self.planToTransform(T_over_item, q0=q0, space='task', solvers=['nearby', 'local'])
 
         # Move to inspection station
-        logger.info('Moving to inspection station')
+        logger.debug('Moving to inspection station')
         T_inspect = self.store.get('/robot/inspect_pose')
         q0 = milestones[-1].get_robot()
-        milestones = self.planToTransform(T_inspect, q0=q0, vacuum=[1], space='task', solvers=['nearby', 'local'])
+        milestones = self.planToTransform(T_inspect, q0=q0, space='task', solvers=['nearby', 'local'])
         self.put()
         return self.plan.milestones
 
-    def drop_item(self, T_drop, drop_time=1):
+    def place_to_inspect(self, T_drop, drop_time=1):
         if isinstance(T_drop, np.ndarray):
             T_drop = numpy2klampt(T_drop)
 
         # Move over item
+        self.setVacuum(True)
         x_drop = T_drop[1]
         T_over_drop = self.getTAbove(x_drop)
-        self.store.put('vantage/overhead', klampt2numpy(T_over_drop))
-        milestones = self.planToTransform(T_over_drop, vacuum=[1], space='joint', solvers=['local', 'global'])
+        # self.store.put('vantage/overhead', klampt2numpy(T_over_drop))
+        milestones = self.planToTransform(T_over_drop, space='joint', solvers=['local', 'global'])
 
         # Move to drop position
         q0 = milestones[-1].get_robot()
         T_item = T_over_drop[0], vops.add(x_drop, self.ee_local)
-        milestones = self.planToTransform(T_drop, q0=q0, vacuum=[1], space='task', solvers=['nearby', 'local'])
+        milestones = self.planToTransform(T_drop, q0=q0, space='task', solvers=['nearby', 'local'])
 
         # Release
+        self.setVacuum(False)
         q0 = milestones[-1].get_robot()
-        self.plan.addMilestone(Milestone(t=drop_time, robot=q0, vacuum=[0]))
+        self.plan.addMilestone(Milestone(t=drop_time))
 
         # Raise
         q0 = milestones[-1].get_robot()
@@ -121,13 +126,7 @@ class Planner:
         self.put()
         return self.plan.milestones
 
-    def stow_grab(self, item):
-        return self.pick_up(item)
-
-    def place_shelf(self, T_placement):
-        return self.drop_item(T_placement)
-
-    def planToTransform(self, T, via=[], q0=None, vacuum=[0], space='joint', solvers=['local']):
+    def planToTransform(self, T, via=[], q0=None, space='joint', solvers=['local']):
         # Choose planner
         space = space.lower()
         if space == 'joint':
@@ -140,7 +139,7 @@ class Planner:
         # Plan
         for Ti in via + [T]:
             for i, solver in enumerate(solvers):
-                milestones = planner.planToTransform(Ti, q0=q0, vacuum=vacuum, solver=solver)
+                milestones = planner.planToTransform(Ti, q0=q0, solver=solver)
                 # Update milestones, if found
                 if milestones:
                     self.plan.addMilestones(milestones)
@@ -156,7 +155,7 @@ class Planner:
         logger.info('Created {} milestones'.format(len(self.plan.milestones)))
         return self.plan.milestones
 
-    def planToConfiq(self, q, via=[], q0=None, vacuum=[0], space='joint', solvers=['local']):
+    def planToConfiq(self, q, via=[], q0=None, space='joint', solvers=['local']):
         # Choose planner
         space = space.lower()
         if space == 'joint':
@@ -169,7 +168,7 @@ class Planner:
         # Plan
         for qi in via + [q]:
             for i, solver in enumerate(solvers):
-                milestones = planner.planToConfig(qi, q0=q0, vacuum=vacuum, solver=solver)
+                milestones = planner.planToConfig(qi, q0=q0, solver=solver)
                 # Update milestones, if found
                 if milestones:
                     self.plan.addMilestones(milestones)
@@ -198,10 +197,10 @@ class LowLevelPlanner(object):
         self.store = store or PensiveClient().default()
         self.profile = profile.lower()
         self.freq = freq
-        self.vacuum = 0
+        self.vacuum = [0]
 
     def setVacuum(self, value):
-        self.vacuum = int(value)
+        self.vacuum = [int(value)]
 
     def setProfile(self, profile):
         self.profile = profile.lower()
@@ -264,15 +263,15 @@ class JointPlanner(LowLevelPlanner):
         self.space.setAccelerationLimits(avmax)
         self.space.setVelocityLimits(avmax)
 
-    def planToTransform(self, T, q0=None, vacuum=[0], solver='local', eps=None):
+    def planToTransform(self, T, q0=None, solver='local', eps=None):
         q0 = q0 or self.store.get('/robot/current_config')
         q = self.solveForConfig(T, solver=solver, eps=eps)
         if q is None:
             return None
         else:
-            return self.planToConfig(q, q0=q0, vacuum=vacuum, solver=solver)
+            return self.planToConfig(q, q0=q0, solver=solver)
 
-    def planToConfig(self, q, q0=None, vacuum=[0], solver='local'):
+    def planToConfig(self, q, q0=None, solver='local'):
         q0 = q0 or self.store.get('/robot/current_config')
         q = self.space.getGeodesic(q0, q)
 
@@ -288,7 +287,7 @@ class JointPlanner(LowLevelPlanner):
         numMilestones = int(ceil(tf * self.freq))
         for t in np.linspace(dt, tf, numMilestones):
             qi = self.space.interpolate(q0, q, t, tf, profile=self.profile)
-            m = Milestone(t=dt, robot=qi, vacuum=vacuum)
+            m = Milestone(t=dt, robot=qi, vacuum=self.vacuum)
             milestones.append(m)
             # if not self.space.feasible(m.get_robot()):
             #     logger.warn('Not feasible')
@@ -311,7 +310,7 @@ class TaskPlanner(LowLevelPlanner):
         self.ee_link = self.robot.link(self.robot.numLinks() - 1)
         self.vmax = 0.25
 
-    def planToTransform(self, T, q0=None, vacuum=[0], solver='local', eps=None):
+    def planToTransform(self, T, q0=None, solver='local', eps=None):
         if isinstance(T, np.ndarray):
             T = numpy2klampt(T)
         q0 = q0 or self.store.get('/robot/current_config')
@@ -333,18 +332,18 @@ class TaskPlanner(LowLevelPlanner):
         for t in np.linspace(dt, tf, numMilestones):
             Ti = self.space.interpolate(T0, T, t, tf, profile=self.profile)
             q = self.solveForConfig(Ti, solver=solver, eps=eps)
-            m = Milestone(t=dt, robot=q, vacuum=vacuum)
+            m = Milestone(t=dt, robot=q, vacuum=self.vacuum)
             milestones.append(m)
             # if not self.cspace.feasible(m.get_robot()):
             #     logger.warn('Not feasible')
         return milestones
 
-    def planToConfig(self, q, q0=None, vacuum=[0], solver='local', eps=None):
+    def planToConfig(self, q, q0=None, solver='local', eps=None):
         q0 = q0 or self.store.get('/robot/current_config')
         # q = self.cspace.getGeodesic(q0, q)
         self.robot.setConfig(q)
         Tf = self.ee_link.getTransform()
-        return self.planToTransform(Tf, q0=q0, vacuum=vacuum, solver=solver, eps=eps)
+        return self.planToTransform(Tf, q0=q0, solver=solver, eps=eps)
 
 
 class MotionPlan:
@@ -368,9 +367,12 @@ class MotionPlan:
 
     def addMilestone(self, milestone):
         self.milestones.append(milestone)
+        self.cspace.robot.setConfig(milestone.get_robot())
 
     def addMilestones(self, milestones):
-        self.milestones += milestones
+        if len(milestones) != 0:
+            self.milestones += milestones
+            self.cspace.robot.setConfig(milestones[-1].get_robot())
 
     def putFeasible(self):
         milestoneMap = []

@@ -1,6 +1,6 @@
 import logging
 from master.fsm import State
-from motion.linear_planner import Planner
+from motion.planner import MotionPlanner
 from hardware.control.robotcontroller import RobotController
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -33,7 +33,7 @@ class PlanViewLocation(State):
         self.store.put('/robot/target_pose', vantage_T)
 
         # Plan route
-        p = Planner(store=self.store)
+        p = MotionPlanner(store=self.store)
         p.planToTransform(vantage_T, space='joint', solvers=['local', 'global'])
         p.put()
         success = self.store.get('status/route_plan')
