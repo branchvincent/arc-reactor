@@ -119,7 +119,7 @@ class MotionPlanner:
         self.put()
         return self.plan.milestones
 
-    def placeToInspect(self, T_drop, delay=1):
+    def inspectToPlace(self, T_drop, delay=3):
         if isinstance(T_drop, np.ndarray):
             T_drop = numpy2klampt(T_drop)
         self.store.put('vantage/place', klampt2numpy(T_drop))
@@ -130,7 +130,7 @@ class MotionPlanner:
         R_drop, t_drop = T_drop
         T_over_drop = R_drop, self._getTransformAbovePosition(t_drop)[1]
         self.store.put('vantage/place_above', klampt2numpy(T_over_drop))
-        milestones = self.planToTransform(T_over_drop, space='joint', solvers=['local', 'global'])
+        milestones = self.planToTransform(T_over_drop, space='task', solvers=['local', 'global'])
         if milestones is None:
             return None
         else:

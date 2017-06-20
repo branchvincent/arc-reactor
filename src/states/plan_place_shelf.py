@@ -49,7 +49,7 @@ class PlanPlaceShelf(State):
             elif gripper == 'vacuum':
                 logger.info('requesting stow motion plan')
                 planner = MotionPlanner(self.store)
-                motion_plan = planner.placeToInspect(target_T)
+                motion_plan = planner.inspectToPlace(target_T)
             else: #mechanical
                 #TODO: develop planner for mechanical gripper
                 raise NotImplementedError('Mechanical gripper planner does not exist')
