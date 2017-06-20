@@ -35,7 +35,7 @@ class SegmentPhoto(State):
             self._handler(photo_urls)
         except (MissingPhotoError,) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
-            logger.exception()
+            logger.exception('photo segmentation failed')
         else:
             self.store.delete(['failure', self.getFullName()])
             self.setOutcome(True)

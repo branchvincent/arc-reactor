@@ -39,7 +39,7 @@ class RecognizePhoto(State):
             self._handler(photo_urls)
         except (MissingPhotoError, MissingSegmentationError, MissingGraspLocationError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
-            logger.exception()
+            logger.exception('photo recognition failed')
         else:
             self.store.delete(['failure', self.getFullName()])
             self.setOutcome(True)

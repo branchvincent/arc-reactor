@@ -48,7 +48,7 @@ class EvaluatePlacement(State):
             self._handler(locations)
         except (NoViewingCameraError, MissingPhotoError, NoPlacementFound) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
-            logger.exception()
+            logger.exception('placement finding failed')
         else:
             self.store.delete(['failure', self.getFullName()])
             self.setOutcome(True)

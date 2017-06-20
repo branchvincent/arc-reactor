@@ -28,7 +28,7 @@ class CapturePhotoBase(State):
         try:
             self._handle(locations)
         except (NoViewingCameraError, CameraAcquisitionError) as e:
-            logger.exception()
+            logger.exception('image acquisition failed')
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
         else:
             self.store.delete(['failure', self.getFullName()])

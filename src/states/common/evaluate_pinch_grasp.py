@@ -23,7 +23,7 @@ class EvaluatePinchGraspBase(State):
                 self._handle(location)
         except (NoViewingCameraError, MissingPhotoError, MissingSegmentationError, GraspNotInSegmentError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
-            logger.exception()
+            logger.exception('pinch grasp evaluation failed')
         else:
             self.store.delete(['failure', self.getFullName()])
             self.setOutcome(True)
