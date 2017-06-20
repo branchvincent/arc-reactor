@@ -71,7 +71,7 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.NOTSET)
 
-formatter = logging.Formatter('%(asctime)s.%(msecs)d\t[%(name)s] %(filename)s:%(lineno)d\t%(levelname)s:\t%(message)s')
+formatter = logging.Formatter('%(asctime)s.%(msecs)03d [%(name)s] %(filename)s:%(lineno)d\t%(levelname)s:\t%(message)s')
 
 # set up colored logging to console
 from rainbow_logging_handler import RainbowLoggingHandler
