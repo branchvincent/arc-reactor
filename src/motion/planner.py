@@ -55,7 +55,16 @@ class MotionPlanner:
     def putFeasible(self):
         self.plan.putFeasible()
 
-    def pick_to_inspect(self, T_item, delay=1):
+    def toTransform(self, T_ee):
+        milestones = self.planToTransform(T_ee, space='joint', solvers=['local', 'global'])
+        if milestones is None:
+            return None
+        else:
+            self.plan.addMilestones(milestones)
+        self.put()
+        return self.plan.milestones
+
+    def pickToInspect(self, T_item, delay=1):
         # TODO: T_item needs rotation
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
@@ -110,7 +119,7 @@ class MotionPlanner:
         self.put()
         return self.plan.milestones
 
-    def place_to_inspect(self, T_drop, delay=1):
+    def placeToInspect(self, T_drop, delay=1):
         if isinstance(T_drop, np.ndarray):
             T_drop = numpy2klampt(T_drop)
         self.store.put('vantage/place', klampt2numpy(T_drop))
@@ -230,11 +239,12 @@ class MotionPlanner:
         return numpy2klampt(xyz(*t_over) * rpy(pi,0,0) * rpy(0,0,-Rz))
 
     def _getTransformNormal(self, T):
-        R,t = T
-        Rz = atan2(t[1], t[0]) - pi
-        Rx = atan2(N[2], N[1])
-        # Ry = atan2()
-        return numpy2klampt(xyz(*t_over) * rpy(pi,0,0) * rpy(0,0,-Rz) * rpy(Rx,0,0))
+        pass
+        # R,t = T
+        # Rz = atan2(t[1], t[0]) - pi
+        # # Rx = atan2(N[2], N[1])
+        # # Ry = atan2()
+        # return numpy2klampt(xyz(*t) * rpy(pi,0,0) * rpy(0,0,-Rz) * rpy(Rx,0,0))
 
 class LowLevelPlanner(object):
     """

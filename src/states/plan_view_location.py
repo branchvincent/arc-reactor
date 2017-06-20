@@ -34,8 +34,7 @@ class PlanViewLocation(State):
 
         # Plan route
         p = MotionPlanner(store=self.store)
-        p.planToTransform(vantage_T, space='joint', solvers=['local', 'global'])
-        p.put()
+        p.toTransform(vantage_T)
         success = self.store.get('status/route_plan')
         if not success:
             self.store.put('failure/plan_view_location', 'infeasible')

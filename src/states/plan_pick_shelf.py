@@ -63,7 +63,7 @@ class PlanPickShelf(State):
             elif gripper == 'vacuum':
                 logger.info('requesting pick motion plan')
                 planner = MotionPlanner(store=self.store)
-                motion_plan = planner.pick_to_inspect(T_item)
+                motion_plan = planner.pickToInspect(T_item)
             else: #mechanical
                 #TODO: develop planner for mechanical gripper
                 raise NotImplementedError('Mechanical gripper planner does not exist')
