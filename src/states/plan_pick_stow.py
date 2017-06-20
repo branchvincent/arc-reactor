@@ -1,6 +1,7 @@
 from master.fsm import State
 from master.world import rpy, xyz
 from motion.planner import MotionPlanner
+from util.math_helpers import build_pose, transform, rotate, normalize
 
 import logging
 import numpy
@@ -49,7 +50,16 @@ class PlanPickStow(State):
 
         logger.info('planning route for "{}" to stow tote'.format(item))
 
-        T_item = xyz(*grasp['center'][0])
+        # T_item = xyz(*grasp['center'][0])
+        # normal = grasp['orientation'].tolist()[0]
+
+        T_item = numpy.eye(4)
+        # normal vector points along Z
+        T_item[:3, 2] = normalize(grasp['orientation'])
+        T_item[:3, 0] = normalize(numpy.cross(rotate(rpy(pi / 2, 0, 0), T_item[:3, 2]), T_item[:3, 2]))
+        T_item[:3, 1] = normalize(numpy.cross(T_item[:3, 2], T_item[:3, 0]))
+        # position is grasp center
+        T_item[:3, 3] = grasp['center']
 
         try:
             if self.store.get('/test/skip_planning', False):

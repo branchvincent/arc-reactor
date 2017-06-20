@@ -1,9 +1,11 @@
-import logging
-import numpy
-from time import time
 from master.fsm import State
 from master.world import xyz
 from motion.planner import MotionPlanner
+from util.math_helpers import build_pose, transform, rotate, normalize
+
+import logging
+import numpy
+from time import time
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -41,7 +43,16 @@ class PlanPickShelf(State):
 
         logger.info('planning route for "{}" from "{}"'.format(item, grasp['location']))
 
-        T_item = xyz(*grasp['center'][0])
+        # T_item = xyz(*grasp['center'][0])
+        # normal = grasp['orientation'].tolist()[0]
+
+        T_item = numpy.eye(4)
+        # normal vector points along Z
+        T_item[:3, 2] = normalize(grasp['orientation'])
+        T_item[:3, 0] = normalize(numpy.cross(rotate(rpy(pi / 2, 0, 0), T_item[:3, 2]), T_item[:3, 2]))
+        T_item[:3, 1] = normalize(numpy.cross(T_item[:3, 2], T_item[:3, 0]))
+        # position is grasp center
+        T_item[:3, 3] = grasp['center']
 
         # compute route
         try:
