@@ -2,7 +2,7 @@ import logging
 
 from master.fsm import State
 
-from perception import recognize_objects
+from perception.interface import recognize_objects
 
 from .common import MissingPhotoError, MissingSegmentationError
 

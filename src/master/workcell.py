@@ -600,7 +600,7 @@ def main(argv):
         else:
             serials = name2serial.values()
 
-        from perception import initialize_cameras
+        from perception.interface import initialize_cameras
         initialize_cameras(serials)
 
 if __name__ == '__main__':

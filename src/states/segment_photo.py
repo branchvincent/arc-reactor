@@ -4,7 +4,7 @@ from master.fsm import State
 
 from util.location import location_bounds_url, location_pose_url
 
-from perception import segment_images
+from perception.interface import segment_images
 
 from .common import MissingPhotoError
 

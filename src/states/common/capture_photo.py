@@ -2,7 +2,7 @@ import logging
 
 from master.fsm import State
 
-from perception import acquire_images, CameraAcquisitionError
+from perception.interface import acquire_images, CameraAcquisitionError
 
 from . import NoViewingCameraError
 

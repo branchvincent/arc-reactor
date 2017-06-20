@@ -6,7 +6,7 @@ from util.location import location_bounds_url, location_pose_url
 
 logger = logging.getLogger(__name__)
 
-from perception import acquire_images, segment_images, recognize_objects
+from perception.interface import acquire_images, segment_images, recognize_objects
 
 class FindAll(State):
     def run(self):

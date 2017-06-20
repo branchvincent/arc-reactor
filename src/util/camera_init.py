@@ -1,6 +1,6 @@
 import logging
 
-from perception import initialize_cameras
+from perception.interface import initialize_cameras
 
 logger = logging.getLogger(__name__)
 
