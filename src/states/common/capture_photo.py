@@ -69,7 +69,7 @@ class CapturePhotoBase(State):
             all_photo_urls.extend(photo_urls)
 
         # acquire images
-        acquire_images(store, all_serials, all_photo_urls)
+        acquire_images(self.store, all_serials, all_photo_urls)
 
         # set up the target photos for later segmentation/recognition
         prior_photo_urls = self.store.get('/robot/target_photos', [])
