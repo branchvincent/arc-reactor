@@ -55,7 +55,7 @@ class MotionPlanner:
     def putFeasible(self):
         self.plan.putFeasible()
 
-    def pick_to_inspect(self, T_item, normal, delay=1):
+    def pick_to_inspect(self, T_item, delay=1):
         # TODO: T_item needs rotation
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
@@ -87,7 +87,7 @@ class MotionPlanner:
         # Pick up
         logger.debug('Picking')
         q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        self.plan.addMilestone(Milestone(t=delay, robot=q0))
+        self.plan.addMilestone(Milestone(t=delay, robot=q0, vacuum=[1]))
 
         # Raise ee
         logger.debug('Raising end effector')
@@ -141,7 +141,7 @@ class MotionPlanner:
         logger.debug('Placing')
         self.setVacuum(False)
         q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        self.plan.addMilestone(Milestone(t=delay, robot=q0))
+        self.plan.addMilestone(Milestone(t=delay, robot=q0, vacuum=[0]))
 
         # Raise ee
         logger.debug('Raising end effector')

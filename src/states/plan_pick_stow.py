@@ -1,5 +1,5 @@
 from master.fsm import State
-from master.world import rpy, xyz
+from master.world import xyz, rpy
 from motion.planner import MotionPlanner
 from util.math_helpers import build_pose, transform, rotate, normalize
 
