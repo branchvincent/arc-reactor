@@ -2,6 +2,7 @@ import logging
 
 from .common.evaluate_pinch_grasp import EvaluatePinchGraspBase
 
+logger = logging.getLogger(__name__)
 
 class EvaluatePinchGraspPick(EvaluatePinchGraspBase):
     '''
