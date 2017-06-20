@@ -94,7 +94,8 @@ class JSONClientMixin(object):
         response = self._client.fetch(path,
                                       method=method,
                                       body=body,
-                                      headers={'Accept': 'application/json'})
+                                      headers={'Accept': 'application/json'},
+                                      raise_error=False)
 
         logger.debug('{} {} -> {}'.format(method, path, response.code))
 
