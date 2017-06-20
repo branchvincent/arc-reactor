@@ -55,7 +55,7 @@ class MotionPlanner:
     def putFeasible(self):
         self.plan.putFeasible()
 
-    def pick_to_inspect(self, T_item, normal, delay=1):
+    def pick_to_inspect(self, T_item, delay=1):
         # TODO: T_item needs rotation
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
