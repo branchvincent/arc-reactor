@@ -14,7 +14,7 @@ class PlanViewLocation(State):
         - /robot/waypoints: list of milestones
         - /robot/timestamp: time of route generation
         - /status/route_plan: boolean of motion plan's success
-        - /failure/plan_pick_item: failure string
+        - /failure/plan_pick_shelf: failure string
     Failure Cases:
         - infeasible: /vantage/<target_location> is not a feasible pose
     Dependencies

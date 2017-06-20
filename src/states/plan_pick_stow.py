@@ -9,7 +9,7 @@ from math import pi
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class PlanStowGrab(State):
+class PlanPickStow(State):
     """
     Input:
         - /robot/selected_item: name of item to be picked
@@ -20,7 +20,7 @@ class PlanStowGrab(State):
         - /robot/target_bounding_box: bounding box of target item (NOTE: not used?)
         - /robot/waypoints: list of milestones
         - /robot/timestamp: time of route generation
-        - /failure/plan_pick_item: failure string
+        - /failure/plan_pick_shelf: failure string
     Failure Cases:
         - infeasible: /robot/target_grasp is not a feasible grasp
     Dependencies:
@@ -70,7 +70,7 @@ class PlanStowGrab(State):
                 failed_grasps.append(grasp)
                 self.store.put('/grasp/failed_grasps', failed_grasps)
                 self.setOutcome(False)
-                self.store.put('failure/plan_stow_grab', 'infeasible')
+                self.store.put('failure/plan_pick_stow', 'infeasible')
                 raise RuntimeError('motion plan is empty')
             else:
                 milestone_map = [m.get_milestone() for m in motion_plan]
@@ -90,4 +90,4 @@ if __name__ == '__main__':
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
     myname = (args.name or 'psg')
-    PlanStowGrab(myname).run()
+    PlanPickStow(myname).run()

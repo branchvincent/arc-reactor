@@ -2,7 +2,7 @@ from master.fsm import StateMachine
 from states.find_all import FindAll
 from states.select_item import SelectItem
 from states.find_item import FindItem
-from states.plan_stow_grab import PlanStowGrab
+from states.plan_pick_stow import PlanPickStow
 from states.plan_place_shelf import PlanPlaceShelf
 from states.exec_route import ExecRoute
 from states.check_item import CheckItem
@@ -36,7 +36,7 @@ class StowStateMachine(StateMachine):
         self.add('eg', EvaluateGrasp('eg', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
         #self.add('fi', FindItem('fi', store=self.store))
-        self.add('psg', PlanStowGrab('psg', store=self.store))
+        self.add('psg', PlanPickStow('psg', store=self.store))
         self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('pps', PlanPlaceShelf('pps', store=self.store))
         self.add('er1', ExecRoute('er1', store=self.store))
