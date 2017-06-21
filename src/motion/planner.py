@@ -35,7 +35,7 @@ class MotionPlanner:
     def __init__(self, store=None):
         self.store = store or PensiveClient().default()
         self.ee_local = [0, 0, 0.39]    # length of gripper
-        self.z_movement = 1.19          # assumed height of collision-free motion
+        self.z_movement = 1             # assumed height of collision-free motion
         self.reset()
 
     def reset(self):
@@ -113,10 +113,12 @@ class MotionPlanner:
         #     self.plan.addMilestones(milestones)
 
         # Pause
-        q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        self.plan.addMilestone(Milestone(t=0.5, robot=q0, vacuum=[1]))
+        # q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+        # self.plan.addMilestone(Milestone(t=0.5, robot=q0, vacuum=[1]))
 
         # Lower ee
+        vmax_orig = self.task_planner.vmax
+        self.task_planner.vmax = 0.05
         logger.debug('Lowering end effector')
         self.setVacuum(True)
         q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
@@ -146,6 +148,7 @@ class MotionPlanner:
             self.plan.addMilestones(milestones)
 
         # Raise ee
+        self.task_planner.vmax = vmax_orig
         logger.debug('Raising end effector')
         q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
         milestones = self.planToTransform(T_over_item, q0=q0, space='task', solvers=['nearby', 'local'])
@@ -532,6 +535,10 @@ class MotionPlan:
             self.store.put('/robot/timestamp', time())
         else:
             logger.error('Failed to find feasible path')
+            # Clear waypoints
+            self.store.put('/robot/waypoints', None)
+            self.store.put('/robot/timestamp', time())
+            # Add path to debug
             milestoneMap = [m.get_milestone() for m in self.getFeasibleMilestones()]
             self.store.put('/debug/waypoints', milestoneMap)
             self.store.put('/debug/timestamp', time())
