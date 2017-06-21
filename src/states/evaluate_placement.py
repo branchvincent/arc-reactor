@@ -55,9 +55,10 @@ class EvaluatePlacement(State):
 
         logger.info('finished placement evaluation')
 
-        from util import db
-        db.dump(self.store, '/tmp/placement-{}'.format('-'.join(locations)))
-        logger.info('database dump completed')
+        if self.store.get('/debug/placements', False):
+            from util import db
+            db.dump(self.store, '/tmp/placement-{}'.format('-'.join(locations)))
+            logger.info('database dump completed')
 
     def _handler(self, locations):
         # obtain item point cloud from inspection station in tool coordinates

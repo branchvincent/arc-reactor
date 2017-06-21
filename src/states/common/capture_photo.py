@@ -36,9 +36,10 @@ class CapturePhotoBase(State):
 
         logger.info('finished image acquisition')
 
-        from util import db
-        db.dump(self.store, '/tmp/photo-{}'.format('-'.join(locations)))
-        logger.info('database dump completed')
+        if self.store.get('/debug/photos', False):
+            from util import db
+            db.dump(self.store, '/tmp/photo-{}'.format('-'.join(locations)))
+            logger.info('database dump completed')
 
     def _handle(self, locations):
         all_serials = []

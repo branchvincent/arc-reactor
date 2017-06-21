@@ -30,9 +30,10 @@ class EvaluatePinchGraspBase(State):
 
         logger.info('finished pinch grasp evaluation')
 
-        from util import db
-        db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))
-        logger.info('database dump completed')
+        if self.store.get('/debug/grasps', False):
+            from util import db
+            db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))
+            logger.info('database dump completed')
 
     def _handle(self, location):
         logger.info('finding pinch grasps for {}'.format(location))

@@ -29,9 +29,10 @@ class EvaluateVacuumGraspBase(State):
 
         logger.info('finished vacuum grasp evaluation')
 
-        from util import db
-        db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))
-        logger.info('database dump completed')
+        if self.store.get('/debug/grasps', False):
+            from util import db
+            db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))
+            logger.info('database dump completed')
 
     def _handle(self, location):
         logger.info('finding vacuum grasps for {}'.format(location))
