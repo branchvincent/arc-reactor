@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 # TODO: for se3, scale t if out of a/v limits
 # TODO: do not return error if plan is []
 
+DEBUG = False
+
 class InfeasibleGoalError(Exception):
     pass
 class CollisionError(Exception):
@@ -60,7 +62,7 @@ class MotionPlanner:
         self.put()
         return self.plan.milestones
 
-    def pickToInspect(self, T_item, approachDistance=0.1, delay=1):
+    def pickToInspect(self, T_item, approachDistance=0.1, delay=1.5):
         # TODO: T_item needs rotation
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
@@ -93,7 +95,7 @@ class MotionPlanner:
         # approach = vops.add([0,0,approachDistance], self.ee_local)
         # T_normal = self._getTransformNormal(T_item, approach)
         self.store.put('vantage/item_normal', klampt2numpy(T_normal))
-        milestones = self.planToTransform(T_normal, q0=q0, space='joint', solvers=['local', 'global'])
+        milestones = self.planToTransform(T_normal, q0=q0, space='task', solvers=['nearby', 'local'])
         if milestones is None:
             return None
         else:
@@ -109,6 +111,10 @@ class MotionPlanner:
         #     return None
         # else:
         #     self.plan.addMilestones(milestones)
+
+        # Pause
+        q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+        self.plan.addMilestone(Milestone(t=0.5, robot=q0, vacuum=[1]))
 
         # Lower ee
         logger.debug('Lowering end effector')
@@ -133,7 +139,7 @@ class MotionPlanner:
         # approach = vops.add([0,0,approachDistance], self.ee_local)
         # T_normal = self._getTransformNormal(T_item, approach)
         self.store.put('vantage/item_normal', klampt2numpy(T_normal))
-        milestones = self.planToTransform(T_normal, q0=q0, space='joint', solvers=['local', 'global'])
+        milestones = self.planToTransform(T_normal, q0=q0, space='task', solvers=['local', 'global'])
         if milestones is None:
             return None
         else:
@@ -429,7 +435,7 @@ class TaskPlanner(LowLevelPlanner):
     def reset(self, se3space):
         self.space = se3space
         self.ee_link = self.robot.link(self.robot.numLinks() - 1)
-        self.vmax = 0.25
+        self.vmax = 0.2
 
     def planToTransform(self, T, q0=None, solver='local', eps=None):
         if isinstance(T, np.ndarray):
@@ -519,7 +525,7 @@ class MotionPlan:
             feasible = self.feasible()
 
         # Update database
-        if feasible:
+        if feasible or DEBUG:
             logger.info('Feasible path found')
             milestoneMap = [m.get_milestone() for m in self.milestones]
             self.store.put('/robot/waypoints', milestoneMap)
@@ -769,8 +775,7 @@ if __name__ == "__main__":
     T_binB = s.get('vantage/binB')
     T_binC = s.get('vantage/binC')
     p.planToTransform(T_binC, solvers=['local', 'nearby', 'global'])
-    p.putFeasible()
-    from klampt.plan.robotplanning import planToCartesianObjective, planToConfig
+    # from klampt.plan.robotplanning import planToCartesianObjective, planToConfig
     # plan = planToCartesianObjective(p.robot, )
     # q = [0]*7
     # plan = planToConfig(p.world, p.world.robot('tx90l'), q)
