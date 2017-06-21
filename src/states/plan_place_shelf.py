@@ -42,32 +42,23 @@ class PlanPlaceShelf(State):
 
         logger.info('planning route for "{}" to "{}"'.format(item, target_location))
 
-        try:
-            if self.store.get('/test/skip_planning', False):
-                motion_plan = [(1, {'robot': self.store.get('/robot/current_config')})]
-                logger.warn('skipped motion planning for testing')
-            elif gripper == 'vacuum':
-                logger.info('requesting stow motion plan')
-                planner = MotionPlanner(self.store)
-                motion_plan = planner.inspectToPlace(target_T)
-            else: #mechanical
-                #TODO: develop planner for mechanical gripper
-                raise NotImplementedError('Mechanical gripper planner does not exist')
+        # compute route
+        if gripper == 'vacuum':
+            logger.info('requesting pick motion plan')
+            planner = MotionPlanner(self.store)
+            motion_plan = planner.inspectToPlace(target_T)
+        else: #mechanical
+            #TODO: develop planner for mechanical gripper
+            raise NotImplementedError('Mechanical gripper planner does not exist')
 
-            # Check motion plan
-            if motion_plan is None:
-                self.setOutcome(False)
-                self.store.put('/failure/plan_place_shelf', 'infeasible')
-                raise RuntimeError('motion plan is empty')
-            else:
-                milestone_map = [m.get_milestone() for m in motion_plan]
-                self.store.put('/robot/waypoints', milestone_map)
-                self.store.put('/robot/timestamp', time())
-                self.setOutcome(True)
-                logger.info('Route generated')
-        except Exception:
-            self.setOutcome(False)
+        # Check motion plan
+        if motion_plan is None:
             logger.exception('Failed to generate motion plan')
+            self.store.put('/failure/plan_place_box', 'infeasible')
+            self.setOutcome(False)
+        else:
+            logger.info('Route generated')
+            self.setOutcome(True)
 
 if __name__ == '__main__':
     import argparse

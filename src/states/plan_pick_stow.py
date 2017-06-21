@@ -50,9 +50,7 @@ class PlanPickStow(State):
 
         logger.info('planning route for "{}" to stow tote'.format(item))
 
-        # T_item = xyz(*grasp['center'][0])
-        # normal = grasp['orientation'].tolist()[0]
-
+        # Compute item pose
         T_item = numpy.eye(4)
         # normal vector points along Z
         T_item[:3, 2] = normalize(grasp['orientation'])
@@ -61,38 +59,26 @@ class PlanPickStow(State):
         # position is grasp center
         T_item[:3, 3] = grasp['center']
 
-        try:
-            if self.store.get('/test/skip_planning', False):
-                motion_plan = [(1, {'robot': self.store.get('/robot/current_config')})]
-                logger.warn('skipped motion planning for testing')
-            elif gripper == 'vacuum':
-                logger.info('requesting stow motion plan')
-                planner = MotionPlanner(self.store)
-                motion_plan = planner.pickToInspect(T_item)
-            else: #mechanical
-                #TODO: develop planner for mechanical gripper
-                raise NotImplementedError('Mechanical gripper planner does not exist')
+        # Plan route
+        logger.info('planning pick route for "{}" from "{}"'.format(item, grasp['location']))
 
-            # Check motion plan
-            if motion_plan is None:
-                #TODO why did it fail? mark grasp unviable and move on
-                failed_grasps = self.store.get('/grasp/failed_grasps', [])
-                failed_grasps.append(grasp)
-                self.store.put('/grasp/failed_grasps', failed_grasps)
-                self.setOutcome(False)
-                self.store.put('failure/plan_pick_stow', 'infeasible')
-                raise RuntimeError('motion plan is empty')
-            else:
-                milestone_map = [m.get_milestone() for m in motion_plan]
-                self.store.put('/robot/waypoints', milestone_map)
-                self.store.put('/robot/timestamp', time())
-                self.setOutcome(True)
-                logger.info('Route generated')
+        if gripper == 'vacuum':
+            planner = MotionPlanner(store=self.store)
+            motion_plan = planner.pickToInspect(T_item)
+        else: #mechanical
+            #TODO: develop planner for mechanical gripper
+            raise NotImplementedError('Mechanical gripper planner does not exist')
 
-        except Exception:
+        # Check motion plan
+        if motion_plan is None:
+            failed_grasps = self.store.get('/grasp/failed_grasps', []) + [grasp]
+            self.store.put('/grasp/failed_grasps', failed_grasps)
+            self.store.put('failure/plan_pick_shelf', 'infeasible')
             self.setOutcome(False)
             logger.exception('Failed to generate motion plan')
-            #TODO why did it fail?
+        else:
+            logger.info('Route generated')
+            self.setOutcome(True)
 
 if __name__ == '__main__':
     import argparse
