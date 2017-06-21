@@ -91,6 +91,7 @@ class EvaluateVacuumGraspBase(State):
                 grasp['orientation'] = rotate(bounds_pose, grasp['orientation'][:3])
                 grasp['index'] = i
                 grasp['location'] = location
+                grasp['camera'] = camera
 
             # store result
             self.store.put(photo_url + ['vacuum_grasps'], grasps)
