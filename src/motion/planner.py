@@ -4,12 +4,12 @@ from master.world import build_world, xyz, rpy, numpy2klampt, klampt2numpy
 from motion.milestone import Milestone
 
 from klampt.model import ik
-from klampt.math import se3, vectorops as vops
+from klampt.math import so3, se3, vectorops as vops
 from klampt.model.collide import WorldCollider
 # from klampt.plan.robotcspace import RobotCSpace
 
 from time import time
-from math import pi, atan2, sqrt, ceil, radians
+from math import pi, atan2, acos, sqrt, ceil, radians
 import numpy as np
 import logging
 
@@ -24,7 +24,6 @@ class CollisionError(Exception):
     pass
 class JointLimitError(Exception):
     pass
-
 
 class MotionPlanner:
     """
@@ -41,8 +40,8 @@ class MotionPlanner:
         self.world = build_world(self.store)
         self.cspace = CSpace(self.world)
         self.se3space = SE3Space(self.world)
-        self.joint_planner = JointPlanner(self.cspace, store=self.store, profile='cubic', freq=20)
-        self.task_planner = TaskPlanner(self.se3space, store=self.store, profile='cubic', freq=20)
+        self.joint_planner = JointPlanner(self.cspace, store=self.store, profile='quintic', freq=20)
+        self.task_planner = TaskPlanner(self.se3space, store=self.store, profile='quintic', freq=20)
         self.plan = MotionPlan(self.cspace, store=self.store)
 
     def setVacuum(self, value):
@@ -51,9 +50,6 @@ class MotionPlanner:
 
     def put(self):
         self.plan.put()
-
-    def putFeasible(self):
-        self.plan.putFeasible()
 
     def toTransform(self, T_ee):
         milestones = self.planToTransform(T_ee, space='joint', solvers=['local', 'global'])
@@ -64,30 +60,63 @@ class MotionPlanner:
         self.put()
         return self.plan.milestones
 
-    def pickToInspect(self, T_item, delay=1):
+    def pickToInspect(self, T_item, approachDistance=0.1, delay=1):
         # TODO: T_item needs rotation
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
         self.store.put('vantage/pick', klampt2numpy(T_item))
+
+        # Check current config
+        q0 = self.store.get('robot/current_config')
+        if not self.cspace.feasible(q0):
+            logger.error('Current configuration is infeasible')
+            return None
 
         # Move over item
         logger.debug('Moving over item')
         self.setVacuum(False)
         R_item, t_item = T_item
         T_over_item = self._getTransformAbovePosition(t_item)
+        approach = vops.add([0,0,approachDistance], self.ee_local)
+        T_normal = self._getTransformNormal(T_item, approach)
+        # T_over_item = T_normal[0], T_over_item[1]
         self.store.put('vantage/pick_above', klampt2numpy(T_over_item))
-        milestones = self.planToTransform(T_over_item, space='joint', solvers=['local', 'global'])
+        milestones = self.planToTransform(T_over_item, q0=q0, space='joint', solvers=['local', 'global'])
         if milestones is None:
             return None
         else:
             self.plan.addMilestones(milestones)
 
+        # Move to item normal
+        logger.debug('Moving to item normal')
+        q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+        # approach = vops.add([0,0,approachDistance], self.ee_local)
+        # T_normal = self._getTransformNormal(T_item, approach)
+        self.store.put('vantage/item_normal', klampt2numpy(T_normal))
+        milestones = self.planToTransform(T_normal, q0=q0, space='joint', solvers=['local', 'global'])
+        if milestones is None:
+            return None
+        else:
+            self.plan.addMilestones(milestones)
+
+        # # Approach
+        # logger.debug('Lowering end effector')
+        # self.setVacuum(True)
+        # q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+        # T_item = T_hover[0], se3.apply(T_hover, [-t for t in t_hover])
+        # milestones = self.planToTransform(T_item, q0=q0, space='task', solvers=['nearby', 'local'])
+        # if milestones is None:
+        #     return None
+        # else:
+        #     self.plan.addMilestones(milestones)
+
         # Lower ee
         logger.debug('Lowering end effector')
         self.setVacuum(True)
         q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        T_item = T_over_item[0], vops.add(t_item, self.ee_local)
-        milestones = self.planToTransform(T_item, q0=q0, space='task', solvers=['nearby', 'local'])
+        T_item_ee = T_normal[0], se3.apply(T_item, self.ee_local) #T_item[1] #vops.add(t_item, self.ee_local)
+        self.store.put('vantage/ee_item', klampt2numpy(T_item_ee))
+        milestones = self.planToTransform(T_item_ee, q0=q0, space='task', solvers=['nearby', 'local'])
         if milestones is None:
             return None
         else:
@@ -97,6 +126,18 @@ class MotionPlanner:
         logger.debug('Picking')
         q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
         self.plan.addMilestone(Milestone(t=delay, robot=q0, vacuum=[1]))
+
+        # Move to item normal
+        logger.debug('Moving back to item normal')
+        q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+        # approach = vops.add([0,0,approachDistance], self.ee_local)
+        # T_normal = self._getTransformNormal(T_item, approach)
+        self.store.put('vantage/item_normal', klampt2numpy(T_normal))
+        milestones = self.planToTransform(T_normal, q0=q0, space='joint', solvers=['local', 'global'])
+        if milestones is None:
+            return None
+        else:
+            self.plan.addMilestones(milestones)
 
         # Raise ee
         logger.debug('Raising end effector')
@@ -123,6 +164,12 @@ class MotionPlanner:
         if isinstance(T_drop, np.ndarray):
             T_drop = numpy2klampt(T_drop)
         self.store.put('vantage/place', klampt2numpy(T_drop))
+
+        # Check current config
+        q0 = self.store.get('robot/current_config')
+        if not self.cspace.feasible(q0):
+            logger.error('Current configuration is infeasible')
+            return None
 
         # Move over item
         logger.debug('Moving over item')
@@ -192,11 +239,12 @@ class MotionPlanner:
                         'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i+1]))
 
         # Check feasibility
-        if plan.feasible():
-            logger.debug('Created {} milestones'.format(len(plan.milestones)))
-            return plan.milestones
-        else:
-            return None
+        # if plan.feasible():
+        #     logger.debug('Created {} milestones'.format(len(plan.milestones)))
+        #     return plan.milestones
+        # else:
+        #     return None
+        return plan.milestones
 
     def planToConfig(self, q, via=[], q0=None, space='joint', solvers=['local']):
         # Choose planner
@@ -227,24 +275,38 @@ class MotionPlanner:
                     logger.warning(
                         'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i+1]))
         # Check feasibility
-        if plan.feasible():
-            logger.debug('Created {} milestones'.format(len(plan.milestones)))
-            return plan.milestones
-        else:
-            return None
+        # if plan.feasible():
+        #     logger.debug('Created {} milestones'.format(len(plan.milestones)))
+        #     return plan.milestones
+        # else:
+        #     return None
+        return plan.milestones
+
 
     def _getTransformAbovePosition(self, t):
         t_over = t[0:2] + [self.z_movement]
         Rz = atan2(t_over[1], t_over[0]) - pi
         return numpy2klampt(xyz(*t_over) * rpy(pi,0,0) * rpy(0,0,-Rz))
 
-    def _getTransformNormal(self, T):
-        pass
-        # R,t = T
-        # Rz = atan2(t[1], t[0]) - pi
-        # # Rx = atan2(N[2], N[1])
-        # # Ry = atan2()
-        # return numpy2klampt(xyz(*t) * rpy(pi,0,0) * rpy(0,0,-Rz) * rpy(Rx,0,0))
+    def _getTransformNormal(self, T, offset=[0,0,0.1]):
+        R,t = T
+        T_ee = self._getTransformAbovePosition(t)
+        R_ee, t_ee = T_ee
+        z_axis = vops.sub(se3.apply(T, [0,0,1]), t)
+        z_axis_ee = vops.sub(se3.apply(T_ee, [0,0,1]), t_ee)
+        Rf = so3.vector_rotation(z_axis_ee, z_axis)
+        # Tf = [Rf, t]
+        p = se3.apply(T, offset)
+        Tf = [Rf, p]
+        return Tf
+        # return se3.mul(Tf, T_ee)
+        # axis = vops.cross(z_axis, z_axis_ee)
+        # angle = acos(vops.dot(z_axis, z_axis_ee) / (vops.norm(z_axis) * vops.norm(z_axis_ee)))
+        # R = so3.from_axis_angle((axis, angle))
+        # T_final = [R, [0]*3]
+        # return se3.mul(T_ee, T_final)
+        # return se3.mul(T_final, T_ee)
+
 
 class LowLevelPlanner(object):
     """
@@ -419,6 +481,7 @@ class MotionPlan:
 
     def reset(self):
         self.milestones = []
+        # self.failed_milestones = []
 
     def feasible(self):
         for milestone in self.milestones:
@@ -426,37 +489,47 @@ class MotionPlan:
                 return False
         return True
 
-    def addMilestone(self, milestone):
-        self.milestones.append(milestone)
-        self.cspace.robot.setConfig(milestone.get_robot())
+    def getFeasibleMilestones(self):
+        feasible_milestones = []
+        for milestone in self.milestones:
+            if self.cspace.feasible(milestone.get_robot()):
+                feasible_milestones.append(milestone)
+            else:
+                break
+        return feasible_milestones
 
-    def addMilestones(self, milestones):
-        if len(milestones) != 0:
+    def addMilestone(self, milestone, strict=False):
+        if milestone is not None:
+            self.milestones.append(milestone)
+        # if strict:
+        #     if self.cspace.feasible(milestone.get_robot()):
+        #         self.milestones.append(milestone)
+        #         self.cspace.robot.setConfig(milestone.get_robot())
+        # else:
+        #     self.milestones.append(milestone)
+
+    def addMilestones(self, milestones, strict=False):
+        if milestones is not None and len(milestones) != 0:
             self.milestones += milestones
             self.cspace.robot.setConfig(milestones[-1].get_robot())
 
-    def putFeasible(self):
-        milestoneMap = []
-        for m in self.milestones:
-            if self.cspace.feasible(m.get_robot()):
-                milestoneMap.append(m.get_milestone())
-            else:
-                break
-        self.store.put('/robot/waypoints', milestoneMap)
-
     def put(self, feasible=None):
-        # Convert milestone to dictionary
+        # Check feasibility
         if feasible is None:
             feasible = self.feasible()
+
+        # Update database
         if feasible:
+            logger.info('Feasible path found')
             milestoneMap = [m.get_milestone() for m in self.milestones]
+            self.store.put('/robot/waypoints', milestoneMap)
+            self.store.put('/robot/timestamp', time())
         else:
             logger.error('Failed to find feasible path')
-            milestoneMap = []
-        # Update database
-        self.store.put('/robot/waypoints', milestoneMap)
-        self.store.put('/robot/timestamp', time())
-        self.store.put('/status/route_plan', feasible)
+            milestoneMap = [m.get_milestone() for m in self.getFeasibleMilestones()]
+            self.store.put('/debug/waypoints', milestoneMap)
+            self.store.put('/debug/timestamp', time())
+        # self.store.put('/status/route_plan', feasible)
 
 
 class CSpace:
