@@ -14,7 +14,7 @@ class PlanViewLocation(State):
         - /robot/waypoints: list of milestones
         - /robot/timestamp: time of route generation
         - /status/route_plan: boolean of motion plan's success
-        - /failure/plan_pick_shelf: failure string
+        - /failure/plan_pick_item: failure string
     Failure Cases:
         - infeasible: /vantage/<target_location> is not a feasible pose
     Dependencies
@@ -35,10 +35,12 @@ class PlanViewLocation(State):
         # Plan route
         p = MotionPlanner(store=self.store)
         p.toTransform(vantage_T)
-        success = self.store.get('status/route_plan')
-        if not success:
+        motion_plan = self.store.get('robot/waypoints')
+        if motion_plan is not None:
+            self.setOutcome(True)
+        else:
             self.store.put('failure/plan_view_location', 'infeasible')
-        self.setOutcome(success)
+            self.setOutcome(False)
 
     def setLoc(self, myname):
         if len(myname) == 4:

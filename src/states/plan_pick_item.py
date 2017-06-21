@@ -10,22 +10,21 @@ from math import pi
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class PlanPickStow(State):
+class PlanPickItem(State):
     """
     Input:
         - /robot/selected_item: name of item to be picked
         - /robot/target_grasp: dictionary containing item's grasp information
-        - /robot/<selected_item>/location: location of item (NOTE: needed? sanity check only)
         - /robot/active_gripper: name of gripper to be used (vacuum or mechanical) (NOTE: not yet used)
     Output:
         - /robot/target_bounding_box: bounding box of target item (NOTE: not used?)
         - /robot/waypoints: list of milestones
         - /robot/timestamp: time of route generation
-        - /failure/plan_pick_shelf: failure string
+        - /failure/plan_pick_item: failure string
     Failure Cases:
         - infeasible: /robot/target_grasp is not a feasible grasp
     Dependencies:
-        - selected_item
+        - select_item
     """
 
     def run(self):
@@ -42,13 +41,6 @@ class PlanPickStow(State):
             raise RuntimeError('/robot/target_grasp is none')
         elif gripper not in ['vacuum', 'mechanical']:
             raise RuntimeError('/robot/active_gripper is not unrecognized: "{}"'.format(gripper))
-
-        # Get item location (must be stow tote)
-        location = self.store.get(['item', item, 'location'])
-        if location not in ['stow_tote', 'stow tote']:
-            raise RuntimeError('/item/{}/location is not recognized: "{}"'.format(item, location))
-
-        logger.info('planning route for "{}" to stow tote'.format(item))
 
         # Compute item pose
         T_item = numpy.eye(4)
@@ -73,7 +65,7 @@ class PlanPickStow(State):
         if motion_plan is None:
             failed_grasps = self.store.get('/grasp/failed_grasps', []) + [grasp]
             self.store.put('/grasp/failed_grasps', failed_grasps)
-            self.store.put('failure/plan_pick_shelf', 'infeasible')
+            self.store.put('failure/plan_pick_item', 'infeasible')
             self.setOutcome(False)
             logger.exception('Failed to generate motion plan')
         else:
@@ -85,5 +77,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'psg')
-    PlanPickStow(myname).run()
+    myname = (args.name or 'ppi')
+    PlanPickItem(myname).run()

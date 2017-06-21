@@ -1,7 +1,7 @@
 from master.fsm import StateMachine
 from states.select_item import SelectItem
 from states.find_item import FindItem
-from states.plan_pick_shelf import PlanPickShelf
+from states.plan_pick_item import PlanPickItem
 from states.plan_place_box import PlanPlaceBox
 from states.exec_route import ExecRoute
 from states.check_item import CheckItem
@@ -32,7 +32,7 @@ class PickStateMachine(StateMachine):
         self.add('cpx', CapturePhotoBox('cpx', store=self.store))
         self.add('cpi', CapturePhotoInspect('cpi', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
-        self.add('ppi', PlanPickShelf('ppi', store=self.store))
+        self.add('ppi', PlanPickItem('ppi', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
         self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('er1', ExecRoute('er1', store=self.store))
