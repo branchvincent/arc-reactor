@@ -10,6 +10,8 @@ from PyQt4.QtGui import QMainWindow, QLabel, QPushButton
 from master.world import build_world, rpy, numpy2klampt
 from master.vis import PointCloud
 
+from states.common.capture_photo import NoViewingCameraError
+
 from util.math_helpers import normalize, rotate
 
 from .ui.grasp import Ui_GraspWindow
@@ -22,7 +24,7 @@ def _call(target, *args, **kwargs):
     return _cb
 
 class WorldViewer(GLRealtimeProgram):
-    def __init__(self, store, photo_url):
+    def __init__(self, store, photo_urls):
         GLRealtimeProgram.__init__(self, 'Grasp Checkpoint')
 
         self.world = build_world(store)
@@ -30,27 +32,43 @@ class WorldViewer(GLRealtimeProgram):
         self.fps = 30.0
         self.dt = 1 / self.fps
 
-        self.select_grasp_index = store.get('/robot/target_grasp', {'index': None}).get('index', None)
-        self.show_grasp_index = self.select_grasp_index
+        self.pcs = []
+        for photo_url in photo_urls:
+            point_cloud = store.get(photo_url + ['point_cloud_segmented'])
+            camera_pose = store.get(photo_url + ['pose'])
+            labeled_image = store.get(photo_url + ['labeled_image'])
+            full_color = store.get(photo_url + ['full_color'])
 
-        point_cloud = store.get(photo_url + ['point_cloud_segmented'])
-        camera_pose = store.get(photo_url + ['pose'])
-        labeled_image = store.get(photo_url + ['labeled_image'])
-        full_color = store.get(photo_url + ['full_color'])
+            mask = labeled_image > 0
 
-        mask = labeled_image > 0
+            pc = PointCloud()
+            pc.update(point_cloud[mask], full_color[mask], camera_pose)
+            self.pcs.append(pc)
 
-        self.pc = PointCloud()
-        self.pc.update(point_cloud[mask], full_color[mask], camera_pose)
+        self.grasps = []
+        for photo_url in photo_urls:
+            self.grasps.extend(store.get(photo_url + ['vacuum_grasps']))
 
-        self.grasps = store.get(photo_url + ['vacuum_grasps'])
+        target_grasp = store.get('/robot/target_grasp', {})
+        for (i, grasp) in enumerate(self.grasps):
+            try:
+                if all([grasp[x] == target_grasp[x] for x in ['location', 'camera', 'index']]):
+                    self.selected_grasp_index = i
+                    break
+            except KeyError:
+                continue
+        else:
+            self.selected_grasp_index = None
+
+        self.show_grasp_index = self.selected_grasp_index
 
         self.view.camera.rot = [0, pi/4, pi/2 + pi/4]
 
     def display(self):
         self.world.drawGL()
 
-        self.pc.draw()
+        for pc in self.pcs:
+            pc.draw()
 
         for (i, grasp) in enumerate(self.grasps):
             pose = numpy.eye(4)
@@ -78,41 +96,45 @@ class WorldViewerWindow(QMainWindow):
         super(WorldViewerWindow, self).__init__()
 
         self.store = store
+        self.grasps = []
+        self.photo_urls = []
 
-        location = self.store.get('/robot/target_location')
-        available_cameras = self.store.get(['system', 'viewpoints', location], [])
+        locations = self.store.get('/robot/target_locations', [])
+        for location in locations:
+            available_cameras = self.store.get(['system', 'viewpoints', location], [])
 
-        # use end-effector camera for bins and fixed cameras otherwise
-        if 'tcp' in available_cameras:
-            if 'bin' in location:
-                available_cameras = ['tcp']
-            else:
-                available_cameras.remove('tcp')
+            # use end-effector camera for bins and fixed cameras otherwise
+            if 'tcp' in available_cameras:
+                if 'bin' in location:
+                    available_cameras = ['tcp']
+                else:
+                    available_cameras.remove('tcp')
 
-        if not available_cameras:
-            raise RuntimeError('no camera available for {}'.format(location))
+            if not available_cameras:
+                raise NoViewingCameraError('no camera available for location {}'.format(location))
 
-        # TODO: choose camera a better way
-        camera = available_cameras[0]
-        self.photo_url = ['photos', location, camera]
-
-        self.grasps = self.store.get(self.photo_url + ['vacuum_grasps'])
+            for camera in available_cameras:
+                photo_url = ['photos', location, camera]
+                self.photo_urls.append(photo_url)
+                self.grasps.extend(self.store.get(photo_url + ['vacuum_grasps']))
 
         self.ui = Ui_GraspWindow()
         self.ui.setupUi(self)
 
-        self.program = WorldViewer(self.store, self.photo_url)
+        self.program = WorldViewer(self.store, self.photo_urls)
         self.ui.view.setProgram(self.program)
         self.setWindowTitle(self.program.name)
         self.ui.view.setMaximumSize(1920, 1080)
 
         self.select_buttons = []
 
-        for (i, grasp) in enumerate(store.get(self.photo_url + ['vacuum_grasps'])):
-            label = QLabel('{0} {2}: ({1[0]:.3f}, {1[1]:.3f} {1[2]:.3f})'.format(
-                i,
-                list(grasp['center'].flat),
-                grasp['score']
+        for (i, grasp) in enumerate(self.grasps):
+            label = QLabel('{0}-{1}-{2} {3:.2f}: ({4[0]:.3f}, {4[1]:.3f} {4[2]:.3f})'.format(
+                grasp.get('location', '?'),
+                grasp.get('camera', '?'),
+                grasp.get('index', '?'),
+                grasp['score'],
+                list(grasp['center'].flat)
             ))
             self.ui.grasp_panel_layout.addWidget(label, i, 0, 1, 1)
 
@@ -144,7 +166,7 @@ class WorldViewerWindow(QMainWindow):
             elif grasp.get('good') == False:
                 bad_button.setChecked(True)
 
-        self.select_grasp(self.program.select_grasp_index)
+        self.select_grasp(self.program.selected_grasp_index)
 
     def set_show(self, index, force=False):
         if not force and self.program.show_grasp_index == index:
@@ -161,9 +183,14 @@ class WorldViewerWindow(QMainWindow):
             else:
                 button.setStyleSheet('')
 
-        if self.program.select_grasp_index != index:
-            self.store.put('/robot/target_grasp', self.grasps[index])
-            logger.info('set target grasp to {}'.format(index))
+        if index is not None:
+            target_grasp = self.grasps[index]
+            self.store.put('/robot/target_grasp', target_grasp)
+            logger.info('set target grasp to {}-{}-{}'.format(
+                target_grasp.get('location', '?'),
+                target_grasp.get('camera', '?'),
+                target_grasp.get('index', '?')
+            ))
 
         self.set_show(index, force=True)
 
@@ -171,10 +198,21 @@ class WorldViewerWindow(QMainWindow):
         good_button.setChecked(good)
         bad_button.setChecked(not good)
 
-        if self.grasps[index].get('good') != good:
-            self.grasps[index]['good'] = good
-            self.store.put(self.photo_url + ['vacuum_grasps'], self.grasps)
-            logger.info('marked grasp {} as {}'.format(index, 'good' if good else 'bad'))
+        eval_grasp = self.grasps[index]
+
+        if eval_grasp.get('good') != good:
+            eval_grasp['good'] = good
+
+            if all([x in eval_grasp for x in ['location', 'camera', 'index']]):
+                grasps = self.store.get(['photos', eval_grasp['location'], eval_grasp['camera'], 'vacuum_grasps'])
+                grasps[eval_grasp['index']]['good'] = good
+                self.store.put(['photos', eval_grasp['location'], eval_grasp['camera'], 'vacuum_grasps'], grasps)
+                logger.info('marked grasp {}-{}-{} as {}'.format(
+                    eval_grasp.get('location', '?'),
+                    eval_grasp.get('camera', '?'),
+                    eval_grasp.get('index', '?'),
+                    'good' if good else 'bad'
+                ))
 
 def run(modal=True, store=None):
     from pensive.client import PensiveClient
