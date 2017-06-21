@@ -435,7 +435,7 @@ class TaskPlanner(LowLevelPlanner):
     def reset(self, se3space):
         self.space = se3space
         self.ee_link = self.robot.link(self.robot.numLinks() - 1)
-        self.vmax = 0.2
+        self.vmax = 0.15
 
     def planToTransform(self, T, q0=None, solver='local', eps=None):
         if isinstance(T, np.ndarray):
