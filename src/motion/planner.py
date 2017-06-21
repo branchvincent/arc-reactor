@@ -179,9 +179,9 @@ class MotionPlanner:
             for i, solver in enumerate(solvers):
                 milestones = planner.planToTransform(Ti, q0=q0, solver=solver)
                 # Update milestones, if found
-                if milestones:
+                if milestones is not None:
                     plan.addMilestones(milestones)
-                    q0 = milestones[-1].get_robot()
+                    q0 = milestones[-1].get_robot() if len(plan.milestones) != 0 else q0
                     break
                 # Return, if all solvers failed
                 elif i == len(solvers) - 1:
@@ -214,9 +214,9 @@ class MotionPlanner:
             for i, solver in enumerate(solvers):
                 milestones = planner.planToConfig(qi, q0=q0, solver=solver)
                 # Update milestones, if found
-                if milestones:
+                if milestones is not None:
                     plan.addMilestones(milestones)
-                    q0 = milestones[-1].get_robot()
+                    q0 = milestones[-1].get_robot() if len(plan.milestones) != 0 else q0
                     break
                 # Exit, if all solvers failed
                 elif i == len(solvers) - 1:
