@@ -1,7 +1,5 @@
 from master.fsm import StateMachine
-from states.find_all import FindAll
 from states.select_item import SelectItem
-from states.find_item import FindItem
 from states.plan_stow_grab import PlanStowGrab
 from states.plan_place_shelf import PlanPlaceShelf
 from states.exec_route import ExecRoute
@@ -14,7 +12,8 @@ from states.capture_photo_inspect import CapturePhotoInspect
 from states.capture_photo_bin import CapturePhotoBin
 from states.segment_photo import SegmentPhoto
 from states.recognize_photo import RecognizePhoto
-from states.evaluate_grasp import EvaluateGrasp
+from states.evaluate_vacuum_grasp_stow import EvaluateVacuumGraspStow
+from states.evaluate_pinch_grasp_stow import EvaluatePinchGraspStow
 from states.evaluate_placement import EvaluatePlacement
 from states.read_scales import ReadScales
 from states.inspect_item import InspectItem
@@ -22,7 +21,6 @@ from states.inspect_item import InspectItem
 class StowStateMachine(StateMachine):
 
     def loadStates(self):
-        #self.add('fa', FindAll('fa', store=self.store))
         self.add('cps', CapturePhotoStow('cps', store=self.store))
         self.add('cpi', CapturePhotoInspect('cpi', store=self.store))
         self.add('cpb', CapturePhotoBin('cpb', store=self.store))
@@ -33,9 +31,9 @@ class StowStateMachine(StateMachine):
         self.add('rp2', RecognizePhoto('rp2', store=self.store))
         self.add('rp3', RecognizePhoto('rp3', store=self.store))
         self.add('ii', InspectItem('ii', store=self.store))
-        self.add('eg', EvaluateGrasp('eg', store=self.store))
+        self.add('egvs', EvaluateVacuumGraspStow('egvs', store=self.store))
+        self.add('egps', EvaluatePinchGraspStow('egps', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
-        #self.add('fi', FindItem('fi', store=self.store))
         self.add('psg', PlanStowGrab('psg', store=self.store))
         self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('pps', PlanPlaceShelf('pps', store=self.store))
@@ -55,14 +53,14 @@ class StowStateMachine(StateMachine):
         return 'cps'
 
     def setupOther(self):
-        self.store.put('/robot/target_location', 'stow_tote')
+        self.store.put('/robot/target_view_location', 'stow_tote')
 
     def setupTransitions(self):
         self.setTransition('cps', 'sp1', 'sp1') #TODO need failure for cameras
         self.setTransition('sp1', 'rp1', 'rp1') #TODO make handler for these failed states (hardware)
-        self.setTransition('rp1', 'eg', 'eg')
+        self.setTransition('rp1', 'egvs', 'egvs')
 
-        self.setTransition('eg', 'si', 'cps') # If eval grasp fails, re-take photo
+        self.setTransition('egvs', 'si', 'cps') # If eval grasp fails, re-take photo
         self.setTransition('si', 'psg', 'si', checkState='csi') #si should never fail..
         self.setTransition('csi', 'psg', 'si')
         self.setTransition('psg', 'er1', 'si', checkState='cr1') #if plan fails, redo SI and mark failure

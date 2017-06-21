@@ -13,7 +13,8 @@ from states.capture_photo_box import CapturePhotoBox
 from states.capture_photo_inspect import CapturePhotoInspect
 from states.segment_photo import SegmentPhoto
 from states.recognize_photo import RecognizePhoto
-from states.evaluate_grasp import EvaluateGrasp
+from states.evaluate_vacuum_grasp_pick import EvaluateVacuumGraspPick
+from states.evaluate_pinch_grasp_pick import EvaluatePinchGraspPick
 from states.evaluate_placement import EvaluatePlacement
 from states.read_scales import ReadScales
 from states.inspect_item import InspectItem
@@ -34,7 +35,6 @@ class PickStateMachine(StateMachine):
         self.add('si', SelectItem('si', store=self.store))
         self.add('ppi', PlanPickItem('ppi', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
-        self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('er1', ExecRoute('er1', store=self.store))
         self.add('ppb', PlanPlaceBox('ppb', store=self.store))
         self.add('er2', ExecRoute('er2', store=self.store))
@@ -54,7 +54,8 @@ class PickStateMachine(StateMachine):
         self.add('rp1', RecognizePhoto('rp1', store=self.store))
         self.add('rp2', RecognizePhoto('rp2', store=self.store))
         self.add('rp3', RecognizePhoto('rp3', store=self.store))
-        self.add('eg', EvaluateGrasp('eg', store=self.store))
+        self.add('egvp', EvaluateVacuumGraspPick('egvp', store=self.store))
+        self.add('egpp', EvaluatePinchGraspPick('egpp', store=self.store))
         self.add('ii', InspectItem('ii', store=self.store))
         self.add('rs2', ReadScales('rs2', store=self.store))
         self.add('rs1', ReadScales('rs1', store=self.store))
@@ -86,8 +87,8 @@ class PickStateMachine(StateMachine):
 
         #then loop to updated pvlXXX and capture
         self.setTransition('sp1', 'rp1', 'sp1')
-        self.setTransition('rp1', 'eg', 'rp1')
-        self.setTransition('eg', 'si', 'cpbc') #if eval grasp fails, try to take another photo
+        self.setTransition('rp1', 'egvp', 'rp1')
+        self.setTransition('egvp', 'si', 'cpbc') #if eval grasp fails, try to take another photo
 
         self.setTransition('si', 'ppi', 'pvla', checkState='csi')
         self.setTransition('csi', 'ppi', 'si')

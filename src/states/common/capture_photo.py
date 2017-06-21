@@ -76,5 +76,5 @@ class CapturePhotoBase(State):
         self.store.put('/robot/target_photos', prior_photo_urls + photo_urls)
 
         # set up up target locations
-        self.store.put('/robot/target_location', locations[-1])
+        #self.store.put('/robot/target_location', locations[-1])
         self.store.put('/robot/target_locations', locations)

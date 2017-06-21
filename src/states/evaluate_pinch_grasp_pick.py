@@ -1,9 +1,9 @@
 import logging
 
-from .common.evaluate_vacuum_grasp import EvaluateVacuumGraspBase
+from .common.evaluate_pinch_grasp import EvaluatePinchGraspBase
 
 
-class EvaluateVacuumGraspShelf(EvaluateVacuumGraspBase):
+class EvaluatePinchGraspPick(EvaluatePinchGraspBase):
     '''
     Inputs:
      - /photos/binA/tcp/*
@@ -13,10 +13,10 @@ class EvaluateVacuumGraspShelf(EvaluateVacuumGraspBase):
      - /photos/<bin>/tcp/point_cloud_segmented
 
     Outputs:
-     - /photos/binA/tcp/vacuum_grasps
-     - /photos/binB/tcp/vacuum_grasps
-     - /photos/binC/tcp/vacuum_grasps
-     - /robot/target_photo_url set to /photos/binC/tcp/vacuum_grasps (HACK?)
+     - /photos/binA/tcp/pinch_grasps
+     - /photos/binB/tcp/pinch_grasps
+     - /photos/binC/tcp/pinch_grasps
+     - /robot/target_photo_url set to /photos/binC/tcp/pinch_grasps (HACK?)
 
     Failures:
      - NoViewingCameraError: end-effector camera not configured to view bins
@@ -36,5 +36,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'eg')
-    EvaluateVacuumGraspShelf(myname).run()
+    myname = (args.name or 'egpp')
+    EvaluatePinchGraspPick(myname).run()

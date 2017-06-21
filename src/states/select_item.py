@@ -77,7 +77,7 @@ class SelectItem(State):
 
         elif self.alg == 'stow':
 
-            self.url = self.store.get('/robot/target_photo_url')
+            self.url = self.store.get('/robot/target_photos_url')
 
             # get graspability vector from photo-url vacuum_grasps
             #TODO expand to other grasps

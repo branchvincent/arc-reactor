@@ -9,7 +9,7 @@ class CapturePhotoBin(CapturePhotoBase):
     Takes photo from each camera viewing the target bin.
 
     Inputs:
-     - /robot/target_bin
+     - /robot/capture_bin
 
     Outputs:
      - /photos/<location>/<camera>/* for all cameras viewing location
@@ -33,13 +33,13 @@ class CapturePhotoBin(CapturePhotoBase):
     '''
 
     def run(self):
-        location = self.store.get('/robot/target_bin')
+        location = self.store.get('/robot/capture_bin')
         self._common([location])
 
     def setBin(self, myname):
         if len(myname) == 4:
             print "Taking photo of ", 'bin'+myname[-1].upper()
-            self.store.put('/robot/target_bin', 'bin'+myname[-1].upper())
+            self.store.put('/robot/capture_bin', 'bin'+myname[-1].upper())
 
     def checkInput(self):
         input = self.store.get('/myinput/', False)
