@@ -19,12 +19,12 @@ from .ui.grasp import Ui_GraspWindow
 logger = logging.getLogger(__name__)
 
 def _call(target, *args, **kwargs):
-    def _cb():
+    def _cb(*args2, **kwargs2):
         return target(*args, **kwargs)
     return _cb
 
 class WorldViewer(GLRealtimeProgram):
-    def __init__(self, store, photo_urls):
+    def __init__(self, store, photo_urls, grasps):
         GLRealtimeProgram.__init__(self, 'Grasp Checkpoint')
 
         self.world = build_world(store)
@@ -45,9 +45,7 @@ class WorldViewer(GLRealtimeProgram):
             pc.update(point_cloud[mask], full_color[mask], camera_pose)
             self.pcs.append(pc)
 
-        self.grasps = []
-        for photo_url in photo_urls:
-            self.grasps.extend(store.get(photo_url + ['vacuum_grasps']))
+        self.grasps = grasps
 
         target_grasp = store.get('/robot/target_grasp', {})
         for (i, grasp) in enumerate(self.grasps):
@@ -79,7 +77,8 @@ class WorldViewer(GLRealtimeProgram):
             # position is grasp center
             pose[:3, 3] = grasp['center']
 
-            scale = 1 if i == self.show_grasp_index else 0.5
+            show = self.show_grasp_index or self.selected_grasp_index
+            scale = 1 if i == show else 0.5
             gldraw.xform_widget(numpy2klampt(pose), 0.1 * scale, 0.01 * scale, fancy=True)
 
     def idle(self):
@@ -118,61 +117,86 @@ class WorldViewerWindow(QMainWindow):
                 self.photo_urls.append(photo_url)
                 self.grasps.extend(self.store.get(photo_url + ['vacuum_grasps']))
 
+        self.grasps.sort(key=lambda g: -g['score'])
+
         self.ui = Ui_GraspWindow()
         self.ui.setupUi(self)
 
-        self.program = WorldViewer(self.store, self.photo_urls)
+        self.program = WorldViewer(self.store, self.photo_urls, self.grasps)
         self.ui.view.setProgram(self.program)
         self.setWindowTitle(self.program.name)
         self.ui.view.setMaximumSize(1920, 1080)
+        self.ui.view.enterEvent = _call(self.set_show, None)
 
         self.select_buttons = []
+        self.name_labels = []
 
         for (i, grasp) in enumerate(self.grasps):
-            label = QLabel('{0}-{1}-{2} {3:.2f}: ({4[0]:.3f}, {4[1]:.3f} {4[2]:.3f})'.format(
+            c = 0
+            widgets = []
+
+            label = QLabel('{0}-{1}-{2}'.format(
                 grasp.get('location', '?'),
                 grasp.get('camera', '?'),
                 grasp.get('index', '?'),
-                grasp['score'],
-                list(grasp['center'].flat)
             ))
-            self.ui.grasp_panel_layout.addWidget(label, i, 0, 1, 1)
+            widgets.append(label)
+            self.name_labels.append(label)
+            c += 1
 
-            show_button = QPushButton('Show')
-            show_button.clicked.connect(_call(self.set_show, i))
-            self.ui.grasp_panel_layout.addWidget(show_button, i, 1, 1, 1)
+            label = QLabel('{:.2f}'.format(grasp['score']))
+            label.setStyleSheet('font-weight: bold;')
+            widgets.append(label)
+            c += 1
+
+            label = QLabel('({:.3f}, {:.3f} {:.3f})'.format(*list(grasp['center'].flat)))
+            widgets.append(label)
+            c += 1
 
             select_button = QPushButton('Select')
             select_button.setCheckable(True)
             select_button.clicked.connect(_call(self.select_grasp, i))
             self.select_buttons.append(select_button)
-            self.ui.grasp_panel_layout.addWidget(select_button, i, 2, 1, 1)
+            widgets.append(select_button)
+            c += 1
 
             good_button = QPushButton('Good')
             bad_button = QPushButton('Bad')
 
-            good_button.setStyleSheet('color: green; font-weight: bold;')
             good_button.setCheckable(True)
             good_button.clicked.connect(_call(self.set_evaluation, good_button, bad_button, i, True))
-            self.ui.grasp_panel_layout.addWidget(good_button, i, 3, 1, 1)
+            widgets.append(good_button)
+            c += 1
 
-            bad_button.setStyleSheet('color: red; font-weight: bold;')
             bad_button.setCheckable(True)
             bad_button.clicked.connect(_call(self.set_evaluation, good_button, bad_button, i, False))
-            self.ui.grasp_panel_layout.addWidget(bad_button, i, 4, 1, 1)
+            widgets.append(bad_button)
+            c += 1
 
+            good_button.setStyleSheet('color: green;')
+            bad_button.setStyleSheet('color: red;')
             if grasp.get('good') == True:
                 good_button.setChecked(True)
+                good_button.setStyleSheet('color: green; font-weight: bold')
+                bad_button.setStyleSheet('color: red;')
             elif grasp.get('good') == False:
                 bad_button.setChecked(True)
+                good_button.setStyleSheet('color: green;')
+                bad_button.setStyleSheet('color: red; font-weight: bold')
+
+            for (c, widget) in enumerate(widgets):
+                widget.enterEvent = _call(self.set_show, i)
+                self.ui.grasp_panel_layout.addWidget(widget, i, c, 1, 1)
 
         self.select_grasp(self.program.selected_grasp_index)
 
     def set_show(self, index, force=False):
-        if not force and self.program.show_grasp_index == index:
-            self.program.show_grasp_index = None
-        else:
-            self.program.show_grasp_index = index
+        self.program.show_grasp_index = index
+        for (i, label) in enumerate(self.name_labels):
+            if i == index:
+                label.setStyleSheet('background-color: yellow;')
+            else:
+                label.setStyleSheet('')
 
     def select_grasp(self, index):
         for (i, button) in enumerate(self.select_buttons):
@@ -197,6 +221,13 @@ class WorldViewerWindow(QMainWindow):
     def set_evaluation(self, good_button, bad_button, index, good):
         good_button.setChecked(good)
         bad_button.setChecked(not good)
+
+        if good:
+            good_button.setStyleSheet('color: green; font-weight: bold')
+            bad_button.setStyleSheet('color: red;')
+        else:
+            good_button.setStyleSheet('color: green;')
+            bad_button.setStyleSheet('color: red; font-weight: bold')
 
         eval_grasp = self.grasps[index]
 
