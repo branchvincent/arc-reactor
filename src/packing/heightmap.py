@@ -70,8 +70,8 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.005,max_height=0.5,pixel_le
         if height!=255:
             orders.append(order)
             z=height/255.0*max_height+item[2]
-            x=cornor_points[order][0]+index[0]*pixel_length
-            y=cornor_points[order][1]-index[1]*pixel_length
+            x=cornor_points[order][0]-index[0]*pixel_length
+            y=cornor_points[order][1]+index[1]*pixel_length
             minimum_height.append(height)
             visuals.append(visualization)
             locations.append([x,y,z])
@@ -88,11 +88,11 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.005,max_height=0.5,pixel_le
         layer_map[order]=layermap2update
 
         tool_location=get_location(location,orientation+rotate_angle,offset)
-    
+
 
         print (order, location,tool_location,orientation+rotate_angle)
         """
-        cv2.imshow("denoised",image_show)
+        cv2.imshow("denoised",image_show*3)
         k = cv2.waitKey(0)
         if k == 27:         # wait for ESC key to exit
             cv2.destroyAllWindows()
@@ -109,8 +109,8 @@ def get_location(center,angle,offset):
 
     theta=math.radians(angle)
 
-    X=center[0]+offset[0]*math.cos(theta) + offset[1]*math.sin(theta)
-    Y=center[1]-(offset[0]*math.sin(theta) - offset[1]*math.cos(theta))
+    X=center[0] - offset[0]*math.cos(theta) - offset[1]*math.sin(theta)
+    Y=center[1] + (offset[0]*math.sin(theta) + offset[1]*math.cos(theta))
     Z=center[2]+offset[2]
 
     return [X,Y,Z]
@@ -197,7 +197,7 @@ def get_object_dimension(pointcloud,pixel_length):
             box = cv2.boxPoints(rect)
             box = np.int0(box)
             cv2.drawContours(image,[box],0,(0,0,255),2)
-            
+
             try:
                 image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
                 cv2.imshow("object",image)
@@ -206,15 +206,15 @@ def get_object_dimension(pointcloud,pixel_length):
                     cv2.destroyAllWindows()
             except:
                 print center_offset
-        
+
 
 
             """
 
             return ([dimension_rect[0]*pixel_length,dimension_rect[1]*pixel_length,z_max-z_min],center_offset,-rotation_rect)
-        
+
         else:
-            
+
             center_offset=(-(x_min+x_max)/2.0,-(y_min+y_max)/2.0,z_min)
             return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
 
@@ -386,8 +386,8 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
 
     #fill in the depth map
     for point in pointcloud:
-        x=(point[0]-x_min)/length_per_pixel
-        y=(y_max-point[1])/length_per_pixel
+        x=(x_max-point[0])/length_per_pixel
+        y=(point[1]-y_min)/length_per_pixel
 
         x=int(min(max(0,x),num_pixels_X-1))
         y=int(min(max(0,y),num_pixels_Y-1))
@@ -401,7 +401,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,10,7,21)
 
-    return (depth_map,(x_min,y_max),layer_map)
+    return (depth_map,(x_max,y_min),layer_map)
 
 def detect_local_minima(arr):
     # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710
