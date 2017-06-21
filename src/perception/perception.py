@@ -335,7 +335,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         mask = np.logical_or(mask_project, mask_volume)
         
         # for bounding box debugging
-        store.put(url + 'bounds_mask', mask)
+        store.put(url + '/bounds_mask', mask)
 
         #optimized params
         seg_params.minSize = 3762.97
