@@ -16,7 +16,7 @@ class Milestone:
         self.t = t or 1
         self.robot = robot or [0]*DOF[self.type]
         self.gripper = gripper or [0]*DOF['gripper']
-        self.vacuum = [vacuum] or [0]*DOF['vacuum']     #TODO: input as array
+        self.vacuum = vacuum or [0]*DOF['vacuum']     #TODO: input as array
         # Set values from map, if applicable
         if map is not None:
             self.set_milestone(map)

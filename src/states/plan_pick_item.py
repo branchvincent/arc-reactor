@@ -1,9 +1,12 @@
+from master.fsm import State
+from master.world import xyz, rpy
+from motion.planner import MotionPlanner
+from util.math_helpers import build_pose, transform, rotate, normalize
+
 import logging
 import numpy
 from time import time
-from master.fsm import State
-from master.world import build_world
-from motion.new_planner import PickPlanner
+from math import pi
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -21,7 +24,7 @@ class PlanPickItem(State):
     Failure Cases:
         - infeasible: /robot/target_grasp is not a feasible grasp
     Dependencies:
-        - selected_item
+        - select_item
     """
 
     def run(self):
@@ -39,56 +42,35 @@ class PlanPickItem(State):
         elif gripper not in ['vacuum', 'mechanical']:
             raise RuntimeError('/robot/active_gripper is not unrecognized: "{}"'.format(gripper))
 
-        logger.info('planning route for "{}" from "{}"'.format(item, grasp['location']))
+        # Compute item pose
+        T_item = numpy.eye(4)
+        # normal vector points along Z
+        T_item[:3, 2] = normalize(grasp['orientation'])
+        T_item[:3, 0] = normalize(numpy.cross(rotate(rpy(pi / 2, 0, 0), T_item[:3, 2]), T_item[:3, 2]))
+        T_item[:3, 1] = normalize(numpy.cross(T_item[:3, 2], T_item[:3, 0]))
+        # position is grasp center
+        T_item[:3, 3] = grasp['center']
 
-        # Calculate item bounding box
-        # NOTE: single point for now
-        self.world = build_world(self.store)
-        bounding_box = [grasp['center'][0]] * 2
-        self.store.put('/robot/target_bounding_box', bounding_box)
-        logger.debug('item bounding box: {}'.format(bounding_box))
+        # Plan route
+        logger.info('planning pick route for "{}" from "{}"'.format(item, grasp['location']))
 
-        # Construct arguments for planner
-        target_item = {
-            'bbox': bounding_box,
-            'vacuum_offset': [0, 0, -0.01],
-            'drop offset': [0, 0, 0.1]
-        } #TODO make sure this info is in db, not stored locally here. why are these values selected?
+        if gripper == 'vacuum':
+            planner = MotionPlanner(store=self.store)
+            motion_plan = planner.pickToInspect(T_item)
+        else: #mechanical
+            #TODO: develop planner for mechanical gripper
+            raise NotImplementedError('Mechanical gripper planner does not exist')
 
-        # compute route
-        try:
-            if self.store.get('/test/skip_planning', False):
-                motion_plan = [(1, {'robot': self.store.get('/robot/current_config')})]
-                logger.warn('skipped motion planning for testing')
-            elif gripper == 'vacuum':
-                logger.info('requesting pick motion plan')
-                self.arguments = {'target_item': target_item}
-                logger.debug('arguments\n{}'.format(self.arguments))
-                planner = PickPlanner(self.world, self.store)
-                #assume already near item (?)
-                motion_plan = planner.pick_up(target_item)
-            else: #mechanical
-                #TODO: develop planner for mechanical gripper
-                raise NotImplementedError('Mechanical gripper planner does not exist')
-
-            # Check motion plan
-            if motion_plan is None:
-                failed_grasps = self.store.get('/grasp/failed_grasps', [])
-                failed_grasps.append(grasp)
-                self.store.put('/grasp/failed_grasps', failed_grasps)
-                self.setOutcome(False)
-                self.store.put('failure/plan_pick_item', 'infeasible')
-                raise RuntimeError('motion plan is empty')
-            else:
-                milestone_map = [m.get_milestone() for m in motion_plan]
-                self.store.put('/robot/waypoints', milestone_map)
-                self.store.put('/robot/timestamp', time())
-                self.setOutcome(True)
-                logger.info('Route generated')
-        except Exception:
+        # Check motion plan
+        if motion_plan is None:
+            failed_grasps = self.store.get('/grasp/failed_grasps', []) + [grasp]
+            self.store.put('/grasp/failed_grasps', failed_grasps)
+            self.store.put('failure/plan_pick_item', 'infeasible')
             self.setOutcome(False)
             logger.exception('Failed to generate motion plan')
-
+        else:
+            logger.info('Route generated')
+            self.setOutcome(True)
 
 if __name__ == '__main__':
     import argparse

@@ -1,6 +1,6 @@
 import logging
 from master.fsm import State
-from motion.linear_planner import LinearPlanner
+from motion.planner import MotionPlanner
 from hardware.control.robotcontroller import RobotController
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -33,12 +33,14 @@ class PlanViewLocation(State):
         self.store.put('/robot/target_pose', vantage_T)
 
         # Plan route
-        lp = LinearPlanner(store=self.store)
-        lp.interpolate(T=vantage_T, global_solve=True)
-        success = self.store.get('status/route_plan')
-        if not success:
+        p = MotionPlanner(store=self.store)
+        p.toTransform(vantage_T)
+        motion_plan = self.store.get('robot/waypoints')
+        if motion_plan is not None:
+            self.setOutcome(True)
+        else:
             self.store.put('failure/plan_view_location', 'infeasible')
-        self.setOutcome(success)
+            self.setOutcome(False)
 
     def setLoc(self, myname):
         if len(myname) == 4:

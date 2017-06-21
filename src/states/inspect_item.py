@@ -2,7 +2,7 @@ from master.fsm import State
 import logging; logger = logging.getLogger(__name__)
 
 class InspectItem(State):
-     """
+    """
     Input:
         - /robot/selected_item: selected/chosen Item we think we have
         - /photos/inspect/inspect_side/detections: likely IDs of held item
@@ -14,7 +14,7 @@ class InspectItem(State):
         - /order/[order name]/filled_items
         - /order/[order name]/number
     (stow):
-        - 
+        -
     Output:
         - /failure/inspect_item: failure string
     (pick):
@@ -29,7 +29,6 @@ class InspectItem(State):
         - item at the inspection station
     """
     def run(self):
-
         #TODO check for errors from hardware
 
         #TODO use vector calc to look at many possible items, not just 2
@@ -105,7 +104,7 @@ class InspectItem(State):
                 self.store.put('/robot/target_locations', ['boxK3'])
                 self.store.put('/robot/target_box', 'boxK3')
                 self.store.put('/robot/selected_box', 'boxK3')
-#                self.setOutcome(False)
+        #                self.setOutcome(False)
                 self.setOutcome(True)
 
 if __name__ == '__main__':
@@ -115,4 +114,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
     myname = (args.name or 'ii')
     InspectItem(myname).run()
-
