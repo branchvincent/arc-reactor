@@ -10,7 +10,7 @@ class CheckItem(State):
         - /order/[order name]/filled_items
         - /order/[order name]/number
     (stow):
-        - 
+        -
     Output:
         - /item/[item name]/location: if found, current item location
         - /robot/target_locations: array of target locations for next states (HACK?)
@@ -36,29 +36,37 @@ class CheckItem(State):
 
         alg = self.store.get('/robot/task')
         if alg=="pick":
-            self.orderUp = self.store.get('/item/'+self.chosenItem+'/order')
-            self.filled = self.store.get('/order/'+self.orderUp+'/filled_items')
-            if self.filled == None:
-                self.filled = [str(self.chosenItem)]
-            else:
-                self.filled.append(str(self.chosenItem))
-            self.store.put('/order/'+self.orderUp+'/filled_items', self.filled)
+            if(self.store.get('/item/'+self.chosenItem+'/order/') is not None):
+                self.orderUp = self.store.get('/item/'+self.chosenItem+'/order')
+                self.filled = self.store.get('/order/'+self.orderUp+'/filled_items')
+                if self.filled == None:
+                    self.filled = [str(self.chosenItem)]
+                else:
+                    self.filled.append(str(self.chosenItem))
+                self.store.put('/order/'+self.orderUp+'/filled_items', self.filled)
 
-            #update point values in the order
-            self.number = self.store.get('/order/'+self.orderUp+'/number')
-            if len(self.filled) < self.number:
-                self.notDone = self.store.get('/order/'+self.orderUp)
-                for i in self.notDone['contents']:
-                    if i not in self.filled:
-                        self.points = (20 if self.store.get('/item/'+i+'/new_item') else 10)
-                        self.points += 10/(self.number-len(self.filled))
-                        self.store.put('/item/'+i+'/point_value', self.points)
+                #TODO remove item from needed_items
 
-            #setup re-imaging of bin from which item was picked
-            self.store.put('/robot/target_location', self.store.get('/robot/selected_bin'))
-            self.store.put('/robot/target_locations', ["binA", "binB", "binC"])
-            self.store.put('/robot/target_bin', self.store.get('/robot/selected_bin'))
-            self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
+                #update point values in the order
+                self.number = self.store.get('/order/'+self.orderUp+'/number')
+                if len(self.filled) < self.number:
+                    self.notDone = self.store.get('/order/'+self.orderUp)
+                    for i in self.notDone['contents']:
+                        if i not in self.filled:
+                            self.points = (20 if self.store.get('/item/'+i+'/new_item') else 10)
+                            self.points += 10/(self.number-len(self.filled))
+                            self.store.put('/item/'+i+'/point_value', self.points)
+
+                #setup re-imaging of bin from which item was picked
+                self.store.put('/robot/target_view_location', self.store.get('/robot/selected_bin'))
+                self.store.put('/robot/target_locations', ["binA", "binB", "binC"])
+                self.store.put('/robot/target_bin', self.store.get('/robot/selected_bin'))
+                self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
+            else: #dropped in K3 but didnt want to
+                self.store.put('/robot/target_view_location', self.store.get('/robot/selected_bin'))
+                self.store.put('/robot/target_locations', ["binA", "binB", "binC"])
+                self.store.put('/robot/target_bin', self.store.get('/robot/selected_bin'))
+                self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
 
 
         elif alg=="stow":

@@ -1,6 +1,5 @@
 from master.fsm import StateMachine
 from states.select_item import SelectItem
-from states.find_item import FindItem
 from states.plan_pick_item import PlanPickItem
 from states.plan_place_box import PlanPlaceBox
 from states.exec_route import ExecRoute
@@ -44,6 +43,7 @@ class PickStateMachine(StateMachine):
         self.add('cr3', CheckRoute('cr3', store=self.store))
         self.add('cr4', CheckRoute('cr4', store=self.store))
         self.add('cr5', CheckRoute('cr5', store=self.store))
+        self.add('cr6', CheckRoute('cr6', store=self.store))
         self.add('er3', ExecRoute('er3', store=self.store))
         self.add('er4', ExecRoute('er4', store=self.store))
         self.add('er5', ExecRoute('er5', store=self.store))
@@ -114,7 +114,8 @@ class PickStateMachine(StateMachine):
         self.setTransition('rp3', 'ci', 'ci')
 
         self.setTransition('ci', 'pvl', 'ci')
-        self.setTransition('pvl', 'er6', 'pvl')
+        self.setTransition('pvl', 'er6', 'pvl', checkState='cr6')
+        self.setTransition('cr6', 'er6', 'pvl')
         self.setTransition('er6', 'cpb', 'pvl')
         self.setTransition('cpb', 'sp1', 'cpb')
 

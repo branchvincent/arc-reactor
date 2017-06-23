@@ -90,8 +90,8 @@ class InspectItem(State):
 
         elif task == 'pick':
 
-
-            if(self.itemisright): #proceeding to order box
+            if(self.itemisright and self.store.get('/item/'+self.likelyItem+'/order') is not None): #proceeding to order box
+                self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
                 self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
                 self.store.put('/robot/target_box', self.store.get('/robot/selected_box'))
                 self.setOutcome(True)
@@ -101,9 +101,9 @@ class InspectItem(State):
                 self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
                 self.setOutcome(True)
             else: # go to amnesty tote
-                self.store.put('/robot/target_locations', ['boxK3'])
-                self.store.put('/robot/target_box', 'boxK3')
-                self.store.put('/robot/selected_box', 'boxK3')
+                self.store.put('/robot/target_locations', ['box1B2'])
+                self.store.put('/robot/target_box', 'box1B2')
+                self.store.put('/robot/selected_box', 'box1B2')
         #                self.setOutcome(False)
                 self.setOutcome(True)
 
