@@ -13,7 +13,7 @@ def run():
     mark = time()
     for i in range(n):
         s.put('/tmp/test', data)
-        assert (s.get('/tmp/test') == data).all()
+        assert numpy.allclose(s.get('/tmp/test'), data)
     duration = time() - mark
     print(duration, duration / n)
 
