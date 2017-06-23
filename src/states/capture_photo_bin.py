@@ -33,7 +33,7 @@ class CapturePhotoBin(CapturePhotoBase):
     '''
 
     def run(self):
-        location = self.store.get('/robot/capture_bin')
+        location = self.store.get('/robot/target_view_location')
         self._common([location])
 
     def setBin(self, myname):
