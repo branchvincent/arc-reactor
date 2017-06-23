@@ -32,7 +32,8 @@ class EvaluatePinchGraspBase(State):
 
         if self.store.get('/debug/grasps', False):
             from util import db
-            db.dump(self.store, '/tmp/grasp-{}'.format('-'.join(locations)))
+            suffix = 'success' if self.getOutcome() else 'failure'
+            db.dump(self.store, '/tmp/grasp-{}-{}'.format('-'.join(locations), suffix))
             logger.info('database dump completed')
 
     def _handle(self, location):
