@@ -52,7 +52,8 @@ class PlanPlaceBox(State):
             raise NotImplementedError('Mechanical gripper planner does not exist')
 
         # Check motion plan
-        if self.store.get('/robot/waypoints') is None:
+        motion_plan = self.store.get('/robot/waypoints')
+        if motion_plan is None:
             logger.exception('Failed to generate motion plan')
             self.store.put('/failure/plan_place_box', 'infeasible')
             self.setOutcome(False)

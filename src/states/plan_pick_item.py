@@ -62,7 +62,8 @@ class PlanPickItem(State):
             raise NotImplementedError('Mechanical gripper planner does not exist')
 
         # Check motion plan
-        if self.store.get('/robot/waypoints') is None:
+        motion_plan = self.store.get('/robot/waypoints')
+        if motion_plan is None:
             failed_grasps = self.store.get('/grasp/failed_grasps', []) + [grasp]
             self.store.put('/grasp/failed_grasps', failed_grasps)
             self.store.put('failure/plan_pick_item', 'infeasible')

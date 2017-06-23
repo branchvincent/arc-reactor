@@ -29,7 +29,7 @@ class PlanViewLocation(State):
 
         vantage_T = self.store.get(['vantage', self.loc_name])
         if vantage_T is None:
-            raise RuntimeError('/vantage/{} is none'.format(vantage_T))
+            raise RuntimeError('/vantage/{} is none'.format(self.loc_name))
         self.store.put('/robot/target_pose', vantage_T)
 
         # Plan route
