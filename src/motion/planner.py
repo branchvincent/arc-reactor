@@ -1,6 +1,5 @@
 from pensive.client import PensiveClient
 from master.world import build_world, xyz, rpy, numpy2klampt, klampt2numpy
-# from util.sync_robot import sync
 from motion.milestone import Milestone
 
 from klampt.model import ik
@@ -16,7 +15,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 # TODO: for se3, scale t if out of a/v limits
-# TODO: do not return error if plan is []
 
 DEBUG = False
 
@@ -62,7 +60,7 @@ class MotionPlanner:
         self.put()
         return self.plan.milestones
 
-    def pickToInspect(self, T_item, useNormal=False, approachDistance=0.1, delay=1.5):
+    def pickToInspect(self, T_item, useNormal=True, approachDistance=0.05, delay=1.5):
         # TODO: T_item needs rotation
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
@@ -300,6 +298,19 @@ class MotionPlanner:
         #     return None
         return plan.milestones
 
+    def _getEndEffectorRotation(self, t):
+        Rz = atan2(t[1], t[0]) - pi
+        return numpy2klampt(xyz(*t) * rpy(pi,0,0) * rpy(0,0,-Rz))[0]
+
+    def _getRotationMatchingAxis(self, R, Rmatch, axis='x'):
+        i = 0 if axis == 'x' else 1 if axis == 'y' else 2
+        axis = [0]*3
+        axis[i] = 1
+        o = [0]*3
+        v = so3.apply(R, axis)
+        vm = so3.apply(Rmatch, axis)
+        Rf = so3.vector_rotation(v, vm)
+        return so3.mul(Rf, R)
 
     def _getTransformAbovePosition(self, t):
         t_over = t[0:2] + [self.z_movement]
@@ -313,27 +324,21 @@ class MotionPlanner:
         axis = [0]*3
         axis[i] = 1
         v = vops.sub(se3.apply(T, axis), t)
-        # logger.info('v to change {}'.format(v))
-        # self.store.put('vantage/v1', rpy(*v))
         vm = vops.sub(se3.apply(Tmatch, axis), tm)
-        # logger.info('v to match {}'.format(vm))
-        # self.store.put('vantage/v2', rpy(*vm))
         Rf = so3.vector_rotation(v, vm)
         Rf = so3.mul(Rf, R)
         return [Rf, t]
-        # return se3.mul([Rf, [0]*3], T)
-        # return se3.mul(T, [Rf, [0]*3])
 
-    def _getTransformNormal(self, T, offset=[0,0,0.1]):
-        R,t = T
-        T_ee = self._getTransformAbovePosition(t)
-        R_ee, t_ee = T_ee
-        z_axis = vops.sub(se3.apply(T, [0,0,1]), t)
-        z_axis_ee = vops.sub(se3.apply(T_ee, [0,0,1]), t_ee)
-        Rf = so3.vector_rotation(z_axis_ee, z_axis)
-        p = se3.apply(T, offset)
-        Tf = [Rf, p]
-        return Tf
+    # def _getTransformNormal(self, T, offset=[0,0,0.1]):
+    #     R,t = T
+    #     T_ee = self._getTransformAbovePosition(t)
+    #     R_ee, t_ee = T_ee
+    #     z_axis = vops.sub(se3.apply(T, [0,0,1]), t)
+    #     z_axis_ee = vops.sub(se3.apply(T_ee, [0,0,1]), t_ee)
+    #     Rf = so3.vector_rotation(z_axis_ee, z_axis)
+    #     p = se3.apply(T, offset)
+    #     Tf = [Rf, p]
+    #     return Tf
 
 
 class LowLevelPlanner(object):
