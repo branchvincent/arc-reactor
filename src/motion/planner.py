@@ -62,7 +62,7 @@ class MotionPlanner:
         self.put()
         return self.plan.milestones
 
-    def pickToInspect(self, T_item, approachDistance=0.1, delay=1.5):
+    def pickToInspect(self, T_item, useNormal=False, approachDistance=0.1, delay=1.5):
         # TODO: T_item needs rotation
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
@@ -79,8 +79,8 @@ class MotionPlanner:
         self.setVacuum(False)
         R_item, t_item = T_item
         T_over_item = self._getTransformAbovePosition(t_item)
-        approach = vops.add([0,0,approachDistance], self.ee_local)
-        T_normal = self._getTransformNormal(T_item, approach)
+        # approach = vops.add([0,0,approachDistance], self.ee_local)
+        # T_normal = self._getTransformNormal(T_item, approach)
         # T_over_item = T_normal[0], T_over_item[1]
         self.store.put('vantage/pick_above', klampt2numpy(T_over_item))
         milestones = self.planToTransform(T_over_item, q0=q0, space='joint', solvers=['local', 'global'])
@@ -89,66 +89,75 @@ class MotionPlanner:
         else:
             self.plan.addMilestones(milestones)
 
-        # Move to item normal
-        logger.debug('Moving to item normal')
-        q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        # approach = vops.add([0,0,approachDistance], self.ee_local)
-        # T_normal = self._getTransformNormal(T_item, approach)
-        self.store.put('vantage/item_normal', klampt2numpy(T_normal))
-        milestones = self.planToTransform(T_normal, q0=q0, space='task', solvers=['nearby', 'local'])
-        if milestones is None:
-            return None
+        # Use item normal, if requested
+        if useNormal:
+            # Move to item normal
+            logger.debug('Moving to item normal')
+            q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+            approach = vops.add([0,0,approachDistance], self.ee_local)
+            # T_normal = self._getTransformNormal(T_item, approach)
+            T_item_flipz = numpy2klampt(klampt2numpy(T_item) * rpy(pi,0,0))
+            self.store.put('vantage/item_flipz', klampt2numpy(T_item_flipz))
+            T_normal = self._getTransformMatchingAxis(T_over_item, T_item_flipz, axis='z')
+            T_normal_approach = T_normal[0], se3.apply(T_item, vops.add(self.ee_local, [0,0,approachDistance]))
+            # T_normal = T_normal[0], se3.apply(T_item, approach)
+            self.store.put('vantage/item_normal_approach', klampt2numpy(T_normal_approach))
+            # self.store.put('vantage/item_normal2', klampt2numpy(T_test))
+            milestones = self.planToTransform(T_normal_approach, q0=q0, space='task', solvers=['nearby', 'local'])
+            if milestones is None:
+                return None
+            else:
+                self.plan.addMilestones(milestones)
+
+            # Lower ee
+            # vmax_orig = self.task_planner.vmax
+            # self.task_planner.vmax = 0.05
+            logger.debug('Lowering end effector')
+            self.setVacuum(True)
+            q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+            T_item_ee = T_normal[0], se3.apply(T_item, self.ee_local) #T_item[1] #vops.add(t_item, self.ee_local)
+            self.store.put('vantage/ee_item', klampt2numpy(T_item_ee))
+            milestones = self.planToTransform(T_item_ee, q0=q0, space='task', solvers=['nearby', 'local'])
+            if milestones is None:
+                return None
+            else:
+                self.plan.addMilestones(milestones)
+
+            # Pick up
+            logger.debug('Picking')
+            q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+            self.plan.addMilestone(Milestone(t=delay, robot=q0, vacuum=[1]))
+
+            # Move back to item normal
+            logger.debug('Moving back to item normal')
+            q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+            self.store.put('vantage/item_normal', klampt2numpy(T_normal))
+            milestones = self.planToTransform(T_normal_approach, q0=q0, space='task', solvers=['local', 'global'])
+            if milestones is None:
+                return None
+            else:
+                self.plan.addMilestones(milestones)
+            # self.task_planner.vmax = vmax_orig
+
         else:
-            self.plan.addMilestones(milestones)
+            # Approach
+            logger.debug('Lowering end effector')
+            self.setVacuum(True)
+            q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+            T_item = T_over_item[0], vops.add(T_item[1], self.ee_local)
+            self.store.put('vantage/item_above', klampt2numpy(T_item))
+            milestones = self.planToTransform(T_item, q0=q0, space='task', solvers=['nearby', 'local'])
+            if milestones is None:
+                return None
+            else:
+                self.plan.addMilestones(milestones)
 
-        # # Approach
-        # logger.debug('Lowering end effector')
-        # self.setVacuum(True)
-        # q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        # T_item = T_hover[0], se3.apply(T_hover, [-t for t in t_hover])
-        # milestones = self.planToTransform(T_item, q0=q0, space='task', solvers=['nearby', 'local'])
-        # if milestones is None:
-        #     return None
-        # else:
-        #     self.plan.addMilestones(milestones)
-
-        # Pause
-        # q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        # self.plan.addMilestone(Milestone(t=0.5, robot=q0, vacuum=[1]))
-
-        # Lower ee
-        vmax_orig = self.task_planner.vmax
-        self.task_planner.vmax = 0.05
-        logger.debug('Lowering end effector')
-        self.setVacuum(True)
-        q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        T_item_ee = T_normal[0], se3.apply(T_item, self.ee_local) #T_item[1] #vops.add(t_item, self.ee_local)
-        self.store.put('vantage/ee_item', klampt2numpy(T_item_ee))
-        milestones = self.planToTransform(T_item_ee, q0=q0, space='task', solvers=['nearby', 'local'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
-
-        # Pick up
-        logger.debug('Picking')
-        q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        self.plan.addMilestone(Milestone(t=delay, robot=q0, vacuum=[1]))
-
-        # Move to item normal
-        logger.debug('Moving back to item normal')
-        q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
-        # approach = vops.add([0,0,approachDistance], self.ee_local)
-        # T_normal = self._getTransformNormal(T_item, approach)
-        self.store.put('vantage/item_normal', klampt2numpy(T_normal))
-        milestones = self.planToTransform(T_normal, q0=q0, space='task', solvers=['local', 'global'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
+            # Pause
+            logger.debug('Picking')
+            q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
+            self.plan.addMilestone(Milestone(t=delay, robot=q0, vacuum=[1]))
 
         # Raise ee
-        self.task_planner.vmax = vmax_orig
         logger.debug('Raising end effector')
         q0 = self.plan.milestones[-1].get_robot() if len(self.plan.milestones) != 0 else None
         milestones = self.planToTransform(T_over_item, q0=q0, space='task', solvers=['nearby', 'local'])
@@ -297,6 +306,24 @@ class MotionPlanner:
         Rz = atan2(t_over[1], t_over[0]) - pi
         return numpy2klampt(xyz(*t_over) * rpy(pi,0,0) * rpy(0,0,-Rz))
 
+    def _getTransformMatchingAxis(self, T, Tmatch, axis='x'):
+        R,t = T
+        Rm, tm = Tmatch
+        i = 0 if axis == 'x' else 1 if axis == 'y' else 2
+        axis = [0]*3
+        axis[i] = 1
+        v = vops.sub(se3.apply(T, axis), t)
+        # logger.info('v to change {}'.format(v))
+        # self.store.put('vantage/v1', rpy(*v))
+        vm = vops.sub(se3.apply(Tmatch, axis), tm)
+        # logger.info('v to match {}'.format(vm))
+        # self.store.put('vantage/v2', rpy(*vm))
+        Rf = so3.vector_rotation(v, vm)
+        Rf = so3.mul(Rf, R)
+        return [Rf, t]
+        # return se3.mul([Rf, [0]*3], T)
+        # return se3.mul(T, [Rf, [0]*3])
+
     def _getTransformNormal(self, T, offset=[0,0,0.1]):
         R,t = T
         T_ee = self._getTransformAbovePosition(t)
@@ -304,17 +331,9 @@ class MotionPlanner:
         z_axis = vops.sub(se3.apply(T, [0,0,1]), t)
         z_axis_ee = vops.sub(se3.apply(T_ee, [0,0,1]), t_ee)
         Rf = so3.vector_rotation(z_axis_ee, z_axis)
-        # Tf = [Rf, t]
         p = se3.apply(T, offset)
         Tf = [Rf, p]
         return Tf
-        # return se3.mul(Tf, T_ee)
-        # axis = vops.cross(z_axis, z_axis_ee)
-        # angle = acos(vops.dot(z_axis, z_axis_ee) / (vops.norm(z_axis) * vops.norm(z_axis_ee)))
-        # R = so3.from_axis_angle((axis, angle))
-        # T_final = [R, [0]*3]
-        # return se3.mul(T_ee, T_final)
-        # return se3.mul(T_final, T_ee)
 
 
 class LowLevelPlanner(object):
@@ -449,12 +468,12 @@ class TaskPlanner(LowLevelPlanner):
         self.robot.setConfig(q0)
         T0 = self.ee_link.getTransform()
         # tf = self.space.getMinPathTime(T0, T, profile=self.profile)
-        tf = vops.distance(T0[1], T[1]) / self.vmax
+        tf = vops.distance(T0[1], T[1]) / self.vmax # add extra second for ramp up/down
         # logger.debug('Distance from {} to {} = {}'.format(T0[0], T[1], tf*self.vmax))
         dt = 1 / float(self.freq)
         if tf != 0:
             tf += abs(tf % dt - dt)     # make multiple of dt
-            # tf = max(tf, 1)             # enforce min time
+            tf = max(tf, 0.5)           # enforce min time for ramp up/down
 
         # Add milestones
         milestones = []
