@@ -24,7 +24,7 @@ class State(object):
     def setOutcome(self, outcome):
         self.outcome = outcome
         self.store.put('/outcome/'+self.getFullName(), outcome)
-    def getOutcome(self, outcome):
+    def getOutcome(self):
         return self.store.get('/outcome/'+self.getFullName())
 
 class Transition():
