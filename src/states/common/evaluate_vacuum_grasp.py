@@ -53,6 +53,10 @@ class EvaluateVacuumGraspBase(State):
 
         for camera in available_cameras:
             photo_url = ['photos', location, camera]
+            if self.store.get(photo_url + ['vacuum_grasps']) is not None:
+                logger.info('skipping photo: {}'.format(photo_url))
+                continue
+
             logger.info('using photo: {}'.format(photo_url))
             self.store.put('/robot/target_photo_url', photo_url)
 
