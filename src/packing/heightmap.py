@@ -11,7 +11,7 @@ import pcl
 import glob
 
 
-def pack(bins,pointcloud,BBs,layer_map=None,margin=0.005,max_height=0.5,pixel_length=0.001,rotate=False,stability=False,layer=False):
+def pack(bins,pointcloud,BBs,layer_map=None,margin=0.01,max_height=0.5,pixel_length=0.001,rotate=False,stability=False,layer=False):
     """
     pack a item into a selected number of bins and return the center coordinate of the objects when packed
 
@@ -65,7 +65,7 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.005,max_height=0.5,pixel_le
         cornor_points.append(cornor_point)
 
     for order,depth_map in enumerate(depth_maps):
-        index,orientation,height,visualization,bin_layer_map=find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map[order])
+        index,orientation,height,visualization,bin_layer_map=find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map[order],max_height)
 
         if height!=255:
             orders.append(order)
@@ -91,12 +91,12 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.005,max_height=0.5,pixel_le
 
 
         print (order, location,tool_location,orientation+rotate_angle)
-        """
-        cv2.imshow("denoised",image_show*3)
-        k = cv2.waitKey(0)
-        if k == 27:         # wait for ESC key to exit
-            cv2.destroyAllWindows()
-        """
+
+        # cv2.imshow("denoised",image_show*3)
+        # k = cv2.waitKey(0)
+        # if k == 27:         # wait for ESC key to exit
+        #     cv2.destroyAllWindows()
+
         return (order, tool_location,orientation+rotate_angle,layer_map)
 
     else:
@@ -109,8 +109,8 @@ def get_location(center,angle,offset):
 
     theta=math.radians(angle)
 
-    X=center[0] - offset[0]*math.cos(theta) - offset[1]*math.sin(theta)
-    Y=center[1] + (offset[0]*math.sin(theta) + offset[1]*math.cos(theta))
+    X=center[0]-offset[0]*math.cos(theta) - offset[1]*math.sin(theta)
+    Y=center[1]+(offset[0]*math.sin(theta) - offset[1]*math.cos(theta))
     Z=center[2]+offset[2]
 
     return [X,Y,Z]
@@ -137,9 +137,9 @@ def get_object_dimension(pointcloud,pixel_length):
     y_raw=pointcloud[:,1]
     z_raw=pointcloud[:,2]
 
-    x_filtered=reject_outliers(x_raw, m = 6)
-    y_filtered=reject_outliers(y_raw, m = 6)
-    z_filtered=reject_outliers(z_raw, m = 6)
+    x_filtered=reject_outliers(x_raw, m = 8)
+    y_filtered=reject_outliers(y_raw, m = 8)
+    z_filtered=reject_outliers(z_raw, m = 8)
 
     x_min=np.amin(x_filtered)
     x_max=np.amax(x_filtered)
@@ -184,32 +184,31 @@ def get_object_dimension(pointcloud,pixel_length):
     #save a copy of image after contour, we will later use to obtain all points enclosed in the contour
 
     frame=edged.copy()
-    im1, cnts, hierarchy = cv2.findContours(frame, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+    cnts, hierarchy = cv2.findContours(frame, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)[-2:]
     if len(cnts)>0:
         cnt=max(cnts,key=cv2.contourArea)
         center_rect,dimension_rect,rotation_rect=cv2.minAreaRect(cnt)
         ratio=dimension_rect[0]*dimension_rect[1]*1.0/num_pixels_x/num_pixels_y
         center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,z_min)
         if ratio>0.6:
-            """
-            print (dimension_rect,rotation_rect)
-            rect = cv2.minAreaRect(cnt)
-            box = cv2.boxPoints(rect)
-            box = np.int0(box)
-            cv2.drawContours(image,[box],0,(0,0,255),2)
 
-            try:
-                image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
-                cv2.imshow("object",image)
-                k = cv2.waitKey(0)
-                if k == 27:         # wait for ESC key to exit
-                    cv2.destroyAllWindows()
-            except:
-                print center_offset
+            # rect = cv2.minAreaRect(cnt)
+            # box = cv2.boxPoints(rect)
+            # box = np.int0(box)
+            # cv2.drawContours(image,[box],0,(0,0,255),2)
+
+            # try:
+
+            #     image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
+            #     cv2.imshow("object",image)
+            #     k = cv2.waitKey(0)
+            #     if k == 27:         # wait for ESC key to exit
+            #         cv2.destroyAllWindows()
+            # except:
+            #     print center_offset
 
 
 
-            """
 
             return ([dimension_rect[0]*pixel_length,dimension_rect[1]*pixel_length,z_max-z_min],center_offset,-rotation_rect)
 
@@ -226,13 +225,8 @@ def get_object_dimension(pointcloud,pixel_length):
         return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
 
 
-def reject_outliers(data, m = 3.5):
-    d = np.abs(data - np.median(data))
-    mdev = np.median(d)
-    s = d/mdev if mdev else 0.
-    return data[s<m]
 
-def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map):
+def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map,max_height):
 
     """
     Pack an object using a depth map
@@ -258,7 +252,8 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
         increment = 10
 
 
-
+    fit=False
+    exceed_height=True
     index=[]
     min_scores=[]
     stack_height=255
@@ -286,6 +281,7 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
             #get the maximum in each rolling window for height
             maxs = maxf2D(depth_rotated, size=(M,N))
             RW_max_H=maxs[M//2:(M//2)+P-M+1, N//2:(N//2)+Q-N+1]
+            fit=True
             score=RW_max_H.copy()
 
             if stability or layer:
@@ -297,7 +293,8 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
                 index_minH=unravel_index(RW_max_H.argmin(), RW_max_H.shape)
                 min_score=RW_max_H[index_minH[0]][index_minH[1]]
             H_min=RW_max_H[index_minH[0]][index_minH[1]]
-            if 255-H_min>item[2]/pixel_length:
+            if 255-H_min>item[2]/max_height*255:
+                exceed_height=False
                 if len(min_scores) == 0 or min_score<min(min_scores):
                     min_scores.append(min_score)
                     min_height.append(H_min)
@@ -335,6 +332,12 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
 
     else:
         print "No placement for the item found"
+	if fit is False:
+	    print ('Item dimension exceeds the dimension of bin {}.' .format(order))
+	if exceed_height:
+            print ('Placement of the item will result in bin {} exceeding the max height.' .format(order))
+
+
 
     return (location,-orientation,stack_height,histogram,layer_map)
 
@@ -399,7 +402,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
             depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
 
     #de-noise the raw depth map using median filter
-    depth_map=cv2.fastNlMeansDenoising(depth_map,None,10,7,21)
+    depth_map=cv2.fastNlMeansDenoising(depth_map,None,30,11,21)
 
     return (depth_map,(x_max,y_min),layer_map)
 
