@@ -68,7 +68,7 @@ class PlanPickItem(State):
             self.store.put('/grasp/failed_grasps', failed_grasps)
             self.store.put('failure/plan_pick_item', 'infeasible')
             self.setOutcome(False)
-            logger.exception('Failed to generate motion plan')
+            logger.error('Failed to generate motion plan')
         else:
             logger.info('Route generated')
             self.setOutcome(True)
