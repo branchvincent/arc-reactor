@@ -444,7 +444,7 @@ class TaskPlanner(LowLevelPlanner):
         dt = 1 / float(self.freq)
         if tf != 0:
             tf += abs(tf % dt - dt)     # make multiple of dt
-            tf = max(tf, 0.5)           # enforce min time for ramp up/down
+            tf = max(tf, 1)           # enforce min time for ramp up/down
 
         # Add milestones
         milestones = []
