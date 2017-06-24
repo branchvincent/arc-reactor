@@ -420,7 +420,7 @@ class PensiveServer(Application):
         loop.make_current()
 
         # bind the socket
-        self.listen(self._port, self._address)
+        self.listen(self._port, self._address, max_buffer_size=1024**3)
         logger.info('Pensive started on {}:{}'.format(
             self._address or '*', self._port))
 
