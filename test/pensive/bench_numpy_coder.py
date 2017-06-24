@@ -7,7 +7,7 @@ from pensive.client import PensiveClient
 def run():
     s = PensiveClient().default()
 
-    data = numpy.zeros((640, 480, 3), dtype=numpy.float64)
+    data = numpy.random.rand(640, 480, 3).astype(numpy.float64)
 
     n = 10
     mark = time()
