@@ -427,6 +427,8 @@ class TaskPlanner(LowLevelPlanner):
             tf = max(tf, 0.5)           # enforce min time for ramp up/down
 
         # Add milestones
+        eps = eps or pi/8
+        T_error, t_error = None, None
         milestones = []
         numMilestones = int(ceil(tf * self.freq))
         for t in np.linspace(dt, tf, numMilestones):
@@ -434,8 +436,19 @@ class TaskPlanner(LowLevelPlanner):
             q = self.solveForConfig(Ti, solver=solver, eps=eps)
             if q is None:
                 return None
+            # Check tolerance
+            dq = [abs(dqi) for dqi in vops.sub(q,q0)]
+            for i, dqi in enumerate(dq):
+                if dqi > eps:
+                    logger.warn('Joint {} exceed dq: {} > {}'.format(i, dqi, eps))
+                    T_error, t_error = Ti, t
+            if T_error:
+                pass
+                # break
+            # Add milestone
             m = Milestone(t=dt, robot=q, vacuum=self.vacuum)
             milestones.append(m)
+            q0 = q
             # if not self.cspace.feasible(m.get_robot()):
             #     logger.warn('Not feasible')
         return milestones
