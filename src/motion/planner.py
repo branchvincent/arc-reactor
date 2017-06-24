@@ -46,8 +46,8 @@ class MotionPlanner:
         self.world = build_world(self.store)
         self.cspace = CSpace(self.world)
         self.se3space = SE3Space(self.world)
-        self.joint_planner = JointPlanner(self.cspace, store=self.store, profile='quintic', freq=20)
-        self.task_planner = TaskPlanner(self.se3space, store=self.store, profile='quintic', freq=20)
+        self.joint_planner = JointPlanner(self.cspace, store=self.store, profile='quintic', freq=15)
+        self.task_planner = TaskPlanner(self.se3space, store=self.store, profile='quintic', freq=15)
         self.plan = MotionPlan(self.cspace, store=self.store)
 
     def setVacuum(self, value):
@@ -291,13 +291,13 @@ class MotionPlanner:
         milestones = self.task_planner.planToTransform(Ti_mid, q0=self.getCurrentConfig(), solver=solver)
         if milestones is None: return None
         plan.addMilestones(milestones)
-        logger.debug('Fixed up to T_mid')
+        # logger.debug('Fixed up to T_mid')
 
         # Plan until final T
         milestones = self.task_planner.planToTransform(T, q0=plan.getCurrentConfig(), solver=solver)
         if milestones is None: return None
         plan.addMilestones(milestones)
-        logger.debug('Fixed until T_final')
+        logger.debug('Hack succeeded')
         return plan.milestones
 
 
