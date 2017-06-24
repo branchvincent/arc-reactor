@@ -46,10 +46,8 @@ class MotionPlanner:
         self.world = build_world(self.store)
         self.cspace = CSpace(self.world)
         self.se3space = SE3Space(self.world)
-        self.joint_planner = JointPlanner(
-            self.cspace, store=self.store, profile='quintic', freq=20)
-        self.task_planner = TaskPlanner(
-            self.se3space, store=self.store, profile='quintic', freq=20)
+        self.joint_planner = JointPlanner(self.cspace, store=self.store, profile='quintic', freq=20)
+        self.task_planner = TaskPlanner(self.se3space, store=self.store, profile='quintic', freq=20)
         self.plan = MotionPlan(self.cspace, store=self.store)
 
     def setVacuum(self, value):
@@ -66,20 +64,16 @@ class MotionPlanner:
             return None
 
     def toTransform(self, T_ee):
-        milestones = self.planToTransform(
-            T_ee, space='joint', solvers=['local', 'global'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
+        milestones = self.planToTransform(T_ee, space='joint', solvers=['local', 'global'])
+        if milestones is None: return None
+        self.plan.addMilestones(milestones)
         self.put()
         return self.plan.milestones
 
     def pickToInspect(self, T_item, useNormal=True, approachDistance=0.05, delay=1.5, debug=True):
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
-        if debug:
-            self.store.put('vantage/pick_item', klampt2numpy(T_item))
+        if debug: self.store.put('vantage/pick_item', klampt2numpy(T_item))
 
         # Determine pick pose
         T_pick = list(numpy2klampt(klampt2numpy(T_item) * rpy(pi, 0, 0)))  # flip z
@@ -87,8 +81,7 @@ class MotionPlanner:
         R_ee_normal = self._getRotationMatchingAxis(R_ee, T_pick[0], axis='z')
         T_pick[0] = R_ee_normal if useNormal else R_ee
         T_pick[1] = se3.apply(T_pick, [-i for i in self.ee_local])
-        if debug:
-            self.store.put('vantage/pick', klampt2numpy(T_pick))
+        if debug: self.store.put('vantage/pick', klampt2numpy(T_pick))
 
         # Check current config
         q0 = self.store.get('robot/current_config')
@@ -100,27 +93,22 @@ class MotionPlanner:
         logger.debug('Moving over item')
         self.setVacuum(False)
         T_above = (R_ee, [T_item[1][0], T_item[1][1], self.z_movement])
-        if debug:
-            self.store.put('vantage/pick_above', klampt2numpy(T_above))
-        milestones = self.planToTransform(T_above, q0=q0, space='joint', solvers=['local', 'global'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
+        if debug: self.store.put('vantage/pick_above', klampt2numpy(T_above))
+        milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['local', 'global'])
+        if milestones is None: return None
+        self.plan.addMilestones(milestones)
+        self.put()
+        return self.plan.milestones
 
         # Use item normal, if requested
         if useNormal:
             # Move to item normal
             logger.debug('Moving to item normal')
-            approach = [0, 0, -approachDistance]
-            T_pick_approach = (T_pick[0], se3.apply(T_pick, approach))
-            if debug:
-                self.store.put('vantage/pick_approach', klampt2numpy(T_pick_approach))
+            T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
+            if debug: self.store.put('vantage/pick_approach', klampt2numpy(T_pick_approach))
             milestones = self.planToTransform(T_pick_approach, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
-            if milestones is None:
-                return None
-            else:
-                self.plan.addMilestones(milestones)
+            if milestones is None: return None
+            self.plan.addMilestones(milestones)
 
             # Lower ee
             # vmax_orig = self.task_planner.vmax
@@ -128,10 +116,8 @@ class MotionPlanner:
             logger.debug('Lowering end effector')
             self.setVacuum(True)
             milestones = self.planToTransform(T_pick, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
-            if milestones is None:
-                return None
-            else:
-                self.plan.addMilestones(milestones)
+            if milestones is None: return None
+            self.plan.addMilestones(milestones)
 
             # Pick up
             logger.debug('Picking')
@@ -141,10 +127,8 @@ class MotionPlanner:
             logger.debug('Raising end effector')
             t_departure = vops.add(T_pick[1], [0,0,0.1])
             milestones = self.planToTransform((T_pick[0], t_departure), q0=self.getCurrentConfig(), space='task', solvers=['local', 'global'])
-            if milestones is None:
-                return None
-            else:
-                self.plan.addMilestones(milestones)
+            if milestones is None: return None
+            self.plan.addMilestones(milestones)
             # self.task_planner.vmax = vmax_orig
 
         else:
@@ -152,10 +136,8 @@ class MotionPlanner:
             logger.debug('Lowering end effector')
             self.setVacuum(True)
             milestones = self.planToTransform(T_pick, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
-            if milestones is None:
-                return None
-            else:
-                self.plan.addMilestones(milestones)
+            if milestones is None: return None
+            self.plan.addMilestones(milestones)
 
             # Pick up
             logger.debug('Picking')
@@ -164,27 +146,22 @@ class MotionPlanner:
         # Raise ee
         logger.debug('Raising end effector')
         milestones = self.planToTransform(T_above, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
+        if milestones is None: return None
+        self.plan.addMilestones(milestones)
 
         # Move to inspection station
         logger.debug('Moving to inspection station')
         T_inspect = self.store.get('/robot/inspect_pose')
         milestones = self.planToTransform(T_inspect, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
+        if milestones is None: return None
+        self.plan.addMilestones(milestones)
         self.put()
         return self.plan.milestones
 
     def inspectToPlace(self, T_stow, delay=3, debug=True):
         if isinstance(T_stow, np.ndarray):
             T_stow = numpy2klampt(T_stow)
-        if debug:
-            self.store.put('vantage/stow', klampt2numpy(T_stow))
+        if debug: self.store.put('vantage/stow', klampt2numpy(T_stow))
 
         # Check current config
         q0 = self.store.get('robot/current_config')
@@ -196,21 +173,16 @@ class MotionPlanner:
         logger.debug('Moving over item')
         self.setVacuum(True)
         T_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], self.z_movement])
-        if debug:
-            self.store.put('vantage/stow_above', klampt2numpy(T_above))
+        if debug: self.store.put('vantage/stow_above', klampt2numpy(T_above))
         milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['local', 'global'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
+        if milestones is None: return None
+        self.plan.addMilestones(milestones)
 
         # Lower ee
         logger.debug('Lowering end effector')
         milestones = self.planToTransform(T_stow, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
+        if milestones is None: return None
+        self.plan.addMilestones(milestones)
 
         # Place
         logger.debug('Placing')
@@ -220,10 +192,8 @@ class MotionPlanner:
         # Raise ee
         logger.debug('Raising end effector')
         milestones = self.planToTransform(T_above, q0=self.getCurrentConfig(), space='task', solvers=['local', 'global'])
-        if milestones is None:
-            return None
-        else:
-            self.plan.addMilestones(milestones)
+        if milestones is None: return None
+        self.plan.addMilestones(milestones)
         self.put()
         return self.plan.milestones
 
