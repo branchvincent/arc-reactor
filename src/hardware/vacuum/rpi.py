@@ -10,7 +10,7 @@ from os import environ
 
 from pensive.client import PensiveClient
 
-VACUUM_GPIO_BCM_PIN = 3
+VACUUM_GPIO_BCM_PIN = 2
 VACUUM_GPIO_DEFAULT_PORT = 8888
 
 logger = logging.getLogger(__name__)
@@ -125,7 +125,7 @@ class Vacuum(object):
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
-    parser = ArgumentParser(description='vacuum, controller', formatter_class=ArgumentDefaultsHelpFormatter)
+    parser = ArgumentParser(description='vacuum controller', formatter_class=ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
     parser.add_argument('-s', '--store', metavar='STORE', help='database store')
