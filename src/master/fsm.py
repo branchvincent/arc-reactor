@@ -45,7 +45,7 @@ class Transition():
         else: return fromState
 
     def decideTransition(self):
-        if not self.store.get(self.outcome, False): #if nothing set, assume failed
+        if self.isFailure(): #if nothing set, assume failed
             print "Failed, going back, outcome was ", self.outcome
             logger.info('State failed, going to alternative state')
             return self.altState
@@ -57,6 +57,9 @@ class Transition():
             return self.checkState.upper()
         else:
             return self.toState
+
+    def isFailure(self):
+        return not self.store.get(self.outcome, False)
 
 class StateMachine():
     def __init__(self, events=None, transitions=None, finStates=None, pastEvents=None, pastStorage=None, currentState=None, store=None):
@@ -70,6 +73,7 @@ class StateMachine():
         #self.removeHistory()
         self.setupFlag()
         self.p = None
+        self.failures = []
 
     def getStartState(self):
         raise NotImplementedError
@@ -145,6 +149,8 @@ class StateMachine():
 
         self.pastEvents.append(self.current)
         self.pastStorage.append(histStore)
+        if(self.transitions[self.current].isFailure()):
+            self.failures.append(self.current)
 
     def getLast(self):
         lastEvent = self.pastEvents.pop()
@@ -152,13 +158,6 @@ class StateMachine():
         print "going back to ", lastEvent
         logger.info("Going back one state to {} ".format(lastEvent))
         return lastEvent
-
-    def runAll(self):
-        for i, n in self.events.items():
-            self.setCurrentState(i)
-            self.runCurrent()
-            if(self.current in self.finStates):
-                return
 
     def getAllPastEvents(self):
         return self.pastEvents
@@ -191,6 +190,9 @@ class StateMachine():
 
         self.decideState = self.transitions[self.getCurrentState()].decideTransition()
         self.setCurrentState(self.decideState)
+        if(len(self.failures)>4):
+            self.setCurrentState(self.getStartState())
+            print "giving up and going to initial state"
 
     def backStep(self):
         if not self.getCurrentState():
