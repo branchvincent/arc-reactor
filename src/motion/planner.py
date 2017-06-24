@@ -68,7 +68,6 @@ class MotionPlanner:
         if milestones is None: return None
         self.plan.addMilestones(milestones)
         self.put()
-        return self.plan.milestones
 
     def pickToInspect(self, T_item, useNormal=True, approachDistance=0.05, delay=1.5, debug=True):
         if isinstance(T_item, np.ndarray):
@@ -154,7 +153,6 @@ class MotionPlanner:
         if milestones is None: return None
         self.plan.addMilestones(milestones)
         self.put()
-        return self.plan.milestones
 
     def inspectToPlace(self, T_stow, delay=3, debug=True):
         if isinstance(T_stow, np.ndarray):
@@ -193,7 +191,6 @@ class MotionPlanner:
         if milestones is None: return None
         self.plan.addMilestones(milestones)
         self.put()
-        return self.plan.milestones
 
     def planToTransform(self, T, via=[], q0=None, space='joint', solvers=['local']):
         # Choose planner
@@ -209,15 +206,21 @@ class MotionPlanner:
         plan = MotionPlan(self.cspace, store=self.store)
         for Ti in via + [T]:
             for i, solver in enumerate(solvers):
+                if space == 'task' and solver != 'nearby':
+                    logger.warn('Task space with {} solver requested. Intentional?'.format(solver))
                 milestones = planner.planToTransform(Ti, q0=q0, solver=solver)
+                # HACK: try again, assuming wrist flipped
+                if milestones is None and space == 'task' and solver == 'nearby':
+                    milestones = self._fixWristFlip(Ti, planner.T_failed)
                 # Update milestones, if found
                 if milestones is not None:
                     plan.addMilestones(milestones)
-                    q0 = milestones[-1].get_robot() if len(plan.milestones) != 0 else q0
+                    q0 = self.getCurrentConfig()
                     break
                 # Return, if all solvers failed
                 elif i == len(solvers) - 1:
                     logger.error('Infeasible Goal Transform: {}'.format(Ti))
+                    self.store.put('vantage/infeasible', klampt2numpy(Ti))
                     return None
                 else:
                     logger.warning(
@@ -248,7 +251,7 @@ class MotionPlanner:
                 # Update milestones, if found
                 if milestones is not None:
                     plan.addMilestones(milestones)
-                    q0 = milestones[-1].get_robot() if len(plan.milestones) != 0 else q0
+                    q0 = self.getCurrentConfig()
                     break
                 # Exit, if all solvers failed
                 elif i == len(solvers) - 1:
@@ -278,6 +281,24 @@ class MotionPlanner:
         vm = so3.apply(Rmatch, axis)
         Rf = so3.vector_rotation(v, vm)
         return so3.mul(Rf, R)
+
+    def _fixWristFlip(self, T, T_failed, solver='nearby'):
+        logger.warn('Detected possible wrist flip. Trying hack...')
+
+        # Plan until failed T
+        plan = MotionPlan(self.cspace, store=self.store)
+        Ti_mid = list(numpy2klampt(klampt2numpy(T_failed) * rpy(0, 0, pi)))  # flip z
+        milestones = self.task_planner.planToTransform(Ti_mid, q0=self.getCurrentConfig(), solver=solver)
+        if milestones is None: return None
+        plan.addMilestones(milestones)
+        logger.debug('Fixed up to T_mid')
+
+        # Plan until final T
+        milestones = self.task_planner.planToTransform(T, q0=plan.getCurrentConfig(), solver=solver)
+        if milestones is None: return None
+        plan.addMilestones(milestones)
+        logger.debug('Fixed until T_final')
+        return plan.milestones
 
 
 class LowLevelPlanner(object):
@@ -319,6 +340,7 @@ class LowLevelPlanner(object):
     def solve(self, goals, solver='local', eps=None):
         solver = solver.lower()
         q0 = self.robot.getConfig()
+        eps = eps or pi/8
 
         # Solve
         if solver == 'local':
@@ -327,7 +349,7 @@ class LowLevelPlanner(object):
             result = ik.solve_global(goals)
         elif solver == 'nearby':
             result = ik.solve_nearby(
-                goals, eps or pi / 8, feasibilityCheck=lambda: True)
+                goals, eps, feasibilityCheck=lambda: True)
         else:
             raise RuntimeError('Unrecognized solver: {}'.format(solver))
 
@@ -405,6 +427,7 @@ class TaskPlanner(LowLevelPlanner):
         self.vmax = 0.15
         self.t_vmax, self.t_amax = 0.15, 0.15
         self.R_vmax, self.t_amax = pi / 4, pi / 4
+        self.T_failed = None
 
     def planToTransform(self, T, q0=None, solver='local', eps=None):
         if isinstance(T, np.ndarray):
@@ -424,28 +447,18 @@ class TaskPlanner(LowLevelPlanner):
             tf = max(tf, 0.5)           # enforce min time for ramp up/down
 
         # Add milestones
-        eps = eps or pi/8
-        T_error, t_error = None, None
         milestones = []
         numMilestones = int(ceil(tf * self.freq))
         for t in np.linspace(dt, tf, numMilestones):
             Ti = self.space.interpolate(T0, T, t, tf, profile=self.profile)
             q = self.solveForConfig(Ti, solver=solver, eps=eps)
             if q is None:
+                self.T_failed = Ti
+                self.store.put('vantage/failed', klampt2numpy(self.T_failed))
                 return None
-            # Check tolerance
-            dq = [abs(dqi) for dqi in vops.sub(q,q0)]
-            for i, dqi in enumerate(dq):
-                if dqi > eps:
-                    logger.warn('Joint {} exceed dq: {} > {}'.format(i, dqi, eps))
-                    T_error, t_error = Ti, t
-            if T_error:
-                pass
-                # break
             # Add milestone
             m = Milestone(t=dt, robot=q, vacuum=self.vacuum)
             milestones.append(m)
-            q0 = q
             # if not self.cspace.feasible(m.get_robot()):
             #     logger.warn('Not feasible')
         return milestones
@@ -486,6 +499,11 @@ class MotionPlan:
             else:
                 break
         return feasible_milestones
+
+    def getCurrentConfig(self):
+        if len(self.milestones) != 0:
+            return self.milestones[-1].get_robot()
+        return None
 
     def addMilestone(self, milestone, strict=False):
         if milestone is not None:
