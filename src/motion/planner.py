@@ -94,11 +94,9 @@ class MotionPlanner:
         self.setVacuum(False)
         T_above = (R_ee, [T_item[1][0], T_item[1][1], self.z_movement])
         if debug: self.store.put('vantage/pick_above', klampt2numpy(T_above))
-        milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['local', 'global'])
+        milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['nearby'])
         if milestones is None: return None
         self.plan.addMilestones(milestones)
-        self.put()
-        return self.plan.milestones
 
         # Use item normal, if requested
         if useNormal:
@@ -106,7 +104,7 @@ class MotionPlanner:
             logger.debug('Moving to item normal')
             T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
             if debug: self.store.put('vantage/pick_approach', klampt2numpy(T_pick_approach))
-            milestones = self.planToTransform(T_pick_approach, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
+            milestones = self.planToTransform(T_pick_approach, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
             if milestones is None: return None
             self.plan.addMilestones(milestones)
 
@@ -115,7 +113,7 @@ class MotionPlanner:
             # self.task_planner.vmax = 0.05
             logger.debug('Lowering end effector')
             self.setVacuum(True)
-            milestones = self.planToTransform(T_pick, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
+            milestones = self.planToTransform(T_pick, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
             if milestones is None: return None
             self.plan.addMilestones(milestones)
 
@@ -126,7 +124,7 @@ class MotionPlanner:
             # Move back to item normal
             logger.debug('Raising end effector')
             t_departure = vops.add(T_pick[1], [0,0,0.1])
-            milestones = self.planToTransform((T_pick[0], t_departure), q0=self.getCurrentConfig(), space='task', solvers=['local', 'global'])
+            milestones = self.planToTransform((T_pick[0], t_departure), q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
             if milestones is None: return None
             self.plan.addMilestones(milestones)
             # self.task_planner.vmax = vmax_orig
@@ -135,7 +133,7 @@ class MotionPlanner:
             # Approach
             logger.debug('Lowering end effector')
             self.setVacuum(True)
-            milestones = self.planToTransform(T_pick, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
+            milestones = self.planToTransform(T_pick, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
             if milestones is None: return None
             self.plan.addMilestones(milestones)
 
@@ -145,14 +143,14 @@ class MotionPlanner:
 
         # Raise ee
         logger.debug('Raising end effector')
-        milestones = self.planToTransform(T_above, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
+        milestones = self.planToTransform(T_above, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
         if milestones is None: return None
         self.plan.addMilestones(milestones)
 
         # Move to inspection station
         logger.debug('Moving to inspection station')
         T_inspect = self.store.get('/robot/inspect_pose')
-        milestones = self.planToTransform(T_inspect, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
+        milestones = self.planToTransform(T_inspect, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
         if milestones is None: return None
         self.plan.addMilestones(milestones)
         self.put()
@@ -174,13 +172,13 @@ class MotionPlanner:
         self.setVacuum(True)
         T_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], self.z_movement])
         if debug: self.store.put('vantage/stow_above', klampt2numpy(T_above))
-        milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['local', 'global'])
+        milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['nearby'])
         if milestones is None: return None
         self.plan.addMilestones(milestones)
 
         # Lower ee
         logger.debug('Lowering end effector')
-        milestones = self.planToTransform(T_stow, q0=self.getCurrentConfig(), space='task', solvers=['nearby', 'local'])
+        milestones = self.planToTransform(T_stow, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
         if milestones is None: return None
         self.plan.addMilestones(milestones)
 
@@ -191,7 +189,7 @@ class MotionPlanner:
 
         # Raise ee
         logger.debug('Raising end effector')
-        milestones = self.planToTransform(T_above, q0=self.getCurrentConfig(), space='task', solvers=['local', 'global'])
+        milestones = self.planToTransform(T_above, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
         if milestones is None: return None
         self.plan.addMilestones(milestones)
         self.put()
@@ -224,7 +222,6 @@ class MotionPlanner:
                 else:
                     logger.warning(
                         'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i + 1]))
-
         # Check feasibility
         # if plan.feasible():
         #     logger.debug('Created {} milestones'.format(len(plan.milestones)))
