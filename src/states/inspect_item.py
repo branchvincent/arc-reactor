@@ -66,7 +66,12 @@ class InspectItem(State):
         print "origWeightError ", self.origWeightError
         print "nowWeightError ", self.nowWeightError
 
-        if(self.origItem == self.nowItem):
+        if(self.readWeight<0.001):
+            print "likely didn't pick anything up"
+            self.setOutcome(False)
+            raise RuntimeError("bad item!")
+
+        elif(self.origItem == self.nowItem):
                 self.likelyItem = self.origItem
                 print "ID'd correct item originally"
         else:
