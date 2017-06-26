@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import os
-import matplotlib.pyplot as plt
 import time
 import sys
 import json
@@ -133,6 +132,34 @@ def read_images_segment(root_dir):
             imlabels.append(item)
 
     return imlist,imlabels
+
+
+def build_histogram_model(imlist, imlabels):
+    '''
+    takes in a list of images and a list of labels.
+    stores the average normalized histogram for each item
+    '''
+    item_hist_sum = []
+    num_bins = 16
+    for i in range(40):
+        item_hist_sum.append(np.zeros((num_bins,num_bins,num_bins)))
+        
+    for image, label in zip(imlist, imlabels):
+        
+        #find the non zero pixels
+        
+        mask0 = image[:,:,0] != 0
+        mask1 = image[:,:,1] != 0
+        mask2 = image[:,:,2] != 0
+
+        mask = np.logical_and(np.logical_and(mask0, mask1),mask2)
+        histAB,_ = np.histogramdd(image[mask],[num_bins,num_bins,num_bins], [[0,256],[0,256],[0,256]])
+        item_hist_sum[label] += histAB
+            
+    for i in range(40):
+        item_hist_sum[i] = item_hist_sum[i]/np.sum(item_hist_sum[i])
+
+    np.save('item_sum_hist_fast.npy', item_hist_sum)
 
 
 def build_simple_block(incoming_layer, names,
@@ -296,8 +323,7 @@ def build_model_resnet():
         net.update(sub_net)
     net['pool5'] = PoolLayer(net[parent_layer_name], pool_size=7, stride=1, pad=0,
                              mode='average_exc_pad', ignore_border=False)
-    net['fc1000'] = DenseLayer(net['pool5'], num_units=1000, nonlinearity=None)
-    net['prob'] = NonlinearityLayer(net['fc1000'], nonlinearity=softmax)
+    net['prob'] = DenseLayer(net['pool5'], num_units=40, nonlinearity=softmax)
 
     return net
 
