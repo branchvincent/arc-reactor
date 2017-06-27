@@ -9,10 +9,11 @@ import json
 # configure the root logger to accept all records
 import logging
 logger = logging.getLogger(__name__)
+import scipy.stats
 
 class ObjectRecognition:
 
-    def __init__(self, network_name, color_histogram_name):
+    def __init__(self, network_name):
         #try to connect to the database
         self.store = None
         try:
@@ -29,18 +30,13 @@ class ObjectRecognition:
         with open('db/items.json') as data_file:
             jsonnames = json.load(data_file)
         for key,value in jsonnames.items():
-            names.append(key)
-        names.sort()
+            names.append((key, value['mass']))
+        names.sort(key=lambda tup: tup[0])
         self.object_names = names
-
+        
 
         #given a location returns a list of items in the location
         self.items_in_location = {}
-
-        try:
-            self.item_hist_sum = np.load(color_histogram_name)
-        except:
-            raise RuntimeError("Could not load in color histogram file {}".format(color_histogram_name))
 
 
     def poll_database(self):
@@ -57,31 +53,40 @@ class ObjectRecognition:
                     #get the arguments
                     list_of_locations = self.store.get('/object_recognition/locations')
                     list_of_urls = self.store.get('/object_recognition/urls')
-                    self.infer_objects(list_of_urls, list_of_locations)
+                    use_weight = self.store.get('/object_recognition/use_weight')
+                    self.infer_objects(list_of_urls, list_of_locations, use_weight)
                     logger.info("Inference complete")
                     self.store.put('/object_recognition/done', 1)
                 else:
                     sleep(0.1)
         except KeyboardInterrupt:
             pass
-        except:
-            logger.exception('Inference failed!')
+        except Exception as e:
+            logger.exception('Inference failed! {}'.format(e))
+            self.store.put('object_recognition/error', e)
             raise
 
 
-    def infer_objects(self, list_of_urls, list_of_locations):
+    def infer_objects(self, list_of_urls, list_of_locations, use_weight):
         '''
         Given a list of urls and a list of locations infer what each image is at the URL
         and post the entire list of confidences. Set confidence of object not at location to zero
         '''
+        error_string = None
         if len(list_of_urls) != len(list_of_locations):
-            logger.warning("Length mismatch of url list and location list. Not guessing objects")
+            error_string = "Length mismatch of url list and location list. Not guessing objects"
+            logger.warning(error_string)
+            self.store.put("object_recognition/error", error_string)
             return
         elif len(list_of_urls) == 0 or list_of_urls is None:
-            logger.warning("No URLs were passed. Need at least one. Not guessing objects")
+            error_string = "No URLs were passed. Need at least one. Not guessing objects"
+            logger.warning(error_string)
+            self.store.put("object_recognition/error", error_string)
             return
         elif len(list_of_locations) == 0 or list_of_locations is None:
-            logger.warning("No locations were passed. Need at least one. Not guessing objects")
+            error_string = "No locations were passed. Need at least one. Not guessing objects"
+            logger.warning(error_string)
+            self.store.put("object_recognition/error", error_string)
             return
 
         #find which items are at each location
@@ -91,51 +96,50 @@ class ObjectRecognition:
             #get the list of images at this URL
             dl_images = self.store.get(url + 'DL_images')
             if dl_images is None:
-                logger.error("No deep learning images were found at the URL {}".format(url))
-                continue
+                error_string = "No deep learning images were found at the URL {}".format(url)
+                logger.error(error_string)
+                self.store.put("object_recognition/error", error_string)
+                return
 
             #store all deep learning confidences for each image
             confidences = self.infer_objects_deep(dl_images)
-            list_of_list_of_confidences = self.filter_confidences(confidences, list_of_locations[i])
-            self.store.put(url + 'detections', list_of_list_of_confidences)
+            list_of_list_of_confidences_deep = self.filter_confidences(confidences, list_of_locations[i])
+            self.store.put(url + 'detections', list_of_list_of_confidences_deep)
+
+            #store all confidences for weight
+            #only if there is a weight
+            if use_weight:
+
+                logger.info("Inferring object based on weight")
+                weight = self.store.get('/scales/change')
+                stdev = self.store.get('/system/scales/stdev',0.005)
+
+                if weight is None or stdev is None:
+                    error_string = "Weight or stdev was none"
+                    logger.error(error_string)
+                    self.store.put("object_recognition/error", error_string)
+                    return
+
+                confidences = self.infer_objects_weight(weight, stdev)
+                list_of_list_of_confidences_weight = self.filter_confidences(confidences, list_of_locations[i])
+                self.store.put(url + 'detections_weight', list_of_list_of_confidences_weight)
 
 
-            #store all confidences for color histogram
-            confidences = self.infer_objects_color(dl_images)
-            list_of_list_of_confidences = self.filter_confidences(confidences, list_of_locations[i])
-            self.store.put(url + 'detections_color', list_of_list_of_confidences)
+                #check to see if there were too many images at the inspection station
+                if len(list_of_list_of_confidences_deep) > 1:
+                    error_string = "Too many images for inspection station. Expecting 1. Got {}. Using first image".format(len(list_of_list_of_confidences_deep))
+                    logger.warning(error_string)
+                    self.store.put('object_recognition/error',error_string)
+                    
+                #combine the confidences and write that out to detections
+                #combine the first list of confidences from dl with weights
+                combined_dict = {}
+                for key,value in list_of_list_of_confidences_deep[0].items():
+                    combined_dict[key] = value*list_of_list_of_confidences_weight[0][key]
 
+                self.store.put(url + 'detections_combined', combined_dict)
 
-    def infer_objects_color(self, list_of_dl_images):
-        '''
-        Get confidence level of all items for all images using color histogram matching
-        '''
-        num_bins = 16
-        confidences = [] #list of lists
-
-        for img in list_of_dl_images:
-            #reset the scores
-            score_list = []
-
-            #mask out the black
-            mask0 = img[:,:,0] != 0
-            mask1 = img[:,:,1] != 0
-            mask2 = img[:,:,2] != 0
-
-            mask = np.logical_and(np.logical_and(mask0, mask1),mask2)
-
-            #get the histogram
-            histRGB,_ = np.histogramdd(img[mask],[num_bins,num_bins,num_bins], [[0,256],[0,256],[0,256]])
-
-            #compare to stored histograms
-            for k in range(len(self.item_hist_sum)):
-                score = 2 * np.minimum(self.item_hist_sum[k][:,:], histRGB).sum() - np.maximum(self.item_hist_sum[k][:,:], histRGB).sum()
-
-                score_list.append(score)
-
-            confidences.append(score_list)
-
-        return confidences
+        self.store.put('object_recognition/error',error_string)
 
     def infer_objects_deep(self, list_of_dl_images):
         '''
@@ -150,6 +154,20 @@ class ObjectRecognition:
         logger.info("Runing {} images through network".format(len(list_of_dl_images)))
         confidences = self.deep_learning_recognizer.guessObject(im)
         return confidences
+
+
+    def infer_objects_weight(self, measured_weight, stdev):
+        '''
+        assumes that all weights and stdev are in kg
+        returns list of probabilities that the item is the same one as
+        the item with "measured_weight"
+        '''
+        list_of_weight_prob = []
+        for w in self.object_names:
+            prob = scipy.stats.norm(w[1],stdev).pdf(measured_weight)/1000
+            list_of_weight_prob.append(prob)
+
+        return np.array(list_of_weight_prob).reshape(1,40)
 
     def filter_confidences(self, confidences, location):
         '''
@@ -177,14 +195,14 @@ class ObjectRecognition:
 
         if valid_items is None:
             for i in range(len(list_of_conf)):
-                res.append((self.object_names[i], float(list_of_conf[i])))
+                res.append((self.object_names[i][0], float(list_of_conf[i])))
         else:
         #set the confidence of items that are not valid_items to zero
             for i in range(len(list_of_conf)):
-                if self.object_names[i] in valid_items:
-                    res.append((self.object_names[i], float(list_of_conf[i])))
+                if self.object_names[i][0] in valid_items:
+                    res.append((self.object_names[i][0], float(list_of_conf[i])))
                 else:
-                    res.append((self.object_names[i], 0))
+                    res.append((self.object_names[i][0], 0))
 
         return res
 
@@ -226,5 +244,5 @@ class ObjectRecognition:
 
 
 if __name__ == '__main__':
-    o = ObjectRecognition('db/resnet_finetuned_06132017_combined.pkl', 'db/item_sum_hist.npy')
+    o = ObjectRecognition('db/resnet_finetuned_06132017_combined.pkl')
     o.poll_database()
