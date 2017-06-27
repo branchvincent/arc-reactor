@@ -67,7 +67,7 @@ class ObjectRecognition:
             raise
 
 
-    def infer_objects(self, list_of_urls, list_of_locations, use_weight):
+    def infer_objects(self, list_of_urls, list_of_locations, list_of_use_weight):
         '''
         Given a list of urls and a list of locations infer what each image is at the URL
         and post the entire list of confidences. Set confidence of object not at location to zero
@@ -115,7 +115,7 @@ class ObjectRecognition:
 
             #store all confidences for weight
             #only if there is a weight
-            if use_weight:
+            if list_of_use_weight[i]:
 
                 logger.info("Inferring object based on weight")
                 weight = self.store.get('/scales/change')
