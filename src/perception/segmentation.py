@@ -18,9 +18,6 @@ class GraphSegmentationParams():
         self.A_weight = 1
         self.B_weight = 1
         self.depth_weight = 1
-        self.x_norm_weight = 1
-        self.y_norm_weight = 1
-        self.z_norm_weight = 1
 
         #filtering parameters for the mean shift filtering
         self.sp_rad = 7     #spatial window radius
@@ -70,7 +67,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     gs.setK(params.k)
     gs.setMinSize(int(params.minSize))
 
-    weights = [params.L_weight, params.A_weight, params.B_weight, params.depth_weight, params.x_norm_weight, params.y_norm_weight, params.z_norm_weight]
+    weights = [params.L_weight, params.A_weight, params.B_weight, params.depth_weight]
     for n,w in enumerate(weights):
         color_depth_image[:,:,n] = color_depth_image[:,:,n]*w
     labeled_image = gs.processImage(color_depth_image)
