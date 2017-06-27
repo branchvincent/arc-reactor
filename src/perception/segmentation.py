@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import sys
-from .normals.normals import compute_normals
 import time
 import logging
 logger = logging.getLogger(__name__)
@@ -46,14 +45,6 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     depth = depthImage.astype('uint16')
 
-    #create the normals
-    # point_cloud_list = point_cloud[point_cloud[:,:,2] != 0]
-    # point_cloud_list = point_cloud_list.tolist()
-    # pc_norms = compute_normals(point_cloud_list, 10, 0.01)
-    # good_ind = np.where(point_cloud[:,:,2] != 0)
-    n_array = np.zeros(point_cloud.shape)
-    # n_array[good_ind] = pc_norms
-
     #create a 4D array of full color in lab space and the last channel is the depth image alligned to the full color
     #convert to LAB
     labcolor = cv2.cvtColor(fcolor, cv2.COLOR_RGB2LAB)
@@ -61,13 +52,10 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     #mean shift filter to remove texture
     labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
 
-    color_depth_image = np.zeros((imageH, imageW, 7))
+    color_depth_image = np.zeros((imageH, imageW, 4))
     #fill the first three channels with the LAB image, 4th with depth, 5-7 normals
     color_depth_image[:,:,0:3] = labcolor
     color_depth_image[:,:,3] = depth.copy()
-    color_depth_image[:,:,4] = n_array[:,:,0]
-    color_depth_image[:,:,5] = n_array[:,:,1]
-    color_depth_image[:,:,6] = n_array[:,:,2]
 
     #remove any points outside the desired rectangle
     if not params.mask is None:
