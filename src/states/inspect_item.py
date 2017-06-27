@@ -35,7 +35,11 @@ class InspectItem(State):
 
         #check ID of item and weight from read_scales
         self.origItem = self.store.get('/robot/selected_item')
-        self.newItemIDs = self.store.get('/photos/inspect/inspect_side/detections')[0] #only 1 seg?
+        if self.store.get('/photos/inspect/inspect_side/detections'):
+            self.newItemIDs = self.store.get('/photos/inspect/inspect_side/detections')[0] #only 1 seg?
+        else:
+            logger.error('detections failed at inspection station -> defaulting to original')
+            self.newItemIDs = self.origItem
         print "thought it was ", self.origItem
         print "now detecting the following: ", self.newItemIDs
 
@@ -87,12 +91,12 @@ class InspectItem(State):
 
         elif(self.readWeight<0.005):
             self.setOutcome(False)
-            #TODO MARK Put failed grasp marking here
             self.store.put(['failure', self.getFullName()], "NoItemError")
             logger.error('Likely nothing was picked up: no weight change detected.')
 
         elif task == 'stow':
             self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
+            self._mark_grasp_succeeded()
 
         elif task == 'pick':
 
@@ -113,6 +117,8 @@ class InspectItem(State):
         #                self.setOutcome(False)
                 self.setOutcome(True)
 
+            self._mark_grasp_succeeded()
+
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
         if(self.whyFail is None):
@@ -125,6 +131,25 @@ class InspectItem(State):
             return 0
             #again, no suggestions!
 
+    def _mark_grasp_succeeded(self):
+        failed_grasps = self.store.get(['robot', 'failed_grasps'], [])
+        target_grasp = self.store.get(['robot', 'target_grasp'])
+
+        logger.info('grasp succeeded at {}'.format(target_grasp['center']))
+
+        tolerance = self.store.get('/planner/grasp_success_radius', 0.1)
+        i = 0
+        while i < len(failed_grasps):
+            grasp = failed_grasps[i]
+
+            distance = ((grasp['center'] - target_grasp['center'])**2).sum()**0.5
+            if distance < tolerance:
+                logger.info('grasp cleared at {}'.format(grasp['center']))
+                del failed_grasps[i]
+            else:
+                i += 1
+
+        self.store.put(['robot', 'failed_grasps'], failed_grasps)
 
 if __name__ == '__main__':
     import argparse
