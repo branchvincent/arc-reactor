@@ -118,7 +118,7 @@ class ObjectRecognition:
             if list_of_use_weight[i]:
 
                 logger.info("Inferring object based on weight")
-                weight = self.store.get('/scales/change')
+                weight = abs(self.store.get('/scales/change'))
                 stdev = self.store.get('/system/scales/stdev',0.005)
 
                 if weight is None or stdev is None:
