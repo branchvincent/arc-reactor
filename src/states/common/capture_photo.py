@@ -38,6 +38,8 @@ class CapturePhotoBase(State):
 
         if self.store.get('/debug/photos', False):
             from util import db
+
+            logger.info('database dump started')
             db.dump(self.store, '/tmp/photo-{}'.format('-'.join(locations)))
             logger.info('database dump completed')
 

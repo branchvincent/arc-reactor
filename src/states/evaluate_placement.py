@@ -58,6 +58,8 @@ class EvaluatePlacement(State):
         if self.store.get('/debug/placements', False):
             from util import db
             suffix = 'success' if self.getOutcome() else 'failure'
+
+            logger.info('database dump started')
             db.dump(self.store, '/tmp/placement-{}-{}'.format('-'.join(locations), suffix))
             logger.info('database dump completed')
 
