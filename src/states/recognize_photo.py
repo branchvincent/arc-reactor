@@ -2,7 +2,7 @@ import logging
 
 from master.fsm import State
 
-from perception.interface import recognize_objects
+from perception.interface import recognize_objects, ObjectRecognitionError, CommandTimeoutError
 
 from .common import MissingPhotoError, MissingSegmentationError
 
@@ -25,6 +25,8 @@ class RecognizePhoto(State):
      - MissingPhotoError: photo has not been taken
      - MissingSegmentationError: photo has not been segmented
      - MissingGraspLocationError: /robot/grasp_location is not valid
+     - ObjectRecognitionError: object recognition failed non-specifically
+     - CommandTimeoutError: object recognition did not complete with the timeout
 
     Dependencies:
      - CapturePhoto of some type
@@ -37,7 +39,7 @@ class RecognizePhoto(State):
 
         try:
             self._handler(photo_urls)
-        except (MissingPhotoError, MissingSegmentationError, MissingGraspLocationError) as e:
+        except (MissingPhotoError, MissingSegmentationError, MissingGraspLocationError, ObjectRecognitionError, CommandTimeoutError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception('photo recognition failed')
         else:

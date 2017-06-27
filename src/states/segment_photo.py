@@ -4,7 +4,7 @@ from master.fsm import State
 
 from util.location import location_bounds_url, location_pose_url
 
-from perception.interface import segment_images
+from perception.interface import segment_images, SegmentationError
 
 from .common import MissingPhotoError
 
@@ -22,6 +22,7 @@ class SegmentPhoto(State):
 
     Failures:
      - MissingPhotoError: photo has not been taken
+     - SegmentationError: segmentation failed non-specifically
 
     Dependencies:
      - CapturePhoto of some type
@@ -33,7 +34,7 @@ class SegmentPhoto(State):
 
         try:
             self._handler(photo_urls)
-        except (MissingPhotoError,) as e:
+        except (MissingPhotoError, SegmentationError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception('photo segmentation failed')
         else:
