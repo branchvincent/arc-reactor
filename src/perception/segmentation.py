@@ -142,7 +142,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf):
     cntnonzero = np.where(tote_mask*mask)
     cntnonzero = len(cntnonzero[0])
     if cntnonzero < 200:
-        logger.info("Index {} in segmentation was mostly tote. Ignoring".format(index))
+        logger.info("Index {} in segmentation was mostly tote. Or image is too small. Ignoring".format(index))
         return None
 
     #create image for deep learning

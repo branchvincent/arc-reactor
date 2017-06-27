@@ -100,6 +100,13 @@ class ObjectRecognition:
                 logger.error(error_string)
                 self.store.put("object_recognition/error", error_string)
                 return
+            if len(dl_images) == 0:
+                #empty list
+                error_string = "List of images was empty. Sending out empty list. GARBAGE IN, GARBAGE OUT"
+                logger.warning(error_string)
+                self.store.put("object_recognition/error", error_string)
+                self.store.put(url + 'detections', [])
+                return
 
             #store all deep learning confidences for each image
             confidences = self.infer_objects_deep(dl_images)
