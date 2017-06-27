@@ -1,6 +1,7 @@
 import cv2
 import time
 import sys
+import copy
 import hardware.SR300.realsense as rs
 from PyQt5 import QtGui, QtCore, QtWidgets
 import numpy as np
@@ -18,12 +19,12 @@ class CameraServer(QtWidgets.QWidget):
         self.initUI()
 
         self.current_settings_camera = 0
-        self.video_thread = VideoThread(self.context)
+        self.video_thread = VideoThread()
         self.video_thread.signal.connect(self.receive_images)
         self.video_thread.start()
         self.db_poll_thread = PollDBThread()
 
-        self.db_poll_thread.signal.connect(self.take_image)
+        self.db_poll_thread.signal.connect(self.take_images)
         self.db_poll_thread.start()
         self.show()
 
@@ -45,8 +46,8 @@ class CameraServer(QtWidgets.QWidget):
         #grid layout for camera color images
         self.camera_grid_layout = QtWidgets.QGridLayout()
 
-        self.list_of_camera_displays = []
-        for i in range(self.num_cameras):
+        self.dictionary_of_camera_displays = {}
+        for i in range(len(self.camera_sn)):
             #for each camera create a color image view
             cam_display = QtWidgets.QLabel(self)
             cam_display.show()
@@ -56,197 +57,82 @@ class CameraServer(QtWidgets.QWidget):
             cam_display.setPixmap(pix.scaled(480,360))
 
             #add it to the list of views
-            self.list_of_camera_displays.append(cam_display)
+            self.dictionary_of_camera_displays[self.camera_sn[i]] = cam_display
 
             #put it in the grid
             self.camera_grid_layout.addWidget(cam_display, i%2, i//2)
             
-
-        #create a settings panel
-        self.camera_selector_combo = QtWidgets.QComboBox(self)
-        self.cam_serial_nums = []
-        for i in range(self.num_cameras):
-            cam = self.context.get_device(i)
-            #return the serial num of the camera too
-            sn = cam.get_info(rs.camera_info_serial_number)
-            self.cam_serial_nums.append(sn)
-
-        #fill in the combo box with the cameras attached
-        self.camera_selector_combo.addItems(self.cam_serial_nums)
-        self.camera_selector_combo.currentIndexChanged.connect(self.change_camera)
-        
-        self.settings_layout = QtWidgets.QVBoxLayout()
-        self.settings_layout.addStretch(1)
-        self.settings_layout.addWidget(self.camera_selector_combo)
-        self.settings_layout.addSpacing(20)
-
-        self.list_of_sliders = []
-        self.list_of_slider_labels = []
-        self.settings_names = ['Gain','White Balance', 'Exposure','Auto Exposure', 'Auto White Balance']
-        #min and max settings for slider
-        setting_ranges = [[0,128],[2800,6500],[40,3000],[0,1],[0,1]]
-        for i,setting in enumerate(self.settings_names):
-            #make the label
-            label = QtWidgets.QLabel(self)
-            label.setText(setting + ": " + str(int(self.camera_options[0][setting])))
-            label.show()
-            self.settings_layout.addWidget(label)
-            self.list_of_slider_labels.append(label)
-
-            #make the slider
-            slider = QtWidgets.QSlider(self)
-            slider.setOrientation(QtCore.Qt.Horizontal)
-            slider.setMinimum(setting_ranges[i][0])
-            slider.setMaximum(setting_ranges[i][1])
-            self.settings_layout.addWidget(slider)
-            self.list_of_sliders.append(slider)
-            #read the current setting for the camera to set it for the first camera in the list
-            slider.setValue(self.camera_options[0][setting])
-            slider.valueChanged.connect(self.slider_changed)
-            self.settings_layout.addSpacing(20)
-        self.settings_layout.addStretch(1)
         self.horzLayout.addItem(self.camera_grid_layout)
-        self.horzLayout.addItem(self.settings_layout)
 
     def initCameras(self):
         try:
-            self.context = rs.context()
+            context = rs.context()
         except:
             raise RuntimeError("Could not acquire context for Realsense cameras. Some other process has already connected")
 
-        self.num_cameras = self.context.get_device_count()
+        self.num_cameras = context.get_device_count()
         if self.num_cameras == 0:
             raise RuntimeError("No cameras were detected")
         
         logger.info("Found %i cameras", self.num_cameras)
         
         
-        #list of dictionaries        
-        self.camera_options = []
-        #dictionary that converts serial number to camera number
-        self.camera_sn_to_number = {}
+        self.camera_sn = []
         #cycle through and set the camera options
         for num in range(self.num_cameras):
-            cam = self.context.get_device(num)
+            cam = context.get_device(num)
 
-            self.camera_sn_to_number[str(cam.get_info(rs.camera_info_serial_number))] = num
-
-            try:
-                cam.set_option(rs.option_f200_filter_option, 1)
-                cam.set_option(rs.option_f200_confidence_threshold, 4)
-                cam.set_option(rs.option_f200_accuracy, 1)
-                cam.set_option(rs.option_f200_motion_range, 10)
-                cam.set_option(rs.option_f200_laser_power, 16) #turn the laser on for all cameras
-            except:
-                logger.warning("Unable to set options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
-
-
-            try:
-                options_dict = {}
-                
-                #get the current options
-                wb = cam.get_option(rs.option_color_white_balance)
-                gain = cam.get_option(rs.option_color_gain)
-                exposure = cam.get_option(rs.option_color_exposure)
-                autoexp = cam.get_option(rs.option_color_enable_auto_exposure)
-                autowb = cam.get_option(rs.option_color_enable_auto_white_balance)
-
-                options_dict['White Balance'] = wb
-                options_dict['Gain'] = gain
-                options_dict['Exposure'] = exposure
-                options_dict['Auto Exposure'] = autoexp
-                options_dict['Auto White Balance'] = autowb
-                self.camera_options.append(options_dict)
-
-            except:
-                logger.warning("Unable to retrieve options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
-
-
-    def slider_changed(self):
-        slider = self.sender()
-        #get the index of this slider
-        ind = self.list_of_sliders.index(slider)
-
-        #get the label
-        label = self.list_of_slider_labels[ind]
-
-        #update the label with the setting value
-        val = slider.value()
-        label.setText(self.settings_names[ind] + ": " + str(val))
-
-        rs_options = [rs.option_color_gain,
-                        rs.option_color_white_balance, 
-                        rs.option_color_exposure,
-                        rs.option_color_enable_auto_exposure,
-                        rs.option_color_enable_auto_white_balance]
-
-        #change it on the camera that is currently selected from the drop down box
-        cam = self.context.get_device(self.current_settings_camera)
-        try:
-            cam.set_option(rs_options[ind],val)
-            self.camera_options[self.current_settings_camera][self.settings_names[ind]] = val
-        except:
-            logger.warning("Unable to set options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
-
-
-    def change_camera(self, cam_num):
-        self.current_settings_camera = cam_num
-        cam = self.context.get_device(cam_num)
-        logger.info("Changing camera settings for {}".format(cam.get_info(rs.camera_info_serial_number)))
-        #get the current options
-        wb = cam.get_option(rs.option_color_white_balance)
-        gain = cam.get_option(rs.option_color_gain)
-        exposure = cam.get_option(rs.option_color_exposure)
-        autoexp = cam.get_option(rs.option_color_enable_auto_exposure)
-        autowb = cam.get_option(rs.option_color_enable_auto_white_balance)
-
-        self.camera_options[cam_num]['White Balance'] = wb
-        self.camera_options[cam_num]['Gain'] = gain
-        self.camera_options[cam_num]['Exposure'] = exposure
-        self.camera_options[cam_num]['Auto Exposure'] = autoexp
-        self.camera_options[cam_num]['Auto White Balance'] = autowb
-        for i,setting in enumerate(self.settings_names):
-            self.list_of_sliders[i].setValue(self.camera_options[cam_num][setting])
+            self.camera_sn.append(str(cam.get_info(rs.camera_info_serial_number)))
 
     def receive_images(self, image_dictionary):
         #update the view
         imageFullColor = image_dictionary['full_color']
-        num = image_dictionary['number']
-        self.update_camera_view(imageFullColor, num)
+        sn = image_dictionary['serial_number']
+        self.update_camera_view(imageFullColor, sn)
 
 
-    def take_image(self, camera_serial, url):
+    def take_images(self, camera_serials, urls):
         
-        cam_num = self.camera_sn_to_number[camera_serial]
-        logger.info("Taking image for camera {}".format(cam_num))
+        logger.info("Taking image(s) for camera(s) {}".format(camera_serials))
+        self.video_thread.camera_sn_q = camera_serials      
         
-        self.video_thread.camera_sn_q.append(camera_serial)
+        for sn,url in zip(camera_serials,urls):
+            cur_time = time.time()
+            while (self.video_thread.sn_to_image_dictionaries[sn]["time_stamp"] - cur_time) < 0.1:
+                time.sleep(0.01)
+                #timeout 
+                if(time.time() - cur_time > 3):
+                    error_string = "Unable to get new images from camera {}".format(sn)
+                    logger.error(error_string)
+                    self.db_poll_thread.error_string = error_string
+                    self.db_poll_thread.images_acquired = True
+                    break
+                
+            self.db_poll_thread.image_dictionaries.append(copy.deepcopy(self.video_thread.sn_to_image_dictionaries[sn]))
+            self.db_poll_thread.urls.append(url)
 
-        cur_time = time.time()
-        while (self.video_thread.list_of_image_dictionaries[cam_num]["time_stamp"] - cur_time) < 0.1:
-            time.sleep(0.01)
-            #timeout 
-            if(time.time() - cur_time > 3):
-                error_string = "Unable to get new images from camera {}".format(camera_serial)
-                logger.error(error_string)
-                self.db_poll_thread.error_string = error_string
-                self.db_poll_thread.image_aquired = True
-                break
-            
-        self.db_poll_thread.image_dictionary = self.video_thread.list_of_image_dictionaries[cam_num]
-        self.db_poll_thread.url = url
-        self.db_poll_thread.image_aquired = True
-        logger.info("Image acquired")
+        self.db_poll_thread.images_acquired = True
+        logger.info("Image(s) acquired")
 
-    def update_camera_view(self, color_image, camera_num):
-        label = self.list_of_camera_displays[camera_num]
+        self.video_thread.keepRunning = False
+        logger.info("Stopping camera thread")
+        while self.video_thread.isRunning():
+            time.sleep(0.001)
+        logger.info("Camera thread stopped. Restarting")
+        self.video_thread.keepRunning = True
+
+        time.sleep(1.5)
+        self.video_thread.start()
+
+    def update_camera_view(self, color_image, sn):
+        label = self.dictionary_of_camera_displays[sn]
         image = QtGui.QImage(color_image, color_image.shape[1], color_image.shape[0], color_image.shape[1] * 3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(image)
         label.setPixmap(pix.scaled(480,360))
       
 
 class PollDBThread(QtCore.QThread):
-    signal = QtCore.pyqtSignal(str, str)
+    signal = QtCore.pyqtSignal(list, list)
     def __init__(self):
         QtCore.QThread.__init__(self)
         #try to connect to the database
@@ -258,10 +144,10 @@ class PollDBThread(QtCore.QThread):
         except:
             raise RuntimeError('Could not connect to the database. Exiting')
 
-        self.image_aquired = False
+        self.images_acquired = False
         self.error_string = None
-        self.image_dictionary = {}
-        self.url = "/"
+        self.image_dictionaries = []
+        self.urls = []
 
     def run(self):
         '''
@@ -303,29 +189,32 @@ class PollDBThread(QtCore.QThread):
                         self.store.put('/acquire_images/done', 1)
                         continue
 
-                    for i in range(len(list_of_serial_nums)):
-                        self.image_aquired = False
-                        self.signal.emit(list_of_serial_nums[i], list_of_urls[i])
-                        while not self.image_aquired:
-                            time.sleep(0.01)
-                        logger.info("Starting write to DB")
-                        #image was acquired write stuff out to the database
+                    
+                    self.images_acquired = False
+                    self.signal.emit(list_of_serial_nums, list_of_urls)
+                    while not self.images_acquired:
+                        time.sleep(0.01)
+                    
+                    logger.info("Starting write to DB")
+                    #image was acquired write stuff out to the database
+                    for i, image_dictionary in enumerate(self.image_dictionaries):
+                        send_dict = {key: value for (key, value) in image_dictionary.items() if key not in ['error', 'serial_number']}
+                        self.store.multi_put(send_dict,root=self.urls[i])
+                    
 
-                        send_dict = {key: value for (key, value) in self.image_dictionary.items() if key not in ['error', 'number']}
-                        self.store.multi_put(send_dict,root=self.url)
-                        #TODO multiput all dictionaries into one
-                        # for key in sorted(self.image_dictionary.keys()):
-                        #     if key != 'number' and key != 'error':
-                        #         db_key = self.url + "/" + key
-                        #         self.store.put(db_key, self.image_dictionary[key])
-                        #     elif key == 'error' and self.image_dictionary[key] != None:
-                        #         self.error_string = self.image_dictionary[key]
-                        logger.info("Ending write to DB")
+                    #tell the DB we are done
                     self.store.put('/acquire_images/done', 1)
                     self.store.put('acquire_images/error', self.error_string)
                     if not self.error_string is None:
                         #log the error
                         logger.error(self.error_string)
+
+                    logger.info("Ending write to DB")
+
+                    #clear the urls and image dictionaries
+                    self.urls = []
+                    self.image_dictionaries = []
+
                     logger.info("Saving images complete")
                 else:
                     time.sleep(0.1)
@@ -337,24 +226,32 @@ class PollDBThread(QtCore.QThread):
 
 class VideoThread(QtCore.QThread):
     signal = QtCore.pyqtSignal(dict)
-    def __init__(self, context):
+    def __init__(self):
         QtCore.QThread.__init__(self)
-        self.context = context
         self.keepRunning = True
-        self.cameras = []
-        self.list_of_image_dictionaries = []
-        self.sn_to_number = {}
+        self.sn_to_camera = {}
+        self.sn_to_image_dictionaries = {}
         self.camera_sn_q = [] #list of serial numbers to get images from
-        self.initCameras()
-        
-    def initCameras(self):
-        num_cams = self.context.get_device_count()            
+
+    def run(self):
+        logger.info("Starting camera thread")
+        try:
+            context = rs.context()
+        except:
+            logger.exception("Unable to aquire context")
+            raise RuntimeError("Unable to acquire context")
+            #exit gracefully
+            sys.exit(-1)
+
+        num_cams = context.get_device_count()            
         if num_cams == 0:
             logger.warn("No cameras attached")
             return
+
+        logger.info("Found {} cameras".format(num_cams))
         #enable all of the cameras
         for i in range(num_cams):
-            cam = self.context.get_device(i)
+            cam = context.get_device(i)
             try:
                 #enable the stream
                 for s in [rs.stream_color, rs.stream_depth, rs.stream_infrared]:
@@ -362,24 +259,48 @@ class VideoThread(QtCore.QThread):
             except:
                 logger.exception("Could not enable the stream")
                 return
-            self.cameras.append(cam)
-            self.list_of_image_dictionaries.append({})
-            self.list_of_image_dictionaries[i]['time_stamp'] = time.time()
-            self.sn_to_number[cam.get_info(rs.camera_info_serial_number)] = i
+            #set up settings
+            try:
+                cam.set_option(rs.option_f200_filter_option, 1)
+                cam.set_option(rs.option_f200_confidence_threshold, 4)
+                cam.set_option(rs.option_f200_accuracy, 1)
+                cam.set_option(rs.option_f200_motion_range, 10)
+                cam.set_option(rs.option_f200_laser_power, 16) #turn the laser on for all cameras
+            except:
+                logger.warning("Unable to set options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
 
-    def run(self):
+            #add to class structures
+            sn = cam.get_info(rs.camera_info_serial_number)
+            self.sn_to_image_dictionaries[sn] = {}
+            self.sn_to_image_dictionaries[sn]['time_stamp'] = time.time()
+            self.sn_to_camera[sn] = cam
+
         while self.keepRunning:
             #check to see if we need to acquire an image from a camera
             if len(self.camera_sn_q) != 0:
-                for sn in self.camera_sn_q:
-                    self.captureImage(self.cameras[self.sn_to_number[sn]])
+                while len(self.camera_sn_q) != 0:
+                    sn = self.camera_sn_q[0]
+                    logger.info("Taking image from camera {}".format(sn))
+                    self.captureImage(sn)
+                    logger.info("Image acquired")
+                    self.camera_sn_q.remove(sn)
 
-                self.camera_sn_q = []
             else:
                 time.sleep(0.05)
 
+        #clear variables
+        self.sn_to_camera = {}
+        self.sn_to_image_dictionaries = {}
+        self.camera_sn_q = []
+        self.context_acquired = False
 
-    def captureImage(self, cam):
+    def captureImage(self, sn):
+        try:
+            cam = self.sn_to_camera[sn]
+        except KeyError as ke:
+            logger.exception("Got a key error for sn {}".format(sn))
+            return
+
         cam.start()
         image_dictionary = {}
         imageFullColor = None
@@ -387,10 +308,10 @@ class VideoThread(QtCore.QThread):
         depth_to_color = None
         points = None
         error_string = None
-        num = self.cameras.index(cam)
+
         #if there is a new frame send it out
         try:
-            cam.wait_for_frames()  
+            cam.wait_for_frames()
             imageFullColor = cam.get_frame_data_u8(rs.stream_color)
             if imageFullColor.size == 1:
                 #something went wrong
@@ -437,7 +358,7 @@ class VideoThread(QtCore.QThread):
 
         except Exception as e:
             error_string = "Error in waiting for frames. {}".format(e)
-            logger.error(error_string)
+            logger.exception(error_string)
             
             
 
@@ -445,11 +366,11 @@ class VideoThread(QtCore.QThread):
         image_dictionary['aligned_color'] = color_to_depth
         image_dictionary['aligned_depth'] = depth_to_color
         image_dictionary['point_cloud'] = points
-        image_dictionary['number'] = num
+        image_dictionary['serial_number'] = sn
         image_dictionary['time_stamp'] = time.time()
         image_dictionary['error'] = error_string
         self.signal.emit(image_dictionary)
-        self.list_of_image_dictionaries[num] = image_dictionary
+        self.sn_to_image_dictionaries[sn] = image_dictionary
         cam.stop()
 
 
