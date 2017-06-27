@@ -23,17 +23,17 @@ class ObjectRecognition:
         except:
             raise RuntimeError('Could not connect to the database. Cannot function')
 
-        self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,40)
-
         names = []
         #load in the items.json file
+        logger.critical('using hard-coded items file')
         with open('db/items.json') as data_file:
             jsonnames = json.load(data_file)
         for key,value in jsonnames.items():
             names.append((key, value['mass']))
         names.sort(key=lambda tup: tup[0])
         self.object_names = names
-        
+
+        self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,len(names))
 
         #given a location returns a list of items in the location
         self.items_in_location = {}
@@ -137,7 +137,7 @@ class ObjectRecognition:
                     error_string = "Too many images for inspection station. Expecting 1. Got {}. Using first image".format(len(list_of_list_of_confidences_deep))
                     logger.warning(error_string)
                     self.store.put('object_recognition/error',error_string)
-                    
+
                 #combine the confidences and write that out to detections
                 #combine the first list of confidences from dl with weights
                 combined_dict = {}
