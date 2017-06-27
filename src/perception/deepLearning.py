@@ -31,7 +31,7 @@ class DeepLearningRecognizer:
         self.X_sym = T.tensor4()
         lasagne.layers.set_all_param_values(self.network['prob'], self.weights['values'])
         self.output_layer = self.network['prob']
-        self.prediction = lasagne.layers.get_output(self.output_layer, self.X_sym)
+        self.prediction = lasagne.layers.get_output(self.output_layer, self.X_sym, deterministic=True)
         self.pred_fn = theano.function([self.X_sym], self.prediction)
 
     def build_model(self, num_classes):
@@ -80,8 +80,7 @@ class DeepLearningRecognizer:
             net.update(sub_net)
         net['pool5'] = PoolLayer(net[parent_layer_name], pool_size=7, stride=1, pad=0,
                                 mode='average_exc_pad', ignore_border=False)
-        net['fc1000'] = DenseLayer(net['pool5'], num_units=num_classes, nonlinearity=None)
-        net['prob'] = NonlinearityLayer(net['fc1000'], nonlinearity=softmax)
+        net['prob'] = DenseLayer(net['pool5'], num_units=num_classes, nonlinearity=softmax)
         logger.info("Model built")
         return net
 
