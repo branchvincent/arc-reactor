@@ -144,7 +144,7 @@ class ObjectRecognition:
                 for key,value in list_of_list_of_confidences_deep[0].items():
                     combined_dict[key] = value*list_of_list_of_confidences_weight[0][key]
 
-                self.store.put(url + 'detections_combined', combined_dict)
+                self.store.put(url + 'detections_combined', [combined_dict])
 
         self.store.put('object_recognition/error',error_string)
 
