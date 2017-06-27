@@ -66,12 +66,7 @@ class InspectItem(State):
         print "origWeightError ", self.origWeightError
         print "nowWeightError ", self.nowWeightError
 
-        if(self.readWeight<0.001):
-            print "likely didn't pick anything up"
-            self.setOutcome(False)
-            raise RuntimeError("bad item!")
-
-        elif(self.origItem == self.nowItem):
+        if(self.origItem == self.nowItem):
                 self.likelyItem = self.origItem
                 print "ID'd correct item originally"
         else:
@@ -89,6 +84,12 @@ class InspectItem(State):
         if task is None:
             self.setOutcome(False)
             raise RuntimeError("No task defined")
+
+        elif(self.readWeight<0.005):
+            self.setOutcome(False)
+            #TODO MARK Put failed grasp marking here
+            self.store.put(['failure', self.getFullName()], "NoItemError")
+            logger.error('Likely nothing was picked up: no weight change detected.')
 
         elif task == 'stow':
             self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
@@ -111,6 +112,19 @@ class InspectItem(State):
                 self.store.put('/robot/selected_box', 'box1B2')
         #                self.setOutcome(False)
                 self.setOutcome(True)
+
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None):
+            return 0
+            #no failure detected, no suggestions!
+        elif(self.whyFail == "NoItemError"):
+            return 1
+            #go to first fallback state
+        else:
+            return 0
+            #again, no suggestions!
+
 
 if __name__ == '__main__':
     import argparse

@@ -69,55 +69,55 @@ class PickStateMachine(StateMachine):
 
     def setupTransitions(self):
         #initial look. only needs to run once...
-        self.setTransition('pvla', 'er1', 'pvla', checkState='cr1')
-        self.setTransition('cr1', 'er1', 'pvla')
-        self.setTransition('er1', 'cpba', 'pvla')
-        self.setTransition('cpba', 'pvlb', 'cpba')
+        self.setTransition('pvla', 'er1', ['pvla'], checkState='cr1')
+        self.setTransition('cr1', 'er1', ['pvla'])
+        self.setTransition('er1', 'cpba', ['pvla'])
+        self.setTransition('cpba', 'pvlb', ['cpba'])
 
-        self.setTransition('pvlb', 'er2', 'pvlb', checkState='cr2')
-        self.setTransition('cr2', 'er2', 'pvlb')
-        self.setTransition('er2', 'cpbb', 'pvlb')
-        self.setTransition('cpbb', 'pvlc', 'cpbb')
+        self.setTransition('pvlb', 'er2', ['pvlb'], checkState='cr2')
+        self.setTransition('cr2', 'er2', ['pvlb'])
+        self.setTransition('er2', 'cpbb', ['pvlb'])
+        self.setTransition('cpbb', 'pvlc', ['cpbb'])
 
-        self.setTransition('pvlc', 'er3', 'pvlc', checkState='cr3')
-        self.setTransition('cr3', 'er3', 'pvlc')
-        self.setTransition('er3', 'cpbc', 'pvlc')
-        self.setTransition('cpbc', 'rs2', 'cpbc')
-        self.setTransition('rs2', 'sp1', 'sp1') # initial read scales
+        self.setTransition('pvlc', 'er3', ['pvlc'], checkState='cr3')
+        self.setTransition('cr3', 'er3', ['pvlc'])
+        self.setTransition('er3', 'cpbc', ['pvlc'])
+        self.setTransition('cpbc', 'rs2', ['cpbc'])
+        self.setTransition('rs2', 'sp1', ['sp1']) # initial read scales
 
         #then loop to updated pvlXXX and capture
-        self.setTransition('sp1', 'rp1', 'sp1')
-        self.setTransition('rp1', 'egvp', 'rp1')
-        self.setTransition('egvp', 'si', 'cpbc') #if eval grasp fails, try to take another photo
+        self.setTransition('sp1', 'rp1', ['sp1'])
+        self.setTransition('rp1', 'egvp', ['rp1'])
+        self.setTransition('egvp', 'si', ['cpbc']) #if eval grasp fails, try to take another photo
 
-        self.setTransition('si', 'ppi', 'pvla', checkState='csi')
-        self.setTransition('csi', 'ppi', 'si')
+        self.setTransition('si', 'ppi', ['pvla'], checkState='csi')
+        self.setTransition('csi', 'ppi', ['si'])
 
-        self.setTransition('ppi', 'er4', 'si', checkState='cr4')
-        self.setTransition('cr4', 'er4', 'ppi')
-        self.setTransition('er4', 'rs1', 'ppi')
+        self.setTransition('ppi', 'er4', ['si'], checkState='cr4')
+        self.setTransition('cr4', 'er4', ['ppi'])
+        self.setTransition('er4', 'rs1', ['ppi'])
 
-        self.setTransition('rs1', 'cpi', 'cpi')
-        self.setTransition('cpi', 'sp2', 'ii')
-        self.setTransition('sp2', 'rp2', 'ii')
-        self.setTransition('rp2', 'ii', 'ii')
-        self.setTransition('ii', 'ep', 'ii')
+        self.setTransition('rs1', 'cpi', ['cpi'])
+        self.setTransition('cpi', 'sp2', ['ii'])
+        self.setTransition('sp2', 'rp2', ['ii'])
+        self.setTransition('rp2', 'ii', ['ii'])
+        self.setTransition('ii', 'ep', ['ii', 'si'])
 
-        self.setTransition('ep', 'ppb', 'cpi')
-        self.setTransition('ppb', 'er5', 'ep', checkState='cr5')
-        self.setTransition('cr5', 'er5', 'ppb')
-        self.setTransition('er5', 'cpx', 'ppb')
+        self.setTransition('ep', 'ppb', ['cpi'])
+        self.setTransition('ppb', 'er5', ['ep'], checkState='cr5')
+        self.setTransition('cr5', 'er5', ['ppb'])
+        self.setTransition('er5', 'cpx', ['ppb'])
 # when we have more scales, use read scales here
 
-        self.setTransition('cpx', 'sp3', 'cpx')
-        self.setTransition('sp3', 'rp3', 'rp3')
-        self.setTransition('rp3', 'ci', 'ci')
+        self.setTransition('cpx', 'sp3', ['cpx'])
+        self.setTransition('sp3', 'rp3', ['rp3'])
+        self.setTransition('rp3', 'ci', ['ci'])
 
-        self.setTransition('ci', 'pvl', 'ci')
-        self.setTransition('pvl', 'er6', 'pvl', checkState='cr6')
-        self.setTransition('cr6', 'er6', 'pvl')
-        self.setTransition('er6', 'cpb', 'pvl')
-        self.setTransition('cpb', 'sp1', 'cpb')
+        self.setTransition('ci', 'pvl', ['ci'])
+        self.setTransition('pvl', 'er6', ['pvl'], checkState='cr6')
+        self.setTransition('cr6', 'er6', ['pvl'])
+        self.setTransition('er6', 'cpb', ['pvl'])
+        self.setTransition('cpb', 'sp1', ['cpb'])
 
     def isDone(self):
         #if all items picked, all their point values are 0. Need to re-write

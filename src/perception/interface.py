@@ -33,7 +33,7 @@ def acquire_images(store, serials, photo_urls):
     try:
         check_call(args)
     except CalledProcessError:
-        logger.exception()
+        logger.exception("Subprocess died")
         raise CameraAcquisitionError()
 
 def acquire_images_new(store, serials, photo_urls):

@@ -26,12 +26,14 @@ class State(object):
         self.store.put('/outcome/'+self.getFullName(), outcome)
     def getOutcome(self):
         return self.store.get('/outcome/'+self.getFullName())
+    def suggestNext(self):
+        pass
 
 class Transition():
-    def __init__(self, fromState, toState, altState, store=None, checkState=None):
+    def __init__(self, fromState, toState, altStates, store=None, checkState=None):
         self.fromState = fromState.upper()
         self.toState = toState.upper()
-        self.altState = altState.upper()
+        self.altStates = altStates   #altState.upper()
         self.checkState = checkState
         self.outcome = '/outcome/'+fromState
         self.checkpoint = '/checkpoint/'+self.findCheckpoint(fromState)
@@ -44,11 +46,16 @@ class Transition():
             return "select_item"
         else: return fromState
 
-    def decideTransition(self):
+    def decideTransition(self, events):
+        self.events = events
         if self.isFailure(): #if nothing set, assume failed
             print "Failed, going back, outcome was ", self.outcome
             logger.info('State failed, going to alternative state')
-            return self.altState
+            self.suggested = self.events[self.fromState].suggestNext()
+            if(self.suggested is None or self.suggested==0):
+                return self.altStates[0].upper()
+            else:
+                return self.altStates[self.suggested].upper()
         if self.store.get(self.checkpoint, False):
             print "got checkpoint"
             logger.info('Checkpoint after current state is called')
@@ -188,7 +195,8 @@ class StateMachine():
             raise RuntimeError("Need to define a final state")
         self.runCurrent()
 
-        self.decideState = self.transitions[self.getCurrentState()].decideTransition()
+        self.decideState = self.transitions[self.getCurrentState()].decideTransition(self.events)
+        #TODO need some error handling if decideTransition fails
         self.setCurrentState(self.decideState)
         if(len(self.failures)>4):
             self.setCurrentState(self.getStartState())
