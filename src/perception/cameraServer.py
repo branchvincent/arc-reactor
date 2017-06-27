@@ -94,11 +94,11 @@ class CameraServer(QtWidgets.QWidget):
     def take_images(self, camera_serials, urls):
         
         logger.info("Taking image(s) for camera(s) {}".format(camera_serials))
-        self.video_thread.camera_sn_q = camera_serials      
+        self.video_thread.camera_sn_q = camera_serials[:] 
         
         for sn,url in zip(camera_serials,urls):
             cur_time = time.time()
-            while (self.video_thread.sn_to_image_dictionaries[sn]["time_stamp"] - cur_time) < 0.1:
+            while len(self.video_thread.camera_sn_q) != 0:
                 time.sleep(0.01)
                 #timeout 
                 if(time.time() - cur_time > 3):
@@ -284,7 +284,7 @@ class VideoThread(QtCore.QThread):
                     self.captureImage(sn)
                     logger.info("Image acquired")
                     self.camera_sn_q.remove(sn)
-
+                
             else:
                 time.sleep(0.05)
 
