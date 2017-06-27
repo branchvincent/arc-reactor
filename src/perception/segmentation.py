@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import sys
-from .normals.normals import compute_normals
 import time
 import logging
 logger = logging.getLogger(__name__)
@@ -19,9 +18,6 @@ class GraphSegmentationParams():
         self.A_weight = 1
         self.B_weight = 1
         self.depth_weight = 1
-        self.x_norm_weight = 1
-        self.y_norm_weight = 1
-        self.z_norm_weight = 1
 
         #filtering parameters for the mean shift filtering
         self.sp_rad = 7     #spatial window radius
@@ -46,14 +42,6 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     depth = depthImage.astype('uint16')
 
-    #create the normals
-    # point_cloud_list = point_cloud[point_cloud[:,:,2] != 0]
-    # point_cloud_list = point_cloud_list.tolist()
-    # pc_norms = compute_normals(point_cloud_list, 10, 0.01)
-    # good_ind = np.where(point_cloud[:,:,2] != 0)
-    n_array = np.zeros(point_cloud.shape)
-    # n_array[good_ind] = pc_norms
-
     #create a 4D array of full color in lab space and the last channel is the depth image alligned to the full color
     #convert to LAB
     labcolor = cv2.cvtColor(fcolor, cv2.COLOR_RGB2LAB)
@@ -61,13 +49,10 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     #mean shift filter to remove texture
     labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
 
-    color_depth_image = np.zeros((imageH, imageW, 7))
+    color_depth_image = np.zeros((imageH, imageW, 4))
     #fill the first three channels with the LAB image, 4th with depth, 5-7 normals
     color_depth_image[:,:,0:3] = labcolor
     color_depth_image[:,:,3] = depth.copy()
-    color_depth_image[:,:,4] = n_array[:,:,0]
-    color_depth_image[:,:,5] = n_array[:,:,1]
-    color_depth_image[:,:,6] = n_array[:,:,2]
 
     #remove any points outside the desired rectangle
     if not params.mask is None:
@@ -82,7 +67,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     gs.setK(params.k)
     gs.setMinSize(int(params.minSize))
 
-    weights = [params.L_weight, params.A_weight, params.B_weight, params.depth_weight, params.x_norm_weight, params.y_norm_weight, params.z_norm_weight]
+    weights = [params.L_weight, params.A_weight, params.B_weight, params.depth_weight]
     for n,w in enumerate(weights):
         color_depth_image[:,:,n] = color_depth_image[:,:,n]*w
     labeled_image = gs.processImage(color_depth_image)
@@ -90,7 +75,6 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     logger.info("Found {} segments in the image".format(labeled_image.max()))
 
     segments = []
-
     #extract the sub image for each label based on the minimum bounding rectangle
     imagesForDL = []
     for i in range(numObj):
@@ -111,7 +95,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
         xs = segments[i][:,1]
         labeled_image[ys,xs] = i+1
 
-    labeled_image = np.where(params.mask, labeled_image, -1)
+    labeled_image = np.where(params.mask, labeled_image, 0)
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
     return_values['pixel_locations'] = segments
@@ -158,7 +142,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf):
     cntnonzero = np.where(tote_mask*mask)
     cntnonzero = len(cntnonzero[0])
     if cntnonzero < 200:
-        logger.info("Index {} in segmentation was mostly tote. Ignoring".format(index))
+        logger.info("Index {} in segmentation was mostly tote. Or image is too small. Ignoring".format(index))
         return None
 
     #create image for deep learning

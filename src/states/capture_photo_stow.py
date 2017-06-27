@@ -25,8 +25,9 @@ class CapturePhotoStow(CapturePhotoBase):
      - /robot/target_locations is set to ['stow_tote'] (HACK?)
 
     Failures:
-     - camera error
-     - location has no viewing cameras
+     - CameraAcquisitionError: camera error
+     - NoViewingCameraError: location has no viewing cameras
+     - CommandTimeoutError: image not acquired within timeout
 
     Dependencies:
      - none

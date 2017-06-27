@@ -159,6 +159,7 @@ def _load_location(store, location):
         logger.debug('reading location from "{}"'.format(location))
         location = json.load(open(location))
 
+    logger.critical('using hard-coded items file')
     _load(store, 'db/items.json', '/item')
 
     # load location data

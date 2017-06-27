@@ -25,8 +25,9 @@ class CapturePhotoBox(CapturePhotoBase):
      - /robot/target_locations is set to [/robot/target_box] (HACK?)
 
     Failures:
-     - camera error
-     - location has no viewing cameras
+     - CameraAcquisitionError: camera error
+     - NoViewingCameraError: location has no viewing cameras
+     - CommandTimeoutError: image not acquired within timeout
 
     Dependencies:
      - none

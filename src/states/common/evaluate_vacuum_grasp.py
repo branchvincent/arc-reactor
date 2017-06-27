@@ -32,6 +32,8 @@ class EvaluateVacuumGraspBase(State):
         if self.store.get('/debug/grasps', False):
             from util import db
             suffix = 'success' if self.getOutcome() else 'failure'
+
+            logger.info('database dump started')
             db.dump(self.store, '/tmp/grasp-{}={}'.format('-'.join(locations), suffix))
             logger.info('database dump completed')
 

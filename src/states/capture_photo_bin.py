@@ -25,8 +25,9 @@ class CapturePhotoBin(CapturePhotoBase):
      - /robot/target_locations is set to [/robot/target_bin] (HACK?)
 
     Failures:
-     - camera error
-     - location has no viewing cameras
+     - CameraAcquisitionError: camera error
+     - NoViewingCameraError: location has no viewing cameras
+     - CommandTimeoutError: image not acquired within timeout
 
     Dependencies:
      - none

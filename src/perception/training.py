@@ -134,33 +134,6 @@ def read_images_segment(root_dir):
     return imlist,imlabels
 
 
-def build_histogram_model(imlist, imlabels):
-    '''
-    takes in a list of images and a list of labels.
-    stores the average normalized histogram for each item
-    '''
-    item_hist_sum = []
-    num_bins = 16
-    for i in range(40):
-        item_hist_sum.append(np.zeros((num_bins,num_bins,num_bins)))
-        
-    for image, label in zip(imlist, imlabels):
-        
-        #find the non zero pixels
-        
-        mask0 = image[:,:,0] != 0
-        mask1 = image[:,:,1] != 0
-        mask2 = image[:,:,2] != 0
-
-        mask = np.logical_and(np.logical_and(mask0, mask1),mask2)
-        histAB,_ = np.histogramdd(image[mask],[num_bins,num_bins,num_bins], [[0,256],[0,256],[0,256]])
-        item_hist_sum[label] += histAB
-            
-    for i in range(40):
-        item_hist_sum[i] = item_hist_sum[i]/np.sum(item_hist_sum[i])
-
-    np.save('item_sum_hist_fast.npy', item_hist_sum)
-
 
 def build_simple_block(incoming_layer, names,
                        num_filters, filter_size, stride, pad,
@@ -580,7 +553,10 @@ def main(location_of_images,trained_fname):
         np.save('imlabels_temp.npy',imlabels)
 
     imlist,imlabels=extract_bounding_box(imlist,imlabels)
+    np.save('imlist_temp.npy',imlist)
+    np.save('imlabels_temp.npy',imlabels)
     print('loaded images',str(time.time()-start)+' seconds')
+
     #augment images
     try:
         X_tr=np.load('X_temp')

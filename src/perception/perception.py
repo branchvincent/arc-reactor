@@ -359,7 +359,8 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             #create a DL image
             dl_tuple = segmentation.create_deep_learing_image(c_image, np.where(mask_volume == True,1,0),1, False, False)
             if dl_tuple is None:
-                raise RuntimeError("Unable to create image for deep learning.")
+                logger.warning("Unable to create image for deep learning.")
+                store.put(url + "DL_images", [])
             else:
                 store.put(url + "DL_images", [dl_tuple[1]])
         else:

@@ -33,6 +33,7 @@ class PowerCycleCameras(State):
             cp.off()
             sleep(self.store.get('/camera_power/wait', 1))
             cp.on()
+            sleep(self.store.get('/camera_power/wait', 1))
         except (ConnectionError,) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception('power cycling the cameras failed')

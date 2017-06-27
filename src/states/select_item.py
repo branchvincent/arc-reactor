@@ -46,7 +46,7 @@ class SelectItem(State):
                 #TODO expand to other grasps
                 self.grasps = self.store.get(url + ['vacuum_grasps'])
                 # exlcude prior grasps from consideration
-                #self.grasps = [g for g in self.grasps if not self.check_similar_grasp(failed_grasps, g)]
+                self.grasps = [g for g in self.grasps if not self._check_failed_grasp(failed_grasps, g)]
 
                 maxGrasp = max(self.grasps, key=lambda l: l['score'])
 
@@ -83,7 +83,7 @@ class SelectItem(State):
             #TODO expand to other grasps
             self.grasps = self.store.get(self.url + ['vacuum_grasps'])
             # exlcude prior grasps from consideration
-            self.grasps = [g for g in self.grasps if not self.check_similar_grasp(failed_grasps, g)]
+            self.grasps = [g for g in self.grasps if not self._check_failed_grasp(failed_grasps, g)]
 
             self.maxGrasp = max(self.grasps, key=lambda l: l['score'])
             self.maxGraspSeg = self.maxGrasp['segment_id'] - 1
@@ -105,25 +105,31 @@ class SelectItem(State):
             logger.error(message)
             raise RuntimeError(message)
 
-        failed_grasps.append(self.maxGrasp)
-        self.store.put('/robot/failed_grasps', failed_grasps)
+        self._mark_grasp_attempt()
 
         logger.info("Chosen item is {} worth {} points".format(self.chosenItem, self.store.get('/item/'+self.chosenItem+'/point_value')))
         self.store.put('/robot/selected_item', self.chosenItem)
 
         self.setOutcome(self.chosenItem is not None)
 
-    def check_similar_grasp(self, prior_grasps, new_grasp, tolerance=None):
+    def _mark_grasp_attempt(self):
+        failed_grasps = self.store.get(['robot', 'failed_grasps'], [])
+        target_grasp = self.store.get(['robot', 'target_grasp'])
+
+        failed_grasps.append(target_grasp)
+        self.store.put(['robot', 'failed_grasps'], failed_grasps)
+
+        logger.info('grasp attempted at {}'.format(target_grasp['center']))
+
+    def _check_failed_grasp(self, prior_grasps, new_grasp):
         '''
         Compare grasp positions to tolerance to determine similarity.
         '''
-        # HACK: ignored repeated grasps
-        return False
-
-        tolerance = tolerance or self.store.get('/planner/similar_grasp_tolerance', 0.01)
+        tolerance = self.store.get('/planner/grasp_failure_radius', 0.05)
         for grasp in prior_grasps:
-            distance = sum([(x - y)**2 for (x, y) in zip(grasp['position'], new_grasp['position'])])
-            if distance < tolerance**2:
+            distance = ((grasp['center'] - new_grasp['center'])**2).sum()**0.5
+            if distance < tolerance:
+                logger.info('grasp rejected at {}'.format(grasp['center']))
                 return True
 
         return False

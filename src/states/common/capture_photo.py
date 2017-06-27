@@ -2,7 +2,7 @@ import logging
 
 from master.fsm import State
 
-from perception.interface import acquire_images, CameraAcquisitionError
+from perception.interface import acquire_images, CameraAcquisitionError, CommandTimeoutError
 
 from . import NoViewingCameraError
 
@@ -27,7 +27,7 @@ class CapturePhotoBase(State):
 
         try:
             self._handle(locations)
-        except (NoViewingCameraError, CameraAcquisitionError) as e:
+        except (NoViewingCameraError, CameraAcquisitionError, CommandTimeoutError) as e:
             logger.exception('image acquisition failed')
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
         else:
@@ -38,6 +38,8 @@ class CapturePhotoBase(State):
 
         if self.store.get('/debug/photos', False):
             from util import db
+
+            logger.info('database dump started')
             db.dump(self.store, '/tmp/photo-{}'.format('-'.join(locations)))
             logger.info('database dump completed')
 

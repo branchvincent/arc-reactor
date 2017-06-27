@@ -57,24 +57,6 @@ class FrontPanel(QMainWindow):
         self.put = self.sync.put
         self.multi_put = self.sync.multi_put
 
-        # install run mode click handlers
-        for mode in ['step_once', 'run_once', 'run_all']:
-            self._ui('run_' + mode).clicked.connect(_call(self.put, '/robot/run_mode', mode))
-        self.ui.run_full_auto.clicked.connect(_call(self.multi_put, {
-            '/robot/run_mode': 'full_auto',
-            '/checkpoint': None,
-            '/fault': None,
-            '/simulate': None
-        }))
-
-        for mode in JOB_TYPES:
-            self._ui('job_' + mode).clicked.connect(_call(self.put, '/robot/task', mode))
-
-        self.ui.mc_run.clicked.connect(_call(self._run_handler))
-        self.ui.mc_reset.clicked.connect(_call(self._reset_handler))
-        self.ui.mc_back.clicked.connect(_call(self._back_handler))
-        self.ui.mc_stop.clicked.connect(_call(self._stop_handler))
-
         self.hardware_map = {
             'hw_cam_bl': '/camera/shelf_bl',
             'hw_cam_br': '/camera/shelf_br',
@@ -114,15 +96,35 @@ class FrontPanel(QMainWindow):
         ])
         self._load_toggle_list('/fault/', self.faults, self.ui.faultsLayout)
 
-        self.simulations = self._make_path_map([
+        simulation_keys = [
             'robot_motion',
             'vacuum',
             'cameras',
+            'camera_power',
             'object_detection',
             'scales',
             'vacuum',
-        ])
+        ]
+        self.simulations = self._make_path_map(simulation_keys)
         self._load_toggle_list('/simulate/', self.simulations, self.ui.simulationLayout)
+
+        # install run mode click handlers
+        for mode in ['step_once', 'run_once', 'run_all']:
+            self._ui('run_' + mode).clicked.connect(_call(self.put, '/robot/run_mode', mode))
+        self.ui.run_full_auto.clicked.connect(_call(self.multi_put, {
+            '/robot/run_mode': 'full_auto',
+            '/checkpoint': None,
+            '/fault': None,
+            '/simulate': {k: False for k in simulation_keys}
+        }))
+
+        for mode in JOB_TYPES:
+            self._ui('job_' + mode).clicked.connect(_call(self.put, '/robot/task', mode))
+
+        self.ui.mc_run.clicked.connect(_call(self._run_handler))
+        self.ui.mc_reset.clicked.connect(_call(self._reset_handler))
+        self.ui.mc_back.clicked.connect(_call(self._back_handler))
+        self.ui.mc_stop.clicked.connect(_call(self._stop_handler))
 
         self.update(Store())
 
