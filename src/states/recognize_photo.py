@@ -64,6 +64,9 @@ class RecognizePhoto(State):
             except KeyError:
                 raise MissingSegmentationError(url)
 
+        # use weight for recognition only at inspection station
+        self.store.put('/object_recognition/use_weight', [l == 'inspect' for l in locations])
+
         # use the grasp source for recognition
         for (i, location) in enumerate(locations):
             if location == 'inspect':
