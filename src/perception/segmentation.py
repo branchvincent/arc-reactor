@@ -90,7 +90,6 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     logger.info("Found {} segments in the image".format(labeled_image.max()))
 
     segments = []
-
     #extract the sub image for each label based on the minimum bounding rectangle
     imagesForDL = []
     for i in range(numObj):
@@ -111,7 +110,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
         xs = segments[i][:,1]
         labeled_image[ys,xs] = i+1
 
-    labeled_image = np.where(params.mask, labeled_image, -1)
+    labeled_image = np.where(params.mask, labeled_image, 0)
     #tiny depth images are the size of the full depth image and non zero where the object is
     return_values['DL_images'] = imagesForDL
     return_values['pixel_locations'] = segments
