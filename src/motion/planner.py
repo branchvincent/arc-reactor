@@ -64,8 +64,14 @@ class MotionPlanner:
             return None
 
     def toTransform(self, T_ee):
+        # Check current config
+        q0 = self.store.get('robot/current_config')
+        if not self.cspace.feasible(q0):
+            logger.error('Current configuration is infeasible')
+            return self.put(feasible=False)
+        # Create plan
         milestones = self.planToTransform(T_ee, space='joint', solvers=['local', 'global'])
-        if milestones is None: return None
+        if milestones is None: return self.put(feasible=False)
         self.plan.addMilestones(milestones)
         self.put()
 
@@ -86,7 +92,7 @@ class MotionPlanner:
         q0 = self.store.get('robot/current_config')
         if not self.cspace.feasible(q0):
             logger.error('Current configuration is infeasible')
-            return None
+            return self.put(feasible=False)
 
         # Move above item
         logger.debug('Moving over item')
@@ -94,7 +100,7 @@ class MotionPlanner:
         T_above = (R_ee, [T_item[1][0], T_item[1][1], self.z_movement])
         if debug: self.store.put('vantage/pick_above', klampt2numpy(T_above))
         milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['nearby'])
-        if milestones is None: return None
+        if milestones is None: return self.put(feasible=False)
         self.plan.addMilestones(milestones)
 
         # Use item normal, if requested
@@ -104,7 +110,7 @@ class MotionPlanner:
             T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
             if debug: self.store.put('vantage/pick_approach', klampt2numpy(T_pick_approach))
             milestones = self.planToTransform(T_pick_approach, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
-            if milestones is None: return None
+            if milestones is None: return self.put(feasible=False)
             self.plan.addMilestones(milestones)
 
             # Lower ee
@@ -113,7 +119,7 @@ class MotionPlanner:
             logger.debug('Lowering end effector')
             self.setVacuum(True)
             milestones = self.planToTransform(T_pick, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
-            if milestones is None: return None
+            if milestones is None: return self.put(feasible=False)
             self.plan.addMilestones(milestones)
 
             # Pick up
@@ -124,7 +130,7 @@ class MotionPlanner:
             logger.debug('Raising end effector')
             t_departure = vops.add(T_pick[1], [0,0,0.1])
             milestones = self.planToTransform((T_pick[0], t_departure), q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
-            if milestones is None: return None
+            if milestones is None: return self.put(feasible=False)
             self.plan.addMilestones(milestones)
             # self.task_planner.vmax = vmax_orig
 
@@ -133,7 +139,7 @@ class MotionPlanner:
             logger.debug('Lowering end effector')
             self.setVacuum(True)
             milestones = self.planToTransform(T_pick, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
-            if milestones is None: return None
+            if milestones is None: return self.put(feasible=False)
             self.plan.addMilestones(milestones)
 
             # Pick up
@@ -143,14 +149,14 @@ class MotionPlanner:
         # Raise ee
         logger.debug('Raising end effector')
         milestones = self.planToTransform(T_above, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
-        if milestones is None: return None
+        if milestones is None: return self.put(feasible=False)
         self.plan.addMilestones(milestones)
 
         # Move to inspection station
         logger.debug('Moving to inspection station')
         T_inspect = self.store.get('/robot/inspect_pose')
         milestones = self.planToTransform(T_inspect, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
-        if milestones is None: return None
+        if milestones is None: return self.put(feasible=False)
         self.plan.addMilestones(milestones)
         self.put()
 
@@ -163,7 +169,7 @@ class MotionPlanner:
         q0 = self.store.get('robot/current_config')
         if not self.cspace.feasible(q0):
             logger.error('Current configuration is infeasible')
-            return None
+            return self.put(feasible=False)
 
         # Move over stow location
         logger.debug('Moving over item')
@@ -171,13 +177,13 @@ class MotionPlanner:
         T_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], self.z_movement])
         if debug: self.store.put('vantage/stow_above', klampt2numpy(T_above))
         milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['nearby'])
-        if milestones is None: return None
+        if milestones is None: return self.put(feasible=False)
         self.plan.addMilestones(milestones)
 
         # Lower ee
         logger.debug('Lowering end effector')
         milestones = self.planToTransform(T_stow, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
-        if milestones is None: return None
+        if milestones is None: return self.put(feasible=False)
         self.plan.addMilestones(milestones)
 
         # Place
@@ -188,7 +194,7 @@ class MotionPlanner:
         # Raise ee
         logger.debug('Raising end effector')
         milestones = self.planToTransform(T_above, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
-        if milestones is None: return None
+        if milestones is None: return self.put(feasible=False)
         self.plan.addMilestones(milestones)
         self.put()
 
@@ -527,12 +533,12 @@ class MotionPlan:
 
         # Update database
         if feasible or DEBUG:
-            logger.info('Feasible path found')
+            logger.info('Feasible path found. Updating waypoints...')
             milestoneMap = [m.get_milestone() for m in self.milestones]
             self.store.put('/robot/waypoints', milestoneMap)
             self.store.put('/robot/timestamp', time())
         else:
-            logger.error('Failed to find feasible path')
+            logger.error('Failed to find feasible path. Clearing waypoints...')
             # Clear waypoints
             self.store.put('/robot/waypoints', None)
             self.store.put('/robot/timestamp', time())

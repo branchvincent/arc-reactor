@@ -25,7 +25,7 @@ class RobotController:
     """Trajectory execution for TX90"""
     def __init__(self, robot='left', store=None):
         self.store = store or PensiveClient().default()
-        self.robot = Robot(robot=robot, store=self.store)
+        self.robot = Robot(robot, store=self.store)
         self.trajectory = Trajectory(robot=self.robot, store=self.store)
         self.freq = 10.
 
@@ -140,7 +140,7 @@ class Trajectory:
 
 class Robot:
     """A robot defined by its trajectory client"""
-    def __init__(self, robot='right', port=1000, store=None):
+    def __init__(self, robot, port=1000, store=None):
         self.store = store or PensiveClient().default()
         robots = self.store.get('/system/robots', {})
         Assert(robot in robots, 'Unrecognized robot {}'.format(robot))
