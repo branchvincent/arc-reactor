@@ -25,6 +25,7 @@ class CameraServer(QtWidgets.QWidget):
         self.db_poll_thread = PollDBThread()
 
         self.db_poll_thread.signal.connect(self.take_images)
+        self.video_thread.inspect_below_sn = self.db_poll_thread.inspect_below_sn
         self.db_poll_thread.start()
         self.show()
 
@@ -148,7 +149,7 @@ class PollDBThread(QtCore.QThread):
         self.error_string = None
         self.image_dictionaries = []
         self.urls = []
-
+        self.inspect_below_sn = self.store.get('/system/cameras/inspect_below')
     def run(self):
         '''
         Polls the database at a specific URL until a flag is set.
@@ -232,7 +233,7 @@ class VideoThread(QtCore.QThread):
         self.sn_to_camera = {}
         self.sn_to_image_dictionaries = {}
         self.camera_sn_q = [] #list of serial numbers to get images from
-
+        self.inspect_below_sn = None #serial number for the inspect below camera
     def run(self):
         logger.info("Starting camera thread")
         try:
@@ -259,6 +260,7 @@ class VideoThread(QtCore.QThread):
             except:
                 logger.exception("Could not enable the stream")
                 return
+            sn = cam.get_info(rs.camera_info_serial_number)
             #set up settings
             try:
                 cam.set_option(rs.option_f200_filter_option, 1)
@@ -266,11 +268,16 @@ class VideoThread(QtCore.QThread):
                 cam.set_option(rs.option_f200_accuracy, 1)
                 cam.set_option(rs.option_f200_motion_range, 10)
                 cam.set_option(rs.option_f200_laser_power, 16) #turn the laser on for all cameras
+
+                if sn == self.inspect_below_sn:
+                    #turn off auto exposure
+                    cam.set_option(rs.option_color_exposure, 1987)
+
             except:
                 logger.warning("Unable to set options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
 
             #add to class structures
-            sn = cam.get_info(rs.camera_info_serial_number)
+            
             self.sn_to_image_dictionaries[sn] = {}
             self.sn_to_image_dictionaries[sn]['time_stamp'] = time.time()
             self.sn_to_camera[sn] = cam
