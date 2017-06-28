@@ -214,7 +214,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         store = db_client.default()
         register_numpy()
     except:
-        raise RuntimeError('Could not connect to the database on {}. Not segmenting')
+        raise RuntimeError('Could not connect to the database. Not segmenting')
 
 
     #loop though all the urls
@@ -303,33 +303,13 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         maskz_volume_invalid = d_image == 0
         mask_volume = np.logical_and(np.logical_and(maskx_volume, masky_volume),maskz_volume)
 
-        bin_bounds_local = []
 
-        bin_bounds_local.append([minx,miny,minz,1])
-        bin_bounds_local.append([minx,miny,maxz,1])
-        bin_bounds_local.append([minx,maxy,minz,1])
-        bin_bounds_local.append([minx,maxy,maxz,1])
-
-        bin_bounds_local.append([maxx,miny,minz,1])
-        bin_bounds_local.append([maxx,miny,maxz,1])
-        bin_bounds_local.append([maxx,maxy,minz,1])
-        bin_bounds_local.append([maxx,maxy,maxz,1])
-
-        #put bin bounds local into camera local
-        bin_bounds_in_camera_local = []
-        for point in bin_bounds_local:
-            bin_bounds_in_camera_local.append(np.linalg.inv(cam_local_to_ref_local).dot(np.array(point)))
-
-        #project these points onto the 2d image
-        pixel_bounds = []
-        for point in bin_bounds_in_camera_local:
-            tx = point[0]/point[2]
-            ty = point[1]/point[2]
-            p_x = tx * intrins_fx + intrins_ppx
-            p_y = ty * intrins_fy + intrins_ppy
-            pixel_bounds.append([p_x,p_y])
-
-        hull = cv2.convexHull(np.array(pixel_bounds).astype('float32'))
+        #allow invalid depth pixels inside the convex hull of the masked volume
+        pts = np.where(mask_volume)
+        pts = np.vstack(pts)
+        pts = pts.transpose()
+        pts = pts[:,::-1]
+        hull = cv2.convexHull(pts.astype('float32'))
         mask_project = cv2.fillConvexPoly(np.zeros(d_image.shape), hull.astype('int32'), 1)
         mask_project = np.logical_and(mask_project, d_image == 0)
         mask = np.logical_or(mask_project, mask_volume)
