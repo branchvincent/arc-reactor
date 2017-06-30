@@ -1,6 +1,5 @@
 import numpy as np
 import math
-import sys
 import perception.deepLearning as dl
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
@@ -43,6 +42,8 @@ class ObjectRecognition:
         '''
         Polls the database at a specific URL until a flag is set.
         Once the flag is set run inference and return to polling
+        Looking for URLs where deep learning images are
+        Locations are what physical location the item were taken from (binA, tote)
         '''
         try:
             while True:
@@ -57,13 +58,39 @@ class ObjectRecognition:
                     self.infer_objects(list_of_urls, list_of_locations, use_weight)
                     logger.info("Inference complete")
                     self.store.put('/object_recognition/done', 1)
+
+                #check for multiple image running
+                should_run_multi = self.store.get('/object_recognition/multi_run')
+                if should_run_multi:
+
+                    logger.info("Starting a multi inference")
+                    self.store.put('/object_recognition/multi_run',0)
+                    #looking for a list of lists of urls
+                    #each list will have have urls for multiple images
+                    list_of_urls = self.store.get('/object_recognition/multi_urls')
+                    
+                    #need a weight since this is for recognition at the inspection station
+                    weight = self.store.get('/scales/change')
+
+                    #need a list of lists of indicies for each of the DL images
+                    #this gives the segment in the labeled image that we will use to determine
+                    #the size of the segment
+                    list_of_indices = self.store.get('/object_recognition/multi_indices')
+
+                    #where was this item picked from? 
+                    location = self.store.get('/object_recognition/multi_location')
+
+                    self.multi_image_inference(list_of_urls, list_of_indices, location, weight)
+                    self.store.put('/object_recognition/multi_done', 1)
+                    logger.info("Multi inference done")
+
                 else:
                     sleep(0.1)
         except KeyboardInterrupt:
             pass
         except Exception as e:
             logger.exception('Inference failed! {}'.format(e))
-            self.store.put('object_recognition/error', e)
+            self.store.put('object_recognition/error', 'Inference failed! {}'.format(e))
             raise
 
 
@@ -176,6 +203,80 @@ class ObjectRecognition:
 
         return np.array(list_of_weight_prob).reshape(1,40)
 
+
+    def multi_image_inference(self, list_of_urls, list_of_indices, location, weight):
+        error_string = None
+        #check to see if the inputs are valid
+        if list_of_indices is None or list_of_urls is None or location is None or weight is None:
+            error_string = "Inputs to multi image inference can't be none"
+            logger.error(error_string)
+            self.store.put("object_recognition/error", error_string)
+            return
+        if len(list_of_indices) != len(list_of_urls):
+            error_string = "Length of lists of indices != length of lists of urls"
+            logger.error(error_string)
+            self.store.put("object_recognition/error", error_string)
+            return
+
+        #find which items are at each location
+        self.update_item_locations()
+        
+        list_of_dl_images = []
+        list_of_pixel_counts = []
+
+        for url, index in zip(list_of_urls, list_of_indices):
+            #get the list of images at this URL
+            dl_images = self.store.get(url + 'DL_images')
+            if dl_images is None:
+                error_string = "No deep learning images were found at the URL {}".format(url)
+                logger.error(error_string)
+                self.store.put("object_recognition/error", error_string)
+                return
+
+            #get the dl image at index
+            dl_image = dl_images[index-1]
+
+            #get the number of pixels in the labeled image at this index
+            labled_image = self.store.get(url + 'labeled_image')
+            if labled_image is None:
+                error_string = "No labeled image found at the URL {}".format(url)
+                logger.error(error_string)
+                self.store.put("object_recognition/error", error_string)
+                return
+
+            num_pixels = len(np.where(labled_image==index)[0])
+            list_of_dl_images.append(dl_image)
+            list_of_pixel_counts.append(num_pixels)
+
+        #array NX40 where N is number of images
+        dl_confidences = self.infer_objects_deep(list_of_dl_images)
+        stdev = self.store.get('/system/scales/stdev',0.005)
+        #1x40 array
+        weight_confidences = self.infer_objects_weight(weight, stdev)
+
+        #narrow down confidences based on the location, output is list of lists
+        dl_confidences_filtered = self.filter_confidences(dl_confidences, location)
+        weight_confidences_filtered = self.filter_confidences(weight_confidences, location)
+
+        max_confidence = -1000
+        guessed_item = None
+        list_of_combined_confidences = []
+        for i in range(len(list_of_urls)):
+            combined_dict = {}
+            for key,value in dl_confidences_filtered[i].items():
+                    val = value*weight_confidences_filtered[0][key]*list_of_pixel_counts[i]
+                    combined_dict[key] = val
+                    if val > max_confidence:
+                        max_confidence = val
+                        guessed_item = key
+            list_of_combined_confidences.append(combined_dict)
+
+        #write it out to the database
+        self.store.put('/object_recognition/multi_results',list_of_combined_confidences)
+        self.store.put('/object_recognition/multi_highest_confidence', max_confidence)
+        self.store.put('/object_recognition/multi_best_guess', guessed_item)
+        self.store.put("/object_recognition/error", error_string)
+
     def filter_confidences(self, confidences, location):
         '''
         Filter the list of list of confidences by assigning zero
@@ -247,7 +348,7 @@ class ObjectRecognition:
                 elif 'stow' in location:
                     self.items_in_location['stow_tote'].append(value['name'])
             else:
-                logger.warning("Unknown itme location {}".format(location))
+                logger.warning("Unknown item location {}".format(location))
 
 
 if __name__ == '__main__':
