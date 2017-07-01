@@ -38,30 +38,28 @@ class SelectItem(State):
         elif self.alg == 'pick':
             self.maxGrasp = None
 
-            # find the best grasp from all the bins
-            for name in ['binA', 'binB', 'binC']:
-                url = ['photos', name, 'tcp']
+            urlA = ['photos', 'binA', 'tcp']
+            self.graspsA = self.store.get(urlA + ['vacuum_grasps'])
+            urlB = ['photos', 'binB', 'tcp']
+            self.graspsB = self.store.get(urlB + ['vacuum_grasps'])
+            urlC = ['photos', 'binC', 'tcp']
+            self.graspsC = self.store.get(urlC + ['vacuum_grasps'])
+            
+            self.graspBins = self.graspsA + self.graspsB + self.graspsC
 
-                # get graspability vector from photo-url vacuum_grasps
-                #TODO expand to other grasps
-                self.grasps = self.store.get(url + ['vacuum_grasps'])
-                # exlcude prior grasps from consideration
-                self.grasps = [g for g in self.grasps if not self._check_failed_grasp(failed_grasps, g)]
+            self.grasps = [g for g in self.graspBins if not self._check_failed_grasp(failed_grasps, g)]
 
-                maxGrasp = max(self.grasps, key=lambda l: l['score'])
+            self.grasps.sort(key=lambda l: -l['score'])
 
-                if self.maxGrasp:
-                    if maxGrasp['score'] < self.maxGrasp['score']:
-                        continue
+            self.chosenGrasps = [l for l in self.grasps if self.store.get('/item/'+self._most_likely_item(l)+'/order') is not None]
 
-                self.maxGrasp = maxGrasp
-                self.url = url
-                print "max grasp is ", self.maxGrasp, " at ", self.url
-                self.maxGraspSeg = self.maxGrasp['segment_id'] - 1
+            self.maxGrasp = self.chosenGrasps[0]
+            
+            print "max grasp is ", self.maxGrasp, " at ", self.maxGrasp['location']
+            print "score of grasp is ", self.maxGrasp['score']
 
-            # match greatest graspability segment to the highest likely item ID
-            self.idSeg = self.store.get(self.url + ['detections'])[self.maxGraspSeg]
-            self.chosenItem = max(self.idSeg, key=lambda l: self.idSeg[l])
+            self.chosenItem = self._most_likely_item(self.maxGrasp)
+            print "most likely item is ", self.chosenItem
 
             #TODO move this outside of if statement
             self.store.put('/robot/target_grasp', self.maxGrasp)
@@ -131,8 +129,13 @@ class SelectItem(State):
             if distance < tolerance:
                 logger.info('grasp rejected at {}'.format(grasp['center']))
                 return True
-
         return False
+
+    def _most_likely_item(self, g):
+        seg = g['segment_id']-1
+        IDseg = self.store.get('/photos/'+g['location']+'/tcp/detections')[seg]
+        item = max(IDseg, key=lambda l: IDseg[l])
+        return item
 
 if __name__ == '__main__':
     import argparse
