@@ -79,7 +79,7 @@ terrains = {
 rigid_objects = {
     'amnesty_tote': 'data/objects/tote.stl',
     'stow_tote': 'data/objects/tote.stl',
-    'shelf': 'data/objects/linear_shelf.stl',
+    'shelf': 'data/objects/linear_shelf_front.stl',
     'frame': 'data/objects/frame.stl',
 }
 
