@@ -40,7 +40,7 @@ class CapturePhotoBin(CapturePhotoBase):
     def setBin(self, myname):
         if len(myname) == 4:
             print "Taking photo of ", 'bin'+myname[-1].upper()
-            self.store.put('/robot/capture_bin', 'bin'+myname[-1].upper())
+            self.store.put('/robot/target_view_location', 'bin'+myname[-1].upper())
 
     def checkInput(self):
         input = self.store.get('/myinput/', False)
