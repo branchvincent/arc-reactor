@@ -39,7 +39,7 @@ class InspectItem(State):
             self.newItemIDs = self.store.get('/photos/inspect/inspect_side/detections')[0] #only 1 seg?
         else:
             logger.error('detections failed at inspection station -> defaulting to original')
-            self.newItemIDs = self.origItem
+            self.newItemIDs = {self.origItem: 1}
         print "thought it was ", self.origItem
         print "now detecting the following: ", self.newItemIDs
 
