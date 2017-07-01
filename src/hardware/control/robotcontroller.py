@@ -11,6 +11,9 @@ from master.world import build_world, klampt2numpy
 from time import sleep
 import logging; logger = logging.getLogger(__name__)
 
+class RobotConnectionError(Exception):
+    pass
+
 bufferSize = 100
 
 # Helper functions
