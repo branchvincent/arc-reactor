@@ -63,7 +63,7 @@ class PlanStowGrab(State):
 
         if gripper == 'vacuum':
             planner = MotionPlanner(store=self.store)
-            motion_plan = planner.pickToInspect(T_item)
+            motion_plan = planner.pickToInspect(T_item, useNormal=True)
         else: #mechanical
             #TODO: develop planner for mechanical gripper
             raise NotImplementedError('Mechanical gripper planner does not exist')
@@ -71,11 +71,18 @@ class PlanStowGrab(State):
         # Check motion plan
         motion_plan = self.store.get('/robot/waypoints')
         if motion_plan is None:
-            failed_grasps = self.store.get('/grasp/failed_grasps', []) + [grasp]
-            self.store.put('/grasp/failed_grasps', failed_grasps)
-            self.store.put('failure/plan_pick_item', 'infeasible')
-            self.setOutcome(False)
-            logger.error('Failed to generate motion plan')
+            # Dont use normal
+            planner = MotionPlanner(store=self.store)
+            planner.pickToInspect(T_item, useNormal=False)
+            motion_plan = self.store.get('/robot/waypoints')
+            if motion_plan is None:
+                failed_grasps = self.store.get('/grasp/failed_grasps', []) + [grasp]
+                self.store.put('/grasp/failed_grasps', failed_grasps)
+                self.store.put('failure/plan_pick_item', 'infeasible')
+                self.setOutcome(False)
+                logger.error('Failed to generate motion plan')
+            else:
+                self.setOutcome(True)
         else:
             logger.info('Route generated')
             self.setOutcome(True)
