@@ -32,12 +32,12 @@ def show(store, photo_urls):
         ax.imshow(labeled_image)
         pyplot.title('labeled')
 
-        for segment in range(len(detections)):
-            ax = pyplot.subplot2grid((2, len(detections)+2), (0, segment+2))
+        for segment in range(1, len(detections) + 1):
+            ax = pyplot.subplot2grid((2, len(detections)+2), (0, segment+1))
             pyplot.title('segment {}'.format(segment))
 
             image = full_color.copy()
-            image[labeled_image != (segment + 1)] = [0, 0, 0]
+            image[labeled_image != (segment)] = [0, 0, 0]
 
             (rmin, rmax, cmin, cmax) = _bbox2(image)
 
@@ -48,7 +48,7 @@ def show(store, photo_urls):
 
         im = ax.imshow(data, cmap=cm.viridis)
         pyplot.xticks(range(len(items)), items, rotation='vertical')
-        pyplot.yticks(range(len(detections)))
+        pyplot.yticks(range(len(detections)), range(1, len(detections) + 1))
         pyplot.ylabel('segment')
         pyplot.colorbar(im, ax=ax)
 
