@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy
 
 import matplotlib
@@ -8,9 +10,9 @@ def show(store, urls, override_format=None):
     subprocs = []
 
     for url in urls:
-        print (url, '->',)
+        print(url, '->', end=' ')
         data = store.get(url)
-        print (data.shape, data.dtype,)
+        print(data.shape, data.dtype, end=' ')
 
         fmt = override_format
         if not fmt:
@@ -28,7 +30,7 @@ def show(store, urls, override_format=None):
         if not fmt:
             raise RuntimeError('unknown data format')
 
-        print ('->', fmt)
+        print('->', fmt)
 
         if fmt == 'label':
             pyplot.figure()
