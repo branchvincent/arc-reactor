@@ -91,14 +91,13 @@ class WorldViewer(GLRealtimeProgram):
         return GLRealtimeProgram.motionfunc(self,x,y,dx,dy)
 
 class WorldViewerWindow(QMainWindow):
-    def __init__(self, store):
+    def __init__(self, store, locations):
         super(WorldViewerWindow, self).__init__()
 
         self.store = store
         self.grasps = []
         self.photo_urls = []
 
-        locations = self.store.get('/robot/target_locations', [])
         for location in locations:
             available_cameras = self.store.get(['system', 'viewpoints', location], [])
 
@@ -245,9 +244,11 @@ class WorldViewerWindow(QMainWindow):
                     'good' if good else 'bad'
                 ))
 
-def run(modal=True, store=None):
+def run(locations=None, modal=True, store=None):
     from pensive.client import PensiveClient
     store = store or PensiveClient().default()
+
+    locations = locations or store.get('/robot/target_locations', [])
 
     from PyQt4.QtGui import QApplication
     app = QApplication.instance()
@@ -258,7 +259,7 @@ def run(modal=True, store=None):
         app = QApplication([])
         app.setApplicationName('ARC Reactor')
 
-    window = WorldViewerWindow(store)
+    window = WorldViewerWindow(store, locations)
     if modal:
         from PyQt4.QtCore import Qt
         window.setWindowModality(Qt.ApplicationModal)
@@ -268,4 +269,39 @@ def run(modal=True, store=None):
         app.exec_()
 
 if __name__ == '__main__':
-    run()
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
+    parser = ArgumentParser(description='grasp checkpoint', formatter_class=ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+    parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+    parser.add_argument('-p', '--path', metavar='PATH', help='path to a JSON database')
+    parser.add_argument('locations', nargs='*', metavar='LOCATION', help='list of locations to show')
+
+    args = parser.parse_args()
+
+    if args.path:
+        # read the file
+        if args.path.endswith('.gz'):
+            import gzip
+            data = gzip.open(args.path, 'rb').read()
+        else:
+            data = open(args.path).read()
+
+        # load the JSON object
+        from pensive.client import json_decode
+        obj = json_decode(data)
+
+        # populate in-memory store
+        from pensive.core import Store
+        store = Store(obj)
+
+    else:
+        # connect to the database
+        from pensive.client import PensiveClient
+        client = PensiveClient(args.address)
+
+        # get the store
+        store = client.store(args.store)
+
+    run(args.locations, store=store)

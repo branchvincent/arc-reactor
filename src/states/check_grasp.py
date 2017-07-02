@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class CheckGrasp(State):
     def run(self):
-        self.setOutcome(grasp.run())
+        self.setOutcome(grasp.run(locations=[]))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
