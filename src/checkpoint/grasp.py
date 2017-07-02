@@ -77,7 +77,10 @@ class WorldViewer(GLRealtimeProgram):
             # position is grasp center
             pose[:3, 3] = grasp['center']
 
-            show = self.show_grasp_index or self.selected_grasp_index
+            show = self.show_grasp_index
+            if show is None:
+                show = self.selected_grasp_index
+
             scale = 1 if i == show else 0.5
             gldraw.xform_widget(numpy2klampt(pose), 0.1 * scale, 0.01 * scale, fancy=True)
 
@@ -191,6 +194,7 @@ class WorldViewerWindow(QMainWindow):
 
     def set_show(self, index, force=False):
         self.program.show_grasp_index = index
+
         for (i, label) in enumerate(self.name_labels):
             if i == index:
                 label.setStyleSheet('background-color: yellow;')
@@ -198,6 +202,8 @@ class WorldViewerWindow(QMainWindow):
                 label.setStyleSheet('')
 
     def select_grasp(self, index):
+        self.program.selected_grasp_index = index
+
         for (i, button) in enumerate(self.select_buttons):
             button.setChecked(i == index)
 
