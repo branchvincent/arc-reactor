@@ -1,5 +1,16 @@
+import logging
+
+import numpy
+
 from master.fsm import State
-import logging; logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
+
+class InconsistentItemsError(RuntimeError):
+    pass
+
+class MissingDetectionsError(RuntimeError):
+    pass
 
 class InspectItem(State):
     """
@@ -35,6 +46,15 @@ class InspectItem(State):
 
         #check ID of item and weight from read_scales
         self.origItem = self.store.get('/robot/selected_item')
+
+        # NOTE: recommended usage of multiple detections
+        # try:
+        #     self.newItemIDs = self._combine_multi_detections()
+        #     self.newItemIDs = self._filter_by_mass_absolute_error(self.newItemIDs)
+        # except (InconsistentItemsError, MissingDetectionsError):
+        #     logger.exception('detections failed at inspection station -> defaulting to original')
+        #     self.newItemIDs = {self.origItem: 1}
+
         if self.store.get('/photos/inspect/inspect_side/detections'):
             self.newItemIDs = self.store.get('/photos/inspect/inspect_side/detections')[0] #only 1 seg?
         else:
@@ -111,6 +131,7 @@ class InspectItem(State):
                 self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
                 self.setOutcome(True)
             else: # go to amnesty tote
+                self.store.put('/robot/selected_item', self.likelyItem)
                 self.store.put('/robot/target_locations', ['box1B2'])
                 self.store.put('/robot/target_box', 'box1B2')
                 self.store.put('/robot/selected_box', 'box1B2')
@@ -150,6 +171,86 @@ class InspectItem(State):
                 i += 1
 
         self.store.put(['robot', 'failed_grasps'], failed_grasps)
+
+    def _combine_multi_detections(self):
+        '''
+        Average the results of multiple detections using the pixel count for the
+        detected segment as a weight.
+        '''
+
+        grasp = self.store.get('/robot/target_grasp')
+        grasp_photo_url = ['photos', grasp['location'], grasp['camera']]
+
+        side_photo_url = ['photos', 'inspect', 'inspect_side']
+        below_photo_url = ['photos', 'inspect', 'inspect_below']
+
+        # all pixels in an inspect photo belong to segment 1
+        inspect_segment = 1
+
+        photos_segments = [
+            (grasp_photo_url, grasp['segment_id']),
+            (side_photo_url, inspect_segment),
+            (below_photo_url, inspect_segment)
+        ]
+
+        # combine all the detections using pixel count as a weight
+        multi_detections = {}
+        for (i, (url, segment)) in enumerate(photos_segments):
+            logger.debug('using photo {} with segment {}'.format(url, segment))
+
+            # retrieve the detections for this segment
+            try:
+                detections = self.store.get(url + ['detections'], [])[segment - 1]
+            except (KeyError, IndexError):
+                raise MissingDetectionsError()
+
+            # compute the segment pixel count
+            labeled_image = self.store.get(url + ['labeled_image'])
+            pixel_count = numpy.count_nonzero(labeled_image == segment)
+
+            for (name, confidence) in detections.items():
+                # look up the prior result
+                try:
+                    prior = multi_detections[name]
+                except KeyError:
+                    # only allow missing names for first URL
+                    if i == 0:
+                        prior = 1
+                    else:
+                        raise InconsistentItemsError('detections have different items: {}'.format(name))
+
+                # perform the running sum
+                multi_detections[name] = prior + pixel_count * confidence
+
+        # normalize the multidetections
+        total = sum(multi_detections.values())
+        multi_detections = {k: v / total for (k, v) in multi_detections.items()}
+
+        return multi_detections
+
+    def _filter_by_mass_absolute_error(self, detections, threshold=0.005):
+        '''
+        Zero all detections where the mass absolute error exceeds the threshold.
+
+        The EasyWeigh PX-60-PL scales have a 5 g interval.
+        '''
+
+        # read the mass change
+        measured_mass = abs(self.store.get(['scales', 'change']))
+
+        items = self.store.get(['item'])
+        for name in detections:
+            if name not in items:
+                # skip items not in the database
+                # NOTE: this is needed because detections includes all items, not just those in the workcell
+                continue
+
+            if abs(items[name]['mass'] - measured_mass) > threshold:
+                # eliminate this detection
+                detections[name] = 0
+                logger.debug('rejected "{}" by mass error: {:.3f} kg'.format(name, items[name]['mass'] - measured_mass))
+
+        return detections
 
 if __name__ == '__main__':
     import argparse
