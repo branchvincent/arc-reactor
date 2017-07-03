@@ -24,6 +24,7 @@ class LocationEditor(QScrollArea):
         else:
             self.locations = {}
 
+        logger.critical('using hard-coded items file')
         items = sorted(json.load(open('db/items.json')).values(), key=lambda x: x['name'])
         totes = ['{}_tote'.format(s) for s in json.load(open('db/totes.json')).keys()]
         boxes = ['box{}'.format(b['size_id']) for b in json.load(open('db/boxes.json'))['boxes']]
@@ -92,18 +93,43 @@ class LocationEditor(QScrollArea):
 
 
 if __name__ == '__main__':
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
+    parser = ArgumentParser(description='grasp checkpoint', formatter_class=ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+    parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+    parser.add_argument('-p', '--path', metavar='PATH', help='path to a JSON database')
+
+    args = parser.parse_args()
+
+    if args.path:
+        # read the file
+        if args.path.endswith('.gz'):
+            import gzip
+            data = gzip.open(args.path, 'rb').read()
+        else:
+            data = open(args.path).read()
+
+        # load the JSON object
+        from pensive.client import json_decode
+        obj = json_decode(data)
+
+        # populate in-memory store
+        from pensive.core import Store
+        store = Store(obj)
+
+    else:
+        # connect to the database
+        from pensive.client import PensiveClient
+        client = PensiveClient(args.address)
+
+        # get the store
+        store = client.store(args.store)
+
     app = QApplication([])
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('name', nargs='?')
-    # args = parser.parse_args()
-    # myname = (args.name or 'csi')
-    # csi = CheckSelectItem(myname)
-    # csi.run()
 
-    from pensive.client import PensiveClient
-
-    window = LocationEditor(store=PensiveClient().default())
+    window = LocationEditor(store)
     window.show()
 
     app.exec_()
