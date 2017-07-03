@@ -68,7 +68,7 @@ class ObjectRecognition:
                     #looking for a list of lists of urls
                     #each list will have have urls for multiple images
                     list_of_urls = self.store.get('/object_recognition/multi_urls')
-                    
+
                     #need a weight since this is for recognition at the inspection station
                     weight = self.store.get('/scales/change')
 
@@ -77,7 +77,7 @@ class ObjectRecognition:
                     #the size of the segment
                     list_of_indices = self.store.get('/object_recognition/multi_indices')
 
-                    #where was this item picked from? 
+                    #where was this item picked from?
                     location = self.store.get('/object_recognition/multi_location')
 
                     self.multi_image_inference(list_of_urls, list_of_indices, location, weight)
@@ -131,7 +131,7 @@ class ObjectRecognition:
                 #empty list
                 error_string = "List of images was empty. Sending out empty list. GARBAGE IN, GARBAGE OUT"
                 logger.warning(error_string)
-                self.store.put("object_recognition/error", error_string)
+                self.store.put("object_recognition/error", None)
                 self.store.put(url + 'detections', [])
                 return
 
@@ -220,7 +220,7 @@ class ObjectRecognition:
 
         #find which items are at each location
         self.update_item_locations()
-        
+
         list_of_dl_images = []
         list_of_pixel_counts = []
 
