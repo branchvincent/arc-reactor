@@ -201,6 +201,7 @@ class StateMachine():
         if(len(self.failures)>4):
             self.setCurrentState(self.getStartState())
             print "giving up and going to initial state"
+            self.failures = []
 
     def backStep(self):
         if not self.getCurrentState():
