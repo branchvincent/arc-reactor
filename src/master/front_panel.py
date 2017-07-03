@@ -6,7 +6,7 @@ import logging
 
 from time import time
 
-from PySide.QtGui import QMainWindow, QCheckBox
+from PySide.QtGui import QMainWindow, QCheckBox, QPixmap
 from PySide.QtCore import QTimer
 
 from pensive.core import Store
@@ -47,8 +47,8 @@ class FrontPanel(QMainWindow):
         # setup database access
         self.sync = AsyncUpdateHandler(self.update)
         self.sync.request_many([
-            '/robot/run_mode',
-            '/robot/task',
+            '/robot',
+            '/item',
             '/checkpoint',
             '/fault',
             '/simulate',
@@ -76,7 +76,8 @@ class FrontPanel(QMainWindow):
 
         self.checkpoints = self._make_path_map([
             'select_item',
-            'plan_route'
+            'plan_route',
+            'grasp',
         ])
         self._load_toggle_list('/checkpoint/', self.checkpoints, self.ui.checkpointsLayout)
 
@@ -275,6 +276,21 @@ class FrontPanel(QMainWindow):
                 self._ui(name).setStyleSheet(alarm_button_style)
             else:
                 self._ui(name).setStyleSheet('color: #008000; font-weight: bold;')
+
+        # update status UI
+        selected_item = self.db.get('/robot/selected_item', '???')
+        if self.ui.selected_item.text() != selected_item:
+            pixmap = QPixmap(self.db.get(['item', selected_item, 'thumbnail'], ''))
+            self.ui.selected_item_icon.setPixmap(pixmap)
+        self.ui.selected_item.setText(selected_item)
+
+        if job_type == 'pick':
+            location = self.db.get('/robot/selected_box', '???')
+        elif job_type == 'stow':
+            location = self.db.get('/robot/selected_bin', '???')
+        else:
+            location = '???'
+        self.ui.selected_location.setText(location)
 
         # update toggle UIs
         self._update_toggle_list(self.db, self.checkpoints, '/checkpoint/')
