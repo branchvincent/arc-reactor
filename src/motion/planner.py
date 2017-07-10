@@ -8,7 +8,7 @@ from klampt.model.collide import WorldCollider
 # from klampt.plan.robotcspace import RobotCSpace
 
 from time import time
-from math import pi, atan2, acos, sqrt, ceil, radians
+from math import pi, atan2, acos, sqrt, ceil, radians, degrees
 import numpy as np
 import logging
 
@@ -75,7 +75,7 @@ class MotionPlanner:
         self.plan.addMilestones(milestones)
         self.put()
 
-    def pickToInspect(self, T_item, useNormal=True, numAttempts=5, approachDistance=0.05, delay=1.5, debug=True):
+    def pickToInspect(self, T_item, useNormal=True, searchAngle=10, approachDistance=0.05, delay=1.5, debug=True):
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
         if debug: self.store.put('vantage/pick_item', klampt2numpy(T_item))
@@ -106,13 +106,17 @@ class MotionPlanner:
         # Use item normal, if requested
         if useNormal:
             # Determine feasible transform by interpolating from the normal
+            logger.debug('Choosing pick transform')
             T_pick_normal = T_pick
             T_pick_no_normal = (R_ee, T_pick[1])
+            d = so3.distance(T_pick_normal[0], T_pick_no_normal[0])
+            numAttempts = 2 + ceil(d/radians(searchAngle))
             T_pick_attempts = [se3.interpolate(T_pick_normal, T_pick_no_normal, u) for u in np.linspace(0,1,numAttempts)]
             for i, Ti in enumerate(T_pick_attempts):
-                logger.debug('Trying normal interpolation {}'.format(i))
+                logger.debug('Trying normal interpolation {} of {}'.format(i + 1, numAttempts))
                 milestones = self.planToTransform(Ti, q0=self.getCurrentConfig(), space='task', solvers=['nearby'])
                 if milestones is not None:
+                    logger.debug('Found transform')
                     T_pick = Ti
                     break
 
