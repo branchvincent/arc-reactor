@@ -58,25 +58,26 @@ class StowStateMachine(StateMachine):
     def setupTransitions(self):
         self.setTransition('cps', 'sp1', ['sp1']) #TODO need failure for cameras
         self.setTransition('sp1', 'rp1', ['rp1']) #TODO make handler for these failed states (hardware)
-        self.setTransition('rp1', 'egvs', ['egvs'])
+        self.setTransition('rp1', 'rs1', ['rs1'])
+        self.setTransition('rs1', 'egvs', ['egvs'])
 
         self.setTransition('egvs', 'si', ['cps']) # If eval grasp fails, re-take photo
         self.setTransition('si', 'psg', ['si'], checkState='csi') #si should never fail..
         self.setTransition('csi', 'psg', ['si'])
         self.setTransition('psg', 'er1', ['si'], checkState='cr1') #if plan fails, redo SI and mark failure
         self.setTransition('cr1', 'er1', ['psg'])
-        self.setTransition('er1', 'rs1', ['psg']) 
+        self.setTransition('er1', 'rs', ['psg'])
 
-        self.setTransition('rs1', 'cpi', ['cpi']) #if scales fail continue anyway
-        self.setTransition('cpi', 'rp2', ['ii'])
+        self.setTransition('rs', 'cpi', ['cpi']) #if scales fail continue anyway
+        self.setTransition('cpi', 'sp2', ['ii'])
+        self.setTransition('sp2', 'rp2', ['ii'])
         self.setTransition('rp2', 'ii', ['ii'])
         self.setTransition('ii', 'ep', ['ii', 'si'])
 
         self.setTransition('ep', 'pps', ['ep']) #TODO need failure analysis
         self.setTransition('pps', 'er2', ['si'], checkState='cr2')
         self.setTransition('cr2', 'er2', ['pps'])
-        self.setTransition('er2', 'rs', ['pps'])
-        self.setTransition('rs', 'ci', ['ci']) #TODO handler for failed read scales
+        self.setTransition('er2', 'ci', ['pps'])
         self.setTransition('ci', 'pvl', ['ci']) #TODO handler for failed check item
         self.setTransition('pvl', 'er3', ['pvl'], checkState='cr3') #TODO similar for failed route planning
         self.setTransition('cr3', 'er3', ['pvl'])

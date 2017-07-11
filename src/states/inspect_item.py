@@ -115,6 +115,7 @@ class InspectItem(State):
             logger.error('Likely nothing was picked up: no weight change detected.')
 
         elif task == 'stow':
+            self.setOutcome(True)
             self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
             self._mark_grasp_succeeded()
 
