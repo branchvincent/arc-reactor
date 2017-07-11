@@ -66,12 +66,12 @@ class Milestone:
             # To degrees, ignoring extraneous q0
             self.robot = [math.degrees(qi) for qi in self.robot][1:]
             # Flip joints
-            self.robot[2] *= -1
-            self.robot[4] *= -1
+            #self.robot[2] *= -1
+            #self.robot[4] *= -1
         elif self.type =='robot' and newType == 'db':
             # Flip joints
-            self.robot[2] *= -1
-            self.robot[4] *= -1
+            #self.robot[2] *= -1
+            #self.robot[4] *= -1
             # To radians, adding extraneous q0
             self.robot = [0] + [math.radians(qi) for qi in self.robot]
         elif self.type == newType:
