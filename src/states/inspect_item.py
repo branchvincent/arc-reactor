@@ -216,7 +216,7 @@ class InspectItem(State):
                 except KeyError:
                     # only allow missing names for first URL
                     if i == 0:
-                        prior = 1
+                        prior = 0
                     else:
                         raise InconsistentItemsError('detections have different items: {}'.format(name))
 
