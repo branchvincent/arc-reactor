@@ -374,9 +374,10 @@ class WorldViewerWindow(QMainWindow):
 
         self._update_pose('robot_target', [['robot', 'target_pose']])
 
-        self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp')
+        self._update_robot_trace('tool', self.program.world.robot('tx90l'), 6, '/robot/waypoints', '/robot/timestamp', (1, 1, 0))
+        self._update_robot_trace('plan', self.program.world.robot('tx90l'), 6, '/debug/waypoints', '/debug/timestamp', (1, 0, 0))
 
-    def _update_robot_trace(self, name, robot, link, path_url, timestamp_url):
+    def _update_robot_trace(self, name, robot, link, path_url, timestamp_url, color=None):
         trace_name = name
 
         # check if path is modified
@@ -406,7 +407,7 @@ class WorldViewerWindow(QMainWindow):
             checkbox.toggled.connect(_call(_toggle_drawable, self.program.post_drawables, trace, checkbox))
             self.ui.trace_area.layout().addWidget(checkbox)
 
-        options = self.options.get(trace, {})
+        options = self.options.get(trace, {'color': color})
 
         trace.update(path=path, **options)
 
