@@ -56,13 +56,7 @@ def rotate(pose, array, **kwargs):
     Apply a rigid body rotation `pose` to `array`.
     '''
 
-    # ensure conversion to NumPy types without copying existing arrays
-    pose = numpy.asarray(pose).copy()
-
-    # suppress translation
-    pose[:3, 3] = 0
-
-    return transform(pose, array, **kwargs)
+    return transform(zero_translation(pose), array, **kwargs)
 
 def normalize(vector):
     '''
@@ -71,6 +65,15 @@ def normalize(vector):
 
     vector = numpy.array(vector)
     return vector / ((vector**2).sum())**0.5
+
+def zero_translation(pose):
+    # ensure conversion to NumPy types without copying existing arrays
+    pose = numpy.asarray(pose).copy()
+
+    # suppress translation
+    pose[:3, 3] = 0
+
+    return pose
 
 def build_pose(store, urls, strict=True):
     '''
