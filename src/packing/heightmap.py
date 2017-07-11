@@ -70,7 +70,7 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.01,max_height=0.5,pixel_len
         if height!=255:
             orders.append(order)
             z=height/255.0*max_height+item[2]
-            x=cornor_points[order][0]-index[0]*pixel_length
+            x=cornor_points[order][0]+index[0]*pixel_length
             y=cornor_points[order][1]+index[1]*pixel_length
             minimum_height.append(height)
             visuals.append(visualization)
@@ -109,9 +109,12 @@ def get_location(center,angle,offset):
 
     theta=math.radians(angle)
 
-    X=center[0]-offset[0]*math.cos(theta) - offset[1]*math.sin(theta)
-    Y=center[1]+(offset[0]*math.sin(theta) - offset[1]*math.cos(theta))
+    X=center[0]+offset[0]*math.cos(theta) - offset[1]*math.sin(theta)
+    Y=center[1]+(offset[0]*math.sin(theta) + offset[1]*math.cos(theta))
     Z=center[2]+offset[2]
+
+    print offset
+    print center
 
     return [X,Y,Z]
 
@@ -189,7 +192,7 @@ def get_object_dimension(pointcloud,pixel_length):
         cnt=max(cnts,key=cv2.contourArea)
         center_rect,dimension_rect,rotation_rect=cv2.minAreaRect(cnt)
         ratio=dimension_rect[0]*dimension_rect[1]*1.0/num_pixels_x/num_pixels_y
-        center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,z_min)
+        center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(center_coordinate[1]-center_rect[1])*pixel_length,z_min)
         if ratio>0.6:
 
             # rect = cv2.minAreaRect(cnt)
@@ -389,7 +392,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
 
     #fill in the depth map
     for point in pointcloud:
-        x=(x_max-point[0])/length_per_pixel
+        x=(point[0]-x_min)/length_per_pixel
         y=(point[1]-y_min)/length_per_pixel
 
         x=int(min(max(0,x),num_pixels_X-1))
@@ -404,7 +407,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,30,11,21)
 
-    return (depth_map,(x_max,y_min),layer_map)
+    return (depth_map,(x_min,y_min),layer_map)
 
 def detect_local_minima(arr):
     # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710

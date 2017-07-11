@@ -10,7 +10,7 @@ from master.world import xyz, rpy
 
 from packing import heightmap
 
-from util.math_helpers import transform, crop_with_aabb
+from util.math_helpers import transform, crop_with_aabb, zero_translation
 from util.location import location_bounds_url, location_pose_url
 
 from .common import NoViewingCameraError, MissingPhotoError
@@ -90,11 +90,10 @@ class EvaluatePlacement(State):
             logger.debug('{}, {}'.format(position, orientation))
 
             # transform placement into world coordinate system
-            robot_tcp_pose = self.store.get('/robot/tcp_pose')
-            robot_tcp_pose[:3, 3] = [[0], [0], [0]]
-
-            local_placement = xyz(*position).dot(robot_tcp_pose).dot(rpy(0, 0, orientation * pi / 180.0))
+            robot_pose_world = self.store.get('/robot/tcp_pose')
             container_pose = self.store.get(location_pose_url(pack_location))
+
+            local_placement = xyz(*position).dot(zero_translation(numpy.linalg.inv(robot_pose_world))).dot(rpy(0, 0, orientation * pi / 180.0))
             world_placement = container_pose.dot(local_placement)
 
             # store result
