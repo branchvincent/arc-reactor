@@ -92,19 +92,19 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.01,max_height=0.5,pi
         layer_map[order]=layermap2update
 
         tool_location=get_location(location,orientation+rotate_angle,offset)
-        cv2.imshow("denoised",image_show*3)
-        k = cv2.waitKey(0)
-        if k == 27:         # wait for ESC key to exit
-            cv2.destroyAllWindows()
+        # cv2.imshow("denoised",image_show*3)
+        # k = cv2.waitKey(0)
+        # if k == 27:         # wait for ESC key to exit
+        #     cv2.destroyAllWindows()
 
 
 
         print (order, location,tool_location,orientation+rotate_angle)
 
-        cv2.imshow("denoised",image_show*3)
-        k = cv2.waitKey(0)
-        if k == 27:         # wait for ESC key to exit
-            cv2.destroyAllWindows()
+        # cv2.imshow("denoised",image_show*3)
+        # k = cv2.waitKey(0)
+        # if k == 27:         # wait for ESC key to exit
+        #     cv2.destroyAllWindows()
 
         return (order, tool_location,orientation+rotate_angle,layer_map)
 

@@ -96,7 +96,7 @@ class EvaluatePlacement(State):
             # packing succeeded
             pack_location = locations[idx]
             logger.info('found placement in "{}"'.format(pack_location))
-            logger.debug('{}, {}'.format(position, orientation))
+            logger.debug('position {}, rotation {}'.format(position, orientation))
 
             # transform placement into world coordinate system
             robot_pose_world = self.store.get('/robot/tcp_pose')
@@ -169,14 +169,14 @@ class EvaluatePlacement(State):
 
         # generate four corners from bounding box
         local_points = container_aabb[:]
-        local_points.append(local_points[1][0:2] + local_points[0][2:3])
         local_points.append(local_points[0][0:1] + local_points[1][1:3])
+        local_points.append(local_points[1][0:1] + local_points[0][1:3])
 
         # transform into world space
         container_pose = self.store.get(location_pose_url(location))
         world_points = [list(transform(container_pose, point).flat) for point in local_points]
 
-        logger.debug('generated corners for "{}": {}'.format(location, world_points))
+        logger.debug('generated corners for "{}":\n{}'.format(location, numpy.array(world_points)))
 
         return world_points
 
