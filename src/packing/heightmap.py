@@ -9,9 +9,10 @@ import math
 from numpy import unravel_index
 import pcl
 import glob
+import time
 
 
-def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.01,max_height=0.5,pixel_length=0.001,rotate=False,stability=False,layer=False):
+def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.5,pixel_length=0.002,rotate=False,stability=False,layer=False):
 
 
     """
@@ -44,7 +45,7 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.01,max_height=0.5,pi
     Orientation: rotation angle in degrees(item rotated contour clock wise therefore all degrees are negative)
     layer_map_updated: A updated layer map after the placement of the item
     """
-
+    print time.time()
     depth_maps=[]
     minimum_height=[]
     locations=[]
@@ -92,12 +93,6 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.01,max_height=0.5,pi
         layer_map[order]=layermap2update
 
         tool_location=get_location(location,orientation+rotate_angle,offset)
-        # cv2.imshow("denoised",image_show*3)
-        # k = cv2.waitKey(0)
-        # if k == 27:         # wait for ESC key to exit
-        #     cv2.destroyAllWindows()
-
-
 
         print (order, location,tool_location,orientation+rotate_angle)
 
@@ -105,7 +100,7 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.01,max_height=0.5,pi
         # k = cv2.waitKey(0)
         # if k == 27:         # wait for ESC key to exit
         #     cv2.destroyAllWindows()
-
+        print time.time()
         return (order, tool_location,orientation+rotate_angle,layer_map)
 
     else:
@@ -180,7 +175,12 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
 
     image[tuple(np.array(points2map).T)]=np.uint8(0)
 
-    gray = cv2.GaussianBlur(image, (7, 7), 0)
+    # cv2.imshow("raw pointcloud",image)
+    # k = cv2.waitKey(0)
+    # if k == 27:
+    #     cv2.destroyAllWindows()
+
+    gray = cv2.GaussianBlur(image, (5, 5), 0)
 
     # perform edge detection, then perform a dilation + erosion to
     # close gaps in between object edges
@@ -209,27 +209,25 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
             #     image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
             #     cv2.imshow("object",image)
             #     k = cv2.waitKey(0)
-            #     if k == 27:         wait for ESC key to exit
+            #     if k == 27:
             #         cv2.destroyAllWindows()
             # except:
             #     print center_offset
-
-
-
             return ([dimension_rect[0]*pixel_length,dimension_rect[1]*pixel_length,z_max-z_min],center_offset,-rotation_rect)
 
         else:
 
             center_offset=(ee_pos[0]-(x_min+x_max)/2.0,ee_pos[1]-(y_min+y_max)/2.0,ee_pos[2]-z_max)
-            print center_offset
+
             return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
 
 
 
     else:
 
+
         center_offset=(ee_pos[0]-(x_min+x_max)/2.0,ee_pos[1]-(y_min+y_max)/2.0,ee_pos[2]-z_max)
-        print center_offset
+
         return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
 
 
@@ -403,7 +401,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
 
 
     #fill in the depth map
-    for point in pointcloud:
+    for point in pointcloud[0::2]:
         x=(point[0]-x_min)/length_per_pixel
         y=(y_max-point[1])/length_per_pixel
 
@@ -412,16 +410,19 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
         #filter out high and low points
         dist = cv2.pointPolygonTest(bounding_Rectangle,(x,y),False)
         if dist>-1:
-            if point[2]>threshold or point[2]<0:
-                z=np.uint8(0)
-            else:
+            if point[2]<threshold:
                 depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
+
         else:
             depth_map[y][x]=np.uint8(255)
 
 
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,30,11,21)
+    # cv2.imshow("bin",depth_map)
+    # k = cv2.waitKey(0)
+    # if k == 27:
+    #     cv2.destroyAllWindows()
 
     return (depth_map,(x_min,y_max),layer_map)
 
@@ -474,7 +475,7 @@ def rotate_bound(image, angle):
 
     # grab the rotation matrix (applying the negative of the
     # angle to rotate clockwise), then grab the sine and cosine
-    # (i.e., the rotation components of the matrix)
+    # (i.e., th rotation components of the matrix)
     M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
 
     cos = np.abs(M[0, 0])
