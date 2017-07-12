@@ -53,6 +53,7 @@ class StowStateMachine(StateMachine):
         return 'cps'
 
     def setupOther(self):
+        self.store.put('/robot/failed_grasps', [])
         self.store.put('/robot/target_view_location', 'stow_tote')
 
     def setupTransitions(self):

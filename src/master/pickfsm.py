@@ -65,6 +65,7 @@ class PickStateMachine(StateMachine):
         return 'pvla'
 
     def setupOther(self):
+        self.store.put('/robot/failed_grasps', [])
         self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
 
     def setupTransitions(self):
