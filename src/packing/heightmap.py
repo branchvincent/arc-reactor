@@ -11,7 +11,9 @@ import pcl
 import glob
 
 
-def pack(bins,pointcloud,BBs,layer_map=None,margin=0.01,max_height=0.5,pixel_length=0.001,rotate=False,stability=False,layer=False):
+def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.01,max_height=0.5,pixel_length=0.001,rotate=False,stability=False,layer=False):
+
+
     """
     pack a item into a selected number of bins and return the center coordinate of the objects when packed
 
@@ -21,6 +23,8 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.01,max_height=0.5,pixel_len
 
     pointcloud: pointcloud of the item picked at the inspection station in a numpy array
 
+    ee_pos:position of the end effector at the inspection station in (x,y,z)
+
     layer_map: A map of the same dimension as the height map that store the layer information from previous placement in the bin, given as a python list of numpy array,  if layer_map equals none, will initialize a layer_map.
 
     margin: how much margin to be left at the edge of the object in meter
@@ -29,7 +33,7 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.01,max_height=0.5,pixel_len
 
     length_per_pixel: x, y increment in meter from 1 pixel to the next pixel, suggest using 0.001m for a 0.3m*0.3m bin entirely enclosed in a 480*640 array
 
-    BBs: a list of bounding box that enclose only the area of interest for packing. Each bounding box is a python list of 2 cornor points, e.g.  [[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121]] , the length of the bounding boxs should be the same length as the number of bins to be considered
+    BBs: a list of bounding box that enclose only the area of interest for packing. Each bounding box is a python list of 4 cornor points, e.g.  [[-0.1715, -0.1395, 0], [0.1715, 0.1395, 0.121],[0.1715, -0.1395, 0.121],[-0.1715, 0.1395, 0.121]] , the length of the bounding boxs should be the same length as the number of bins to be considered
 
     rotate: allow rotation of the object other than 0 and 90 degrees, note that by default rotation is off, however, when the dimension of object doesn't fit inside the storage system given, the rotate is be set to True regardless of the option given to the pack function
 
@@ -50,7 +54,7 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.01,max_height=0.5,pixel_len
     layer_map_candidates=[]
     orders=[]
 
-    item,offset,rotate_angle=get_object_dimension(pointcloud,pixel_length)
+    item,offset,rotate_angle=get_object_dimension(pointcloud,pixel_length,ee_pos)
     #initialize the layer_map if one doesn't exsist
     #or if the length of the layer map is different from the number of bins current evaluating(likely forgot to clear layer_map after one run)
     if layer_map is None or len(layer_map)!=len(bins):
@@ -71,7 +75,7 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.01,max_height=0.5,pixel_len
             orders.append(order)
             z=height/255.0*max_height+item[2]
             x=cornor_points[order][0]+index[0]*pixel_length
-            y=cornor_points[order][1]+index[1]*pixel_length
+            y=cornor_points[order][1]-index[1]*pixel_length
             minimum_height.append(height)
             visuals.append(visualization)
             locations.append([x,y,z])
@@ -88,14 +92,19 @@ def pack(bins,pointcloud,BBs,layer_map=None,margin=0.01,max_height=0.5,pixel_len
         layer_map[order]=layermap2update
 
         tool_location=get_location(location,orientation+rotate_angle,offset)
+        cv2.imshow("denoised",image_show*3)
+        k = cv2.waitKey(0)
+        if k == 27:         # wait for ESC key to exit
+            cv2.destroyAllWindows()
+
 
 
         print (order, location,tool_location,orientation+rotate_angle)
 
-        # cv2.imshow("denoised",image_show*3)
-        # k = cv2.waitKey(0)
-        # if k == 27:         # wait for ESC key to exit
-        #     cv2.destroyAllWindows()
+        cv2.imshow("denoised",image_show*3)
+        k = cv2.waitKey(0)
+        if k == 27:         # wait for ESC key to exit
+            cv2.destroyAllWindows()
 
         return (order, tool_location,orientation+rotate_angle,layer_map)
 
@@ -113,14 +122,11 @@ def get_location(center,angle,offset):
     Y=center[1]+(offset[0]*math.sin(theta) + offset[1]*math.cos(theta))
     Z=center[2]+offset[2]
 
-    print offset
-    print center
-
     return [X,Y,Z]
 
 
 
-def get_object_dimension(pointcloud,pixel_length):
+def get_object_dimension(pointcloud,pixel_length,ee_pos):
     """
     use a structured or unstructured pointcloud collected at the inspection station to estimate object goemetry
 
@@ -151,7 +157,6 @@ def get_object_dimension(pointcloud,pixel_length):
     z_min=np.amin(z_filtered)
     z_max=np.amax(z_filtered)
 
-    #print (z_min,z_max)
 
     #map the pointcloud into a 2d imagee
     num_pixels_x=int((x_max-x_min)/pixel_length)
@@ -160,13 +165,13 @@ def get_object_dimension(pointcloud,pixel_length):
     image=np.full((num_pixels_y+40,num_pixels_x+40),255,dtype="uint8")
     points2map=pointcloud[(pointcloud[:,0] >x_min) & (pointcloud[:,0] <x_max)  & (pointcloud[:,1] > y_min)  & (pointcloud[:,1] < y_max)][:,[0,1]]
     points2map[:,0]-=x_min
-    points2map[:,1]-=y_min
+    points2map[:,1]=y_max-points2map[:,1]
     points2map[:,0]/=pixel_length
     points2map[:,1]/=pixel_length
     points2map[:,0]+=20
     points2map[:,1]+=20
 
-    center_coordinate=[int((0-x_min)/pixel_length+20),int((0-y_min)/pixel_length+20)]
+    center_coordinate=[20+int((ee_pos[0]-x_min)/pixel_length),20+int((y_max-ee_pos[1])/pixel_length)]
 
     points2map=points2map.astype(int)
     #flip the order to serve as indexes for an array
@@ -174,7 +179,6 @@ def get_object_dimension(pointcloud,pixel_length):
     points2map=[[t[1], t[0]] for t in points2map]
 
     image[tuple(np.array(points2map).T)]=np.uint8(0)
-
 
     gray = cv2.GaussianBlur(image, (7, 7), 0)
 
@@ -192,7 +196,7 @@ def get_object_dimension(pointcloud,pixel_length):
         cnt=max(cnts,key=cv2.contourArea)
         center_rect,dimension_rect,rotation_rect=cv2.minAreaRect(cnt)
         ratio=dimension_rect[0]*dimension_rect[1]*1.0/num_pixels_x/num_pixels_y
-        center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(center_coordinate[1]-center_rect[1])*pixel_length,z_min)
+        center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
         if ratio>0.6:
 
             # rect = cv2.minAreaRect(cnt)
@@ -205,11 +209,10 @@ def get_object_dimension(pointcloud,pixel_length):
             #     image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
             #     cv2.imshow("object",image)
             #     k = cv2.waitKey(0)
-            #     if k == 27:         # wait for ESC key to exit
+            #     if k == 27:         wait for ESC key to exit
             #         cv2.destroyAllWindows()
             # except:
             #     print center_offset
-
 
 
 
@@ -217,14 +220,16 @@ def get_object_dimension(pointcloud,pixel_length):
 
         else:
 
-            center_offset=(-(x_min+x_max)/2.0,-(y_min+y_max)/2.0,z_min)
+            center_offset=(ee_pos[0]-(x_min+x_max)/2.0,ee_pos[1]-(y_min+y_max)/2.0,ee_pos[2]-z_max)
+            print center_offset
             return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
 
 
 
     else:
 
-        center_offset=(-(x_min+x_max)/2.0,-(y_min+y_max)/2.0,z_min)
+        center_offset=(ee_pos[0]-(x_min+x_max)/2.0,ee_pos[1]-(y_min+y_max)/2.0,ee_pos[2]-z_max)
+        print center_offset
         return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
 
 
@@ -373,10 +378,10 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
 
     #filter the x and y readings of the pointcloud
 
-    x_min=min(BB[0][0], BB[1][0])
-    x_max=max(BB[0][0], BB[1][0])
-    y_min=min(BB[0][1], BB[1][1])
-    y_max=max(BB[0][1], BB[1][1])
+    x_min=min(BB[0][0], BB[1][0],BB[2][0], BB[3][0])
+    x_max=max(BB[0][0], BB[1][0],BB[2][0], BB[3][0])
+    y_min=min(BB[0][1], BB[1][1],BB[2][1], BB[3][1])
+    y_max=max(BB[0][1], BB[1][1],BB[2][1], BB[3][1])
 
     count=0
     num_pixels_X=int((x_max-x_min)/length_per_pixel)
@@ -390,24 +395,35 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
         print "Layer map is either None or doesn't match the shape of the bin, creating a new layer_map"
         layer_map=np.full((num_pixels_Y,num_pixels_X),0,dtype="uint8")
 
+    bounding_Rectangle=[]
+    for bounding_point in BB:
+        bounding_Rectangle.append([int((bounding_point[0]-x_min)/length_per_pixel),int((-bounding_point[1]+y_max)/length_per_pixel)])
+    bounding_Rectangle = np.array(bounding_Rectangle).reshape((-1,1,2)).astype(np.int32)
+    bounding_Rectangle = cv2.convexHull(bounding_Rectangle)
+
+
     #fill in the depth map
     for point in pointcloud:
         x=(point[0]-x_min)/length_per_pixel
-        y=(point[1]-y_min)/length_per_pixel
+        y=(y_max-point[1])/length_per_pixel
 
         x=int(min(max(0,x),num_pixels_X-1))
         y=int(min(max(0,y),num_pixels_Y-1))
         #filter out high and low points
-
-        if point[2]>threshold or point[2]<0:
-            z=np.uint8(0)
+        dist = cv2.pointPolygonTest(bounding_Rectangle,(x,y),False)
+        if dist>-1:
+            if point[2]>threshold or point[2]<0:
+                z=np.uint8(0)
+            else:
+                depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
         else:
-            depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
+            depth_map[y][x]=np.uint8(255)
+
 
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,30,11,21)
 
-    return (depth_map,(x_min,y_min),layer_map)
+    return (depth_map,(x_min,y_max),layer_map)
 
 def detect_local_minima(arr):
     # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710

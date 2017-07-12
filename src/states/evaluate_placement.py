@@ -67,13 +67,22 @@ class EvaluatePlacement(State):
         # obtain item point cloud from inspection station in tool coordinates
         item_cloud = self._build_item_point_cloud()
 
+
         # obtain container point cloud and bounding box in container local coordinates
         container_clouds = [self._build_container_point_cloud(location) for location in locations]
-        container_aabbs = [self.store.get(location_bounds_url(location)) for location in locations]
+        container_corners = [self._build_container_corners(location) for location in locations]
+
+        robot_pose_world = self.store.get('/robot/inspect_pose')
 
         # attempt the packing
         margin = self.store.get('/packing/margin', 0.02)
-        (idx, position, orientation, _) = heightmap.pack(container_clouds, item_cloud, container_aabbs, None, margin=margin)
+        (idx, position, orientation, _) = heightmap.pack(
+            container_clouds,
+            item_cloud,
+            container_corners,
+            list(robot_pose_world[:3, 3].flat),
+            margin=margin
+        )
 
         if idx is None and locations == ['amnesty_tote']:
             # always succeed for amnesty tote
@@ -91,10 +100,8 @@ class EvaluatePlacement(State):
 
             # transform placement into world coordinate system
             robot_pose_world = self.store.get('/robot/tcp_pose')
-            container_pose = self.store.get(location_pose_url(pack_location))
 
-            local_placement = xyz(*position).dot(zero_translation(numpy.linalg.inv(robot_pose_world))).dot(rpy(0, 0, orientation * pi / 180.0))
-            world_placement = container_pose.dot(local_placement)
+            world_placement = xyz(*position).dot(zero_translation(robot_pose_world)).dot(rpy(0, 0, orientation * pi / 180.0))
 
             # store result
             self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})
@@ -143,17 +150,35 @@ class EvaluatePlacement(State):
 
         # apply the inspection station bounding box
         crop_mask = crop_with_aabb(inspect_cloud_local, inspect_bounds)
-        item_cloud = inspect_cloud_local[crop_mask]
+        item_cloud_local = inspect_cloud_local[crop_mask]
         item_color = inspect_cloud_color[crop_mask]
+
+        item_cloud_world = transform(inspect_pose, item_cloud_local)
 
         # save the point cloud for debugging
         self.store.multi_put({
-            'point_cloud': item_cloud,
+            'point_cloud': item_cloud_world,
             'point_cloud_color': item_color,
             'timestamp': time()
         }, root='/debug/item')
 
-        return item_cloud
+        return item_cloud_world
+
+    def _build_container_corners(self, location):
+        container_aabb = self.store.get(location_bounds_url(location))
+
+        # generate four corners from bounding box
+        local_points = container_aabb[:]
+        local_points.append(local_points[1][0:2] + local_points[0][2:3])
+        local_points.append(local_points[0][0:1] + local_points[1][1:3])
+
+        # transform into world space
+        container_pose = self.store.get(location_pose_url(location))
+        world_points = [list(transform(container_pose, point).flat) for point in local_points]
+
+        logger.debug('generated corners for "{}": {}'.format(location, world_points))
+
+        return world_points
 
     def _build_container_point_cloud(self, location):
         available_cameras = self.store.get(['system', 'viewpoints', location], [])
@@ -169,6 +194,9 @@ class EvaluatePlacement(State):
             raise NoViewingCameraError('no camera available for {}'.format(location))
         logger.debug('available cameras for "{}": {}'.format(location, available_cameras))
 
+        container_pose = self.store.get(location_pose_url(location))
+        container_aabb = self.store.get(location_bounds_url(location))
+
         container_clouds = []
         container_colors = []
 
@@ -181,19 +209,18 @@ class EvaluatePlacement(State):
             if photo_pose is None:
                 return numpy.array([]).reshape((0, 3))
 
-            container_pose = self.store.get(location_pose_url(location))
-            container_aabb = self.store.get(location_bounds_url(location))
-
             photo_aligned_color = self.store.get(photo_url + ['aligned_color'])
             photo_cloud_camera = self.store.get(photo_url + ['point_cloud'])
             photo_cloud_world = transform(photo_pose, photo_cloud_camera)
             photo_cloud_container = transform(numpy.linalg.inv(container_pose), photo_cloud_world)
 
             photo_valid_mask = (photo_cloud_camera[..., 2] > 0)
-            container_cloud = photo_cloud_container[photo_valid_mask]
+            container_cloud_local = photo_cloud_container[photo_valid_mask]
             container_color = photo_aligned_color[photo_valid_mask]
 
-            container_clouds.append(container_cloud)
+            container_cloud_world = transform(container_pose, container_cloud_local)
+
+            container_clouds.append(container_cloud_world)
             container_colors.append(container_color)
 
         # join the point clouds together
