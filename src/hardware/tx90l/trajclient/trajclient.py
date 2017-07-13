@@ -71,11 +71,12 @@ class TrajClient:
         self.curId = self.curId+1
         return retval
 
-    def receiveReply(self,delay=0):
+    def receiveReply(self,delay=0.01,maxAttempts=100):
         """Returns the entire reply message without parsing.
         Warning: this must only be called when awaiting a reply to an earlier
         message.  Otherwise, it will block and never return.
         """
+        attempts = 0
         done = False
         if not hasattr(self,'lasttime'):
             self.lasttime = time.time()
@@ -94,8 +95,11 @@ class TrajClient:
             #print t-self.lasttime,len(msg),'"'+msg+'"'
             self.lasttime = t
             self.partialInput += msg
+            attempts += 1
             if len(msg) == 0:
-                #does this indicate disconnection?
+                if attempts >= maxAttempts:
+                    raise RuntimeError('Unexpected timeout')
+                #does this indicate disconnection? Yes
                 if delay > 0 and not done:
                     time.sleep(delay)
 
