@@ -67,7 +67,6 @@ class EvaluatePlacement(State):
         # obtain item point cloud from inspection station in tool coordinates
         item_cloud = self._build_item_point_cloud()
 
-
         # obtain container point cloud and bounding box in container local coordinates
         container_clouds = [self._build_container_point_cloud(location) for location in locations]
         container_corners = [self._build_container_corners(location) for location in locations]
@@ -101,7 +100,7 @@ class EvaluatePlacement(State):
             # transform placement into world coordinate system
             robot_pose_world = self.store.get('/robot/tcp_pose')
 
-            world_placement = xyz(*position).dot(zero_translation(robot_pose_world)).dot(rpy(0, 0, orientation * pi / 180.0))
+            world_placement = xyz(*position).dot(rpy(0, 0, orientation * pi / 180.0)).dot(zero_translation(robot_pose_world))
 
             # store result
             self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})
@@ -215,8 +214,11 @@ class EvaluatePlacement(State):
             photo_cloud_container = transform(numpy.linalg.inv(container_pose), photo_cloud_world)
 
             photo_valid_mask = (photo_cloud_camera[..., 2] > 0)
-            container_cloud_local = photo_cloud_container[photo_valid_mask]
-            container_color = photo_aligned_color[photo_valid_mask]
+            crop_mask = crop_with_aabb(photo_cloud_container, container_aabb)
+            mask = numpy.logical_and(photo_valid_mask, crop_mask)
+
+            container_cloud_local = photo_cloud_container[mask]
+            container_color = photo_aligned_color[mask]
 
             container_cloud_world = transform(container_pose, container_cloud_local)
 
