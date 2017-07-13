@@ -1,7 +1,6 @@
 import logging
 from master.fsm import State
 from motion.planner import MotionPlanner
-from hardware.control.robotcontroller import RobotController
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanViewLocation(State):

@@ -11,7 +11,7 @@ from math import pi
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanPickBase(State):
-    def _common(self):
+    def _common(self, inspect=True):
         # Get inputs
         item = self.store.get('/robot/selected_item')
         grasp = self.store.get('/robot/target_grasp')
@@ -40,7 +40,10 @@ class PlanPickBase(State):
 
         if gripper == 'vacuum':
             planner = MotionPlanner(store=self.store)
-            planner.pickToInspect(T_item, useNormal=True)
+            if inspect:
+                planner.pickToInspect(T_item, useNormal=True)
+            else:
+                planner.pick(T_item, useNormal=True)
         else: #mechanical
             #TODO: develop planner for mechanical gripper
             raise NotImplementedError('Mechanical gripper planner does not exist')
