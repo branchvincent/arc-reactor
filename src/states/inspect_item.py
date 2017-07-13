@@ -48,18 +48,18 @@ class InspectItem(State):
         self.origItem = self.store.get('/robot/selected_item')
 
         # NOTE: recommended usage of multiple detections
-        # try:
-        #     self.newItemIDs = self._combine_multi_detections()
-        #     self.newItemIDs = self._filter_by_mass_absolute_error(self.newItemIDs)
-        # except (InconsistentItemsError, MissingDetectionsError):
-        #     logger.exception('detections failed at inspection station -> defaulting to original')
-        #     self.newItemIDs = {self.origItem: 1}
-
-        if self.store.get('/photos/inspect/inspect_side/detections'):
-            self.newItemIDs = self.store.get('/photos/inspect/inspect_side/detections')[0] #only 1 seg?
-        else:
-            logger.error('detections failed at inspection station -> defaulting to original')
+        try:
+            self.newItemIDs = self._combine_multi_detections()
+            self.newItemIDs = self._filter_by_mass_absolute_error(self.newItemIDs)
+        except (InconsistentItemsError, MissingDetectionsError):
+            logger.exception('detections failed at inspection station -> defaulting to original')
             self.newItemIDs = {self.origItem: 1}
+
+        # if self.store.get('/photos/inspect/inspect_side/detections'):
+        #     self.newItemIDs = self.store.get('/photos/inspect/inspect_side/detections')[0] #only 1 seg?
+        # else:
+        #     logger.error('detections failed at inspection station -> defaulting to original')
+        #     self.newItemIDs = {self.origItem: 1}
         print "thought it was ", self.origItem
         print "now detecting the following: ", self.newItemIDs
 
@@ -117,6 +117,7 @@ class InspectItem(State):
         elif task == 'stow':
             self.setOutcome(True)
             self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
+            self.store.put('/robot/selected_item', self.likelyItem)
             self._mark_grasp_succeeded()
 
         elif task == 'pick':
