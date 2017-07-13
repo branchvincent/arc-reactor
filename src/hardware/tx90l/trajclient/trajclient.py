@@ -9,9 +9,9 @@ class TrajClient:
     See the accompanying documentation for information about the
     commands and motion queue semantics.
     """
-    
+
     VERSION = "1.0"
-    
+
     def __init__(self,host=None,port=1000):
         self.s = None
         self.name = "Unnamed"
@@ -28,12 +28,13 @@ class TrajClient:
         if self.flog != None:
             self.flog.close()
             self.flog = None
-    
-    def connect(self,host,port=1000):
+
+    def connect(self,host,port=1000,timeout=2):
         if self.name == "Unnamed":
             self.name = host+":"+str(port)
         self.s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         self.s.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
+        self.s.settimeout(timeout)
         res = self.s.connect((host,port))
         if self.version()!=self.VERSION:
             raise ValueError("Connected to version "+self.version()+" of trajClient, need "+self.VERSION)
@@ -58,7 +59,7 @@ class TrajClient:
             msg = msg+','.join(cmds)+';'
         else:
             msg = msg+cmds+';'
-            
+
         # Send the message
         if self.flog != None:
             self.flog.write(time.asctime()+": "+self.name+" <- "+msg+"\n")
@@ -105,7 +106,7 @@ class TrajClient:
         Returns the list of return values.
         """
         msgid = self.sendMessageRaw(cmds,wantReply)
-        
+
         # Receive the reply
         if wantReply:
             ret = self.receiveReply()
@@ -124,7 +125,7 @@ class TrajClient:
         """Makes the given function calls and returns a list of return values.
         A function call is either the call name 'func', or a tuple
         (func,arg1,...,argn)
-        
+
         Can be called using a list of calls or just a single call.
         In the latter case, just returns the return value.
         """
@@ -149,7 +150,7 @@ class TrajClient:
 
     def getConfig(self):
         return [float(x) for x in self.call("gj").split()]
-    
+
     def getVelocity(self):
         return [float(x) for x in self.call("gv").split()]
 
@@ -194,7 +195,7 @@ class TrajClient:
 
     def getCurSegments(self):
         return int(self.call("gcs"))
-    
+
     def getRemainingSegments(self):
         res = self.call(["gms","gcs"])
         return int(res[0])-int(res[1])
@@ -210,7 +211,7 @@ class TrajClient:
 
     def getEndConfig(self):
         return [float(x) for x in self.call("gej").split()]
-    
+
     def getEndVelocity(self):
         return [float(x) for x in self.call("gev").split()]
 
@@ -313,7 +314,6 @@ safeFuncs = ["checkTrajectory","echo","version","rate",
              "getMaxSegments","getCurSegments","getRemainingSegments",
              "getCurrentTime","getTrajEndTime","getTrajDuration",
              "getEndConfig","getEndVelocity"]
-        
+
 for f in safeFuncs:
     setattr(ReadOnlyTrajClient,f,partialfakemethod(calltrajclientfunc,f))
-

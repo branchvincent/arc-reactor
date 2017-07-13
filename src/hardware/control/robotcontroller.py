@@ -9,6 +9,7 @@ from motion.milestone import Milestone
 from master.world import build_world, klampt2numpy
 
 from time import sleep
+from socket import timeout
 import logging; logger = logging.getLogger(__name__)
 
 class RobotConnectionError(Exception):
@@ -145,11 +146,17 @@ class Robot:
     """A robot defined by its trajectory client"""
     def __init__(self, robot, port=1000, store=None):
         self.store = store or PensiveClient().default()
+        # Get robot's IP address
         robots = self.store.get('/system/robots', {})
         Assert(robot in robots, 'Unrecognized robot {}'.format(robot))
-        logger.warn('Connecting to {} at {}'.format(robot, robots[robot]))
-        self.client = TrajClient(host=robots[robot], port=port)
-        # self.name = self.client.name
+        host = robots[robot]
+        logger.warn('Connecting to {} at {}'.format(robot, host))
+        # Connect
+        try:
+            self.client = TrajClient(host=host, port=port)
+        except timeout:
+            logger.exception('Failed to connect')
+        # Set up variables
         self.receivedMilestones = []
         self.startIndex = None
 
