@@ -99,7 +99,7 @@ class MotionPlanner:
         self.setVacuum(False)
         T_above = (R_ee, [T_item[1][0], T_item[1][1], self.z_movement])
         if debug: self.store.put('vantage/pick_above', klampt2numpy(T_above))
-        milestones = self.planToTransform(T_above, q0=q0, space='task', solvers=['nearby'])
+        milestones = self.planToTransform(T_above, q0=q0, space='joint', solvers=['local', 'global'])
         if milestones is None: return self.put(feasible=False)
         self.plan.addMilestones(milestones)
 
