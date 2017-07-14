@@ -16,9 +16,6 @@ logger = logging.getLogger(__name__)
 
 # TODO: for se3, scale t if out of a/v limits
 
-DEBUG = False
-
-
 class InfeasibleGoalError(Exception):
     pass
 
@@ -60,18 +57,17 @@ class MotionPlanner:
         if self.hasItem:
             self.default_space = 'task'
             self.default_solvers = ['nearby']
+            self.task_planner.vmax = 0.3
             self.z_movement = 1.2
         else:
             self.default_space = 'joint'
             self.default_solvers = ['local', 'global']
+            self.task_planner.vmax = 0.3
             self.z_movement = 1
 
     def setVacuum(self, value):
         self.joint_planner.setVacuum(value)
         self.task_planner.setVacuum(value)
-
-    # def put(self, feasible=None):
-    #     self.plan.put(feasible=feasible)
 
     def getCurrentConfig(self):
         if len(self.plan.milestones) == 0:
@@ -211,7 +207,7 @@ class MotionPlanner:
 
         # Place
         logger.debug('Placing')
-        self.setVacuum(False)
+        self.setHasItem(False)
         self.plan.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=[0]))
 
         # Raise ee
@@ -409,9 +405,16 @@ class JointPlanner(LowLevelPlanner):
 
     def reset(self, space):
         self.space = space
-        avmax = [pi / 3] * self.robot.numLinks()
-        self.robot.setAccelerationLimits(avmax)
-        self.robot.setVelocityLimits(avmax)
+        vmax_orig = self.robot.getVelocityLimits()
+        amax_orig = self.robot.getAccelerationLimits()
+        vmax = [2*pi] * self.robot.numLinks()
+        amax = [2*pi] * self.robot.numLinks()
+        # Set only if does not exceed original limits
+        for i, (v,vo,a,ao) in enumerate(zip(vmax, vmax_orig, amax, amax_orig)):
+            vmax[i] = v if v < vo else vo
+            amax[i] = a if a < ao else ao
+        self.robot.setVelocityLimits(vmax)
+        self.robot.setAccelerationLimits(amax)
 
     def planToTransform(self, T, q0=None, solver='local', eps=None):
         q0 = q0 or self.store.get('/robot/current_config')
@@ -459,8 +462,8 @@ class TaskPlanner(LowLevelPlanner):
         self.space = se3space
         self.ee_link = self.robot.link(self.robot.numLinks() - 1)
         self.vmax = 0.15
-        self.t_vmax, self.t_amax = 0.15, 0.15
-        self.R_vmax, self.t_amax = pi / 4, pi / 4
+        # self.t_vmax, self.t_amax = 0.15, 0.15
+        # self.R_vmax, self.t_amax = pi / 4, pi / 4
         self.T_failed = None
 
     def planToTransform(self, T, q0=None, solver='local', eps=None):
@@ -478,7 +481,7 @@ class TaskPlanner(LowLevelPlanner):
         dt = 1 / float(self.freq)
         if tf != 0:
             tf += abs(tf % dt - dt)     # make multiple of dt
-            tf = max(tf, 1)           # enforce min time for ramp up/down
+            tf = max(tf, 1)             # enforce min time for ramp up/down
 
         # Add milestones
         milestones = []
@@ -545,17 +548,10 @@ class MotionPlan:
         elif strict:
             self.put(feasible=False)
             exit()
-        # if strict:
-        #     if self.cspace.feasible(milestone.get_robot()):
-        #         self.milestones.append(milestone)
-        #         self.cspace.robot.setConfig(milestone.get_robot())
-        # else:
-        #     self.milestones.append(milestone)
 
     def addMilestones(self, milestones, strict=True):
         if milestones is not None:
             self.milestones += milestones
-            # self.cspace.robot.setConfig(milestones[-1].get_robot())
         elif strict:
             self.put(feasible=False)
             exit()
@@ -566,7 +562,7 @@ class MotionPlan:
             feasible = self.feasible()
 
         # Update database
-        if feasible or DEBUG:
+        if feasible:
             logger.info('Feasible path found. Updating waypoints...')
             milestoneMap = [m.get_milestone() for m in self.milestones]
             self.store.put('/robot/waypoints', milestoneMap)
@@ -576,12 +572,11 @@ class MotionPlan:
             # Clear waypoints
             self.store.put('/robot/waypoints', None)
             self.store.put('/robot/timestamp', time())
-            # Add path to debug
+            # Update debug waypoints
             milestoneMap = [m.get_milestone()
                             for m in self.getFeasibleMilestones()]
             self.store.put('/debug/waypoints', milestoneMap)
             self.store.put('/debug/timestamp', time())
-        # self.store.put('/status/route_plan', feasible)
 
 
 class CSpace:
