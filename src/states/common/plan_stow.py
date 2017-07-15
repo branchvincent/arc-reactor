@@ -32,7 +32,7 @@ class PlanStowBase(State):
         # compute route
         if gripper == 'vacuum':
             planner = MotionPlanner(self.store)
-            planner.inspectToPlace(target_pose)
+            planner.stow(target_pose)
         else: #mechanical
             #TODO: develop planner for mechanical gripper
             raise NotImplementedError('Mechanical gripper planner does not exist')

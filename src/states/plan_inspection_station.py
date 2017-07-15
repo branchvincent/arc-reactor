@@ -28,7 +28,8 @@ class PlanInspectionStation(State):
 
         # Plan route
         planner = MotionPlanner(store=self.store)
-        planner.toTransform(inspect_pose, item=True)
+        self.store.put('planner/current_state', 'stowing')
+        planner.toTransform(inspect_pose)
         motion_plan = self.store.get('robot/waypoints')
         if motion_plan is not None:
             self.setOutcome(True)

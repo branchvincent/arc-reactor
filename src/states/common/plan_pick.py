@@ -41,9 +41,9 @@ class PlanPickBase(State):
         if gripper == 'vacuum':
             planner = MotionPlanner(store=self.store)
             if inspect:
-                planner.pickToInspect(T_item, useNormal=True)
+                planner.pickToInspect(T_item)
             else:
-                planner.pick(T_item, useNormal=True)
+                planner.pick(T_item)
         else: #mechanical
             #TODO: develop planner for mechanical gripper
             raise NotImplementedError('Mechanical gripper planner does not exist')

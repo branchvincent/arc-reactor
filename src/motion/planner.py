@@ -37,7 +37,6 @@ class MotionPlanner:
         self.store = store or PensiveClient().default()
         self.ee_local = [0, 0, 0.39]    # length of gripper
         # self.z_movement = 1             # assumed height of collision-free motion
-        # self.hasItem = None
         self.reset()
 
     def reset(self):
@@ -46,28 +45,70 @@ class MotionPlanner:
         self.se3space = SE3Space(self.world)
         self.joint_planner = JointPlanner(self.cspace, store=self.store, profile='quintic', freq=15)
         self.task_planner = TaskPlanner(self.se3space, store=self.store, profile='quintic', freq=15)
+        self.vmax_abs = self.cspace.robot.getVelocityLimits()
+        self.amax_abs = self.cspace.robot.getAccelerationLimits()
         self.plan = MotionPlan(self.cspace, store=self.store)
-        self.setHasItem(False)
+        self.setState('idle')
 
-    def setHasItem(self, value):
-        self.hasItem = value
-        # Set vacuum
-        self.setVacuum(value)
-        # Set default planner and solvers
-        if self.hasItem:
+
+    def setState(self, state):
+        # Set state
+        self.state = state.lower()
+        # Update planner settings
+        if self.state == 'stowing':
+            self.setHasItem(True)
+        elif self.state == 'idle':
+            self.setHasItem(False)
+        elif self.state == 'picking':
+            self.setHasItem(True)
+            self.task_planner.vmax = 0.2
+        elif self.state == 'picking_approach':
+            self.setHasItem(True)
+            self.setVacuum(False)
+        elif self.state == 'picking_retraction':
+            self.setHasItem(True)
+        elif self.state == 'stowing':
+            self.setHasItem(True)
+        elif self.state == 'stowing_approach':
+            self.setHasItem(True)
+        elif self.state =='stowing_retraction':
+            self.setHasItem(False)
+        else:
+            raise RuntimeError('Unrecognized state: {}'.format(self.state))
+
+    def setHasItem(hasItem):
+        if hasItem:
+            self.setVacuum(True)
+            self.setVelocityLimits([pi/2] * self.cspace.robot.numLinks())
+            self.setAccelerationLimits([pi/2] * self.cspace.robot.numLinks())
             self.default_space = 'task'
             self.default_solvers = ['nearby']
             self.task_planner.vmax = 0.3
             self.z_movement = 1.2
         else:
+            self.setVacuum(False)
+            self.setVelocityLimits([2*pi] * self.cspace.robot.numLinks())
+            self.setAccelerationLimits([2*pi] * self.cspace.robot.numLinks())
             self.default_space = 'joint'
             self.default_solvers = ['local', 'global']
-            self.task_planner.vmax = 0.3
+            self.task_planner.vmax = 0.5
             self.z_movement = 1
 
     def setVacuum(self, value):
         self.joint_planner.setVacuum(value)
         self.task_planner.setVacuum(value)
+
+    def setVelocityLimits(self, vmax):
+        # Set only if does not exceed absolute limits
+        for i, (v, v_ceil) in enumerate(zip(vmax, self.vmax_abs)):
+            vmax[i] = v if v < v_ceil else v_ceil
+        self.robot.setVelocityLimits(vmax)
+
+    def setAccelerationLimits(self, amax):
+        # Set only if does not exceed absolute limits
+        for i, (a, a_ceil) in enumerate(zip(amax, self.amax_abs)):
+            amax[i] = a if a < a_ceil else a_ceil
+        self.robot.setAccelerationLimits(amax)
 
     def getCurrentConfig(self):
         if len(self.plan.milestones) == 0:
@@ -75,18 +116,27 @@ class MotionPlanner:
         else:
             return self.plan.milestones[-1].get_robot()
 
-    def toTransform(self, T_ee, item=False):
+    def toTransform(self, T_ee):
         # Check current config
         if not self.cspace.feasible(self.getCurrentConfig()):
             logger.error('Current configuration is infeasible')
             return self.plan.put(feasible=False)
+
         # Create plan
-        self.setHasItem(item)
+        state = self.store.get('planner/current_state', 'idle')
+        self.setState(state)
         milestones = self.planToTransform(T_ee)
         self.plan.addMilestones(milestones)
         self.plan.put()
 
-    def pick(self, T_item, useNormal=True, searchAngle=10, approachDistance=0.05, delay=1.5, debug=True):
+    def pick(self, T_item):
+        # Get settings
+        useNormal = self.store.get('planner/picking/useNormal', True)
+        searchAngle = self.store.get('planner/picking/searchAngle', 10)
+        approachDistance = self.store.get('planner/picking/approachDistance', 0.05)
+        delay = self.store.get('planner/picking/delay', 1.5)
+        debug = self.store.get('planner/picking/debug', False)
+
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
         if debug: self.store.put('vantage/pick_item', klampt2numpy(T_item))
@@ -106,7 +156,7 @@ class MotionPlanner:
 
         # Move above item
         logger.debug('Moving over item')
-        self.setHasItem(False)
+        self.setState('idle')
         T_above = (R_ee, [T_item[1][0], T_item[1][1], self.z_movement])
         if debug: self.store.put('vantage/pick_above', klampt2numpy(T_above))
         milestones = self.planToTransform(T_above)
@@ -131,16 +181,15 @@ class MotionPlanner:
 
             # Move to item normal
             logger.debug('Moving to item normal')
+            self.setState('picking_approach')
             T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
             if debug: self.store.put('vantage/pick_approach', klampt2numpy(T_pick_approach))
             milestones = self.planToTransform(T_pick_approach, space='task', solvers=['nearby'])
             self.plan.addMilestones(milestones)
 
             # Lower ee
-            # vmax_orig = self.task_planner.vmax
-            # self.task_planner.vmax = 0.05
             logger.debug('Lowering end effector')
-            self.setHasItem(True)
+            self.setState('picking')
             milestones = self.planToTransform(T_pick)
             self.plan.addMilestones(milestones)
 
@@ -150,39 +199,45 @@ class MotionPlanner:
 
             # Move back to item normal
             logger.debug('Raising end effector')
+            self.setState('picking_retraction')
             t_departure = vops.add(T_pick[1], [0,0,0.1])
             milestones = self.planToTransform((T_pick[0], t_departure))
             self.plan.addMilestones(milestones)
-            # self.task_planner.vmax = vmax_orig
 
         else:
             # Approach
             logger.debug('Lowering end effector')
-            self.setHasItem(True)
+            self.setState('picking')
             milestones = self.planToTransform(T_pick)
             self.plan.addMilestones(milestones)
 
             # Pick up
             logger.debug('Picking')
             self.plan.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=[1]))
+            self.setState('picking_retraction')
 
         # Raise ee
         logger.debug('Raising end effector')
         milestones = self.planToTransform(T_above)
         self.plan.addMilestones(milestones)
 
-    def pickToInspect(self, T_item, useNormal=True, searchAngle=10, approachDistance=0.05, delay=1.5, debug=True):
+    def pickToInspect(self, T_item):
         # Pick item
-        self.pick(T_item, useNormal=useNormal, searchAngle=searchAngle, approachDistance=approachDistance, delay=delay, debug=debug)
+        self.pick(T_item)
 
         # Move to inspection station
         logger.debug('Moving to inspection station')
+        self.setState('stowing')
         T_inspect = self.store.get('/robot/inspect_pose')
         milestones = self.planToTransform(T_inspect)
         self.plan.addMilestones(milestones)
         self.plan.put()
 
-    def inspectToPlace(self, T_stow, delay=3, debug=True):
+    def stow(self, T_stow):
+        # Get settings
+        delay = self.store.get('planner/stowing/delay', 3)
+        debug = self.store.get('planner/stowing/debug', False)
+
         if isinstance(T_stow, np.ndarray):
             T_stow = numpy2klampt(T_stow)
         if debug: self.store.put('vantage/stow', klampt2numpy(T_stow))
@@ -194,7 +249,7 @@ class MotionPlanner:
 
         # Move over stow location
         logger.debug('Moving over item')
-        self.setHasItem(True)
+        self.setState('stowing')
         T_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], self.z_movement])
         if debug: self.store.put('vantage/stow_above', klampt2numpy(T_above))
         milestones = self.planToTransform(T_above)
@@ -202,12 +257,13 @@ class MotionPlanner:
 
         # Lower ee
         logger.debug('Lowering end effector')
+        self.setState('stowing_approach')
         milestones = self.planToTransform(T_stow)
         self.plan.addMilestones(milestones)
 
         # Place
         logger.debug('Placing')
-        self.setHasItem(False)
+        self.setState('stowing_retraction')
         self.plan.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=[0]))
 
         # Raise ee
@@ -405,16 +461,6 @@ class JointPlanner(LowLevelPlanner):
 
     def reset(self, space):
         self.space = space
-        vmax_orig = self.robot.getVelocityLimits()
-        amax_orig = self.robot.getAccelerationLimits()
-        vmax = [2*pi] * self.robot.numLinks()
-        amax = [2*pi] * self.robot.numLinks()
-        # Set only if does not exceed original limits
-        for i, (v,vo,a,ao) in enumerate(zip(vmax, vmax_orig, amax, amax_orig)):
-            vmax[i] = v if v < vo else vo
-            amax[i] = a if a < ao else ao
-        self.robot.setVelocityLimits(vmax)
-        self.robot.setAccelerationLimits(amax)
 
     def planToTransform(self, T, q0=None, solver='local', eps=None):
         q0 = q0 or self.store.get('/robot/current_config')
