@@ -72,6 +72,7 @@ class CheckItem(State):
         elif alg=="stow":
             self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_bin'))
             self.store.put('/robot/target_locations', ['stow_tote'])
+            self.store.put('/robot/target_view_location', self.store.get('/robot/target_bin'))
 
         self.setOutcome(True)
 

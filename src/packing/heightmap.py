@@ -12,7 +12,7 @@ import glob
 import time
 
 
-def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.5,pixel_length=0.002,rotate=False,stability=False,layer=False):
+def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.7,pixel_length=0.002,rotate=False,stability=False,layer=False):
 
 
     """
@@ -64,7 +64,7 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.5,pi
             layer_map.append([])
 
     for indice,bin in enumerate(bins):
-        depth_map,cornor_point,bin_layer_map=pc2depthmap(indice,bin,max_height,pixel_length,BBs[indice],layer_map[indice])
+        depth_map,cornor_point,bin_layer_map,z_min=pc2depthmap(indice,bin,max_height,pixel_length,BBs[indice],layer_map[indice])
         layer_map[indice]=bin_layer_map
         depth_maps.append(depth_map)
         cornor_points.append(cornor_point)
@@ -74,7 +74,7 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.5,pi
 
         if height!=255:
             orders.append(order)
-            z=height/255.0*max_height+item[2]
+            z=height/255.0*max_height+item[2]+z_min
             x=cornor_points[order][0]+index[0]*pixel_length
             y=cornor_points[order][1]-index[1]*pixel_length
             minimum_height.append(height)
@@ -92,16 +92,16 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.5,pi
         order=orders[best_index]
         layer_map[order]=layermap2update
 
-        tool_location=get_location(location,orientation+rotate_angle,offset)
+        tool_location=get_location(location,-orientation-rotate_angle,offset)
 
-        print (order, location,tool_location,orientation+rotate_angle)
+        print (order, location,tool_location,-orientation-rotate_angle)
 
         # cv2.imshow("denoised",image_show*3)
         # k = cv2.waitKey(0)
         # if k == 27:         # wait for ESC key to exit
         #     cv2.destroyAllWindows()
         print time.time()
-        return (order, tool_location,orientation+rotate_angle,layer_map)
+        return (order, tool_location,-orientation-rotate_angle,layer_map)
 
     else:
         return (None,None,None,layer_map)
@@ -141,9 +141,9 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
     y_raw=pointcloud[:,1]
     z_raw=pointcloud[:,2]
 
-    x_filtered=reject_outliers(x_raw, m = 8)
-    y_filtered=reject_outliers(y_raw, m = 8)
-    z_filtered=reject_outliers(z_raw, m = 8)
+    x_filtered=reject_outliers(x_raw, m = 6)
+    y_filtered=reject_outliers(y_raw, m = 6)
+    z_filtered=reject_outliers(z_raw, m = 6)
 
     x_min=np.amin(x_filtered)
     x_max=np.amax(x_filtered)
@@ -168,68 +168,35 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
 
     center_coordinate=[20+int((ee_pos[0]-x_min)/pixel_length),20+int((y_max-ee_pos[1])/pixel_length)]
 
-    points2map=points2map.astype(int)
-    #flip the order to serve as indexes for an array
-
-    points2map=[[t[1], t[0]] for t in points2map]
+    points2map_index=points2map.astype(int)
+    points2map=[[t[1], t[0]] for t in points2map_index]
 
     image[tuple(np.array(points2map).T)]=np.uint8(0)
 
-    # cv2.imshow("raw pointcloud",image)
-    # k = cv2.waitKey(0)
-    # if k == 27:
-    #     cv2.destroyAllWindows()
+    points2map_index = np.array(points2map_index).reshape((-1,1,2)).astype(np.int32)
+    rect=cv2.minAreaRect(points2map_index)
+    center_rect,dimension_rect,rotation_rect=rect
 
-    gray = cv2.GaussianBlur(image, (5, 5), 0)
-
-    # perform edge detection, then perform a dilation + erosion to
-    # close gaps in between object edges
-    edged = cv2.Canny(gray, 70, 240)
-    edged = cv2.dilate(edged, None, iterations=1)
-    edged = cv2.erode(edged, None, iterations=1)
-
-    #save a copy of image after contour, we will later use to obtain all points enclosed in the contour
-
-    frame=edged.copy()
-    cnts, hierarchy = cv2.findContours(frame, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)[-2:]
-    if len(cnts)>0:
-        cnt=max(cnts,key=cv2.contourArea)
-        center_rect,dimension_rect,rotation_rect=cv2.minAreaRect(cnt)
-        ratio=dimension_rect[0]*dimension_rect[1]*1.0/num_pixels_x/num_pixels_y
-        center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
-        if ratio>0.6:
-
-            # rect = cv2.minAreaRect(cnt)
-            # box = cv2.boxPoints(rect)
-            # box = np.int0(box)
-            # cv2.drawContours(image,[box],0,(0,0,255),2)
-
-            # try:
-
-            #     image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
-            #     cv2.imshow("object",image)
-            #     k = cv2.waitKey(0)
-            #     if k == 27:
-            #         cv2.destroyAllWindows()
-            # except:
-            #     print center_offset
-            return ([dimension_rect[0]*pixel_length,dimension_rect[1]*pixel_length,z_max-z_min],center_offset,-rotation_rect)
-
-        else:
-
-            center_offset=(ee_pos[0]-(x_min+x_max)/2.0,ee_pos[1]-(y_min+y_max)/2.0,ee_pos[2]-z_max)
-
-            return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
+    box = cv2.boxPoints(rect)
+    box = np.int0(box)
+    cv2.drawContours(image,[box],0,(0,0,255),2)
+    center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
 
 
+    try:
+        image[int(center_rect[1])-3:int(center_rect[1])+3,int(center_rect[0])-3:int(center_rect[0])+3]=np.uint8(160)
+        image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
+        # cv2.imshow("object",image)
+        # k = cv2.waitKey(0)
+        # if k == 27:
+        #     cv2.destroyAllWindows()
 
-    else:
+    except:
+        print center_offset
+    print "dimension"
+    print z_max-z_min
 
-
-        center_offset=(ee_pos[0]-(x_min+x_max)/2.0,ee_pos[1]-(y_min+y_max)/2.0,ee_pos[2]-z_max)
-
-        return ([x_max-x_min,y_max-y_min,z_max-z_min],center_offset,0)
-
+    return ([dimension_rect[0]*pixel_length,dimension_rect[1]*pixel_length,z_max-z_min],center_offset,-rotation_rect)
 
 
 def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map,max_height):
@@ -380,6 +347,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
     x_max=max(BB[0][0], BB[1][0],BB[2][0], BB[3][0])
     y_min=min(BB[0][1], BB[1][1],BB[2][1], BB[3][1])
     y_max=max(BB[0][1], BB[1][1],BB[2][1], BB[3][1])
+    z_min=min(BB[0][2], BB[1][2],BB[2][2], BB[3][2])
 
     count=0
     num_pixels_X=int((x_max-x_min)/length_per_pixel)
@@ -411,20 +379,20 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
         dist = cv2.pointPolygonTest(bounding_Rectangle,(x,y),False)
         if dist>-1:
             if point[2]<threshold:
-                depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
+                depth_map[y][x]=np.uint8(max(depth_map[y][x],(point[2]-z_min)*1.00/threshold*255))
 
         else:
             depth_map[y][x]=np.uint8(255)
 
 
     #de-noise the raw depth map using median filter
-    depth_map=cv2.fastNlMeansDenoising(depth_map,None,30,11,21)
+    depth_map=cv2.fastNlMeansDenoising(depth_map,None,20,11,21)
     # cv2.imshow("bin",depth_map)
     # k = cv2.waitKey(0)
     # if k == 27:
     #     cv2.destroyAllWindows()
 
-    return (depth_map,(x_min,y_max),layer_map)
+    return (depth_map,(x_min,y_max),layer_map,z_min)
 
 def detect_local_minima(arr):
     # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710

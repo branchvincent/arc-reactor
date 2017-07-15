@@ -12,6 +12,7 @@ from packing import heightmap
 
 from util.math_helpers import transform, crop_with_aabb, zero_translation
 from util.location import location_bounds_url, location_pose_url
+from util.filtering import distance_label
 
 from .common import NoViewingCameraError, MissingPhotoError
 
@@ -67,7 +68,6 @@ class EvaluatePlacement(State):
         # obtain item point cloud from inspection station in tool coordinates
         item_cloud = self._build_item_point_cloud()
 
-
         # obtain container point cloud and bounding box in container local coordinates
         container_clouds = [self._build_container_point_cloud(location) for location in locations]
         container_corners = [self._build_container_corners(location) for location in locations]
@@ -101,7 +101,7 @@ class EvaluatePlacement(State):
             # transform placement into world coordinate system
             robot_pose_world = self.store.get('/robot/tcp_pose')
 
-            world_placement = xyz(*position).dot(zero_translation(robot_pose_world)).dot(rpy(0, 0, orientation * pi / 180.0))
+            world_placement = xyz(*position).dot(rpy(0, 0, orientation * pi / 180.0)).dot(zero_translation(robot_pose_world))
 
             # store result
             self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})
@@ -132,7 +132,7 @@ class EvaluatePlacement(State):
                 raise MissingPhotoError('missing photo data for inspection: {}'.format(photo_url))
 
             cloud_world = transform(camera_pose, cloud_camera)
-            valid_mask = cloud_camera[..., 2] > 0
+            valid_mask = self._filter_cloud(cloud_world, cloud_camera[..., 2] > 0)
 
             inspect_cloud_world = numpy.vstack((
                 inspect_cloud_world,
@@ -214,9 +214,10 @@ class EvaluatePlacement(State):
             photo_cloud_world = transform(photo_pose, photo_cloud_camera)
             photo_cloud_container = transform(numpy.linalg.inv(container_pose), photo_cloud_world)
 
-            photo_valid_mask = (photo_cloud_camera[..., 2] > 0)
-            container_cloud_local = photo_cloud_container[photo_valid_mask]
-            container_color = photo_aligned_color[photo_valid_mask]
+            valid_mask = self._filter_cloud(photo_cloud_camera, photo_cloud_camera[..., 2] > 0)
+
+            container_cloud_local = photo_cloud_container[valid_mask]
+            container_color = photo_aligned_color[valid_mask]
 
             container_cloud_world = transform(container_pose, container_cloud_local)
 
@@ -235,6 +236,21 @@ class EvaluatePlacement(State):
         }, root='/debug/container/{}'.format(location))
 
         return container_cloud
+
+    def _filter_cloud(self, cloud, valid_mask, count_threshold=100, distance_threshold=0.01):
+        (labeled_cloud, label_count) = distance_label(cloud, valid_mask, distance_threshold)
+        logger.debug('found {} connected components'.format(label_count))
+
+        filter_mask = numpy.zeros_like(label_count, dtype=numpy.bool)
+
+        for label in range(1, label_count + 1):
+            label_mask = (labeled_cloud == label)
+            count = numpy.count_nonzero(label_mask)
+
+            if count >= count_threshold:
+                filter_mask = numpy.logical_or(filter_mask, label_mask)
+
+        return filter_mask
 
 if __name__ == '__main__':
     import argparse

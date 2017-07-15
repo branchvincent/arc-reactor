@@ -32,7 +32,7 @@ def run(store):
         })
 
     for name in totes:
-        output['tote']['contents'] += [k for (k, l) in locations.items() if l == totes],
+        output['tote']['contents'] += [k for (k, l) in locations.items() if l == '{}_tote'.format(name)]
 
     print json.dumps(output, indent=4)
 
