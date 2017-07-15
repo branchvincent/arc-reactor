@@ -27,8 +27,8 @@ class PlanInspectionStation(State):
             raise RuntimeError('/robot/inspect_pose/ is none')
 
         # Plan route
+        self.store.put('planner/current_state', 'carrying')
         planner = MotionPlanner(store=self.store)
-        self.store.put('planner/current_state', 'stowing')
         planner.toTransform(inspect_pose)
         motion_plan = self.store.get('robot/waypoints')
         if motion_plan is not None:

@@ -32,8 +32,9 @@ class PlanViewLocation(State):
         self.store.put('/robot/target_pose', vantage_T)
 
         # Plan route
-        p = MotionPlanner(store=self.store)
-        p.toTransform(vantage_T)
+        self.store.put('planner/current_state', 'idle')
+        planner = MotionPlanner(store=self.store)
+        planner.toTransform(vantage_T)
         motion_plan = self.store.get('robot/waypoints')
         if motion_plan is not None:
             self.setOutcome(True)

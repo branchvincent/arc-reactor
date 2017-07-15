@@ -16,7 +16,7 @@ def updateMotionLimits(store=None):
     def _getValsBelowCeiling(vals, vals_ceiling):
         vals_new = []
         for v, v_ceil in zip(vals, vals_ceiling):
-            vmax.append(v if v < v_ceil else v_ceil)
+            vals_new.append(v if v < v_ceil else v_ceil)
         return vals_new
 
     store = store or PensiveClient().default()

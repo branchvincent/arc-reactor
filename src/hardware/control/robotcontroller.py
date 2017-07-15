@@ -27,7 +27,7 @@ def Assert(condition, message):
 
 class RobotController:
     """Trajectory execution for TX90"""
-    def __init__(self, robot='left', store=None):
+    def __init__(self, robot='right', store=None):
         self.store = store or PensiveClient().default()
         self.robot = Robot(robot, store=self.store)
         self.trajectory = Trajectory(robot=self.robot, store=self.store)
@@ -134,7 +134,7 @@ class Trajectory:
         # Update milestone
         if self.curr_index < len(self.milestones):
             self.curr_milestone = self.milestones[self.curr_index]
-            self.vacuum.change(bool(self.curr_milestone.get_vacuum()[0]))
+            self.vacuum.change(self.curr_milestone.get_vacuum())
             self.gripper.command(self.curr_milestone.get_gripper()[0])
             logger.info('Moving to milestone {}'.format(self.robot.getCurrentIndexAbs()))
             # Add new milestone

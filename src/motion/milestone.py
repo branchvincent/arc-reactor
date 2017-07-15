@@ -5,7 +5,7 @@ import logging; logger = logging.getLogger(__name__)
 
 DOF = { 'db': 7,
         'robot': 6,
-        'vacuum': 1,
+        'vacuum': 2,
         'gripper': 1
 }
 

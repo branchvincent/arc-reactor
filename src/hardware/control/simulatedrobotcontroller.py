@@ -112,7 +112,7 @@ class SimulatedTrajectory:
         self.curr_index = index
         if self.curr_index < len(self.milestones):
             self.curr_milestone = self.milestones[self.curr_index]
-            self.vacuum.change(bool(self.curr_milestone.get_vacuum()[0]))
+            self.vacuum.change(self.curr_milestone.get_vacuum())
             self.gripper.command(self.curr_milestone.get_gripper()[0])
             dt = self.curr_milestone.get_t()
             qf = [round(qi,1) for qi in self.curr_milestone.get_robot()]

@@ -51,8 +51,6 @@ class MotionPlanner:
         # Update current config
         q0 = self.store.get('robot/current_config')
         self.store.put('planner/tracking/current_config', q0)
-        # Set state
-        self.setState('idle')
 
     def setState(self, state):
         logger.debug('Entering state {}'.format(state))
@@ -69,17 +67,17 @@ class MotionPlanner:
             q = milestones[-1].get_robot()
             self.store.put('planner/tracking/current_config', q)
 
-    def setVelocityLimits(self, vmax):
-        # Set only if does not exceed absolute limits
-        for i, (v, v_ceil) in enumerate(zip(vmax, self.vmax_abs)):
-            vmax[i] = v if v < v_ceil else v_ceil
-        self.robot.setVelocityLimits(vmax)
+    # def setVelocityLimits(self, vmax):
+    #     # Set only if does not exceed absolute limits
+    #     for i, (v, v_ceil) in enumerate(zip(vmax, self.vmax_abs)):
+    #         vmax[i] = v if v < v_ceil else v_ceil
+    #     self.robot.setVelocityLimits(vmax)
 
-    def setAccelerationLimits(self, amax):
-        # Set only if does not exceed absolute limits
-        for i, (a, a_ceil) in enumerate(zip(amax, self.amax_abs)):
-            amax[i] = a if a < a_ceil else a_ceil
-        self.robot.setAccelerationLimits(amax)
+    # def setAccelerationLimits(self, amax):
+    #     # Set only if does not exceed absolute limits
+    #     for i, (a, a_ceil) in enumerate(zip(amax, self.amax_abs)):
+    #         amax[i] = a if a < a_ceil else a_ceil
+    #     self.robot.setAccelerationLimits(amax)
 
     def getCurrentConfig(self):
         if len(self.plan.milestones) == 0:
@@ -133,7 +131,7 @@ class MotionPlanner:
         self.addMilestones(milestones)
 
         # Move to item normal
-        logger.debug('Moving to item normal')
+        logger.debug('Descending to item normal')
         self.setState('picking_approach')
         T_pick_no_normal = (R_ee, T_pick[1])
         T_pick = self._getFeasiblePickTransform(T_pick, T_pick_no_normal, searchAngle)
@@ -142,10 +140,11 @@ class MotionPlanner:
         self.addMilestones(milestones)
 
         # Lower ee
-        logger.debug('Lowering end effector')
+        logger.debug('Descending along normal')
         self.setState('picking')
         milestones = self.planToTransform(T_pick, name='pick')
         self.addMilestones(milestones)
+        self.store.put('/robot/target_grasp_xform', T_pick)
 
         # Pick up
         logger.debug('Picking')
@@ -155,13 +154,13 @@ class MotionPlanner:
         self.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=vacuum))
 
         # Raise ee back to item normal
-        logger.debug('Raising end effector')
+        logger.debug('Ascending along normal')
         t_departure = vops.add(T_pick[1], [0, 0, approachDistance])
         milestones = self.planToTransform((T_pick[0], t_departure))
         self.addMilestones(milestones)
 
-        # Raise ee 
-        logger.debug('Raising end effector')
+        # Raise ee
+        logger.debug('Ascending back over item')
         self.setState('picking_retraction')
         milestones = self.planToTransform(T_above)
         self.addMilestones(milestones)
@@ -193,7 +192,7 @@ class MotionPlanner:
         self.addMilestones(milestones)
 
         # Lower ee
-        logger.debug('Lowering end effector')
+        logger.debug('Descending to placement')
         self.setState('stowing_approach')
         milestones = self.planToTransform(T_stow, name='stow')
         self.addMilestones(milestones)
@@ -202,12 +201,12 @@ class MotionPlanner:
         logger.debug('Placing')
         state = 'stowing'
         self.setState(state)
-        delay = self.store.get(['planner', 'states', state, 'delay']])
+        delay = self.store.get(['planner', 'states', state, 'delay'])
         vacuum = self.store.get(['planner', 'states', state, 'vacuum'])
         self.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=vacuum))
 
         # Raise ee
-        logger.debug('Raising end effector')
+        logger.debug('Ascending back over item')
         self.setState('stowing_retraction')
         milestones = self.planToTransform(T_above)
         self.addMilestones(milestones)
