@@ -317,6 +317,8 @@ def setup_workcell(store, workcell, dirty=False):
     _load(store, 'db/scales.json', '/system/scales')
     _load(store, 'db/robots.json', '/system/robots')
 
+    _load(store, 'db/planner.json', '/planner')
+
     # load box data
     boxes = json.load(open('db/boxes.json'))
     jsonschema.validate(boxes, BOXES_SCHEMA)

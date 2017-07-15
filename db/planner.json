@@ -1,0 +1,122 @@
+{
+    "debug": false,
+    "ee_local": [0, 0, 0.39],
+    "current_state": "idle",
+    "control_frequency": 15,
+    "velocity_profile": "quintic",
+    "nearby_solver_eps": 0.4,
+    "tracking": {
+        "current_config": null,
+        "current_solver": null
+    },
+    "states": {
+        "idle": {
+            "description": "Any movement without an item",
+            "vacuum": [false],
+            "joint_velocity_limits": [6.28, 6.28, 6.28, 6.28, 6.28, 6.28, 6.28],
+            "joint_acceleration_limits": [6.28, 6.28, 6.28, 6.28, 6.28, 6.28, 6.28],
+            "translation_velocity_limit": 0.5,
+            "translation_acceleration_limit": "NotImplementedError",
+            "rotation_velocity_limit": "NotImplementedError",
+            "rotation_acceleration_limit": "NotImplementedError",
+            "clearance_height": 1,
+            "planning_space": "joint",
+            "planning_solvers": ["local", "global"]
+        },
+        "carrying": {
+            "description": "Any movement with an item",
+            "vacuum": [true],
+            "joint_velocity_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "joint_acceleration_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "translation_velocity_limit": 0.3,
+            "translation_acceleration_limit": "NotImplementedError",
+            "rotation_velocity_limit": "NotImplementedError",
+            "rotation_acceleration_limit": "NotImplementedError",
+            "clearance_height": 1.2,
+            "planning_space": "task",
+            "planning_solvers": ["nearby"]
+        },
+        "picking_approach": {
+            "description": "Approaching an item, from clearance_height, to pick",
+            "vacuum": [false],
+            "joint_velocity_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "joint_acceleration_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "translation_velocity_limit": 0.3,
+            "translation_acceleration_limit": "NotImplementedError",
+            "rotation_velocity_limit": "NotImplementedError",
+            "rotation_acceleration_limit": "NotImplementedError",
+            "clearance_height": 1.2,
+            "planning_space": "task",
+            "planning_solvers": ["nearby"]
+        },
+        "picking": {
+            "description": "Nearby approachment, picking, and retraction of item",
+            "vacuum": [true],
+            "joint_velocity_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "joint_acceleration_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "translation_velocity_limit": 0.2,
+            "translation_acceleration_limit": "NotImplementedError",
+            "rotation_velocity_limit": "NotImplementedError",
+            "rotation_acceleration_limit": "NotImplementedError",
+            "clearance_height": 1.2,
+            "planning_space": "task",
+            "planning_solvers": ["nearby"],
+            "approach_distance": 0.05,
+            "search_angle_increment": 10,
+            "delay": 1.5
+        },
+        "picking_retraction": {
+            "description": "Retracting an item, to clearance_height, that was just picked",
+            "vacuum": [true],
+            "joint_velocity_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "joint_acceleration_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "translation_velocity_limit": 0.3,
+            "translation_acceleration_limit": "NotImplementedError",
+            "rotation_velocity_limit": "NotImplementedError",
+            "rotation_acceleration_limit": "NotImplementedError",
+            "clearance_height": 1.2,
+            "planning_space": "task",
+            "planning_solvers": ["nearby"]
+        },
+        "stowing_approach": {
+            "description": "Approaching a location, from clearance_height, for an item to be stowed",
+            "vacuum": [true],
+            "joint_velocity_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "joint_acceleration_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "translation_velocity_limit": 0.3,
+            "translation_acceleration_limit": "NotImplementedError",
+            "rotation_velocity_limit": "NotImplementedError",
+            "rotation_acceleration_limit": "NotImplementedError",
+            "clearance_height": 1.2,
+            "planning_space": "task",
+            "planning_solvers": ["nearby"]
+        },
+        "stowing": {
+            "description": "Stowing an item (i.e. turning off vacuum)",
+            "vacuum": [true],
+            "joint_velocity_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "joint_acceleration_limits": [1.57, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
+            "translation_velocity_limit": 0.3,
+            "translation_acceleration_limit": "NotImplementedError",
+            "rotation_velocity_limit": "NotImplementedError",
+            "rotation_acceleration_limit": "NotImplementedError",
+            "clearance_height": 1.2,
+            "planning_space": "task",
+            "planning_solvers": ["nearby"],
+            "delay": 1.5
+        },
+        "stowing_retraction": {
+            "description": "Retracting, to clearance_height, from the stow location",
+            "vacuum": [false],
+            "joint_velocity_limits": [6.28, 6.28, 6.28, 6.28, 6.28, 6.28, 6.28],
+            "joint_acceleration_limits": [6.28, 6.28, 6.28, 6.28, 6.28, 6.28, 6.28],
+            "translation_velocity_limit": 0.5,
+            "translation_acceleration_limit": "NotImplementedError",
+            "rotation_velocity_limit": "NotImplementedError",
+            "rotation_acceleration_limit": "NotImplementedError",
+            "clearance_height": 1,
+            "planning_space": "task",
+            "planning_solvers": ["nearby"]
+        }
+    }
+}

@@ -41,21 +41,17 @@ class Vacuum(object):
             logger.info('vacuum connected')
 
     def _connect(self, host, port, pins):
-        self._vacuum_pin = pins[0]
-        if not self._vacuum_pin:
-            # read pin from database
-            self._vacuum_pin = self._store.get('/config/rio/vacuum')
-        if not self._vacuum_pin:
-            # fall pack to default
-            self._vacuum_pin = VACUUM_GPIO_BCM_PIN
+        self._pins = {}
 
-        self._vent_pin = pins[1]
-        if not self._vent_pin:
-            # read pin from database
-            self._vent_pin = self._store.get('/config/rio/vent')
-        if not self._vent_pin:
-            # fall pack to default
-            self._vent_pin = VENT_GPIO_BCM_PIN
+        for (name, pin, default) in zip(['vacuum', 'vent'], pins, [VACUUM_GPIO_BCM_PIN, VENT_GPIO_BCM_PIN]):
+            if not pin:
+                # read pin from database
+                pin = self._store.get(['config', 'rio', name])
+            if not pin:
+                # fall pack to default
+                pin = default
+
+            self._pins[name] = pin
 
         if not host:
             # read host from the database
@@ -70,7 +66,7 @@ class Vacuum(object):
         if not port:
             port = GPIO_DEFAULT_PORT
 
-        logger.debug('vacuum using {}:{} with pin {} vacuum and pin {} vent'.format(host, port, self._vacuum_pin, self._vent_pin))
+        logger.debug('vacuum using {}:{} with pins {}'.format(host, port, self._pins))
 
         self._rio = pigpio.pi(host, port)
         # actually check the connection
@@ -78,8 +74,8 @@ class Vacuum(object):
             raise ConnectionError('failed to connect vacuum')
 
         # configure pins
-        self._rio.set_mode(self._vacuum_pin, pigpio.OUTPUT)
-        self._rio.set_mode(self._vent_pin, pigpio.OUTPUT)
+        for pin in self._pins.values():
+            self._rio.set_mode(pin, pigpio.OUTPUT)
 
     # def __del__(self):
     #     # turn the vacuum off
@@ -119,7 +115,7 @@ class Vacuum(object):
         Change the vacuum state and update the database.
         '''
 
-        for (name, pin, value) in zip(['vacuum', 'vent'], [self._vacuum_pin, self._vent_pin], on):
+        for (name, value) in zip(['vacuum', 'vent'], on):
             if isinstance(value, bool):
                 pass
             elif value.lower() == 'on':
@@ -130,7 +126,7 @@ class Vacuum(object):
             # check if real or simulated vacuum
             if self._rio:
                 logger.info('{} turned {}'.format(name, 'on' if value else 'off'))
-                self._rio.write(pin, value)
+                self._rio.write(self._pins[name], value)
             else:
                 logger.info('{} turned {} (simulated)'.format(name, 'on' if value else 'off'))
 
@@ -142,7 +138,7 @@ class Vacuum(object):
         '''
         # check if real or simulated vacuum
         if self._rio:
-            return [bool(self._rio.read(x)) for x in [self._vacuum_pin, self._vent_pin]]
+            return [bool(self._rio.read(self.pins[name])) for name in ['vacuum', 'vent']]
         else:
             return [self._store.get([name, 'status']) for name in ['vacuum', 'vent']]
 
