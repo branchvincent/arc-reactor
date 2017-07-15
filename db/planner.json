@@ -7,7 +7,7 @@
     "nearby_solver_eps": 0.4,
     "tracking": {
         "current_config": null,
-        "current_solver": null,
+        "current_solver": null
     },
     "states": {
         "idle": {
@@ -21,7 +21,7 @@
             "rotation_acceleration_limit": "NotImplementedError",
             "clearance_height": 1,
             "planning_space": "joint",
-            "planning_solvers": ["local", "global"],
+            "planning_solvers": ["local", "global"]
         },
         "carrying": {
             "description": "Any movement with an item",
@@ -34,7 +34,7 @@
             "rotation_acceleration_limit": "NotImplementedError",
             "clearance_height": 1.2,
             "planning_space": "task",
-            "planning_solvers": ["nearby"],
+            "planning_solvers": ["nearby"]
         },
         "picking_approach": {
             "description": "Approaching an item, from clearance_height, to pick",
@@ -47,7 +47,7 @@
             "rotation_acceleration_limit": "NotImplementedError",
             "clearance_height": 1.2,
             "planning_space": "task",
-            "planning_solvers": ["nearby"],
+            "planning_solvers": ["nearby"]
         },
         "picking": {
             "description": "Nearby approachment, picking, and retraction of item",
@@ -76,7 +76,7 @@
             "rotation_acceleration_limit": "NotImplementedError",
             "clearance_height": 1.2,
             "planning_space": "task",
-            "planning_solvers": ["nearby"],
+            "planning_solvers": ["nearby"]
         },
         "stowing_approach": {
             "description": "Approaching a location, from clearance_height, for an item to be stowed",
@@ -89,7 +89,7 @@
             "rotation_acceleration_limit": "NotImplementedError",
             "clearance_height": 1.2,
             "planning_space": "task",
-            "planning_solvers": ["nearby"],
+            "planning_solvers": ["nearby"]
         },
         "stowing": {
             "description": "Stowing an item (i.e. turning off vacuum)",
@@ -116,7 +116,7 @@
             "rotation_acceleration_limit": "NotImplementedError",
             "clearance_height": 1,
             "planning_space": "task",
-            "planning_solvers": ["nearby"],
+            "planning_solvers": ["nearby"]
         }
     }
 }
