@@ -50,7 +50,7 @@ class MotionPlanner:
         self.plan = MotionPlan(self.cspace, store=self.store)
         # Update current config
         q0 = self.store.get('robot/current_config')
-        self.store.put('planner/tracking/current_config', q0)
+        self.store.put('planner/current_config', q0)
 
     def setState(self, state):
         logger.debug('Entering state {}'.format(state))
@@ -59,13 +59,13 @@ class MotionPlanner:
     def addMilestone(self, milestone):
         self.plan.addMilestone(milestone)
         q = milestone.get_robot()
-        self.store.put('planner/tracking/current_config', q)
+        self.store.put('planner/current_config', q)
 
     def addMilestones(self, milestones):
         self.plan.addMilestones(milestones)
         if len(milestones) != 0:
             q = milestones[-1].get_robot()
-            self.store.put('planner/tracking/current_config', q)
+            self.store.put('planner/current_config', q)
 
     # def setVelocityLimits(self, vmax):
     #     # Set only if does not exceed absolute limits
@@ -86,7 +86,7 @@ class MotionPlanner:
             return self.plan.milestones[-1].get_robot()
 
     def checkCurrentConfig(self, strict=True):
-        q0 = self.store.get('/planner/tracking/current_config')
+        q0 = self.store.get('/planner/current_config')
         feasible = self.cspace.feasible(q0)
         if not feasible:
             logger.error('Current configuration is infeasible')
@@ -218,7 +218,7 @@ class MotionPlanner:
 
         # Get inputs
         state = self.store.get('/planner/current_state')
-        q0 = self.store.get('/planner/tracking/current_config')
+        q0 = self.store.get('/planner/current_config')
         space = self.store.get(['planner', 'states', state, 'planning_space'])
         solvers = self.store.get(['planner', 'states', state, 'planning_solvers'])
 
@@ -234,7 +234,7 @@ class MotionPlanner:
         plan = MotionPlan(self.cspace, store=self.store)
         for Ti in via + [T]:
             for i, solver in enumerate(solvers):
-                self.store.put('/planner/tracking/current_solver', solver)
+                self.store.put('/planner/current_solver', solver)
                 if space == 'task' and solver != 'nearby':
                     logger.warn('Task space with {} solver requested. Intentional?'.format(solver))
                 milestones = planner.planToTransform(Ti)
@@ -264,7 +264,7 @@ class MotionPlanner:
     def planToConfig(self, q, via=[]):
         # Get inputs
         state = self.store.get('/planner/current_state')
-        q0 = self.store.get('/planner/tracking/current_config')
+        q0 = self.store.get('/planner/current_config')
         space = self.store.get(['planner', 'states', state, 'planning_space'])
         solvers = self.store.get(['planner', 'states', state, 'planning_solvers'])
 
@@ -280,7 +280,7 @@ class MotionPlanner:
         plan = MotionPlan(self.cspace, store=self.store)
         for qi in via + [q]:
             for i, solver in enumerate(solvers):
-                self.store.put('/planner/tracking/current_solver', solver)
+                self.store.put('/planner/current_solver', solver)
                 milestones = planner.planToConfig(qi)
                 # Update milestones, if found
                 if milestones is not None:
@@ -327,7 +327,7 @@ class MotionPlanner:
 
     def _fixWristFlip(self, T, T_failed):
         logger.warn('Detected possible wrist flip. Trying hack...')
-        self.store.put('/planner/tracking/current_solver', 'nearby')
+        self.store.put('/planner/current_solver', 'nearby')
 
         # Plan until failed T
         plan = MotionPlan(self.cspace, store=self.store)
@@ -369,9 +369,9 @@ class LowLevelPlanner(object):
         return self.solve(goal)
 
     def solve(self, goals):
-        solver = self.store.get('/planner/tracking/current_solver')
-        q0 = self.store.get('/planner/tracking/current_config')
-        eps = self.store.get('/planner/nearby_solver_eps', pi/8)
+        solver = self.store.get('/planner/current_solver')
+        q0 = self.store.get('/planner/current_config')
+        eps = self.store.get('/planner/nearby_solver_tolerance', pi/8)
 
         # Solve
         if solver == 'local':
@@ -408,7 +408,7 @@ class JointPlanner(LowLevelPlanner):
         self.space = cspace
 
     def planToTransform(self, T):
-        q0 = self.store.get('/planner/tracking/current_config')
+        q0 = self.store.get('/planner/current_config')
         q = self.solveForConfig(T)
         if q is None:
             return None
@@ -418,7 +418,7 @@ class JointPlanner(LowLevelPlanner):
     def planToConfig(self, q):
         # Get inputs
         state = self.store.get('/planner/current_state')
-        q0 = self.store.get('/planner/tracking/current_config')
+        q0 = self.store.get('/planner/current_config')
         freq = self.store.get('/planner/control_frequency')
         profile = self.store.get('/planner/velocity_profile')
         vmax = self.store.get(['planner', 'states', state, 'joint_velocity_limits'])
@@ -466,7 +466,7 @@ class TaskPlanner(LowLevelPlanner):
     def planToTransform(self, T):
         # Get inputs
         state = self.store.get('/planner/current_state')
-        q0 = self.store.get('/planner/tracking/current_config')
+        q0 = self.store.get('/planner/current_config')
         vmax = self.store.get(['planner', 'states', state, 'translation_velocity_limit'])
         freq = self.store.get('/planner/control_frequency')
         profile = self.store.get('/planner/velocity_profile')

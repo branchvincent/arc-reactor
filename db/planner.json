@@ -2,13 +2,11 @@
     "debug": false,
     "ee_local": [0, 0, 0.39],
     "current_state": "idle",
+    "current_config": null,
+    "current_solver": null,
     "control_frequency": 15,
     "velocity_profile": "quintic",
-    "nearby_solver_eps": 0.4,
-    "tracking": {
-        "current_config": null,
-        "current_solver": null
-    },
+    "nearby_solver_tolerance": 0.4,
     "states": {
         "idle": {
             "description": "Any movement without an item",
