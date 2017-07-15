@@ -108,11 +108,10 @@ class PickStateMachine(StateMachine):
         self.setTransition('ppb', 'er5', ['ep'], checkState='cr5')
         self.setTransition('cr5', 'er5', ['ppb'])
         self.setTransition('er5', 'cpx', ['ppb'])
-# when we have more scales, use read scales here
 
-        self.setTransition('cpx', 'sp3', ['cpx'])
-        self.setTransition('sp3', 'rp3', ['rp3'])
-        self.setTransition('rp3', 'ci', ['ci'])
+        self.setTransition('cpx', 'ci', ['cpx'])
+        #self.setTransition('sp3', 'rp3', ['rp3'])
+        #self.setTransition('rp3', 'ci', ['ci'])
 
         self.setTransition('ci', 'pvl', ['ci'])
         self.setTransition('pvl', 'er6', ['pvl'], checkState='cr6')
