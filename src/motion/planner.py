@@ -45,8 +45,6 @@ class MotionPlanner:
         self.se3space = SE3Space(self.world)
         self.joint_planner = JointPlanner(self.cspace, store=self.store)
         self.task_planner = TaskPlanner(self.se3space, store=self.store)
-        self.vmax_abs = self.cspace.robot.getVelocityLimits()
-        self.amax_abs = self.cspace.robot.getAccelerationLimits()
         self.plan = MotionPlan(self.cspace, store=self.store)
         # Update current config
         q0 = self.store.get('robot/current_config')
@@ -66,18 +64,6 @@ class MotionPlanner:
         if len(milestones) != 0:
             q = milestones[-1].get_robot()
             self.store.put('planner/current_config', q)
-
-    # def setVelocityLimits(self, vmax):
-    #     # Set only if does not exceed absolute limits
-    #     for i, (v, v_ceil) in enumerate(zip(vmax, self.vmax_abs)):
-    #         vmax[i] = v if v < v_ceil else v_ceil
-    #     self.robot.setVelocityLimits(vmax)
-
-    # def setAccelerationLimits(self, amax):
-    #     # Set only if does not exceed absolute limits
-    #     for i, (a, a_ceil) in enumerate(zip(amax, self.amax_abs)):
-    #         amax[i] = a if a < a_ceil else a_ceil
-    #     self.robot.setAccelerationLimits(amax)
 
     def getCurrentConfig(self):
         if len(self.plan.milestones) == 0:
