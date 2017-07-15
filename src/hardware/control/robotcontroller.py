@@ -38,7 +38,7 @@ class RobotController:
         if self.trajectory is None or len(self.trajectory.milestones) == 0:
             logger.warn('Tried to execute an empty motion plan')
         else:
-            # self.trajectory.check()
+            self.trajectory.checkIfSynced()
             self.trajectory.start()
             self.loop()
             self.updateDatabase()
@@ -103,6 +103,13 @@ class Trajectory:
         failures = c.check()
         if failures:
             raise RuntimeError('Motion plan failed to pass checker')
+
+    def checkIfSynced(self, tol=5):
+        q0 = self.robot.getCurrentConfig()
+        q1 = self.milestones[0].get_robot()
+        q_error = [abs(q0i-q1i) for q0i, q1i in zip(q0, q1)]
+        if max(q_error) >= tol:
+            raise RuntimeError('Large movement detected. Did you sync the robot?')
 
     def start(self):
         """Sets the current milestone to the first in the list"""
