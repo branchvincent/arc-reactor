@@ -28,5 +28,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'ppi')
-    PlanPickItem(myname).run()
+    myname = (args.name or 'ppo')
+    PlanPickOnly(myname).run()

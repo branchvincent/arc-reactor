@@ -1,6 +1,8 @@
 from master.fsm import StateMachine
 from states.select_item import SelectItem
-from states.plan_stow_grab import PlanStowGrab
+#from states.plan_stow_grab import PlanStowGrab
+from states.plan_inspection_station import PlanInspectionStation
+from states.plan_pick_only import PlanPickOnly
 from states.plan_place_shelf import PlanPlaceShelf
 from states.exec_route import ExecRoute
 from states.check_item import CheckItem
@@ -17,6 +19,7 @@ from states.evaluate_pinch_grasp_stow import EvaluatePinchGraspStow
 from states.evaluate_placement import EvaluatePlacement
 from states.read_scales import ReadScales
 from states.inspect_item import InspectItem
+from states.detect_grab import DetectGrab
 
 class StowStateMachine(StateMachine):
 
@@ -34,20 +37,26 @@ class StowStateMachine(StateMachine):
         self.add('egvs', EvaluateVacuumGraspStow('egvs', store=self.store))
         self.add('egps', EvaluatePinchGraspStow('egps', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
-        self.add('psg', PlanStowGrab('psg', store=self.store))
+        #self.add('psg', PlanStowGrab('psg', store=self.store))
+        self.add('ppo', PlanPickOnly('ppo', store=self.store))
+        self.add('pis', PlanInspectionStation('pis', store=self.store))
         self.add('pvl', PlanViewLocation('pvl', store=self.store))
         self.add('pps', PlanPlaceShelf('pps', store=self.store))
         self.add('er1', ExecRoute('er1', store=self.store))
         self.add('er2', ExecRoute('er2', store=self.store))
         self.add('er3', ExecRoute('er3', store=self.store))
+        self.add('er4', ExecRoute('er3', store=self.store))
         self.add('ci', CheckItem('ci', store=self.store), endState=1)
         self.add('csi', CheckSelectItem('csi', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
         self.add('cr2', CheckRoute('cr2', store=self.store))
         self.add('cr3', CheckRoute('cr3', store=self.store)) #TODO create check states on the fly?
+        self.add('cr4', CheckRoute('cr2', store=self.store))
         self.add('rs1', ReadScales('rs1', store=self.store))
         self.add('rs', ReadScales('rs', store=self.store))
         self.add('ep', EvaluatePlacement('ep', store=self.store))
+        self.add('dg', DetectGrab('dg', store=self.store))
+
 
     def getStartState(self):
         return 'cps'
@@ -63,13 +72,19 @@ class StowStateMachine(StateMachine):
         self.setTransition('rs1', 'egvs', ['egvs'])
 
         self.setTransition('egvs', 'si', ['cps']) # If eval grasp fails, re-take photo
-        self.setTransition('si', 'psg', ['si'], checkState='csi') #si should never fail..
-        self.setTransition('csi', 'psg', ['si'])
-        self.setTransition('psg', 'er1', ['si'], checkState='cr1') #if plan fails, redo SI and mark failure
-        self.setTransition('cr1', 'er1', ['psg'])
-        self.setTransition('er1', 'rs', ['psg'])
+        self.setTransition('si', 'ppo', ['si'], checkState='csi') #si should never fail..
+        self.setTransition('csi', 'ppo', ['si'])
+        self.setTransition('ppo', 'er1', ['si'], checkState='cr1')
+        #self.setTransition('psg', 'er1', ['si'], checkState='cr1') #if plan fails, redo SI and mark failure
+        self.setTransition('cr1', 'er1', ['ppo'])
+        self.setTransition('er1', 'rs', ['ppo'])
 
-        self.setTransition('rs', 'cpi', ['cpi']) #if scales fail continue anyway
+        self.setTransition('rs', 'dg', ['dg']) #if scales fail continue anyway
+        self.setTransition('dg', 'pis', ['si', 'si']) #detect grab failure means we didn't get the item
+        self.setTransition('pis', 'er4', ['si'], checkState='cr4')
+        self.setTransition('cr4', 'er4', ['pis'])
+        self.setTransition('er4', 'cpi', ['cpi'])
+
         self.setTransition('cpi', 'sp2', ['ii'])
         self.setTransition('sp2', 'rp2', ['ii'])
         self.setTransition('rp2', 'ii', ['ii'])
@@ -83,7 +98,7 @@ class StowStateMachine(StateMachine):
         self.setTransition('pvl', 'er3', ['pvl'], checkState='cr3') #TODO similar for failed route planning
         self.setTransition('cr3', 'er3', ['pvl'])
         self.setTransition('er3', 'cpb', ['pvl'])
-        self.setTransition('cpb', 'cps', ['cpb'])
+        self.setTransition('cpb', 'cps', ['cpb']) #TODO maybe revise which photos are segmented at the end
 
     def isDone(self):
         #if all items stowed, all their point values are 0. Need to re-write
