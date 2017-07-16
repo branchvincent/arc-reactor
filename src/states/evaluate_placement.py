@@ -132,7 +132,8 @@ class EvaluatePlacement(State):
                 raise MissingPhotoError('missing photo data for inspection: {}'.format(photo_url))
 
             cloud_world = transform(camera_pose, cloud_camera)
-            valid_mask = self._filter_cloud(cloud_world, cloud_camera[..., 2] > 0)
+            #valid_mask = self._filter_cloud(cloud_world, cloud_camera[..., 2] > 0)
+            valid_mask = cloud_camera[..., 2] > 0
 
             inspect_cloud_world = numpy.vstack((
                 inspect_cloud_world,
@@ -214,10 +215,13 @@ class EvaluatePlacement(State):
             photo_cloud_world = transform(photo_pose, photo_cloud_camera)
             photo_cloud_container = transform(numpy.linalg.inv(container_pose), photo_cloud_world)
 
-            valid_mask = self._filter_cloud(photo_cloud_camera, photo_cloud_camera[..., 2] > 0)
+            #mask = self._filter_cloud(photo_cloud_camera, photo_cloud_camera[..., 2] > 0)
+            photo_valid_mask = (photo_cloud_camera[..., 2] > 0)
+            crop_mask = crop_with_aabb(photo_cloud_container, container_aabb)
+            mask = numpy.logical_and(photo_valid_mask, crop_mask)
 
-            container_cloud_local = photo_cloud_container[valid_mask]
-            container_color = photo_aligned_color[valid_mask]
+            container_cloud_local = photo_cloud_container[mask]
+            container_color = photo_aligned_color[mask]
 
             container_cloud_world = transform(container_pose, container_cloud_local)
 
