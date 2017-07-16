@@ -131,10 +131,14 @@ class MotionPlanner:
         self.addMilestones(milestones)
 
         # Move to item normal
+        #TODO: bug when no feasible pick transform
         logger.debug('Descending to item normal')
         self.setState('picking_approach')
         T_pick_no_normal = (R_ee, T_pick[1])
         T_pick = self._getFeasiblePickTransform(T_pick, T_pick_no_normal, searchAngle)
+        if T_pick is None:
+            self.plan.put(feasible=False)
+            exit()
         T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
         milestones = self.planToTransform(T_pick_approach, name='pick_approach')
         self.addMilestones(milestones)
@@ -164,9 +168,11 @@ class MotionPlanner:
         self.setState('picking_retraction')
         milestones = self.planToTransform(T_above)
         self.addMilestones(milestones)
+        self.plan.put()
 
     def pickToInspect(self, T_item):
         # Pick item
+        # TODO: need to merge plans
         self.pick(T_item)
 
         # Move to inspection station
@@ -324,6 +330,7 @@ class MotionPlanner:
             milestones = self.planToTransform(Ti)
             if milestones is not None:
                 return Ti
+        return None
 
     def _fixWristFlip(self, T, T_failed):
         logger.warn('Detected possible wrist flip. Trying hack...')
