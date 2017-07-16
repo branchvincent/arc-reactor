@@ -237,20 +237,21 @@ class EvaluatePlacement(State):
 
         return container_cloud
 
-    def _filter_cloud(self, cloud, valid_mask, count_threshold=100, distance_threshold=0.01):
+    def _filter_cloud(self, cloud, valid_mask, count_threshold=1000, distance_threshold=0.005):
+        #return numpy.ones(cloud.shape[:-1], dtype=numpy.bool)
+
         (labeled_cloud, label_count) = distance_label(cloud, valid_mask, distance_threshold)
         logger.debug('found {} connected components'.format(label_count))
 
-        filter_mask = numpy.zeros_like(label_count, dtype=numpy.bool)
+        histogram = numpy.bincount(labeled_cloud.reshape((-1,)))
+        (keep,) = numpy.where(histogram > count_threshold)
 
-        for label in range(1, label_count + 1):
-            label_mask = (labeled_cloud == label)
-            count = numpy.count_nonzero(label_mask)
+        # do not include the background label
+        keep = keep[keep > 0]
 
-            if count >= count_threshold:
-                filter_mask = numpy.logical_or(filter_mask, label_mask)
+        logger.debug('kept {} connected components'.format(len(keep)))
 
-        return filter_mask
+        return numpy.isin(labeled_cloud, keep)
 
 if __name__ == '__main__':
     import argparse
