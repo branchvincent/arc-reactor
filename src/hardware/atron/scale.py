@@ -35,9 +35,11 @@ class AtronScale:
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
-            timeout=1
+            timeout=0.01
         )
         self.open()
+
+        self._buffer = ''
 
     def open(self):
         if not self._simulated() and not self.serial.is_open:
@@ -67,15 +69,12 @@ class AtronScale:
         return val
 
     def _read_until(self, char):
-        s = ''
-        while True:
-            c = self.serial.read()
-            if not c or c == char:
-                break
-            else:
-                s += c
+        while char not in self._buffer:
+            self._buffer += self.serial.read(self.serial.inWaiting() or 1024)
 
-        return s
+        (result, _, self._buffer) = self._buffer.partition(char)
+
+        return result
 
     def _simulated(self):
         return self.serial is None
