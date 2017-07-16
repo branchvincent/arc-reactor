@@ -75,6 +75,15 @@ def zero_translation(pose):
 
     return pose
 
+def zero_rotation(pose):
+    # ensure conversion to NumPy types without copying existing arrays
+    pose = numpy.asarray(pose).copy()
+
+    # suppress rotation
+    pose[:3, :3] = numpy.eye(3)
+
+    return pose
+
 def build_pose(store, urls, strict=True):
     '''
     Multiply poses together from multiple database URLs.
