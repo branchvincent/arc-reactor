@@ -271,7 +271,7 @@ class VideoThread(QtCore.QThread):
 
                 if sn == self.inspect_below_sn:
                     #turn off auto exposure
-                    cam.set_option(rs.option_color_exposure, 1987)
+                    cam.set_option(rs.option_color_exposure, 850)
 
             except:
                 logger.warning("Unable to set options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
