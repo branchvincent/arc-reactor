@@ -34,7 +34,7 @@ class EvaluateVacuumGraspBase(State):
             suffix = 'success' if self.getOutcome() else 'failure'
 
             logger.info('database dump started')
-            db.dump(self.store, '/tmp/grasp-{}={}'.format('-'.join(locations), suffix))
+            db.dump(self.store, '/tmp/grasp-{}-{}'.format('-'.join(locations), suffix))
             logger.info('database dump completed')
 
     def _handle(self, location):
