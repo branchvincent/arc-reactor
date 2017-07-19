@@ -69,6 +69,7 @@ class EvaluatePinchGraspBase(State):
                 point_cloud = self.store.get(photo_url + ['point_cloud_segmented'], strict=True)
                 full_color = self.store.get(photo_url + ['full_color'], strict=True)
             except KeyError:
+                self.store.put(['failure', '{}_message'.format(self.getFullName())], location)
                 raise MissingPhotoError('missing photo data for location {}: {}'.format(location, photo_url))
 
             labeled_image = self.store.get(photo_url + ['labeled_image'])

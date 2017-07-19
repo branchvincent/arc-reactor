@@ -4,6 +4,8 @@ from master.fsm import State
 
 from perception.interface import recognize_objects, ObjectRecognitionError, CommandTimeoutError
 
+from util import photo
+
 from .common import MissingPhotoError, MissingSegmentationError
 
 logger = logging.getLogger(__name__)
@@ -57,6 +59,7 @@ class RecognizePhoto(State):
             try:
                 locations.append(self.store.get(url + '/location', strict=True))
             except KeyError:
+                self.store.put(['failure', '{}_message'.format(self.getFullName())], photo.url2location_camera(url)[0])
                 raise MissingPhotoError(url)
 
             # check that segmentation is ready

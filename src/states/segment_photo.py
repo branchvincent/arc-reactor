@@ -3,6 +3,7 @@ import logging
 from master.fsm import State
 
 from util.location import location_bounds_url, location_pose_url
+from util import photo
 
 from perception.interface import segment_images, SegmentationError
 
@@ -52,6 +53,7 @@ class SegmentPhoto(State):
             try:
                 locations.append(self.store.get(url + '/location', strict=True))
             except KeyError:
+                self.store.put(['failure', '{}_message'.format(self.getFullName())], photo.url2location_camera(url)[0])
                 raise MissingPhotoError(url)
 
         # compute the bounds and pose URLs for each photo
