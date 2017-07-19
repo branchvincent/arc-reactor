@@ -1,5 +1,8 @@
 """Controller for sending trajectories to the TX90"""
 
+import signal
+ALARM_TIMEOUT = 3
+
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
 from hardware.gripper import Gripper
@@ -120,6 +123,8 @@ class Trajectory:
         for m in self.milestones[:bufferSize]:
             self.robot.sendMilestone(m)
 
+        signal.alarm(ALARM_TIMEOUT)
+
     def update(self):
         """Checks the current milestone in progress and updates, if necessary"""
         actual_index = self.robot.getCurrentIndexRel()
@@ -148,6 +153,7 @@ class Trajectory:
             self.reset()
             self.complete = True
 
+        signal.alarm(ALARM_TIMEOUT)
 
 class Robot:
     """A robot defined by its trajectory client"""
@@ -173,6 +179,9 @@ class Robot:
         Assert(milestone.get_type() == 'robot', 'Milestone must be of type "robot"')
         dt = milestone.get_t()
         q = milestone.get_robot()
+
+        logger.debug('sending milestone: {}'.format((dt, q)))
+
         # Add milestone and update start index, if first milestone
         if self.startIndex == None:
             self.startIndex = 0
