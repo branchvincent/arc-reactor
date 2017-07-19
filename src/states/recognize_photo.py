@@ -42,6 +42,8 @@ class RecognizePhoto(State):
         except (MissingPhotoError, MissingSegmentationError, MissingGraspLocationError, ObjectRecognitionError, CommandTimeoutError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception('photo recognition failed')
+            # HACK so we don't get stuck in a loop trying to recognize this photo again
+            self.store.put('/robot/target_photos', [])
         else:
             self.store.delete(['failure', self.getFullName()])
             self.setOutcome(True)
