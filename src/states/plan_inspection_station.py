@@ -44,5 +44,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     myname = (args.name or 'pvl')
     pis = PlanInspectionStation(myname)
-    pis.setLoc(myname)
     pis.run()

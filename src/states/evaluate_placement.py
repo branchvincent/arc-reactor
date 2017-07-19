@@ -132,7 +132,8 @@ class EvaluatePlacement(State):
                 raise MissingPhotoError('missing photo data for inspection: {}'.format(photo_url))
 
             cloud_world = transform(camera_pose, cloud_camera)
-            valid_mask = self._filter_cloud(cloud_world, cloud_camera[..., 2] > 0)
+            #valid_mask = self._filter_cloud(cloud_world, cloud_camera[..., 2] > 0)
+            valid_mask = cloud_camera[..., 2] > 0
 
             inspect_cloud_world = numpy.vstack((
                 inspect_cloud_world,
@@ -214,10 +215,13 @@ class EvaluatePlacement(State):
             photo_cloud_world = transform(photo_pose, photo_cloud_camera)
             photo_cloud_container = transform(numpy.linalg.inv(container_pose), photo_cloud_world)
 
-            valid_mask = self._filter_cloud(photo_cloud_camera, photo_cloud_camera[..., 2] > 0)
+            #mask = self._filter_cloud(photo_cloud_camera, photo_cloud_camera[..., 2] > 0)
+            photo_valid_mask = (photo_cloud_camera[..., 2] > 0)
+            crop_mask = crop_with_aabb(photo_cloud_container, container_aabb)
+            mask = numpy.logical_and(photo_valid_mask, crop_mask)
 
-            container_cloud_local = photo_cloud_container[valid_mask]
-            container_color = photo_aligned_color[valid_mask]
+            container_cloud_local = photo_cloud_container[mask]
+            container_color = photo_aligned_color[mask]
 
             container_cloud_world = transform(container_pose, container_cloud_local)
 
@@ -237,20 +241,21 @@ class EvaluatePlacement(State):
 
         return container_cloud
 
-    def _filter_cloud(self, cloud, valid_mask, count_threshold=100, distance_threshold=0.01):
+    def _filter_cloud(self, cloud, valid_mask, count_threshold=1000, distance_threshold=0.005):
+        #return numpy.ones(cloud.shape[:-1], dtype=numpy.bool)
+
         (labeled_cloud, label_count) = distance_label(cloud, valid_mask, distance_threshold)
         logger.debug('found {} connected components'.format(label_count))
 
-        filter_mask = numpy.zeros_like(label_count, dtype=numpy.bool)
+        histogram = numpy.bincount(labeled_cloud.reshape((-1,)))
+        (keep,) = numpy.where(histogram > count_threshold)
 
-        for label in range(1, label_count + 1):
-            label_mask = (labeled_cloud == label)
-            count = numpy.count_nonzero(label_mask)
+        # do not include the background label
+        keep = keep[keep > 0]
 
-            if count >= count_threshold:
-                filter_mask = numpy.logical_or(filter_mask, label_mask)
+        logger.debug('kept {} connected components'.format(len(keep)))
 
-        return filter_mask
+        return numpy.isin(labeled_cloud, keep)
 
 if __name__ == '__main__':
     import argparse

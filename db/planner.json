@@ -61,7 +61,7 @@
             "planning_solvers": ["nearby"],
             "approach_distance": 0.05,
             "search_angle_increment": 10,
-            "delay": 1.5
+            "delay": 0.5
         },
         "picking_retraction": {
             "description": "Retracting an item, to clearance_height, that was just picked",
@@ -91,7 +91,7 @@
         },
         "stowing": {
             "description": "Stowing an item (i.e. turning off vacuum)",
-            "vacuum": [true, true],
+            "vacuum": [false, true],
             "joint_velocity_limits": [0, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
             "joint_acceleration_limits": [0, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
             "translation_velocity_limit": 0.3,

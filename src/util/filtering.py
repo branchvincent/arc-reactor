@@ -11,7 +11,7 @@ def distance_label(cloud, mask=None, threshold=0.005, neighborhood=4):
     mark = time()
 
     label = 0
-    labeled = numpy.zeros(cloud.shape[:2], dtype=numpy.uint)
+    labeled = numpy.zeros(cloud.shape[:2], dtype=numpy.int)
 
     if neighborhood == 4:
         neighborhood = [ (0, -1), (-1, 0), (0, 1), (1, 0) ]
