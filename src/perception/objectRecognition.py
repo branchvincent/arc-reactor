@@ -4,6 +4,7 @@ import perception.deepLearning as dl
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
 from time import sleep
+import pickle
 import json
 # configure the root logger to accept all records
 import logging
@@ -23,13 +24,21 @@ class ObjectRecognition:
             raise RuntimeError('Could not connect to the database. Cannot function')
 
         names = []
+
+        #load in the dictionary that is index in deep learning output -> item name
+        try:
+            self.deep_learning_index = pickle.load(open('db/deep_learning_index.pkl', 'rb'))
+        except:
+            errstr = "Cannot open the item name to deep learning index dictionary."
+            logger.critical(errstr)
+            raise RuntimeError(errstr)
+
         #load in the items.json file
-        logger.critical('using hard-coded items file')
         with open('db/items.json') as data_file:
             jsonnames = json.load(data_file)
         for key,value in jsonnames.items():
-            names.append((key, value['mass']))
-        names.sort(key=lambda tup: tup[0])
+            names.append(key)
+        names.sort()
         self.object_names = names
 
         self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,len(names))
@@ -54,8 +63,7 @@ class ObjectRecognition:
                     #get the arguments
                     list_of_locations = self.store.get('/object_recognition/locations')
                     list_of_urls = self.store.get('/object_recognition/urls')
-                    use_weight = self.store.get('/object_recognition/use_weight')
-                    self.infer_objects(list_of_urls, list_of_locations, use_weight)
+                    self.infer_objects(list_of_urls, list_of_locations)
                     logger.info("Inference complete")
                     self.store.put('/object_recognition/done', 1)
 
@@ -68,9 +76,6 @@ class ObjectRecognition:
                     #looking for a list of lists of urls
                     #each list will have have urls for multiple images
                     list_of_urls = self.store.get('/object_recognition/multi_urls')
-
-                    #need a weight since this is for recognition at the inspection station
-                    weight = self.store.get('/scales/change')
 
                     #need a list of lists of indicies for each of the DL images
                     #this gives the segment in the labeled image that we will use to determine
@@ -94,7 +99,7 @@ class ObjectRecognition:
             raise
 
 
-    def infer_objects(self, list_of_urls, list_of_locations, list_of_use_weight):
+    def infer_objects(self, list_of_urls, list_of_locations):
         '''
         Given a list of urls and a list of locations infer what each image is at the URL
         and post the entire list of confidences. Set confidence of object not at location to zero
@@ -139,39 +144,7 @@ class ObjectRecognition:
             confidences = self.infer_objects_deep(dl_images)
             list_of_list_of_confidences_deep = self.filter_confidences(confidences, list_of_locations[i])
             self.store.put(url + 'detections', list_of_list_of_confidences_deep)
-
-            #store all confidences for weight
-            #only if there is a weight
-            if list_of_use_weight[i]:
-
-                logger.info("Inferring object based on weight")
-                weight = abs(self.store.get('/scales/change'))
-                stdev = self.store.get('/system/scales/stdev',0.005)
-
-                if weight is None or stdev is None:
-                    error_string = "Weight or stdev was none"
-                    logger.error(error_string)
-                    self.store.put("object_recognition/error", error_string)
-                    return
-
-                confidences = self.infer_objects_weight(weight, stdev)
-                list_of_list_of_confidences_weight = self.filter_confidences(confidences, list_of_locations[i])
-                self.store.put(url + 'detections_weight', list_of_list_of_confidences_weight)
-
-
-                #check to see if there were too many images at the inspection station
-                if len(list_of_list_of_confidences_deep) > 1:
-                    error_string = "Too many images for inspection station. Expecting 1. Got {}. Using first image".format(len(list_of_list_of_confidences_deep))
-                    logger.warning(error_string)
-                    self.store.put('object_recognition/error',error_string)
-
-                #combine the confidences and write that out to detections
-                #combine the first list of confidences from dl with weights
-                combined_dict = {}
-                for key,value in list_of_list_of_confidences_deep[0].items():
-                    combined_dict[key] = value*list_of_list_of_confidences_weight[0][key]
-
-                self.store.put(url + 'detections_combined', [combined_dict])
+            
 
         self.store.put('object_recognition/error',error_string)
 
@@ -189,19 +162,6 @@ class ObjectRecognition:
         confidences = self.deep_learning_recognizer.guessObject(im)
         return confidences
 
-
-    def infer_objects_weight(self, measured_weight, stdev):
-        '''
-        assumes that all weights and stdev are in kg
-        returns list of probabilities that the item is the same one as
-        the item with "measured_weight"
-        '''
-        list_of_weight_prob = []
-        for w in self.object_names:
-            prob = scipy.stats.norm(w[1],stdev).pdf(measured_weight)/1000
-            list_of_weight_prob.append(prob)
-
-        return np.array(list_of_weight_prob).reshape(1,40)
 
 
     def multi_image_inference(self, list_of_urls, list_of_indices, location, weight):
@@ -250,13 +210,9 @@ class ObjectRecognition:
 
         #array NX40 where N is number of images
         dl_confidences = self.infer_objects_deep(list_of_dl_images)
-        stdev = self.store.get('/system/scales/stdev',0.005)
-        #1x40 array
-        weight_confidences = self.infer_objects_weight(weight, stdev)
 
         #narrow down confidences based on the location, output is list of lists
         dl_confidences_filtered = self.filter_confidences(dl_confidences, location)
-        weight_confidences_filtered = self.filter_confidences(weight_confidences, location)
 
         max_confidence = -1000
         guessed_item = None
@@ -264,7 +220,7 @@ class ObjectRecognition:
         for i in range(len(list_of_urls)):
             combined_dict = {}
             for key,value in dl_confidences_filtered[i].items():
-                    val = value*weight_confidences_filtered[0][key]*list_of_pixel_counts[i]
+                    val = value*list_of_pixel_counts[i]
                     combined_dict[key] = val
                     if val > max_confidence:
                         max_confidence = val
@@ -303,14 +259,15 @@ class ObjectRecognition:
 
         if valid_items is None:
             for i in range(len(list_of_conf)):
-                res.append((self.object_names[i][0], float(list_of_conf[i])))
+                res.append((self.deep_learning_index[i], float(list_of_conf[i])))
         else:
         #set the confidence of items that are not valid_items to zero
             for i in range(len(list_of_conf)):
-                if self.object_names[i][0] in valid_items:
-                    res.append((self.object_names[i][0], float(list_of_conf[i])))
+                item = self.deep_learning_index[i]
+                if item in valid_items:
+                    res.append((item, float(list_of_conf[i])))
                 else:
-                    res.append((self.object_names[i][0], 0))
+                    res.append((item, 0))
 
         return res
 
