@@ -19,12 +19,6 @@ class GraphSegmentationParams():
         self.B_weight = 1
         self.depth_weight = 1
 
-        #filtering parameters for the mean shift filtering
-        self.sp_rad = 7     #spatial window radius
-        self.c_rad = 3     #color window radius
-
-        self.max_elements = 100000  #maximum number of elements a single object can have
-
         self.mask = None            #mask used to block out unwanted points
 
 def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationParams()):
@@ -46,9 +40,6 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     #convert to LAB
     labcolor = cv2.cvtColor(fcolor, cv2.COLOR_RGB2LAB)
 
-    #mean shift filter to remove texture
-    labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
-
     color_depth_image = np.zeros((imageH, imageW, 4))
     #fill the first three channels with the LAB image, 4th with depth, 5-7 normals
     color_depth_image[:,:,0:3] = labcolor
@@ -59,11 +50,9 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
         for i in range(color_depth_image.shape[2]):
             color_depth_image[:,:,i] = np.where(params.mask == 1, color_depth_image[:,:,i], 0)
 
-    color_depth_image[:,:,0:3] = cv2.GaussianBlur(color_depth_image[:,:,0:3],(0,0), params.sigma, params.sigma)
-
     #perform the graph segmentation
     gs = cv2.ximgproc.segmentation.createGraphSegmentation()
-    gs.setSigma(0.001)
+    gs.setSigma(params.sigma)
     gs.setK(params.k)
     gs.setMinSize(int(params.minSize))
 

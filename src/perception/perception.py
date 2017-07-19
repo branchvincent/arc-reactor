@@ -220,18 +220,19 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
     #loop though all the urls
     for i,url in enumerate(list_of_urls):
 
-
+        attribute_urls = [url + x for x in ['camera','location','aligned_depth','full_color','pose']]
+        photo_dict = store.multi_get(attribute_urls)
         #get the name of the camera that took the image
-        cam_name = store.get(url + "/camera")
+        cam_name = photo_dict[url + "camera"]
         if cam_name is None:
             raise RuntimeError("Camrea name not present")
         #get the location
-        location = store.get(url + "/location")
+        location = photo_dict[url + "location"]
         if location is None:
             raise RuntimeError("No location provided to segmentation")
 
-        d_image = store.get(url + "aligned_depth")
-        c_image = store.get(url + "full_color")
+        d_image = photo_dict[url + "aligned_depth"]
+        c_image = photo_dict[url + "full_color"]
 
         if d_image is None or c_image is None:
             raise RuntimeError("Depth or color image was none. Can't segment")
@@ -248,19 +249,23 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             raise RuntimeError("Reference world transform was None. Can't segment image")
 
 
+        attribute_urls = ["/camera/" + cam_name + x for x in ['/color/intrinsics/fx','/color/intrinsics/fy',
+        '/color/intrinsics/ppx','/color/intrinsics/ppy','/color/depthExtrinsics','/depth/scale']]
+        cam_param_dict = store.multi_get(attribute_urls)
         #crop the image for desired bin
-        intrins_fx = store.get('/camera/' + cam_name + "/color/intrinsics/fx")
-        intrins_fy = store.get('/camera/' + cam_name + "/color/intrinsics/fy")
-        intrins_ppx = store.get('/camera/' + cam_name + "/color/intrinsics/ppx")
-        intrins_ppy = store.get('/camera/' + cam_name + "/color/intrinsics/ppy")
-        extrinsics = store.get('/camera/' + cam_name + "/color/depthExtrinsics")
+        intrins_fx = cam_param_dict['/camera/' + cam_name + "/color/intrinsics/fx"]
+        intrins_fy = cam_param_dict['/camera/' + cam_name + "/color/intrinsics/fy"]
+        intrins_ppx = cam_param_dict['/camera/' + cam_name + "/color/intrinsics/ppx"]
+        intrins_ppy = cam_param_dict['/camera/' + cam_name + "/color/intrinsics/ppy"]
+        extrinsics = cam_param_dict['/camera/' + cam_name + "/color/depthExtrinsics"]
+        scale = cam_param_dict['/camera/' + cam_name + "/depth/scale"]
         if intrins_fx is None or intrins_fy is None or intrins_ppx is None or intrins_ppy is None or extrinsics is None:
             raise RuntimeError("Could not get the intrinsicds for the camera {}. Not segmenting".format(cam_name))
 
 
-        scale = store.get('/camera/' + cam_name + "/depth/scale")
+        
         #get camera world location
-        cam_pose_world = store.get(url + "pose")
+        cam_pose_world = photo_dict[url + "pose"]
         if scale is None or cam_pose_world is None:
             raise RuntimeError("Could not get the depth scale or coeffs for the camera {}. Not segmenting".format(cam_name))
 
@@ -346,9 +351,11 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         else:
             ret = segmentation.graphSegmentation(d_image, c_image, depth_in_3d_cam_local, seg_params)
             #write out results to database
-            store.put(url + "labeled_image", ret['labeled_image'])
-            store.put(url + "DL_images", ret['DL_images'])
-            store.put(url + "point_cloud_segmented", depth_in_3d_cam_local)
+            send_dict = {}
+            send_dict['labeled_image'] = ret['labeled_image']
+            send_dict['DL_images'] = ret['DL_images']
+            send_dict['point_cloud_segmented'] = depth_in_3d_cam_local
+            store.multi_put(send_dict,root=url)
 
 
 import argparse
