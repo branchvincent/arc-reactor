@@ -17,7 +17,7 @@ from scipy.ndimage.interpolation import rotate
 
 import random
 import scipy.misc
-
+import math
 import lasagne
 from lasagne.layers import InputLayer
 from lasagne.layers import Conv2DLayer as ConvLayer
@@ -28,51 +28,10 @@ from lasagne.layers import ElemwiseSumLayer
 from lasagne.layers import DenseLayer
 from lasagne.nonlinearities import rectify, softmax
 
-global BATCH_SIZE
-
-def mask_fun(input_lab_image):
-
-    meanY0 = input_lab_image[400:410,0:10,0].mean()
-    meanU0 = input_lab_image[400:410,0:10,1].mean()
-    meanV0 = input_lab_image[400:410,0:10,2].mean()
-
-    meanY1 = input_lab_image[100:110,0:10,0].mean()
-    meanU1 = input_lab_image[100:110,0:10,1].mean()
-    meanV1 = input_lab_image[100:110,0:10,2].mean()
-
-    t0 = (input_lab_image - [meanY0,meanU0,meanV0])
-    t1 = (input_lab_image - [meanY1,meanU1,meanV1])
-
-
-    mask0 = np.sqrt(t0[:,:,0]**2 + t0[:,:,1]**2 + t0[:,:,2]**2)
-    mask0 = np.where(mask0 > 50,0,1).astype('uint8')
-
-    mask1 = np.sqrt(t1[:,:,0]**2 + t1[:,:,1]**2 + t1[:,:,2]**2)
-    mask1 = np.where(mask1 > 50,0,1).astype('uint8')
-
-    mask = np.logical_or(mask0, mask1) != 1
-    mask = mask.astype('uint8')
-
-    connectivity = 8
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity, cv2.CV_32S)
-    min_dist = 10000
-    best = -1
-    for c,centroid in enumerate(centroids):
-        if labels[labels == c].any():
-            if stats[c][4] > 200:
-                dist = np.sqrt( ((centroid - [320,240])**2).sum())
-                if dist < min_dist:
-                    min_dist = dist
-                    best = c
-
-    mask2 = (labels==best).astype('uint8')
-
-
-    return mask2
 
 def read_images_segment(root_dir):
 
-    with open('/home/motion/Desktop/reactor/db/items.json') as data_file:
+    with open('/home/bk/Documents/code/reactor/db/items.json') as data_file:
             jsonnames = json.load(data_file)
     names=[]
     for key,value in jsonnames.items():
@@ -94,8 +53,9 @@ def read_images_segment(root_dir):
 
     imlist=list()
     imlabels=list()
+
     for folder in os.listdir(root_dir):
-        fnames = sorted(os.listdir(root_dir +'/'+ folder))
+        fnames = sorted(os.listdir(root_dir + folder))
         #determine which item this is
         item = [folder.startswith(x) for x in objectnames]
         item = np.where(item)[0]
@@ -109,31 +69,70 @@ def read_images_segment(root_dir):
             im = cv2.imread(root_dir + folder + "/" + fnames[i])
             #convert to lab
             im_lab = cv2.cvtColor(im, cv2.COLOR_BGR2LAB)
-
+            
             #skip blank images
             if np.all(im == 0):
                 continue
-
-            mask = mask_fun(im_lab).astype('uint8')
+            
+            mask = mask_fun(im_lab)
+            
+            if mask is None:
+                continue
+                
+            mask = mask.astype('uint8')
             if fnames[i].startswith('1'):
                 mask[0:40,:] = 0
-
-
+            
+        
             masked_bgr = np.zeros(im.shape).astype('uint8')
             masked_bgr[:,:,0] = im[:,:,0]*mask
             masked_bgr[:,:,1] = im[:,:,1]*mask
             masked_bgr[:,:,2] = im[:,:,2]*mask
-
+            
             #write it out
-            #cv2.imwrite(output_dir + objectnames[item] + "/" + str(num_images[item]) + ".png",masked_bgr)
-
+            cv2.imwrite(output_dir + objectnames[item] + "/" + str(num_images[item]) + ".png",masked_bgr)
+            
             num_images[item] += 1
             imlist.append(masked_bgr)
             imlabels.append(item)
 
     return imlist,imlabels
 
+def mask_fun(input_lab_image):
 
+    meanL0 = input_lab_image[400:410,0:10,0].mean()
+    meanA0 = input_lab_image[400:410,0:10,1].mean()
+    meanB0 = input_lab_image[400:410,0:10,2].mean()
+    
+    gs = cv2.ximgproc.segmentation.createGraphSegmentation()
+    gs.setSigma(1.8)
+    gs.setK(840)
+    gs.setMinSize(3760)
+    
+    l_img = gs.processImage(input_lab_image)
+
+    max_dist = -1
+    best_ind = -1
+    for i in range(l_img.max()+1):
+        m = l_img == i #mask of cc
+        tmp = input_lab_image[np.where(m)] - [meanL0, meanA0, meanB0]
+        tmp = tmp[:,0]**2 + tmp[:,1]**2 + tmp[:,2]**2
+        tmp = np.sqrt(tmp)
+        mean_dist = tmp.mean()
+        
+        dist_from_mid = math.sqrt((np.where(m)[0].mean()- 240)**2 + (np.where(m)[1].mean() - 320)**2)
+        if mean_dist > max_dist and dist_from_mid < 100:
+            y,x = np.where(m)
+            xy = np.vstack((x,y))
+            x,y,w,h = cv2.boundingRect(xy.transpose())
+            if w < 600 or h < 400:
+                max_dist = mean_dist
+                best_ind = i
+    
+    if best_ind != -1:
+        return l_img == best_ind
+    else:
+        return None
 
 def build_simple_block(incoming_layer, names,
                        num_filters, filter_size, stride, pad,
@@ -301,7 +300,7 @@ def build_model_resnet():
     return net
 
 def load_pretrained_model():
-    d = pickle.load(open('resnet50.pkl','rb'),encoding='latin-1')
+    d = pickle.load(open('resnet_finetuned_06132017_combined.pkl','rb'),encoding='latin-1')
     net = build_model_resnet()
     lasagne.layers.set_all_param_values(net['prob'], d['values'])
     return net
@@ -559,8 +558,8 @@ def main(location_of_images,trained_fname):
 
     #augment images
     try:
-        X_tr=np.load('X_temp')
-        y_tr=np.load('y_temp')
+        X_tr=np.load('X_temp.npy')
+        y_tr=np.load('y_temp.npy')
     except:
         X_tr,y_tr=generate_augmented_dataset(imlist,imlabels,smallest_dim=170,brightness_scale_range=[.99,1.],max_translate=1)
         np.save('X_temp',X_tr)
