@@ -95,7 +95,6 @@ class MotionPlanner:
         self.addMilestones(milestones)
         self.plan.put()
 
-    @profile
     def pick(self, T_item):
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
