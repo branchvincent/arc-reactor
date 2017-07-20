@@ -1,6 +1,8 @@
 from master.fsm import StateMachine
 from states.select_item import SelectItem
 from states.plan_pick_item import PlanPickItem
+from states.plan_inspection_station import PlanInspectionStation
+from states.plan_pick_only import PlanPickOnly
 from states.plan_place_box import PlanPlaceBox
 from states.exec_route import ExecRoute
 from states.check_item import CheckItem
@@ -18,6 +20,7 @@ from states.evaluate_placement import EvaluatePlacement
 from states.read_scales import ReadScales
 from states.inspect_item import InspectItem
 from states.power_cycle_cameras import PowerCycleCameras
+from states.detect_grab import DetectGrab
 
 class PickStateMachine(StateMachine):
 
@@ -33,7 +36,9 @@ class PickStateMachine(StateMachine):
         self.add('cpx', CapturePhotoBox('cpx', store=self.store))
         self.add('cpi', CapturePhotoInspect('cpi', store=self.store))
         self.add('si', SelectItem('si', store=self.store))
-        self.add('ppi', PlanPickItem('ppi', store=self.store))
+        #self.add('ppi', PlanPickItem('ppi', store=self.store))
+        self.add('ppo', PlanPickOnly('ppo', store=self.store))
+        self.add('pis', PlanInspectionStation('pis', store=self.store))
         self.add('cr1', CheckRoute('cr1', store=self.store))
         self.add('er1', ExecRoute('er1', store=self.store))
         self.add('ppb', PlanPlaceBox('ppb', store=self.store))
@@ -45,10 +50,12 @@ class PickStateMachine(StateMachine):
         self.add('cr4', CheckRoute('cr4', store=self.store))
         self.add('cr5', CheckRoute('cr5', store=self.store))
         self.add('cr6', CheckRoute('cr6', store=self.store))
+        self.add('cr7', CheckRoute('cr7', store=self.store))
         self.add('er3', ExecRoute('er3', store=self.store))
         self.add('er4', ExecRoute('er4', store=self.store))
         self.add('er5', ExecRoute('er5', store=self.store))
         self.add('er6', ExecRoute('er6', store=self.store))
+        self.add('er7', ExecRoute('er7', store=self.store))
         self.add('sp1', SegmentPhoto('sp1', store=self.store))
         self.add('sp2', SegmentPhoto('sp2', store=self.store))
         self.add('sp3', SegmentPhoto('sp3', store=self.store))
@@ -67,6 +74,7 @@ class PickStateMachine(StateMachine):
         self.add('pcc', PowerCycleCameras('pcc', store=self.store))
         self.add('pccx', PowerCycleCameras('pccx', store=self.store))
         self.add('pcci', PowerCycleCameras('pcci', store=self.store))
+        self.add('dg', DetectGrab('dg', store=self.store))
 
     def getStartState(self):
         return 'pvla'
@@ -101,14 +109,20 @@ class PickStateMachine(StateMachine):
         self.setTransition('rp1', 'egvp', ['rp1', 'pvla', 'egvp'])
         self.setTransition('egvp', 'si', ['egvp', 'pvla', 'si'])
 
-        self.setTransition('si', 'ppi', ['pvla'], checkState='csi')
-        self.setTransition('csi', 'ppi', ['si'])
+        self.setTransition('si', 'ppo', ['pvla'], checkState='csi')
+        self.setTransition('csi', 'ppo', ['si'])
 
-        self.setTransition('ppi', 'er4', ['si'], checkState='cr4')
-        self.setTransition('cr4', 'er4', ['ppi'])
-        self.setTransition('er4', 'rs1', ['ppi', 'er4'])
+        self.setTransition('ppo', 'er4', ['ppo', 'si'], checkState='cr4')
+        self.setTransition('cr4', 'er4', ['ppo'])
+        self.setTransition('er4', 'rs1', ['ppo', 'er4'])
 
-        self.setTransition('rs1', 'cpi', ['cpi'])
+        #self.setTransition('rs1', 'cpi', ['cpi'])
+        self.setTransition('rs1', 'dg', ['dg'])
+        self.setTransition('dg', 'pis', ['si', 'si'])
+        self.setTransition('pis', 'er7', ['pis', 'si'], checkState='cr7')
+        self.setTransition('cr7', 'er7', ['pis'])
+        self.setTransition('er7', 'cpi', ['pis', 'er7'])
+
         self.setTransition('cpi', 'sp2', ['ii'])
         self.setTransition('sp2', 'rp2', ['sp2', 'cpi', 'rp2'])
         self.setTransition('rp2', 'ii', ['rp2', 'cpi', 'ii'])

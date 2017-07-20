@@ -20,6 +20,7 @@ from states.evaluate_placement import EvaluatePlacement
 from states.read_scales import ReadScales
 from states.inspect_item import InspectItem
 from states.detect_grab import DetectGrab
+from states.power_cycle_cameras import PowerCycleCameras
 
 class StowStateMachine(StateMachine):
 
@@ -74,7 +75,7 @@ class StowStateMachine(StateMachine):
         self.setTransition('egvs', 'si', ['egvs', 'cps', 'si'])
         self.setTransition('si', 'ppo', ['si'], checkState='csi') #si should never fail..
         self.setTransition('csi', 'ppo', ['si'])
-        self.setTransition('ppo', 'er1', ['si'], checkState='cr1')
+        self.setTransition('ppo', 'er1', ['ppo', 'si'], checkState='cr1')
         #self.setTransition('psg', 'er1', ['si'], checkState='cr1') #if plan fails, redo SI and mark failure
         self.setTransition('cr1', 'er1', ['ppo'])
         self.setTransition('er1', 'rs', ['ppo', 'er1'])
