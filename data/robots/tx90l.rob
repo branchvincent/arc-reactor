@@ -25,7 +25,7 @@ mass       20 10 10 5 5 1 0.2
 automass
 torqueMax  0 800 600 400 200 200 100
 
-mount 6 "end-effector.stl"  1 0 0    0 1 0     0 0 1    0 0 0  as "gripper"
+mount 6 "gripper.stl"  1 0 0    0 1 0     0 0 1    0 0 0  as "gripper"
 
 # simulation parameters
 servoP  40000 50000 20000 10000 2000 400
