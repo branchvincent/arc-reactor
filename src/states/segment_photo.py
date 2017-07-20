@@ -39,6 +39,7 @@ class SegmentPhoto(State):
             logger.exception('photo segmentation failed')
         else:
             self.store.delete(['failure', self.getFullName()])
+            self.store.put('/status/sp_done', False)
             self.setOutcome(True)
 
         logger.info('finished segmenting photo')
@@ -59,6 +60,20 @@ class SegmentPhoto(State):
         # segment images
         segment_images(photo_urls, bounds_urls, pose_urls)
         #TODO give pass/fail criteria
+
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None or self.whyFail=="SegmentationError"):
+            check = self.store.get('/status/sp_done', False)
+            if(check):
+                return 2
+            else:
+                self.store.put('/status/sp_done', True)
+                return 0
+        elif(self.whyFail == "MissingPhotoError"):
+            return 1
+        else:
+            return 0
 
 if __name__ == '__main__':
     import argparse

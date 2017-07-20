@@ -39,9 +39,22 @@ class PowerCycleCameras(State):
             logger.exception('power cycling the cameras failed')
         else:
             self.store.delete(['failure', self.getFullName()])
+            self.store.put('/status/pcc_done', True)
             self.setOutcome(True)
 
         logger.info('finished power cycling the cameras')
+
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None or self.whyFail =="ConnectionError"):
+            #check if we've just tried power cycling
+            check = self.store.get('/status/pcc_done', False)
+            if(check): #we've already tried this...just go on?
+                return 1
+            else: #go to first fallback state. Power cycle cameras to try again
+                return 0
+        else:
+            return 1
 
 if __name__ == '__main__':
     import argparse

@@ -44,6 +44,7 @@ class RecognizePhoto(State):
             logger.exception('photo recognition failed')
         else:
             self.store.delete(['failure', self.getFullName()])
+            self.store.put('/status/rp_done', False)
             self.setOutcome(True)
 
         logger.info('finished recognizing photo')
@@ -81,6 +82,24 @@ class RecognizePhoto(State):
 
         # HACK: clear the target photos
         self.store.put('/robot/target_photos', [])
+
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None or self.whyFail=="ObjectRecognitionError" or self.whyFail=="CommandTimeoutError"):
+            check = self.store.get('/status/rp_done', False)
+            if(check):
+                return 3
+            else:
+                self.store.put('/status/rp_done', True)
+                return 0
+        elif(self.whyFail == "MissingGraspLocationError"):
+            return 3
+        elif(self.whyFail == "MissingSegmentationError"):
+            return 1
+        elif(self.whyFail == "MissingPhotoError"):
+            return 2
+        else:
+            return 3
 
 if __name__ == '__main__':
     import argparse

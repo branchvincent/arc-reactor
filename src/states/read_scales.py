@@ -46,6 +46,18 @@ class ReadScales(State):
         # self.store.put('failure/read_scales', 'scale_error')
         self.setOutcome(True)
 
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None):
+            return 0
+            #no failure detected, no suggestions!
+        elif(self.whyFail == "scale_error"): #never set!
+            return 0
+        else:
+            return 0
+            #again, no suggestions!
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()

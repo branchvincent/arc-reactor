@@ -37,9 +37,10 @@ class PlanViewLocation(State):
         planner.toTransform(vantage_T)
         motion_plan = self.store.get('robot/waypoints')
         if motion_plan is not None:
+            self.store.put('/status/pvl_done', False)
             self.setOutcome(True)
         else:
-            self.store.put('failure/plan_view_location', 'infeasible')
+            self.store.put(['failure', self.getFullName()], "infeasible")
             self.setOutcome(False)
 
     def setLoc(self, myname):
@@ -53,6 +54,21 @@ class PlanViewLocation(State):
             elif myname[-2:]=='at':
                 print "Moving to amnesty tote"
                 self.store.put('/robot/target_view_location', 'amnesty_tote')
+
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None):
+            #unknown error, check to see if this has happened already
+            check = self.store.get('/status/pvl_done', False)
+            if(check):
+                return 1
+            else:
+                self.store.put('/status/pvl_done', True)
+                return 0
+        elif(self.whyFail == "infeasible"):
+            return 1
+        else:
+            return 1  #by default to not get stuck in loops
 
 if __name__ == '__main__':
     import argparse
