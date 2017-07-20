@@ -25,6 +25,7 @@ class EvaluateVacuumGraspBase(State):
             logger.exception('vacuum grasp evaluation failed')
         else:
             self.store.delete(['failure', self.getFullName()])
+            self.store.put('/status/evg_done', False)
             self.setOutcome(True)
 
         logger.info('finished vacuum grasp evaluation')

@@ -34,20 +34,18 @@ class EvaluateVacuumGraspPick(EvaluateVacuumGraspBase):
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
         if(self.whyFail is None or self.whyFail=="ObjectRecognitionError" or self.whyFail=="CommandTimeoutError"):
-            check = self.store.get('/status/rp_done', False)
+            check = self.store.get('/status/evg_done', False)
             if(check):
-                return 3
+                return 2
             else:
-                self.store.put('/status/rp_done', True)
+                self.store.put('/status/evg_done', True)
                 return 0
         elif(self.whyFail == "MissingGraspLocationError"):
-            return 3
-        elif(self.whyFail == "MissingSegmentationError"):
-            return 1
-        elif(self.whyFail == "MissingPhotoError"):
             return 2
+        elif(self.whyFail == "MissingSegmentationError" or self.whyFail == "MissingPhotoError"):
+            return 1
         else:
-            return 3
+            return 2
 
 
 if __name__ == '__main__':

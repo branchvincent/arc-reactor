@@ -66,38 +66,38 @@ class StowStateMachine(StateMachine):
         self.store.put('/robot/target_view_location', 'stow_tote')
 
     def setupTransitions(self):
-        self.setTransition('cps', 'sp1', ['sp1']) #TODO need failure for cameras
-        self.setTransition('sp1', 'rp1', ['rp1']) #TODO make handler for these failed states (hardware)
-        self.setTransition('rp1', 'rs1', ['rs1'])
+        self.setTransition('cps', 'sp1', ['sp1']) 
+        self.setTransition('sp1', 'rp1', ['sp1', 'cps', 'rp1']) 
+        self.setTransition('rp1', 'rs1', ['rp1', 'cps', 'rs1'])
         self.setTransition('rs1', 'egvs', ['egvs'])
 
-        self.setTransition('egvs', 'si', ['cps']) # If eval grasp fails, re-take photo
+        self.setTransition('egvs', 'si', ['egvs', 'cps', 'si'])
         self.setTransition('si', 'ppo', ['si'], checkState='csi') #si should never fail..
         self.setTransition('csi', 'ppo', ['si'])
         self.setTransition('ppo', 'er1', ['si'], checkState='cr1')
         #self.setTransition('psg', 'er1', ['si'], checkState='cr1') #if plan fails, redo SI and mark failure
         self.setTransition('cr1', 'er1', ['ppo'])
-        self.setTransition('er1', 'rs', ['ppo'])
+        self.setTransition('er1', 'rs', ['ppo', 'er1'])
 
         self.setTransition('rs', 'dg', ['dg']) #if scales fail continue anyway
         self.setTransition('dg', 'pis', ['si', 'si']) #detect grab failure means we didn't get the item
         self.setTransition('pis', 'er4', ['si'], checkState='cr4')
         self.setTransition('cr4', 'er4', ['pis'])
-        self.setTransition('er4', 'cpi', ['cpi'])
+        self.setTransition('er4', 'cpi', ['pis', 'er4'])
 
         self.setTransition('cpi', 'sp2', ['ii'])
-        self.setTransition('sp2', 'rp2', ['ii'])
-        self.setTransition('rp2', 'ii', ['ii'])
+        self.setTransition('sp2', 'rp2', ['sp2', 'cpi', 'rp2'])
+        self.setTransition('rp2', 'ii', ['rp2', 'cpi', 'ii'])
         self.setTransition('ii', 'ep', ['ii', 'si'])
 
-        self.setTransition('ep', 'pps', ['ep']) #TODO need failure analysis
+        self.setTransition('ep', 'pps', ['ep'])
         self.setTransition('pps', 'er2', ['si'], checkState='cr2')
         self.setTransition('cr2', 'er2', ['pps'])
-        self.setTransition('er2', 'ci', ['pps'])
-        self.setTransition('ci', 'pvl', ['ci']) #TODO handler for failed check item
-        self.setTransition('pvl', 'er3', ['pvl'], checkState='cr3') #TODO similar for failed route planning
+        self.setTransition('er2', 'ci', ['pps', 'er2'])
+        self.setTransition('ci', 'pvl', ['ci']) 
+        self.setTransition('pvl', 'er3', ['pvl', 'cps'], checkState='cr3')
         self.setTransition('cr3', 'er3', ['pvl'])
-        self.setTransition('er3', 'cpb', ['pvl'])
+        self.setTransition('er3', 'cpb', ['pvl', 'er3'])
         self.setTransition('cpb', 'cps', ['cpb']) #TODO maybe revise which photos are segmented at the end
 
     def isDone(self):

@@ -57,17 +57,11 @@ class PlanViewLocation(State):
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
-        if(self.whyFail is None):
-            #unknown error, check to see if this has happened already
-            check = self.store.get('/status/pvl_done', False)
-            if(check):
-                return 1
-            else:
-                self.store.put('/status/pvl_done', True)
-                return 0
-        elif(self.whyFail == "infeasible"):
-            return 1
-        else:
+        check = self.store.get('/status/pvl_done', False)
+        if(not check):
+            self.store.put('/status/pvl_done', True)
+            return 0 #try once more
+        else: 
             return 1  #by default to not get stuck in loops
 
 if __name__ == '__main__':

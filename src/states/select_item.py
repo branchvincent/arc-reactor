@@ -110,6 +110,19 @@ class SelectItem(State):
 
         self.setOutcome(self.chosenItem is not None)
 
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None):
+            return 0
+            #no failure detected, no suggestions!
+        elif(self.whyFail == "NoItemError"):
+            return 1
+            #go to first fallback state
+        else:
+            return 0
+            #again, no suggestions!
+
+
     def _mark_grasp_attempt(self):
         failed_grasps = self.store.get(['robot', 'failed_grasps'], [])
         target_grasp = self.store.get(['robot', 'target_grasp'])

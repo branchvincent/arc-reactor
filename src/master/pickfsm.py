@@ -64,6 +64,7 @@ class PickStateMachine(StateMachine):
         self.add('pcca', PowerCycleCameras('pcca', store=self.store))
         self.add('pccb', PowerCycleCameras('pccb', store=self.store))
         self.add('pccc', PowerCycleCameras('pccc', store=self.store))
+        self.add('pcc', PowerCycleCameras('pcc', store=self.store))
         self.add('pccx', PowerCycleCameras('pccx', store=self.store))
         self.add('pcci', PowerCycleCameras('pcci', store=self.store))
 
@@ -76,57 +77,58 @@ class PickStateMachine(StateMachine):
 
     def setupTransitions(self):
         #initial look. only needs to run once...
-        self.setTransition('pvla', 'er1', ['pvla', 'pvla'], checkState='cr1')
+        self.setTransition('pvla', 'er1', ['pvla', 'pvlb'], checkState='cr1')
         self.setTransition('cr1', 'er1', ['pvla'])
         self.setTransition('er1', 'cpba', ['pvla', 'er1'])
         self.setTransition('cpba', 'pvlb', ['cpba', 'pcca', 'pvlb'])
-        self.setTransition('pcca', 'cpba', ['pcca', 'pvlb'])
+        self.setTransition('pcca', 'cpba', ['pcca', 'cpba'])
 
-        self.setTransition('pvlb', 'er2', ['pvlb', 'pvlb'], checkState='cr2')
+        self.setTransition('pvlb', 'er2', ['pvlb', 'pvlc'], checkState='cr2')
         self.setTransition('cr2', 'er2', ['pvlb'])
         self.setTransition('er2', 'cpbb', ['pvlb', 'er2'])
         self.setTransition('cpbb', 'pvlc', ['cpbb', 'pccb', 'pvlc'])
-        self.setTransition('pccb', 'cpbb', ['pccb', 'pvlc'])
+        self.setTransition('pccb', 'cpbb', ['pccb', 'cpbb'])
 
-        self.setTransition('pvlc', 'er3', ['pvlc', 'pvlc'], checkState='cr3')
+        self.setTransition('pvlc', 'er3', ['pvlc', 'pvla'], checkState='cr3')
         self.setTransition('cr3', 'er3', ['pvlc'])
         self.setTransition('er3', 'cpbc', ['pvlc', 'er3'])
         self.setTransition('cpbc', 'rs2', ['cpbc', 'pccc', 'rs2'])
-        self.setTransition('pccc', 'cpbc', ['pccc', 'rs2'])
+        self.setTransition('pccc', 'cpbc', ['pccc', 'cpbc'])
         self.setTransition('rs2', 'sp1', ['sp1']) # initial read scales
 
         #then loop to updated pvlXXX and capture
         self.setTransition('sp1', 'rp1', ['sp1', 'pvla', 'rp1'])
-        self.setTransition('rp1', 'egvp', ['rp1', 'sp1', 'pvla', 'egvp'])
-        self.setTransition('egvp', 'si', ['cpbc'])
+        self.setTransition('rp1', 'egvp', ['rp1', 'pvla', 'egvp'])
+        self.setTransition('egvp', 'si', ['egvp', 'pvla', 'si'])
 
         self.setTransition('si', 'ppi', ['pvla'], checkState='csi')
         self.setTransition('csi', 'ppi', ['si'])
 
         self.setTransition('ppi', 'er4', ['si'], checkState='cr4')
         self.setTransition('cr4', 'er4', ['ppi'])
-        self.setTransition('er4', 'rs1', ['ppi'])
+        self.setTransition('er4', 'rs1', ['ppi', 'er4'])
 
         self.setTransition('rs1', 'cpi', ['cpi'])
         self.setTransition('cpi', 'sp2', ['ii'])
-        self.setTransition('sp2', 'rp2', ['ii'])
-        self.setTransition('rp2', 'ii', ['ii'])
+        self.setTransition('sp2', 'rp2', ['sp2', 'cpi', 'rp2'])
+        self.setTransition('rp2', 'ii', ['rp2', 'cpi', 'ii'])
         self.setTransition('ii', 'ep', ['ii', 'si'])
 
         self.setTransition('ep', 'ppb', ['cpi'])
         self.setTransition('ppb', 'er5', ['ep'], checkState='cr5')
         self.setTransition('cr5', 'er5', ['ppb'])
-        self.setTransition('er5', 'cpx', ['ppb'])
+        self.setTransition('er5', 'cpx', ['ppb', 'er5'])
 
         self.setTransition('cpx', 'ci', ['cpx'])
         #self.setTransition('sp3', 'rp3', ['rp3'])
         #self.setTransition('rp3', 'ci', ['ci'])
 
         self.setTransition('ci', 'pvl', ['ci'])
-        self.setTransition('pvl', 'er6', ['pvl'], checkState='cr6')
+        self.setTransition('pvl', 'er6', ['pvl', 'sp1'], checkState='cr6')
         self.setTransition('cr6', 'er6', ['pvl'])
-        self.setTransition('er6', 'cpb', ['pvl'])
-        self.setTransition('cpb', 'sp1', ['cpb'])
+        self.setTransition('er6', 'cpb', ['pvl', 'er6'])
+        self.setTransition('cpb', 'sp1', ['cpb', 'pcc', 'sp1'])
+        self.setTransition('pcc', 'cpb', ['pcc', 'cpb'])
 
     def isDone(self):
         #if all items picked, all their point values are 0. Need to re-write

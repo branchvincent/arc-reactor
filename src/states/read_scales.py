@@ -55,7 +55,6 @@ class ReadScales(State):
             return 0
         else:
             return 0
-            #again, no suggestions!
 
 
 if __name__ == '__main__':

@@ -33,7 +33,7 @@ class CapturePhotoBase(State):
         else:
             self.store.delete(['failure', self.getFullName()])
             self.store.put('/status/pcc_done', False) #clear pcc flag
-            self.store.put('/status/cp_done', False)
+            self.store.put('/status/cp_done', False) #clear already-run flag
             self.setOutcome(True)
 
         logger.info('finished image acquisition')

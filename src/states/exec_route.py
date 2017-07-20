@@ -30,12 +30,14 @@ class ExecRoute(State):
                 controllerSim.run()
             except RuntimeError as e:
                 print "Runtime error: ", e
+            self.store.put('/status/er_done', False)
             self.setOutcome(True)
         else:
             try:
                 controller = RobotController(store=self.store)
                 controller.run()
                 completed = controller.trajectory.complete
+                self.store.put('/status/er_done', False)
                 self.setOutcome(True)
             except RuntimeError:
                 # TODO: this may not be the error (we should add a timeout feature to controller)
@@ -46,15 +48,15 @@ class ExecRoute(State):
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
-        if(self.whyFail is None):
-            return 0
-            #no failure detected, no suggestions!
-        elif(self.whyFail == "NoConnection"):
-            return 1
-            #go to first fallback state
+        if(self.whyFail == "NoConnection"):
+            check = self.store.get('/status/er_done', False)
+            if(check):
+                return 0
+            else:
+                self.store.put('/status/er_done', True)
+                return 1
         else:
             return 0
-            #again, no suggestions!
 
 if __name__ == '__main__':
     import argparse
