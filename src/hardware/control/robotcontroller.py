@@ -10,6 +10,7 @@ from hardware.vacuum import Vacuum
 from motion.checker import MotionPlanChecker
 from motion.milestone import Milestone
 from master.world import build_world, klampt2numpy
+from master.world import build_world, update_world, klampt2numpy
 
 from time import sleep
 from socket import timeout
@@ -30,11 +31,17 @@ def Assert(condition, message):
 
 class RobotController:
     """Trajectory execution for TX90"""
-    def __init__(self, robot='right', store=None):
+    def __init__(self, robot='right', store=None, world=None):
         self.store = store or PensiveClient().default()
-        self.robot = Robot(robot, store=self.store)
-        self.trajectory = Trajectory(robot=self.robot, store=self.store)
+        self.robotName = robot
+        self.world = world
         self.freq = 10.
+        self.reset()
+
+    def reset(self):
+        self.world = update_world(self.store, self.world, ignore=['obstacles', 'camera', 'boxes', 'totes', 'shelf'])
+        self.robot = Robot(self.robotName, store=self.store)
+        self.trajectory = Trajectory(robot=self.robot, store=self.store)
 
     def run(self):
         """Runs the current trajectory in the database"""
@@ -63,8 +70,8 @@ class RobotController:
 
     def updateDatabase(self):
         # Update tool pose
-        world = build_world(self.store, ignore=['obstacles', 'camera', 'boxes', 'totes', 'shelf'])
-        robot = world.robot('tx90l')
+        self.world = update_world(self.store, self.world, ignore=['obstacles', 'camera', 'boxes', 'totes', 'shelf'])
+        robot = self.world.robot('tx90l')
         T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
         self.store.put('/robot/tcp_pose', T_tcp)
         # Update tool camera pose
