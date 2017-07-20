@@ -13,6 +13,7 @@ from packing import heightmap
 from util.math_helpers import transform, crop_with_aabb, zero_translation
 from util.location import location_bounds_url, location_pose_url
 from util.filtering import distance_label
+from util import photo
 
 from .common import NoViewingCameraError, MissingPhotoError
 
@@ -129,6 +130,7 @@ class EvaluatePlacement(State):
                 cloud_camera = self.store.get(photo_url + '/point_cloud', strict=True)
                 aligned_color = self.store.get(photo_url + '/aligned_color', strict=True)
             except KeyError:
+                self.store.put(['failure', '{}_message'.format(self.getFullName())], photo.url2location_camera(photo_url)[0])
                 raise MissingPhotoError('missing photo data for inspection: {}'.format(photo_url))
 
             cloud_world = transform(camera_pose, cloud_camera)

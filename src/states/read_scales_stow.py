@@ -1,10 +1,12 @@
 import logging
+
 from master.fsm import State
+
 from hardware.dymo.scale import Scale as DymoScale
-from hardware.atron.scale import AtronScale
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-class ReadScales(State):
+class ReadScalesStow(State):
     """
     Input:
         - /system/scales: dictionary of scale names
@@ -25,10 +27,9 @@ class ReadScales(State):
         scales = []
         for key, val in self.store.get('system/scales', {}).iteritems():
             if key.startswith('dymo'):
-                #scales.append(DymoScale(port=val))
-                pass
+                scales.append(DymoScale(port=val))
             elif key.startswith('atron'):
-                scales.append(AtronScale(key, self.store))
+                pass
 
         # Read total weight
         weights = [scale.read() for scale in scales]
@@ -46,21 +47,10 @@ class ReadScales(State):
         # self.store.put('failure/read_scales', 'scale_error')
         self.setOutcome(True)
 
-    def suggestNext(self):
-        self.whyFail = self.store.get(['failure', self.getFullName()])
-        if(self.whyFail is None):
-            return 0
-            #no failure detected, no suggestions!
-        elif(self.whyFail == "scale_error"): #never set!
-            return 0
-        else:
-            return 0
-
-
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'rs')
-    ReadScales(myname).run()
+    myname = (args.name or 'rss')
+    ReadScalesStow(myname).run()

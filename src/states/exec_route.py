@@ -17,7 +17,7 @@ class ExecRoute(State):
         - /robot/current_config: udpated robot configuration
         - /failure/exec_route: failure string
     Failure Cases:
-        - connection_error: could not connect to robot (TODO: classify)
+        - NoConnection: could not connect to robot (TODO: classify)
     Dependencies:
         - a planning state
     """
@@ -30,18 +30,33 @@ class ExecRoute(State):
                 controllerSim.run()
             except RuntimeError as e:
                 print "Runtime error: ", e
+            self.store.put('/status/er_done', False)
             self.setOutcome(True)
         else:
             try:
                 controller = RobotController(store=self.store)
                 controller.run()
                 completed = controller.trajectory.complete
+                self.store.put('/status/er_done', False)
                 self.setOutcome(True)
             except RuntimeError:
                 # TODO: this may not be the error (we should add a timeout feature to controller)
-                self.store.put('failure/exec_route', 'connection_error')
+                self.store.put(['failure', self.getFullName()], "NoConnection")
                 logger.exception('Robot controller had an exception.')
                 self.setOutcome(False)
+
+
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail == "NoConnection"):
+            check = self.store.get('/status/er_done', False)
+            if(check):
+                return 0
+            else:
+                self.store.put('/status/er_done', True)
+                return 1
+        else:
+            return 0
 
 if __name__ == '__main__':
     import argparse

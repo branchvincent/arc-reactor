@@ -52,7 +52,7 @@ class Scale:
     def read(self):
         # Read simulated or actual
         if self.device is None:
-            data = None
+            data = -1
         else:
             data = self.getData()
         return self.getWeight(data)

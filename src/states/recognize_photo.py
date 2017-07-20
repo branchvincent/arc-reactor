@@ -4,6 +4,8 @@ from master.fsm import State
 
 from perception.interface import recognize_objects, ObjectRecognitionError, CommandTimeoutError
 
+from util import photo
+
 from .common import MissingPhotoError, MissingSegmentationError
 
 logger = logging.getLogger(__name__)
@@ -42,8 +44,11 @@ class RecognizePhoto(State):
         except (MissingPhotoError, MissingSegmentationError, MissingGraspLocationError, ObjectRecognitionError, CommandTimeoutError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception('photo recognition failed')
+            # HACK so we don't get stuck in a loop trying to recognize this photo again
+            self.store.put('/robot/target_photos', [])
         else:
             self.store.delete(['failure', self.getFullName()])
+            self.store.put('/status/rp_done', False)
             self.setOutcome(True)
 
         logger.info('finished recognizing photo')
@@ -55,6 +60,7 @@ class RecognizePhoto(State):
             try:
                 locations.append(self.store.get(url + '/location', strict=True))
             except KeyError:
+                self.store.put(['failure', '{}_message'.format(self.getFullName())], photo.url2location_camera(url)[0])
                 raise MissingPhotoError(url)
 
             # check that segmentation is ready
@@ -81,6 +87,22 @@ class RecognizePhoto(State):
 
         # HACK: clear the target photos
         self.store.put('/robot/target_photos', [])
+
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None or self.whyFail=="ObjectRecognitionError" or self.whyFail=="CommandTimeoutError"):
+            check = self.store.get('/status/rp_done', False)
+            if(check):
+                return 2
+            else:
+                self.store.put('/status/rp_done', True)
+                return 0
+        elif(self.whyFail == "MissingGraspLocationError"):
+            return 2
+        elif(self.whyFail == "MissingSegmentationError" or self.whyFail == "MissingPhotoError"):
+            return 1
+        else:
+            return 2
 
 if __name__ == '__main__':
     import argparse

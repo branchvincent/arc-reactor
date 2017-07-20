@@ -56,4 +56,5 @@ class PlanPickBase(State):
             logger.error('Failed to generate motion plan')
         else:
             logger.info('Route generated')
+            self.store.put('/status/ppo_done', False)
             self.setOutcome(True)

@@ -22,6 +22,7 @@ class DetectGrab(State):
         self.readWeight = abs(self.store.get('/scales/change'))
 
         if self.readWeight is None:
+            self.store.put(['failure', self.getFullName()], "ScalesReadError")
             self.setOutcome(False)
 
         elif(self.readWeight<0.005):

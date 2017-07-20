@@ -23,6 +23,16 @@ class PlanPickOnly(PlanPickBase):
     def run(self):
         self._common(False)
 
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        check = self.store.get('/status/ppo_done', False)
+        if(not check):
+            self.store.put('/status/ppo_done', True)
+            return 0 #try once more
+        else: 
+            return 1  #by default to not get stuck in loops
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()

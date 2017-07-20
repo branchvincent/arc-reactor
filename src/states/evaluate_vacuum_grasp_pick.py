@@ -31,6 +31,23 @@ class EvaluateVacuumGraspPick(EvaluateVacuumGraspBase):
     def run(self):
         self._common(['binA', 'binB', 'binC'])
 
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None or self.whyFail=="ObjectRecognitionError" or self.whyFail=="CommandTimeoutError"):
+            check = self.store.get('/status/evg_done', False)
+            if(check):
+                return 2
+            else:
+                self.store.put('/status/evg_done', True)
+                return 0
+        elif(self.whyFail == "MissingGraspLocationError"):
+            return 2
+        elif(self.whyFail == "MissingSegmentationError" or self.whyFail == "MissingPhotoError"):
+            return 1
+        else:
+            return 2
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()

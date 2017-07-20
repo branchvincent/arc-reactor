@@ -47,7 +47,15 @@ class SelectItem(State):
 
             self.graspBins = self.graspsA + self.graspsB + self.graspsC
 
+            # forget old grasps
+            self._expire_grasp_attempts('binA')
+            self._expire_grasp_attempts('binB')
+            self._expire_grasp_attempts('binC')
+
+            # reject repeat grasps
             self.grasps = [g for g in self.graspBins if not self._check_failed_grasp(failed_grasps, g)]
+            if not self.grasps:
+                raise RuntimeError('all grasps were rejected')
 
             self.grasps.sort(key=lambda l: -l['score'])
 
@@ -78,7 +86,13 @@ class SelectItem(State):
             self.url = ['photos', 'stow_tote', 'stow']
             self.graspStow = self.store.get(self.url + ['vacuum_grasps'])
 
+            # forget old grasps
+            self._expire_grasp_attempts('stow_tote')
+
+            # reject repeat grasps
             self.grasps = [g for g in self.graspStow if not self._check_failed_grasp(failed_grasps, g)]
+            if not self.grasps:
+                raise RuntimeError('all grasps were rejected')
 
             self.grasps.sort(key=lambda l: -l['score'])
 
@@ -110,25 +124,58 @@ class SelectItem(State):
 
         self.setOutcome(self.chosenItem is not None)
 
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None):
+            return 0
+            #no failure detected, no suggestions!
+        elif(self.whyFail == "NoItemError"):
+            return 1
+            #go to first fallback state
+        else:
+            return 0
+            #again, no suggestions!
+
+    def _expire_grasp_attempts(self, location):
+        memory = self.store.get(['planner', 'grasp_memory'], 10)
+
+        failed_grasps = self.store.get(['robot', 'failed_grasps'], [])
+        for grasp in failed_grasps:
+            if grasp['location'] == location:
+                grasp['age'] = grasp.get('age', 0) + 1
+
+        remembered_grasps = []
+        for grasp in failed_grasps:
+            if grasp['age'] < memory:
+                remembered_grasps.append(grasp)
+            else:
+                logger.info('forgot grasp in {location} at {center} (age {age})'.format(**grasp))
+
+        self.store.put(['robot', 'failed_grasps'], remembered_grasps)
+
     def _mark_grasp_attempt(self):
         failed_grasps = self.store.get(['robot', 'failed_grasps'], [])
+
         target_grasp = self.store.get(['robot', 'target_grasp'])
+        target_grasp['age'] = 0
 
         failed_grasps.append(target_grasp)
         self.store.put(['robot', 'failed_grasps'], failed_grasps)
 
-        logger.info('grasp attempted at {}'.format(target_grasp['center']))
+        logger.info('attempted grasp in {location} at {center}'.format(**target_grasp))
 
     def _check_failed_grasp(self, prior_grasps, new_grasp):
         '''
         Compare grasp positions to tolerance to determine similarity.
         '''
+
         tolerance = self.store.get('/planner/grasp_failure_radius', 0.05)
         for grasp in prior_grasps:
             distance = ((grasp['center'] - new_grasp['center'])**2).sum()**0.5
             if distance < tolerance:
-                logger.info('grasp rejected at {}'.format(grasp['center']))
+                logger.info('rejected grasp in {location} at {center}'.format(**new_grasp))
                 return True
+
         return False
 
     def _most_likely_item(self, g):

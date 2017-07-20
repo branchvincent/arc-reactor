@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import os
+import matplotlib.pyplot as plt
 import time
 import sys
 import json
@@ -9,7 +10,6 @@ import theano
 import theano.tensor as T
 
 import skimage.transform
-import sklearn.cross_validation
 import pickle
 
 import scipy.io
@@ -17,7 +17,7 @@ from scipy.ndimage.interpolation import rotate
 
 import random
 import scipy.misc
-import math
+
 import lasagne
 from lasagne.layers import InputLayer
 from lasagne.layers import Conv2DLayer as ConvLayer
@@ -28,112 +28,21 @@ from lasagne.layers import ElemwiseSumLayer
 from lasagne.layers import DenseLayer
 from lasagne.nonlinearities import rectify, softmax
 
-
-def read_images_segment(root_dir):
-
-    with open('/home/bk/Documents/code/reactor/db/items.json') as data_file:
-            jsonnames = json.load(data_file)
-    names=[]
-    for key,value in jsonnames.items():
-        names.append(key)
-    names.sort()
-    objectnames = [x.lower() for x in names]
-    #read in ever nth image
-    output_dir = root_dir + '/segmented/'
-
-    num_images = []
-    for name in objectnames:
-        try:
-            os.mkdir(output_dir + name)
-        except:
-            pass
-        num_images.append(0)
-
-    skip = 4
-
-    imlist=list()
-    imlabels=list()
-
-    for folder in os.listdir(root_dir):
-        fnames = sorted(os.listdir(root_dir + folder))
-        #determine which item this is
-        item = [folder.startswith(x) for x in objectnames]
-        item = np.where(item)[0]
-        if len(item) == 0:
-            print("Could not find object {}".format(folder))
-            continue
-        item = item[0]
-        print("Processing item {}".format(folder))
-        for i in range(1,len(fnames),skip):
+def read_images_label(root_dir, objname_2_ind):
+    imlist= []
+    imlabels= []
+    for folder in objname_2_ind.keys():
+        skip = 4
+        fnames = os.listdir(root_dir + "/" + folder)
+        for i in range(0,len(fnames),skip):
             #read in the image
-            im = cv2.imread(root_dir + folder + "/" + fnames[i])
-            #convert to lab
-            im_lab = cv2.cvtColor(im, cv2.COLOR_BGR2LAB)
-            
-            #skip blank images
-            if np.all(im == 0):
-                continue
-            
-            mask = mask_fun(im_lab)
-            
-            if mask is None:
-                continue
-                
-            mask = mask.astype('uint8')
-            if fnames[i].startswith('1'):
-                mask[0:40,:] = 0
-            
-        
-            masked_bgr = np.zeros(im.shape).astype('uint8')
-            masked_bgr[:,:,0] = im[:,:,0]*mask
-            masked_bgr[:,:,1] = im[:,:,1]*mask
-            masked_bgr[:,:,2] = im[:,:,2]*mask
-            
-            #write it out
-            cv2.imwrite(output_dir + objectnames[item] + "/" + str(num_images[item]) + ".png",masked_bgr)
-            
-            num_images[item] += 1
-            imlist.append(masked_bgr)
-            imlabels.append(item)
+            im = cv2.imread(root_dir + "/" + folder + "/" + fnames[i])
+            im  = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+            #label it
+            imlist.append(im)
+            imlabels.append(objname_2_ind[folder])
 
-    return imlist,imlabels
-
-def mask_fun(input_lab_image):
-
-    meanL0 = input_lab_image[400:410,0:10,0].mean()
-    meanA0 = input_lab_image[400:410,0:10,1].mean()
-    meanB0 = input_lab_image[400:410,0:10,2].mean()
-    
-    gs = cv2.ximgproc.segmentation.createGraphSegmentation()
-    gs.setSigma(1.8)
-    gs.setK(840)
-    gs.setMinSize(3760)
-    
-    l_img = gs.processImage(input_lab_image)
-
-    max_dist = -1
-    best_ind = -1
-    for i in range(l_img.max()+1):
-        m = l_img == i #mask of cc
-        tmp = input_lab_image[np.where(m)] - [meanL0, meanA0, meanB0]
-        tmp = tmp[:,0]**2 + tmp[:,1]**2 + tmp[:,2]**2
-        tmp = np.sqrt(tmp)
-        mean_dist = tmp.mean()
-        
-        dist_from_mid = math.sqrt((np.where(m)[0].mean()- 240)**2 + (np.where(m)[1].mean() - 320)**2)
-        if mean_dist > max_dist and dist_from_mid < 100:
-            y,x = np.where(m)
-            xy = np.vstack((x,y))
-            x,y,w,h = cv2.boundingRect(xy.transpose())
-            if w < 600 or h < 400:
-                max_dist = mean_dist
-                best_ind = i
-    
-    if best_ind != -1:
-        return l_img == best_ind
-    else:
-        return None
-
+    return imlist, imlabels
 def build_simple_block(incoming_layer, names,
                        num_filters, filter_size, stride, pad,
                        use_bias=False, nonlin=rectify):
@@ -295,12 +204,12 @@ def build_model_resnet():
         net.update(sub_net)
     net['pool5'] = PoolLayer(net[parent_layer_name], pool_size=7, stride=1, pad=0,
                              mode='average_exc_pad', ignore_border=False)
-    net['prob'] = DenseLayer(net['pool5'], num_units=40, nonlinearity=softmax)
+    net['prob'] = DenseLayer(net['pool5'], num_units=1000, nonlinearity=softmax)
 
     return net
 
 def load_pretrained_model():
-    d = pickle.load(open('resnet_finetuned_06132017_combined.pkl','rb'),encoding='latin-1')
+    d = pickle.load(open('resnet50.pkl','rb'),encoding='latin-1')
     net = build_model_resnet()
     lasagne.layers.set_all_param_values(net['prob'], d['values'])
     return net
@@ -332,22 +241,24 @@ def extract_bounding_box(imlist,imlabels):
 
     return imlist_,imlabels_
 
-def load_amazon_images(dir):
+def load_amazon_images(directory,valid_objects_dict):
     imlist=list()
     y_=list() #classes
     for subdir in os.listdir(directory):
-        path=directory+subdir
+        if subdir.lower() in valid_objects_dict:
+            path=directory+ "/" + subdir
 
-        files=next(os.walk(path))[2] #files in the directory for the class corresponding to subdir
+            files=next(os.walk(path))[2] #files in the directory for the class corresponding to subdir
 
-        for f in files:
-            if f[-3:]=='png': #load the png images
-                im=cv2.imread(path+'/'+f)[:,:,::-1]#.astype(np.uint8)
-                resized=skimage.transform.resize(im, (512,512), preserve_range=True)
-                imlist.append(resized)
-                y_.append(subdir)
-        print(subdir)
+            for f in files:
+                if f[-3:]=='png': #load the png images
+                    im=cv2.imread(path+'/'+f)[:,:,::-1]#.astype(np.uint8)
+                    resized=skimage.transform.resize(im, (512,512), preserve_range=True)
+                    imlist.append(resized)
+                    y_.append(valid_objects_dict[subdir.lower()])
+            print('finished loading images: '+ subdir)
     return imlist,y_ #pass these into generate_augmented_dataset
+
 
 def generate_augmented_dataset(imlist,labels,upscale_factor=1,smallest_dim=80,max_translate=40,
                                brightness_scale_range=[.999,1.001],max_skew=.3):
@@ -396,7 +307,7 @@ def generate_augmented_dataset(imlist,labels,upscale_factor=1,smallest_dim=80,ma
             randangle=np.random.rand(1)[0]*360
             #M = cv2.getRotationMatrix2D((w/2,h/2),int(randangle),1)
             #rawim = cv2.warpAffine(rawim,M,(w,h))
-            rawim=rotate(rawim,randangle,order=1) #scipy.ndimage.interpolation; this version doesn't crop
+            rawim=rotate(rawim,randangle,order=1,mode='constant') #scipy.ndimage.interpolation; this version doesn't crop
             h,w,_=rawim.shape #new shape
 
             #random shear
@@ -465,6 +376,8 @@ def generate_augmented_dataset(imlist,labels,upscale_factor=1,smallest_dim=80,ma
     y=np.hstack(y).astype(np.int32)
     return X,y
 
+
+
 def compile_theano_functions(net):
     output_layer = DenseLayer(net['pool5'], num_units=40, nonlinearity=softmax)
     # Define loss function and metrics, and get an updates dictionary
@@ -497,8 +410,11 @@ def compile_theano_functions(net):
 
     return train_fn,val_fn,output_layer
 
-def train_network(X_tr,y_tr,train_fn,val_fn,output_layer):
+def train_network(X_tr,y_tr,train_fn,val_fn,output_layer,
+lr1=.001,lr2=.0001,numepochs=20,annealpoint=10):
     BATCH_SIZE = 32
+    print("Epoch     Training Accuracy     Training Time ")
+    print("----------------------------------------------")
     # generator splitting an iterable into chunks of maximum length N
     def batches(iterable, N):
         chunk = []
@@ -515,14 +431,14 @@ def train_network(X_tr,y_tr,train_fn,val_fn,output_layer):
         ix = ix[:BATCH_SIZE]
         return train_fn(X_tr[ix], y_tr[ix], lr)
 
-    for epoch in range(15):
+    for epoch in range(numepochs):
         start=time.time()
 
         for batch in range(25):
-            if epoch<5:
-                loss = train_batch(lr=.002)
+            if epoch<annealpoint:
+                loss = train_batch(lr=lr1)
             else:
-                loss = train_batch(lr=.0001)
+                loss = train_batch(lr=lr2)
 
         ix = list(range(500)) #number of images to validate on
         np.random.shuffle(ix)
@@ -539,44 +455,120 @@ def train_network(X_tr,y_tr,train_fn,val_fn,output_layer):
     dummy_dictionary['values']=lasagne.layers.get_all_param_values(output_layer)
     return dummy_dictionary
 
-def main(location_of_images,trained_fname):
-    BATCH_SIZE = 32
+def make_new_indices_list():
+    with open('/home/motion/Desktop/reactor/db/items_new.json') as data_file:
+        jsonnames = json.load(data_file)
+    names=[]
+    for key,value in jsonnames.items():
+        names.append(key)
+    names.sort()
+    new_objects = [x.lower() for x in names]
+
+    #remove objects from the old list
+    old_objects = ['avery_binder',
+    'balloons',
+    'band_aid_tape',
+    'bath_sponge',
+    'black_fashion_gloves',
+    'burts_bees_baby_wipes',
+    'colgate_toothbrush_4pk',
+    'composition_book',
+    'crayons',
+    'duct_tape',
+    'epsom_salts',
+    'expo_eraser',
+    'fiskars_scissors',
+    'flashlight',
+    'glue_sticks',
+    'hand_weight',
+    'hanes_socks',
+    'hinged_ruled_index_cards',
+    'ice_cube_tray',
+    'irish_spring_soap',
+    'laugh_out_loud_jokes',
+    'marbles',
+    'measuring_spoons',
+    'mesh_cup',
+    'mouse_traps',
+    'pie_plates',
+    'plastic_wine_glass',
+    'poland_spring_water',
+    'reynolds_wrap',
+    'robots_dvd',
+    'robots_everywhere',
+    'scotch_sponges',
+    'speed_stick',
+    'table_cloth',
+    'tennis_ball_container',
+    'ticonderoga_pencils',
+    'tissue_box',
+    'toilet_brush',
+    'white_facecloth',
+    'windex']
+
+    #objects that need to be removed
+    list_of_new_indices = [i for i in range(len(old_objects)) if old_objects[i] not in new_objects]
+
+    ind_2_objname = {}
+    objname_2_ind = {}
+
+    cnt = 0
+    for name in new_objects:
+        if name in old_objects:
+            ind_2_objname[old_objects.index(name)] = name
+            objname_2_ind[name] = old_objects.index(name)
+        else:
+            ind_2_objname[list_of_new_indices[cnt]] = name
+            objname_2_ind[name] = list_of_new_indices[cnt]
+            cnt +=1
+
+    return list_of_new_indices, objname_2_ind, ind_2_objname
+
+
+def main(location_of_images,location_of_Amazon_images,trained_fname):
+
     start=time.time()
-    #load images
-    try:
-        imlist=np.load('imlist_temp.npy')
-        imlabels=np.load('imlabels_temp.npy')
-    except:
-        imlist,imlabels=read_images_segment(location_of_images)
-        np.save('imlist_temp.npy',imlist)
-        np.save('imlabels_temp.npy',imlabels)
-
+    #get list of object indices that need to be replaced
+    print("Reading in images...")
+    new_indices, objname_2_ind, ind_2_objname = make_new_indices_list()
+    #load new object images
+    imlist,imlabels=read_images_label(location_of_images, objname_2_ind)
+    print('Images read in',str(time.time()-start)+' seconds')
+    print("Cropping images...")
     imlist,imlabels=extract_bounding_box(imlist,imlabels)
-    np.save('imlist_temp.npy',imlist)
-    np.save('imlabels_temp.npy',imlabels)
-    print('loaded images',str(time.time()-start)+' seconds')
-
+    print('Images cropped',str(time.time()-start)+' seconds')
+    #load Amazon images
+    print('loading Amazon images ...')
+    imlist_Amazon,imlabels_Amazon=load_amazon_images(location_of_Amazon_images,objname_2_ind)
+    print('Amazon images loaded',str(time.time()-start)+' seconds')
     #augment images
-    try:
-        X_tr=np.load('X_temp.npy')
-        y_tr=np.load('y_temp.npy')
-    except:
-        X_tr,y_tr=generate_augmented_dataset(imlist,imlabels,smallest_dim=170,brightness_scale_range=[.99,1.],max_translate=1)
-        np.save('X_temp',X_tr)
-        np.save('y_temp',y_tr)
-    print('augmented dataset',str(time.time()-start)+' seconds')
+    print("Augmenting images...")
+    X_tr,y_tr=generate_augmented_dataset(imlist,imlabels,smallest_dim=170,brightness_scale_range=[.99,1.],max_translate=1)
+    X_tr_,y_tr_=generate_augmented_dataset(imlist_Amazon,imlabels_Amazon,
+                               smallest_dim=170,
+                               brightness_scale_range=[.99,1.01],
+                               max_translate=1,
+                               upscale_factor=8)
+    X_tr=np.concatenate([X_tr,X_tr_],0)
+    y_tr=np.concatenate([y_tr,y_tr_],0)
+    print('Dataset augmented',str(time.time()-start)+' seconds')
     #load and train network
+    print("Loading network...")
     net=load_pretrained_model()
-    print('network loaded',str(time.time()-start)+' seconds')
+    print('Network loaded',str(time.time()-start)+' seconds')
+    print("Compiling function...")
     train_fn,val_fn,output_layer=compile_theano_functions(net)
-    print('functions compiled',str(time.time()-start)+' seconds')
-    trained_net_params=train_network(X_tr,y_tr,train_fn,val_fn,output_layer)
-    print('network trained',str(time.time()-start)+' seconds')
+    print('Functions compiled',str(time.time()-start)+' seconds')
+    print("Training network...")
+    trained_net_params=train_network(X_tr,y_tr,train_fn,val_fn,output_layer,numepochs=6)
+    print('Network trained',str(time.time()-start)+' seconds')
     #save network
-    pickle.dump(trained_net_params,open(trained_fname,"wb"),pickle.HIGHEST_PROTOCOL)
-
+    pickle.dump(trained_net_params,open('/home/motion/Desktop/reactor/db/'+trained_fname,"wb"),pickle.HIGHEST_PROTOCOL)
+    #save dictionaries
+    pickle.dump(objname_2_ind, open('/home/motion/Desktop/reactor/db/' + "deep_learning_name2ind.pkl", 'wb'), pickle.HIGHEST_PROTOCOL)
+    pickle.dump(ind_2_objname, open('/home/motion/Desktop/reactor/db/' + "deep_learning_index.pkl", 'wb'), pickle.HIGHEST_PROTOCOL)
 if __name__=='__main__':
     if len(sys.argv)<3:
         print('requires location of images and return network name')
     else:
-        main(sys.argv[1],sys.argv[2])
+        main(sys.argv[1],sys.argv[2], sys.argv[3])

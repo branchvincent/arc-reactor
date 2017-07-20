@@ -68,11 +68,11 @@ def run(path):
             planning += delta
             planning_total += delta
 
-        elif re.match(r'SI|II|CI|RS\d*', state):
+        elif re.match(r'SI|II|CI|RS\d*|DG', state):
             system += delta
             system_total += delta
 
-        elif re.match(r'PSG|PPS|PVL', state):
+        elif re.match(r'PSG|PPS|PVL|PPO|PIS', state):
             motion_planning += delta
             motion_planning_total += delta
 
