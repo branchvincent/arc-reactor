@@ -41,11 +41,7 @@ int main(int argc, char * argv[]) try
     // Depth and color
     int num_dev = ctx.get_device_count();
     buffers.resize(ctx.get_device_count() * 2);
-    std::string make_dir = std::string("mkdir ") + folder;
-    int res = system(make_dir.c_str());
-    if(res != 0){
-        std::cout << "Could not make directory " << folder << std::endl;
-    }
+    
     int dev_num = -1;
     for (size_t i = 0; i < buffers.size(); i++){
         if(i % 2 == 0){

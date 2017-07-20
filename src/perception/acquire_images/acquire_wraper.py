@@ -1,6 +1,8 @@
 import json
 import subprocess
 import sys
+import fcntl
+import os
 if __name__ == "__main__":
     #read in NEW item config. All 40 items 20 new
     with open('../../../db/items.json') as data_file:
@@ -49,25 +51,45 @@ if __name__ == "__main__":
     'tennis_ball_container',
     'ticonderoga_pencils',
     'tissue_box',
-    'toilet_brush',
-    'white_facecloth',
-    'windex']
+    'toilet_brush']
+    # 'white_facecloth'
+    # 'windex']
+
+
+    #make a directory for all of the images
+    try:
+        os.mkdir("images")
+    except:
+        print("Directory images already exists")
 
     for item in objectnames:
         if not item in old_objects:
+            cnt = 0
             while(True):
-                cnt = 0
                 #go until the user says stop
                 print('Taking pictures of {}, okay? ([y]/n)'.format(item))
                 inp = sys.stdin.readline()
-                print (inp)
                 if inp == 'y\n' or inp == '\n':
-                    #start subprocess
+                    #make new directory
+                    dirname = "images/" + item + str(cnt)
                     try:
-                        subprocess.check_output(["./acquire_images", "{}{}".format(item, str(cnt))])
+                        os.mkdir(dirname)
+                        
                     except:
-                        print("Acquire images returned non-zero status")
+                        print("could not make directory {}".format(dirname))
+
+                    with open(dirname + "/" + 'lockfile', 'w') as fp:
+                        #lock the file
+                        fcntl.lockf(fp.fileno(), fcntl.LOCK_EX)
+                        #start subprocess
+                        try:
+                            subprocess.check_output(["./acquire_images", "{}{}".format("images/"+item, str(cnt))])
+                        except:
+                            print("Acquire images returned non-zero status")
+                        
+                        #unlock
+                        fcntl.lockf(fp.fileno(), fcntl.LOCK_UN)
                     cnt += 1
                 else:
-                    break;
+                    break
             
