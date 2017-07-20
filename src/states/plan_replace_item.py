@@ -35,4 +35,4 @@ if __name__ == '__main__':
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
     myname = (args.name or 'ppi')
-    PlanPickItem(myname).run()
+    PlanReplaceItem(myname).run()

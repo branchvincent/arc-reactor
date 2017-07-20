@@ -1,5 +1,5 @@
 from pensive.client import PensiveClient
-from master.world import build_world, xyz, rpy, numpy2klampt, klampt2numpy
+from master.world import build_world, update_world, xyz, rpy, numpy2klampt, klampt2numpy
 from motion.milestone import Milestone
 
 from klampt.model import ik
@@ -33,16 +33,15 @@ class MotionPlanner:
     High level motion planner to plan motions to goal transforms and configurations
     """
 
-    def __init__(self, store=None):
+    def __init__(self, store=None, world=None):
         self.store = store or PensiveClient().default()
+        self.world = world
         self.reset()
-        # Update current config
-
 
     def reset(self):
         self.options = self.store.get('/planner')
         # Init planners
-        self.world = build_world(self.store)
+        self.world = update_world(self.store, self.world)
         self.cspace = CSpace(self.world)
         self.se3space = SE3Space(self.world)
         self.joint_planner = JointPlanner(self.cspace, store=self.store, options=self.options)
@@ -86,6 +85,21 @@ class MotionPlanner:
             if strict:
                 exit()
         return feasible
+
+    def advanceAlongAxis(self, dist, axis='z'):
+        # if isinstance(T_ee, np.ndarray):
+        #     T_ee = list(numpy2klampt(T_ee))
+        # Find transform
+        T_curr = list(numpy2klampt(self.store.get('/robot/tcp_pose')))
+        # self.options['current_state'] = 'picking'
+        i = 0 if axis == 'x' else 1 if axis == 'y' else 2
+        vector = [0] * 3
+        vector[i] = dist
+        T_ee = [T_curr[0], se3.apply(T_curr, vector)]
+        # Plan
+        logger.warn('Planning from {} to {}: distance of {}'.format(T_curr[1], T_ee[1], vector))
+        self.toTransform(T_ee)
+        logger.warn('Created {} milestones'.format(len(self.store.get('robot/waypoints'))))
 
     def toTransform(self, T_ee):
         # Check current config
@@ -238,8 +252,8 @@ class MotionPlanner:
                     logger.warn('Task space with {} solver requested. Intentional?'.format(solver))
                 milestones = planner.planToTransform(Ti)
                 # HACK: try again, assuming wrist flipped
-                if milestones is None and space == 'task' and solver == 'nearby':
-                    milestones = self._fixWristFlip(Ti, planner.T_failed)
+                # if milestones is None and space == 'task' and solver == 'nearby':
+                #     milestones = self._fixWristFlip(Ti, planner.T_failed)
                 # Update milestones, if found
                 if milestones is not None:
                     plan.addMilestones(milestones)
