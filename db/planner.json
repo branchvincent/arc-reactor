@@ -68,7 +68,7 @@
             "vacuum": [true, false],
             "joint_velocity_limits": [0, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
             "joint_acceleration_limits": [0, 1.57, 1.57, 1.57, 1.57, 1.57, 1.57],
-            "translation_velocity_limit": 0.3,
+            "translation_velocity_limit": 0.2,
             "translation_acceleration_limit": "NotImplementedError",
             "rotation_velocity_limit": "NotImplementedError",
             "rotation_acceleration_limit": "NotImplementedError",
