@@ -27,6 +27,7 @@ class JointLimitError(Exception):
     pass
 
 
+
 class MotionPlanner:
     """
     High level motion planner to plan motions to goal transforms and configurations
@@ -39,45 +40,36 @@ class MotionPlanner:
 
 
     def reset(self):
+        self.options = self.store.get('/planner')
         # Init planners
         self.world = build_world(self.store)
         self.cspace = CSpace(self.world)
         self.se3space = SE3Space(self.world)
-        self.joint_planner = JointPlanner(self.cspace, store=self.store)
-        self.task_planner = TaskPlanner(self.se3space, store=self.store)
-        self.vmax_abs = self.cspace.robot.getVelocityLimits()
-        self.amax_abs = self.cspace.robot.getAccelerationLimits()
+        self.joint_planner = JointPlanner(self.cspace, store=self.store, options=self.options)
+        self.task_planner = TaskPlanner(self.se3space, store=self.store, options=self.options)
         self.plan = MotionPlan(self.cspace, store=self.store)
         # Update current config
         q0 = self.store.get('robot/current_config')
-        self.store.put('planner/current_config', q0)
+        self.options['current_config'] = q0
+        # self.store.put('planner/current_config', q0)
 
     def setState(self, state):
         logger.debug('Entering state {}'.format(state))
-        self.store.put('planner/current_state', state.lower())
+        self.options['current_state'] = state.lower()
+        # self.store.put('planner/current_state', state.lower())
 
     def addMilestone(self, milestone):
         self.plan.addMilestone(milestone)
         q = milestone.get_robot()
-        self.store.put('planner/current_config', q)
+        self.options['current_config'] = q
+        # self.store.put('planner/current_config', q)
 
     def addMilestones(self, milestones):
         self.plan.addMilestones(milestones)
         if len(milestones) != 0:
             q = milestones[-1].get_robot()
-            self.store.put('planner/current_config', q)
-
-    # def setVelocityLimits(self, vmax):
-    #     # Set only if does not exceed absolute limits
-    #     for i, (v, v_ceil) in enumerate(zip(vmax, self.vmax_abs)):
-    #         vmax[i] = v if v < v_ceil else v_ceil
-    #     self.robot.setVelocityLimits(vmax)
-
-    # def setAccelerationLimits(self, amax):
-    #     # Set only if does not exceed absolute limits
-    #     for i, (a, a_ceil) in enumerate(zip(amax, self.amax_abs)):
-    #         amax[i] = a if a < a_ceil else a_ceil
-    #     self.robot.setAccelerationLimits(amax)
+            self.options['current_config'] = q
+            # self.store.put('planner/current_config', q)
 
     def getCurrentConfig(self):
         if len(self.plan.milestones) == 0:
@@ -86,7 +78,7 @@ class MotionPlanner:
             return self.plan.milestones[-1].get_robot()
 
     def checkCurrentConfig(self, strict=True):
-        q0 = self.store.get('/planner/current_config')
+        q0 = self.options['current_config']
         feasible = self.cspace.feasible(q0)
         if not feasible:
             logger.error('Current configuration is infeasible')
@@ -109,12 +101,12 @@ class MotionPlanner:
         self.checkCurrentConfig()
 
         # Get settings
-        searchAngle = self.store.get('planner/states/picking/search_angle_increment', 10)
-        approachDistance = self.store.get('planner/states/picking/approach_distance', 0.05)
-        delay = self.store.get('planner/states/picking/delay', 1.5)
+        searchAngle = self.options['states']['picking']['search_angle_increment']
+        approachDistance = self.options['states']['picking']['approach_distance']
+        delay = self.options['states']['picking']['delay']
 
         # Determine pick pose
-        ee_local = self.store.get('planner/ee_local')
+        ee_local = self.options['ee_local']
         T_pick = list(numpy2klampt(klampt2numpy(T_item) * rpy(pi, 0, 0)))  # flip z
         R_ee = self._getEndEffectorRotation(T_pick[1])
         R_ee_normal = self._getRotationMatchingAxis(R_ee, T_pick[0], axis='z')
@@ -125,7 +117,7 @@ class MotionPlanner:
         logger.debug('Moving over item')
         state = 'idle'
         self.setState(state)
-        clearance_height = self.store.get(['planner', 'states', state, 'clearance_height'])
+        clearance_height = self.options['states'][state]['clearance_height']
         T_above = (R_ee, [T_item[1][0], T_item[1][1], clearance_height])
         milestones = self.planToTransform(T_above, name='pick_above')
         self.addMilestones(milestones)
@@ -152,9 +144,9 @@ class MotionPlanner:
 
         # Pick up
         logger.debug('Picking')
-        state = self.store.get('/planner/current_state')
-        delay = self.store.get(['planner', 'states', state, 'delay'])
-        vacuum = self.store.get(['planner', 'states', state, 'vacuum'])
+        state = self.options['current_state']
+        delay = self.options['states'][state]['delay']
+        vacuum = self.options['states'][state]['vacuum']
         self.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=vacuum))
 
         # Raise ee back to item normal
@@ -192,7 +184,7 @@ class MotionPlanner:
         logger.debug('Moving over item')
         state = 'carrying'
         self.setState(state)
-        clearance_height = self.store.get(['planner', 'states', state, 'clearance_height'])
+        clearance_height = self.options['states'][state]['clearance_height']
         T_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], clearance_height])
         milestones = self.planToTransform(T_above, name='stow_above')
         self.addMilestones(milestones)
@@ -207,8 +199,8 @@ class MotionPlanner:
         logger.debug('Placing')
         state = 'stowing'
         self.setState(state)
-        delay = self.store.get(['planner', 'states', state, 'delay'])
-        vacuum = self.store.get(['planner', 'states', state, 'vacuum'])
+        delay = self.options['states'][state]['delay']
+        vacuum = self.options['states'][state]['vacuum']
         self.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=vacuum))
 
         # Raise ee
@@ -219,14 +211,14 @@ class MotionPlanner:
         self.plan.put()
 
     def planToTransform(self, T, via=[], name=None):
-        if self.store.get('/planner/debug') and name:
+        if self.options['debug'] and name:
             self.store.put(['vantage', name], klampt2numpy(T))
 
         # Get inputs
-        state = self.store.get('/planner/current_state')
-        q0 = self.store.get('/planner/current_config')
-        space = self.store.get(['planner', 'states', state, 'planning_space'])
-        solvers = self.store.get(['planner', 'states', state, 'planning_solvers'])
+        state = self.options['current_state']
+        q0 = self.options['current_config']
+        space = self.options['states'][state]['planning_space']
+        solvers = self.options['states'][state]['planning_solvers']
 
         # Choose planner
         if space == 'joint':
@@ -240,7 +232,8 @@ class MotionPlanner:
         plan = MotionPlan(self.cspace, store=self.store)
         for Ti in via + [T]:
             for i, solver in enumerate(solvers):
-                self.store.put('/planner/current_solver', solver)
+                self.options['current_solver'] = solver
+                # self.store.put('/planner/current_solver', solver)
                 if space == 'task' and solver != 'nearby':
                     logger.warn('Task space with {} solver requested. Intentional?'.format(solver))
                 milestones = planner.planToTransform(Ti)
@@ -269,10 +262,10 @@ class MotionPlanner:
 
     def planToConfig(self, q, via=[]):
         # Get inputs
-        state = self.store.get('/planner/current_state')
-        q0 = self.store.get('/planner/current_config')
-        space = self.store.get(['planner', 'states', state, 'planning_space'])
-        solvers = self.store.get(['planner', 'states', state, 'planning_solvers'])
+        state = self.options['current_state']
+        q0 = self.options['current_config']
+        space = self.options['states'][state]['planning_space']
+        solvers = self.options['states'][state]['planning_solvers']
 
         # Choose planner
         if space == 'joint':
@@ -286,7 +279,8 @@ class MotionPlanner:
         plan = MotionPlan(self.cspace, store=self.store)
         for qi in via + [q]:
             for i, solver in enumerate(solvers):
-                self.store.put('/planner/current_solver', solver)
+                self.options['current_solver'] = solver
+                # self.store.put('/planner/current_solver', solver)
                 milestones = planner.planToConfig(qi)
                 # Update milestones, if found
                 if milestones is not None:
@@ -334,7 +328,8 @@ class MotionPlanner:
 
     def _fixWristFlip(self, T, T_failed):
         logger.warn('Detected possible wrist flip. Trying hack...')
-        self.store.put('/planner/current_solver', 'nearby')
+        # self.store.put('/planner/current_solver', 'nearby')
+        self.options['current_solver'] = 'nearby'
 
         # Plan until failed T
         plan = MotionPlan(self.cspace, store=self.store)
@@ -357,10 +352,14 @@ class LowLevelPlanner(object):
     Low level planner that solves for configurations and creates motion plans
     """
 
-    def __init__(self, world, store=None):
+    def __init__(self, world, store=None, options=None):
         self.world = world
         self.robot = self.world.robot('tx90l')
         self.store = store or PensiveClient().default()
+        self.options = options
+
+    def reset(self, options):
+        self.options = options
 
     # def planToTransform(self):
     #     raise NotImplementedError
@@ -376,9 +375,9 @@ class LowLevelPlanner(object):
         return self.solve(goal)
 
     def solve(self, goals):
-        solver = self.store.get('/planner/current_solver')
-        q0 = self.store.get('/planner/current_config')
-        eps = self.store.get('/planner/nearby_solver_tolerance', pi/8)
+        solver = self.options['current_solver']
+        q0 = self.options['current_config']
+        eps = self.options['nearby_solver_tolerance']
 
         # Solve
         if solver == 'local':
@@ -407,12 +406,14 @@ class JointPlanner(LowLevelPlanner):
     Planner that works in joint (configuration) space
     """
 
-    def __init__(self, space, store=None):
-        super(JointPlanner, self).__init__(space.world, store=store)
-        self.reset(space)
+    def __init__(self, space, store=None, options=None):
+        super(JointPlanner, self).__init__(space.world, store=store, options=options)
+        self.reset(space, options)
 
-    def reset(self, cspace):
+    def reset(self, cspace, options):
+        super(JointPlanner, self).reset(options)
         self.space = cspace
+        self.options = options
 
     def planToTransform(self, T):
         q0 = self.store.get('/planner/current_config')
@@ -424,13 +425,13 @@ class JointPlanner(LowLevelPlanner):
 
     def planToConfig(self, q):
         # Get inputs
-        state = self.store.get('/planner/current_state')
-        q0 = self.store.get('/planner/current_config')
-        freq = self.store.get('/planner/control_frequency')
-        profile = self.store.get('/planner/velocity_profile')
-        vmax = self.store.get(['planner', 'states', state, 'joint_velocity_limits'])
-        amax = self.store.get(['planner', 'states', state, 'joint_acceleration_limits'])
-        vacuum = self.store.get(['planner', 'states', state, 'vacuum'])
+        state = self.options['current_state']
+        q0 = self.options['current_config']
+        freq = self.options['control_frequency']
+        profile = self.options['velocity_profile']
+        vmax = self.options['states'][state]['joint_velocity_limits']
+        amax = self.options['states'][state]['joint_acceleration_limits']
+        vacuum = self.options['states'][state]['vacuum']
 
         # Calculate duration
         q = self.space.getGeodesic(q0, q)
@@ -458,12 +459,14 @@ class TaskPlanner(LowLevelPlanner):
     Planner that works in task (se3) space
     """
 
-    def __init__(self, se3space, store=None):
-        super(TaskPlanner, self).__init__(se3space.world, store=store)
-        self.reset(se3space)
+    def __init__(self, se3space, store=None, options=None):
+        super(TaskPlanner, self).__init__(se3space.world, store=store, options=options)
+        self.reset(se3space, options)
 
-    def reset(self, se3space):
+    def reset(self, se3space, options):
+        super(TaskPlanner, self).reset(options)
         self.space = se3space
+        self.options = options
         self.ee_link = self.robot.link(self.robot.numLinks() - 1)
         # self.vmax = 0.15
         # self.t_vmax, self.t_amax = 0.15, 0.15
@@ -472,12 +475,12 @@ class TaskPlanner(LowLevelPlanner):
 
     def planToTransform(self, T):
         # Get inputs
-        state = self.store.get('/planner/current_state')
-        q0 = self.store.get('/planner/current_config')
-        vmax = self.store.get(['planner', 'states', state, 'translation_velocity_limit'])
-        freq = self.store.get('/planner/control_frequency')
-        profile = self.store.get('/planner/velocity_profile')
-        vacuum = self.store.get(['planner', 'states', state, 'vacuum'])
+        state = self.options['current_state']
+        q0 = self.options['current_config']
+        vmax = self.options['states'][state]['translation_velocity_limit']
+        freq = self.options['control_frequency']
+        profile = self.options['velocity_profile']
+        vacuum = self.options['states'][state]['vacuum']
 
         if isinstance(T, np.ndarray):
             T = numpy2klampt(T)

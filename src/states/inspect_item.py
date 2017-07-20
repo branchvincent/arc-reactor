@@ -67,6 +67,7 @@ class InspectItem(State):
             #probability that the item we thought we picked is what we have
         print "affirmID ", self.affirmID
         self.nowItem = max(self.newItemIDs, key=lambda l: self.newItemIDs[l])
+        print "nowItem", self.nowItem
         self.nowID = self.newItemIDs[self.nowItem]*100
             #probability that the item we ID'd now is correct (ish)
         print "nowID ", self.nowID
@@ -158,21 +159,21 @@ class InspectItem(State):
         failed_grasps = self.store.get(['robot', 'failed_grasps'], [])
         target_grasp = self.store.get(['robot', 'target_grasp'])
 
-        logger.info('grasp succeeded at {}'.format(target_grasp['center']))
+        logger.info('successful grasp in {location} at {center}'.format(**target_grasp))
+
 
         tolerance = self.store.get('/planner/grasp_success_radius', 0.1)
-        i = 0
-        while i < len(failed_grasps):
-            grasp = failed_grasps[i]
 
+        remembered_grasps = []
+        for grasp in failed_grasps:
             distance = ((grasp['center'] - target_grasp['center'])**2).sum()**0.5
-            if distance < tolerance:
-                logger.info('grasp cleared at {}'.format(grasp['center']))
-                del failed_grasps[i]
-            else:
-                i += 1
 
-        self.store.put(['robot', 'failed_grasps'], failed_grasps)
+            if grasp['location'] == target_grasp['location'] and distance < tolerance:
+                logger.info('cleared grasp in {location} at {center} (age {age})'.format(**grasp))
+            else:
+                remembered_grasps.append(grasp)
+
+        self.store.put(['robot', 'failed_grasps'], remembered_grasps)
 
     def _combine_multi_detections(self):
         '''

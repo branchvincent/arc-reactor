@@ -12,7 +12,7 @@ import glob
 import time
 
 
-def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.7,pixel_length=0.002,rotate=False,stability=False,layer=False):
+def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pixel_length=0.002,rotate=False,stability=False,layer=False):
 
 
     """
@@ -104,7 +104,39 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.7,pi
         return (order, tool_location,-orientation-rotate_angle,layer_map)
 
     else:
-        return (None,None,None,layer_map)
+        print "Try placement without adding extra margin"
+
+        for order,depth_map in enumerate(depth_maps):
+            index,orientation,height,visualization,bin_layer_map=find_placement(order,depth_map,item,0,pixel_length,rotate,stability,layer,layer_map[order],max_height)
+
+            if height!=255:
+                orders.append(order)
+                z=height/255.0*max_height+item[2]+z_min
+                x=cornor_points[order][0]+index[0]*pixel_length
+                y=cornor_points[order][1]-index[1]*pixel_length
+                minimum_height.append(height)
+                visuals.append(visualization)
+                locations.append([x,y,z])
+                layer_map_candidates.append(bin_layer_map)
+                orientations.append(orientation)
+        if len(minimum_height)>0:
+            #get the placement that result in the lowest stack height
+            best_index=minimum_height.index(min(minimum_height))
+            location=locations[best_index]
+            orientation=orientations[best_index]
+            image_show=visuals[best_index]
+            layermap2update=layer_map_candidates[best_index]
+            order=orders[best_index]
+            layer_map[order]=layermap2update
+
+            tool_location=get_location(location,-orientation-rotate_angle,offset)
+
+            print (order, location,tool_location,-orientation-rotate_angle)
+
+            return (order, tool_location,-orientation-rotate_angle,layer_map)
+
+        else:
+            return (None,None,None,layer_map)
 
 def get_location(center,angle,offset):
     """
@@ -141,9 +173,9 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
     y_raw=pointcloud[:,1]
     z_raw=pointcloud[:,2]
 
-    x_filtered=reject_outliers(x_raw, m = 6)
-    y_filtered=reject_outliers(y_raw, m = 6)
-    z_filtered=reject_outliers(z_raw, m = 6)
+    x_filtered=reject_outliers(x_raw, m = 3.5)
+    y_filtered=reject_outliers(y_raw, m = 3.5)
+    z_filtered=reject_outliers(z_raw, m = 3.5)
 
     x_min=np.amin(x_filtered)
     x_max=np.amax(x_filtered)
@@ -183,18 +215,16 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
     center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
 
 
-    try:
-        image[int(center_rect[1])-3:int(center_rect[1])+3,int(center_rect[0])-3:int(center_rect[0])+3]=np.uint8(160)
-        image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
-        # cv2.imshow("object",image)
-        # k = cv2.waitKey(0)
-        # if k == 27:
-        #     cv2.destroyAllWindows()
+    # try:
+    #     image[int(center_rect[1])-3:int(center_rect[1])+3,int(center_rect[0])-3:int(center_rect[0])+3]=np.uint8(160)
+    #     image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
+    #     cv2.imshow("object",image)
+    #     k = cv2.waitKey(0)
+    #     if k == 27:
+    #         cv2.destroyAllWindows()
 
-    except:
-        print center_offset
-    print "dimension"
-    print z_max-z_min
+    # except:
+    #     print center_offset
 
     return ([dimension_rect[0]*pixel_length,dimension_rect[1]*pixel_length,z_max-z_min],center_offset,-rotation_rect)
 
@@ -225,7 +255,6 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
         increment = 10
 
 
-    fit=False
     exceed_height=True
     index=[]
     min_scores=[]
@@ -254,7 +283,6 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
             #get the maximum in each rolling window for height
             maxs = maxf2D(depth_rotated, size=(M,N))
             RW_max_H=maxs[M//2:(M//2)+P-M+1, N//2:(N//2)+Q-N+1]
-            fit=True
             score=RW_max_H.copy()
 
             if stability or layer:
@@ -266,7 +294,7 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
                 index_minH=unravel_index(RW_max_H.argmin(), RW_max_H.shape)
                 min_score=RW_max_H[index_minH[0]][index_minH[1]]
             H_min=RW_max_H[index_minH[0]][index_minH[1]]
-            if 255-H_min>item[2]/max_height*255:
+            if H_min<255:
                 exceed_height=False
                 if len(min_scores) == 0 or min_score<min(min_scores):
                     min_scores.append(min_score)
@@ -305,10 +333,8 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
 
     else:
         print "No placement for the item found"
-	if fit is False:
-	    print ('Item dimension exceeds the dimension of bin {}.' .format(order))
 	if exceed_height:
-            print ('Placement of the item will result in bin {} exceeding the max height.' .format(order))
+            print ('Item has a dimension greater than the dimension of bin {}.' .format(order))
 
 
 
@@ -348,7 +374,10 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
     y_min=min(BB[0][1], BB[1][1],BB[2][1], BB[3][1])
     y_max=max(BB[0][1], BB[1][1],BB[2][1], BB[3][1])
     z_min=min(BB[0][2], BB[1][2],BB[2][2], BB[3][2])
+    z_max=max(BB[0][2], BB[1][2],BB[2][2], BB[3][2])
 
+    if z_max+0.05>threshold:
+        threshold=z_max+0.05
     count=0
     num_pixels_X=int((x_max-x_min)/length_per_pixel)
     num_pixels_Y=int((y_max-y_min)/length_per_pixel)

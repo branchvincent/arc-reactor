@@ -4,6 +4,8 @@ from master.fsm import State
 
 from perception.interface import recognize_objects, ObjectRecognitionError, CommandTimeoutError
 
+from util import photo
+
 from .common import MissingPhotoError, MissingSegmentationError
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,8 @@ class RecognizePhoto(State):
         except (MissingPhotoError, MissingSegmentationError, MissingGraspLocationError, ObjectRecognitionError, CommandTimeoutError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception('photo recognition failed')
+            # HACK so we don't get stuck in a loop trying to recognize this photo again
+            self.store.put('/robot/target_photos', [])
         else:
             self.store.delete(['failure', self.getFullName()])
             self.store.put('/status/rp_done', False)
@@ -56,6 +60,7 @@ class RecognizePhoto(State):
             try:
                 locations.append(self.store.get(url + '/location', strict=True))
             except KeyError:
+                self.store.put(['failure', '{}_message'.format(self.getFullName())], photo.url2location_camera(url)[0])
                 raise MissingPhotoError(url)
 
             # check that segmentation is ready

@@ -231,7 +231,7 @@ def _load_vantage(store):
         zmax = max(bounds[0][2], bounds[1][2])
 
         # calculate transform
-        T = xyz(xmed, ymed - 0.025, zmax + 0.45) * rpy(0, 0, pi) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, pi/6, 0) * rpy(0, -0.2, 0) * rpy(0, pi/2, 0)
+        T = xyz(xmed, ymed - 0.025, zmax + 0.50) * rpy(0, 0, 0) * rpy(0, pi/2, 0) * rpy(pi/2, 0, 0) * rpy(0, -pi/6, 0) * rpy(0, +0.2, 0) * rpy(0, pi/2, 0)
         store.put(['vantage', bin_name], pose.dot(T))
 
     # # compute the order box vantage points

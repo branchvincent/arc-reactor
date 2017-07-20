@@ -18,13 +18,8 @@ class GraphSegmentationParams():
         self.A_weight = 1
         self.B_weight = 1
         self.depth_weight = 1
-
-        #filtering parameters for the mean shift filtering
-        self.sp_rad = 7     #spatial window radius
-        self.c_rad = 3     #color window radius
-
-        self.max_elements = 100000  #maximum number of elements a single object can have
-
+        self.isTote = True
+        self.isShelf = False
         self.mask = None            #mask used to block out unwanted points
 
 def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationParams()):
@@ -46,9 +41,6 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     #convert to LAB
     labcolor = cv2.cvtColor(fcolor, cv2.COLOR_RGB2LAB)
 
-    #mean shift filter to remove texture
-    labcolor = cv2.pyrMeanShiftFiltering(labcolor, params.sp_rad, params.c_rad)
-
     color_depth_image = np.zeros((imageH, imageW, 4))
     #fill the first three channels with the LAB image, 4th with depth, 5-7 normals
     color_depth_image[:,:,0:3] = labcolor
@@ -59,11 +51,9 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
         for i in range(color_depth_image.shape[2]):
             color_depth_image[:,:,i] = np.where(params.mask == 1, color_depth_image[:,:,i], 0)
 
-    color_depth_image[:,:,0:3] = cv2.GaussianBlur(color_depth_image[:,:,0:3],(0,0), params.sigma, params.sigma)
-
     #perform the graph segmentation
     gs = cv2.ximgproc.segmentation.createGraphSegmentation()
-    gs.setSigma(0.001)
+    gs.setSigma(params.sigma)
     gs.setK(params.k)
     gs.setMinSize(int(params.minSize))
 
@@ -77,9 +67,20 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     segments = []
     #extract the sub image for each label based on the minimum bounding rectangle
     imagesForDL = []
+
+    tote_mask = np.ones(fcolor.shape)
+    if params.isTote:
+        t = (labcolor - [80,175,175])
+        t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
+        tote_mask[:,:,0] = np.where(t2 < 50, 0, 1)
+        tote_mask[:,:,1] = np.where(t2 < 50, 0, 1)
+        tote_mask[:,:,2] = np.where(t2 < 50, 0, 1)
+    elif params.isShelf:
+        pass #TODO for shelf
+
     for i in range(numObj):
         #find element in labeled_image == i
-        dl_tuple = create_deep_learing_image(fcolor, labeled_image, i, True, False)
+        dl_tuple = create_deep_learing_image(fcolor, labeled_image, i, params.isTote, params.isShelf, tote_mask)
         if dl_tuple is None:
             continue
         else:
@@ -103,7 +104,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     return return_values
 
-def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf):
+def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf, tote_mask=None):
     '''
     Given a full color image, a labeled image, an index of the desired object,
     whether or not the tote appears in this image, and whether or not the shelf
@@ -120,16 +121,9 @@ def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf):
     mask=np.zeros_like(fullcolor)
     mask[indices[:,0],indices[:,1]]=1
 
-    labcolor = cv2.cvtColor(fullcolor, cv2.COLOR_RGB2LAB)
-    tote_mask = np.ones(labcolor.shape)
-    #remove pixels that are similar to the tote if requested
-    if isTote:
-        t = (labcolor - [80,175,175])
-        t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
-        tote_mask[:,:,0] = np.where(t2 < 50, 0, 1)
-        tote_mask[:,:,1] = np.where(t2 < 50, 0, 1)
-        tote_mask[:,:,2] = np.where(t2 < 50, 0, 1)
-
+    if tote_mask is None:
+        tote_mask = np.ones(fullcolor.shape)
+    
     masked=fullcolor*mask*tote_mask
 
     #coordinates of corners of the bounding box (unrotated)

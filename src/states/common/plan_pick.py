@@ -51,8 +51,6 @@ class PlanPickBase(State):
         # Check motion plan
         motion_plan = self.store.get('/robot/waypoints')
         if motion_plan is None:
-            failed_grasps = self.store.get('/grasp/failed_grasps', []) + [grasp]
-            self.store.put('/grasp/failed_grasps', failed_grasps)
             self.store.put(['failure', self.getFullName()], 'infeasible')
             self.setOutcome(False)
             logger.error('Failed to generate motion plan')
