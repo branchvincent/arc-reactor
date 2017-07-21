@@ -190,7 +190,7 @@ def acquire_images(list_of_urls, list_of_serial_nums):
                         if value == sn:
                             key = '/camera/' + value + "/connected"
                             store.put(key, False)
-
+                            
 
 def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls):
     '''
@@ -323,16 +323,14 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         store.put(url + '/bounds_mask', mask)
 
         #optimized params
-        seg_params.minSize = 3762.97
-        seg_params.k = 840.067
-        seg_params.c_rad = 7
-        seg_params.sigma = 1.8066
-        seg_params.sp_rad = 3
+        seg_params.minSize = 2000
+        seg_params.k = 1000
+        seg_params.sigma = .8066
 
-        seg_params.L_weight = 75.5078
-        seg_params.A_weight = 50.6409984
-        seg_params.B_weight = 57.456
-        seg_params.depth_weight = 17.838
+        seg_params.L_weight = 9
+        seg_params.A_weight = 9
+        seg_params.B_weight = 9
+        seg_params.depth_weight = 10
         seg_params.mask = mask
 
         #segment the image if it is not an inspection station
@@ -349,6 +347,12 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             else:
                 store.put(url + "DL_images", [dl_tuple[1]])
         else:
+            if location in ['binA','binB','binC']:
+                seg_params.isShelf = True
+                seg_params.isTote = False
+            else:
+                seg_params.isShelf = False
+                seg_params.isTote = True
             ret = segmentation.graphSegmentation(d_image, c_image, depth_in_3d_cam_local, seg_params)
             #write out results to database
             send_dict = {}
