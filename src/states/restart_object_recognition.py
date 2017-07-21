@@ -1,12 +1,8 @@
 import logging
 
-from time import sleep
-
 import subprocess
 
 from master.fsm import State
-
-from hardware.power import CameraPower, ConnectionError
 
 from util.process import kill_by_name
 
