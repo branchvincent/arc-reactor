@@ -413,8 +413,8 @@ def compile_theano_functions(net):
 def train_network(X_tr,y_tr,train_fn,val_fn,output_layer,
 lr1=.001,lr2=.0001,numepochs=20,annealpoint=10):
     BATCH_SIZE = 32
-    print("Epoch     Training Accuracy     Training Time ")
-    print("----------------------------------------------")
+    print("Epoch\t\t Training Accuracy\t\t Training Time ")
+    print("------------------------------------------------------")
     # generator splitting an iterable into chunks of maximum length N
     def batches(iterable, N):
         chunk = []
@@ -449,7 +449,7 @@ lr1=.001,lr2=.0001,numepochs=20,annealpoint=10):
             acc_tot += acc * len(chunk)
 
         acc_tot /= len(ix)
-        print(epoch, acc_tot * 100,time.time()-start)
+        print(epoch+"\t\t", acc_tot * 100 + s"\t\t",time.time()-start)
 
     dummy_dictionary=dict()
     dummy_dictionary['values']=lasagne.layers.get_all_param_values(output_layer)
