@@ -40,5 +40,8 @@ scipy
 # pyside        # manual install
 # pyopengl      # manual install
 
+# server restarts
+psutil
+
 # Python 3 compatibility
 future
