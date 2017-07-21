@@ -34,6 +34,7 @@ def select_grasp(pc,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThick
     angle: angle of rotation, in degrees
 
     """
+
     depth_map,corner=pc2depthmap(pc,length_per_pixel,threshold)
     all_Grasp=[]
     grasps_physical=[]
@@ -41,47 +42,55 @@ def select_grasp(pc,masks,image,gripperOpenning=0.125,gripperWidth=0.02,jawThick
     for mask_num,mask in enumerate(masks):
         img,segment_points,COG=mask2image(pc,mask,corner,depth_map,length_per_pixel,threshold)
         window_dimension=int(gripperOpenning/length_per_pixel/1.414)
+
+        # sample distance to be 1cm
         sampleDistance=int(0.01/length_per_pixel)
 
         check_depth=graspingDepth/threshold*255
         length_per_pixel_V=threshold/255
         length_per_pixel_H=length_per_pixel
         grasps=getgrasp(depth_map,img,segment_points,sampleDistance,window_dimension,check_depth,length_per_pixel_H,length_per_pixel_V,gripperWidth,jawThickness,external_L,external_W,mask_num)
+
         grasp_physical=getlocations(grasps,corner,length_per_pixel,threshold,COG)
         all_Grasp.append(grasps)
         grasps_physical.append(grasp_physical)
         show=depth_map.copy()*3
 
-    for i,grasps_mask in enumerate(all_Grasp):
-        for j,grasp in enumerate(grasps_mask):
-            cv2.line(show, (int(grasp[0][0]),int(grasp[0][1])), (int(grasp[1][0]),int(grasp[1][1])), 255)
-            grasp_info={'index':grasps_physical[i][j][8],'center':grasps_physical[i][j][0],'opening':grasps_physical[i][j][1],'tip_height':grasps_physical[i][j][2],'rotation':-grasps_physical[i][j][3],'score':grasps_physical[i][j][4],'max_Grasp_depth':grasps_physical[i][j][5],'distance_from_COG':grasps_physical[i][j][6],'Blockage_percent':grasps_physical[i][j][7]}
-            grasps_info.append(grasp_info)
-            print grasp_info
-            #cv2.imshow("Original", show)
-	    #cv2.imshow("color",image)
-            k = cv2.waitKey(0)
-            if k == 27:         # wait for ESC key to exit
-                cv2.destroyAllWindows()
-    #[(center_X,center_Y),openning,tip_height,rotation,score,max_Grasp_depth,distancefromCOG,blockage_percent]
+    # for i,grasps_mask in enumerate(all_Grasp):
+    #     for j,grasp in enumerate(grasps_mask):
+    #         show_new=show.copy()
+    #         cv2.line(show_new, (int(grasp[0][0]),int(grasp[0][1])), (int(grasp[1][0]),int(grasp[1][1])), 255)
+    #         grasp_info={'index':grasps_physical[i][j][8],'center':grasps_physical[i][j][0],'opening':grasps_physical[i][j][1],'tip_height':grasps_physical[i][j][2],'rotation':-grasps_physical[i][j][3],'score':grasps_physical[i][j][4],'max_Grasp_depth':grasps_physical[i][j][5],'distance_from_COG':grasps_physical[i][j][6],'Blockage_percent':grasps_physical[i][j][7],'Missing_readings':grasps_physical[i][j][9],'grasp_area':grasps_physical[i][j][10]}
+    #         grasps_info.append(grasp_info)
+    #         print grasp_info
+
+    #         cv2.imshow("Original", show_new)
+	#     #cv2.imshow("color",image)
+    #         k = cv2.waitKey(0)
+    #         if k == 27:         # wait for ESC key to exit
+    #             cv2.destroyAllWindows()
+
     return grasps_info
 def getlocations(grasps,corner,length_per_pixel,threshold,COG):
     grasp_list=[]
     for grasp in grasps:
-        pixel_top,pixel_bottom,rotation,max_Grasp_depth,tip_height,blockage_percent,mask_num=grasp
+        pixel_top,pixel_bottom,rotation,max_Grasp_depth,tip_height,blockage_percent,mask_num,missing_percent,contour_area=grasp
         center=(pixel_top+pixel_bottom)/2
         center_X=corner[0]-center[0]*length_per_pixel
         center_Y=corner[1]+center[1]*length_per_pixel
         distancefromCOG=math.sqrt((center_X-COG[0])**2+(center_Y-COG[1])**2)
         tip_height=tip_height*1.0/255*threshold
         max_Grasp_depth=max_Grasp_depth*1.0/255*threshold
-
+        #get contour area in cm squared
+        contour_area=contour_area*length_per_pixel**2*10000
         displacement=pixel_top-pixel_bottom
         openning=math.sqrt(displacement[0]**2+displacement[1]**2)*length_per_pixel
-        score=10-((blockage_percent-0.1)*10)**2-distancefromCOG*10
+        score=10-((blockage_percent-0.1)*15)**2-distancefromCOG*20-(missing_percent*4)**3
         if max_Grasp_depth<0.03:
             score-=((0.03-max_Grasp_depth)*150)**2
-        grasp_list.append([(center_X,center_Y),openning,tip_height,rotation,score,max_Grasp_depth,distancefromCOG,blockage_percent,mask_num])
+        if contour_area<8:
+            score-=((8-contour_area)/2)**3
+        grasp_list.append([(center_X,center_Y),openning,tip_height,rotation,score,max_Grasp_depth,distancefromCOG,blockage_percent,mask_num,missing_percent,contour_area])
 
     return grasp_list
 
@@ -112,18 +121,20 @@ def getgrasp(depth_map,img,segment_points,sampleDistance,window_dimension,check_
         for depth_evaluating in np.arange(min_height,max_height-increment,increment):
 
             #create a image where only points above certain height in a sliding window is visible
+            #add 20 pixels as a border(so that cv2 find contours work properly)
+            background=np.full((window_dimension+40,window_dimension+40),220,dtype="uint8")
             a=np.full((window_dimension,window_dimension),220,dtype="uint8")
             indices_window=(window > depth_evaluating).nonzero()
             a[indices_window]=np.uint8(60)
-
-            cnt_exist,contour=get_contour(a)
+            background[20:window_dimension+20,20:window_dimension+20]=a
+            cnt_exist,contour,contour_area=get_contour(background)
             if cnt_exist:
                 rect = cv2.minAreaRect(contour)
                 (center_x_window,center_y_window),(length_window,width_window),angle_window=rect
-                rect=((center_x_window+x_Start,center_y_window+y_Start),(length_window,width_window),angle_window)
-                grasp_found,pixel_top,pixel_bottom,rotation,max_Grasp_depth,blockage_percent=rate_grasp(depth_map,rect,depth_evaluating,length_per_pixel_H,length_per_pixel_V,gripperWidth,jawThickness,check_depth,external_L,external_W)
+                rect=((center_x_window+x_Start-20,center_y_window+y_Start-20),(length_window,width_window),angle_window)
+                grasp_found,pixel_top,pixel_bottom,rotation,max_Grasp_depth,blockage_percent,missing_percent=rate_grasp(depth_map,rect,depth_evaluating,length_per_pixel_H,length_per_pixel_V,gripperWidth,jawThickness,check_depth,external_L,external_W)
                 if grasp_found:
-                    grasps.append((pixel_top,pixel_bottom,rotation,max_Grasp_depth,depth_evaluating-max_Grasp_depth,blockage_percent,mask_num))
+                    grasps.append((pixel_top,pixel_bottom,rotation,max_Grasp_depth,depth_evaluating-max_Grasp_depth,blockage_percent,mask_num,missing_percent,contour_area))
     return grasps
 
 
@@ -220,11 +231,18 @@ def rate_grasp(depth_map,rect,depth,pixel_length_horizontal,pixel_length_vertica
                 if handle_top*handle_bottom>0:
 
                     max_Grasp_depth=min(max_graspDepth,depth-max(max(maxes[handle_top_bottom_index-int(0.007/pixel_length_horizontal):handle_top_bottom_index-int(0.002/pixel_length_horizontal)]),max(maxes[handle_index_bottom+int(0.002/pixel_length_horizontal):handle_index_bottom+int(0.007/pixel_length_horizontal)])))
-                    #max_Grasp_depth*=pixel_length_vertical
-
 
                     pixel_top_rotated=np.array([int(center_x),int(center_y-width/2-extend-int(0.005/pixel_length_horizontal)+handle_top_bottom_index)])
                     pixel_bottom_rotated=np.array([int(center_x),int(center_y-width/2-extend+int(0.005/pixel_length_horizontal)+handle_index_bottom)])
+
+                    #get the percentage of missing pixels in the neighbourhood of the grasp location
+                    num_missing_top=np.count_nonzero(rotated_map[pixel_top_rotated[1]-tip_width:pixel_top_rotated[1],pixel_top_rotated[0]-int(tip_length/2):pixel_top_rotated[0]+int(tip_length/2)]==0)
+                    num_missing_bottom=np.count_nonzero(rotated_map[pixel_bottom_rotated[1]:pixel_bottom_rotated[1]+tip_width,pixel_top_rotated[0]-int(tip_length/2):pixel_top_rotated[0]+int(tip_length/2)]==0)
+
+
+
+                    missing_percent=max(num_missing_top,num_missing_bottom)*1.0/(tip_width*tip_length)
+
 
                     blockage_percent=getblockage(rotated_map,max_withinfingers,(pixel_top_rotated+pixel_bottom_rotated)/2,pixel_length_horizontal,external_L,external_W)
                     displacement_top=np.array([0,pixel_top_rotated[1]-center_y])
@@ -235,10 +253,10 @@ def rate_grasp(depth_map,rect,depth,pixel_length_horizontal,pixel_length_vertica
                     pixel_top_original=np.array([center_x, center_y])+np.dot(displacement_top, M_inv)
                     pixel_bottom_original=np.array([center_x, center_y])+np.dot(displacement_bottom, M_inv)
 
-                    return (True,pixel_top_original,pixel_bottom_original,-rotation,max_Grasp_depth,blockage_percent)
+                    return (True,pixel_top_original,pixel_bottom_original,-rotation,max_Grasp_depth,blockage_percent,missing_percent)
 
 
-    return (False,None,None,None,None,None)
+    return (False,None,None,None,None,None,None)
 
 def getblockage(rotated_map,max_withinfingers,center,pixel_length,external_L,external_W):
     length=external_L/pixel_length
@@ -285,11 +303,13 @@ def get_contour(image):
 
     #save a copy of image after contour, we will later use to obtain all points enclosed in the contour
     cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)[1]
+    area=0
     if len(cnts)>0:
         isContour=True
 
         cnt=max(cnts,key=cv2.contourArea)
-    return (isContour,cnt)
+        area=cv2.contourArea(cnt)
+    return (isContour,cnt,area)
 
 def mask2image(pc,mask,corner,depth_map,length_per_pixel,threshold):
     """
@@ -381,7 +401,8 @@ def pc2depthmap(pointcloud,length_per_pixel,threshold):
         y=int((point[1]-y_min)/length_per_pixel)
 
         try:
-            depth_map[y][x]=max(depth_map[y][x],np.uint8(point[2]*1.00/threshold*255))
+            #make sure the minimum intensity is at least 1 to differentiate from the missing depth information
+            depth_map[y][x]=max(np.uint8(point[2]*1.00/threshold*255),np.uint8(1))
         except:
             continue
     #de-noise the raw depth map using median filter

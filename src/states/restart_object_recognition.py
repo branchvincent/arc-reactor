@@ -1,20 +1,16 @@
 import logging
 
-from time import sleep
-
 import subprocess
 
 from master.fsm import State
-
-from hardware.power import CameraPower, ConnectionError
 
 from util.process import kill_by_name
 
 logger = logging.getLogger(__name__)
 
-class PowerCycleCameras(State):
+class RestartObjectRecognition(State):
     '''
-    Power cycles the cameras.
+    Restart object recognition server.
 
     Inputs:
      - none
@@ -23,46 +19,39 @@ class PowerCycleCameras(State):
      - none
 
     Failures:
-     - ConnectionError: could not connect to Raspberry Pi
+     - none
 
     Dependencies:
      - none
     '''
 
     def run(self):
-        logger.info('power cycling the cameras')
+        logger.info('restarting object recognition')
 
         try:
 
             # kill camera server
-            if not kill_by_name('perception.cameraServer'):
+            if not kill_by_name('perception.objectRecognition'):
                 raise RuntimeError('could not kill server')
 
-            # power cycle cameras
-            cp = CameraPower(store=self.store)
-            cp.off()
-            sleep(self.store.get('/camera_power/wait', 1))
-            cp.on()
-            sleep(self.store.get('/camera_power/wait', 1))
-
             # restart camera server
-            subprocess.Popen(['./reactor3', 'shell', 'perception.cameraServer'])
+            subprocess.Popen(['./reactor3', 'shell', 'perception.objectRecognition'])
 
-        except (ConnectionError, RuntimeError) as e:
+        except (RuntimeError,) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
-            logger.exception('power cycling the cameras failed')
+            logger.exception('restarting object recognition failed')
         else:
             self.store.delete(['failure', self.getFullName()])
-            self.store.put('/status/pcc_done', True)
+            self.store.put('/status/rso_done', True)
             self.setOutcome(True)
 
-        logger.info('finished power cycling the cameras')
+        logger.info('finished restarting object recognition')
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
         if(self.whyFail is None or self.whyFail =="ConnectionError"):
             #check if we've just tried power cycling
-            check = self.store.get('/status/pcc_done', False)
+            check = self.store.get('/status/rso_done', False)
             if(check): #we've already tried this...just go on?
                 return 1
             else: #go to first fallback state. Power cycle cameras to try again
@@ -75,6 +64,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'pcc')
-    PCC = PowerCycleCameras(myname)
+    myname = (args.name or 'rso')
+    PCC = RestartObjectRecognition(myname)
     PCC.run()

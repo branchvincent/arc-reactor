@@ -10,6 +10,7 @@ from numpy import unravel_index
 import pcl
 import glob
 import time
+import pcl
 
 
 def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pixel_length=0.002,rotate=False,stability=False,layer=False):
@@ -64,7 +65,7 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
             layer_map.append([])
 
     for indice,bin in enumerate(bins):
-        depth_map,cornor_point,bin_layer_map,z_min=pc2depthmap(indice,bin,max_height,pixel_length,BBs[indice],layer_map[indice])
+        depth_map,cornor_point,bin_layer_map,z_min,z_max=pc2depthmap(indice,bin,max_height,pixel_length,BBs[indice],layer_map[indice])
         layer_map[indice]=bin_layer_map
         depth_maps.append(depth_map)
         cornor_points.append(cornor_point)
@@ -92,6 +93,8 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
         order=orders[best_index]
         layer_map[order]=layermap2update
 
+        #make sure the bottom of the object is less than 20cm away from the bottom of the bin
+
         tool_location=get_location(location,-orientation-rotate_angle,offset)
 
         print (order, location,tool_location,-orientation-rotate_angle)
@@ -104,7 +107,9 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
         return (order, tool_location,-orientation-rotate_angle,layer_map)
 
     else:
-        print "Try placement without adding extra margin"
+        print "Try placement with reduced dimension and remove margin"
+        item[0]=max(pixel_length,item[0]-0.01)
+        item[1]=max(pixel_length,item[1]-0.01)
 
         for order,depth_map in enumerate(depth_maps):
             index,orientation,height,visualization,bin_layer_map=find_placement(order,depth_map,item,0,pixel_length,rotate,stability,layer,layer_map[order],max_height)
@@ -129,9 +134,14 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
             order=orders[best_index]
             layer_map[order]=layermap2update
 
+
             tool_location=get_location(location,-orientation-rotate_angle,offset)
 
             print (order, location,tool_location,-orientation-rotate_angle)
+            # cv2.imshow("denoised",image_show*3)
+            # k = cv2.waitKey(0)
+            # if k == 27:         # wait for ESC key to exit
+            #     cv2.destroyAllWindows()
 
             return (order, tool_location,-orientation-rotate_angle,layer_map)
 
@@ -165,17 +175,19 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
     #use a hard threshold to filter out noises above the threshold
     #flatten and reshape the array to a list of points
     pointcloud=pointcloud.flatten()
-    pointcloud=np.reshape(pointcloud,(pointcloud.size/3,3))
+    pointcloud=np.reshape(pointcloud,(pointcloud.size/3,3)).astype(np.float32)
+    p=pcl.PointCloud(pointcloud)
+    fil = p.make_statistical_outlier_filter()
+    fil.set_mean_k (50)
+    fil.set_std_dev_mul_thresh (1.0)
+    pointcloud=fil.filter()
+    pointcloud=np.asarray(pointcloud)
     #get the boundary of the points in pointcloud's coordinate
 
     #filter the x and y readings of the pointcloud
-    x_raw=pointcloud[:,0]
-    y_raw=pointcloud[:,1]
-    z_raw=pointcloud[:,2]
-
-    x_filtered=reject_outliers(x_raw, m = 3.5)
-    y_filtered=reject_outliers(y_raw, m = 3.5)
-    z_filtered=reject_outliers(z_raw, m = 3.5)
+    x_filtered=pointcloud[:,0]
+    y_filtered=pointcloud[:,1]
+    z_filtered=pointcloud[:,2]
 
     x_min=np.amin(x_filtered)
     x_max=np.amax(x_filtered)
@@ -209,9 +221,9 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
     rect=cv2.minAreaRect(points2map_index)
     center_rect,dimension_rect,rotation_rect=rect
 
-    box = cv2.boxPoints(rect)
-    box = np.int0(box)
-    cv2.drawContours(image,[box],0,(0,0,255),2)
+    # box = cv2.boxPoints(rect)
+    # box = np.int0(box)
+    # cv2.drawContours(image,[box],0,(0,0,255),2)
     center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
 
 
@@ -303,7 +315,7 @@ def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,lay
                     #obtain a copy for visualization
                     copy=depth_rotated.copy()
                     layer_copy=layer_rotated.copy()
-                    copy[int(index_minH[0]):int(index_minH[0]+M),int(index_minH[1]):int(index_minH[1]+N)]=np.uint8(H_min+item[2]/pixel_length)
+                    copy[int(index_minH[0]):int(index_minH[0]+M),int(index_minH[1]):int(index_minH[1]+N)]=np.uint8(80)
                     layer_copy[int(index_minH[0]):int(index_minH[0]+M),int(index_minH[1]):int(index_minH[1]+N)]+=np.uint8(1)
                     layer_copies.append(layer_copy)
                     copies.append(copy)
@@ -416,12 +428,13 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
 
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,20,11,21)
+
     # cv2.imshow("bin",depth_map)
     # k = cv2.waitKey(0)
     # if k == 27:
     #     cv2.destroyAllWindows()
 
-    return (depth_map,(x_min,y_max),layer_map,z_min)
+    return (depth_map,(x_min,y_max),layer_map,z_min,z_max)
 
 def detect_local_minima(arr):
     # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710

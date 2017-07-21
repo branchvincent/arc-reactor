@@ -32,6 +32,13 @@ def _wait_for_url(store, url, timeout, dt=0.1):
         if timeout <= 0:
             raise CommandTimeoutError('command timed out')
 
+def _wait_while_url(store, url, timeout, dt=0.1):
+    while store.get(url, False):
+        sleep(dt)
+        timeout -= dt
+        if timeout <= 0:
+            raise CommandTimeoutError('command timed out')
+
 def initialize_cameras(serials):
     args = _build_command('update_cams')
     args += _build_args('-sn', serials)
@@ -54,9 +61,7 @@ def acquire_images(store, serials, photo_urls):
 
 def acquire_images_new(store, serials, photo_urls, timeout=5):
     # wait for prior acquisition to end
-    while store.get('/acquire_images/run', False):
-        logger.warn('waiting for acquire images idle')
-        sleep(0.5)
+    _wait_while_url(store, '/acquire_images/run', timeout)
 
     # update parameters
     store.put('/acquire_images/serial_numbers', serials)
@@ -92,9 +97,7 @@ def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
 
 def recognize_objects(store, photo_urls, locations, timeout=1):
     # wait for prior recognition to end
-    while store.put('/object_recognition/run', False):
-        logger.warn('waiting for object recognition idle')
-        sleep(0.5)
+    _wait_while_url(store, '/object_recognition/run', timeout)
 
     # update parameters
     store.put('/object_recognition/urls', photo_urls)

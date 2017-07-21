@@ -22,6 +22,7 @@ class GraphSegmentationParams():
         self.isShelf = False
         self.mask = None            #mask used to block out unwanted points
 
+
 def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationParams()):
     '''
     Takes in a depth image and full color image and returns a list of images
@@ -70,13 +71,17 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     tote_mask = np.ones(fcolor.shape)
     if params.isTote:
-        t = (labcolor - [80,175,175])
+        t = (labcolor - [80,175,175]) #TODO update these at competition
         t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
         tote_mask[:,:,0] = np.where(t2 < 50, 0, 1)
         tote_mask[:,:,1] = np.where(t2 < 50, 0, 1)
         tote_mask[:,:,2] = np.where(t2 < 50, 0, 1)
     elif params.isShelf:
-        pass #TODO for shelf
+        t = (labcolor - [140,140,160])#TODO update these at competition
+        t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
+        tote_mask[:,:,0] = np.where(t2 < 40, 0, 1)
+        tote_mask[:,:,1] = np.where(t2 < 40, 0, 1)
+        tote_mask[:,:,2] = np.where(t2 < 40, 0, 1)
 
     for i in range(numObj):
         #find element in labeled_image == i

@@ -9,6 +9,8 @@ import struct
 
 from os import environ
 
+import scipy.interpolate
+
 from pensive.client import PensiveClient
 
 GRIPPER_DEFAULT_PORT = 5004
@@ -36,6 +38,10 @@ class Gripper(object):
 
     def __init__(self, host=None, port=None, store=None):
         self._store = store or PensiveClient().default()
+
+        encoder = [6, 20, 40, 60, 81, 100, 120, 140, 161, 181, 202, 221, 240, 260, 280]
+        degrees = [-2, 5, 10, 16, 21, 29, 37, 45, 61, 67, 77, 80, 85, 87, 90]
+        self.swivel_calibration = scipy.interpolate.interp1d(degrees, encoder, kind='linear')
 
         if self._store.get('/simulate/gripper', True):
             self._socket = None
@@ -143,15 +149,15 @@ class Gripper(object):
             self._store.put('/gripper/close', swivel)
 
         if swivel is not None:
-            if swivel > 95 or swivel < -5:
-                raise RuntimeError('swivel is out of range [-5, 95]: {}'.format(swivel))
+            if swivel > 95 or swivel < 0:
+                raise RuntimeError('swivel is out of range [0, 95]: {}'.format(swivel))
 
-            q = int(round(swivel))
+            q = int(round(self.swivel_calibration(swivel)))
             logger.debug('gripper swivel: {}'.format(q))
 
             # check if real or simulated gripper
             if self._socket:
-                self._send_packet(1, SWIVEL_CONTROL, '!b', q)
+                self._send_packet(1, SWIVEL_CONTROL, '!i', q)
                 if self._recv_packet('!b')[0] != 1:
                     raise RuntimeError('gripper swivel failed')
 

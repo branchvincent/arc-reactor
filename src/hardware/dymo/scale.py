@@ -86,7 +86,7 @@ class Scale:
 
         # Calculate kg
         raw_weight = data[4] + data[5] * 256
-        scaling_factor = 0.01 #data[3]
+        scaling_factor = 0.1 #data[3]
         if data[2] == DATA_MODE_OUNCES:
             return (raw_weight * scaling_factor) * OUNCES_2_GRAMS/1000.
         elif data[2] == DATA_MODE_GRAMS:
