@@ -114,6 +114,13 @@ class EvaluatePlacement(State):
             logger.info('found placement in "{}"'.format(pack_location))
             logger.debug('position {}, rotation {}'.format(position, orientation))
 
+            # increase the placement by the offset
+            selected_item = self.store.get('/robot/selected_item')
+            placement_offset = self.store.get(['item', selected_item, 'placement_offset'])
+            if placement_offset is not None:
+                position[2] += placement_offset
+                logger.warn('using placement offset for "{}": {}'.format(selected_item, placement_offset))
+
             # transform placement into world coordinate system
             robot_pose_world = self.store.get('/robot/tcp_pose')
 
