@@ -61,7 +61,12 @@ class SelectItem(State):
 
             self.chosenGrasps = [l for l in self.grasps if self.store.get('/item/'+self._most_likely_item(l)+'/order') is not None]
 
-            self.maxGrasp = self.chosenGrasps[0]
+            try:
+                self.maxGrasp = self.chosenGrasps[0]
+            except IndexError as e:
+                self.store.put(['failure', self.getFullName()], "NoGraspsFound")
+                logger.exception('no more grasps to try')
+                self.setOutcome(False)
 
             print "max grasp is ", self.maxGrasp, " at ", self.maxGrasp['location']
             print "score of grasp is ", self.maxGrasp['score']
@@ -129,7 +134,7 @@ class SelectItem(State):
         if(self.whyFail is None):
             return 0
             #no failure detected, no suggestions!
-        elif(self.whyFail == "NoItemError"):
+        elif(self.whyFail == "NoGraspsFound"):
             return 1
             #go to first fallback state
         else:

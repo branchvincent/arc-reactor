@@ -45,4 +45,5 @@ class PlanStowBase(State):
             self.setOutcome(False)
         else:
             logger.info('Route generated')
+            self.store.put('/status/ppb_done', False)
             self.setOutcome(True)

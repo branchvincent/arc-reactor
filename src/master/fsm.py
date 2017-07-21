@@ -156,8 +156,8 @@ class StateMachine():
 
         self.pastEvents.append(self.current)
         self.pastStorage.append(histStore)
-        if(self.transitions[self.current].isFailure()):
-            self.failures.append(self.current)
+        #if(self.transitions[self.current].isFailure()):
+        #    self.failures.append(self.current)
 
     def getLast(self):
         lastEvent = self.pastEvents.pop()

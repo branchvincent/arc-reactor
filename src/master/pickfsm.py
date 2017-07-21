@@ -109,7 +109,7 @@ class PickStateMachine(StateMachine):
         self.setTransition('rp1', 'egvp', ['rp1', 'pvla', 'egvp'])
         self.setTransition('egvp', 'si', ['egvp', 'pvla', 'si'])
 
-        self.setTransition('si', 'ppo', ['pvla'], checkState='csi')
+        self.setTransition('si', 'ppo', ['pvla', 'pvla'], checkState='csi')
         self.setTransition('csi', 'ppo', ['si'])
 
         self.setTransition('ppo', 'er4', ['ppo', 'si'], checkState='cr4')
@@ -123,13 +123,13 @@ class PickStateMachine(StateMachine):
         self.setTransition('cr7', 'er7', ['pis'])
         self.setTransition('er7', 'cpi', ['pis', 'er7'])
 
-        self.setTransition('cpi', 'sp2', ['ii'])
+        self.setTransition('cpi', 'sp2', ['cpi', 'pcci', 'ii'])
         self.setTransition('sp2', 'rp2', ['sp2', 'cpi', 'rp2'])
         self.setTransition('rp2', 'ii', ['rp2', 'cpi', 'ii'])
         self.setTransition('ii', 'ep', ['ii', 'si'])
 
-        self.setTransition('ep', 'ppb', ['cpi'])
-        self.setTransition('ppb', 'er5', ['ep'], checkState='cr5')
+        self.setTransition('ep', 'ppb', ['ep', 'cpi', 'ii'])
+        self.setTransition('ppb', 'er5', ['ppb', 'ep'], checkState='cr5')
         self.setTransition('cr5', 'er5', ['ppb'])
         self.setTransition('er5', 'cpx', ['ppb', 'er5'])
 

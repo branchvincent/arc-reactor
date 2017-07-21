@@ -102,6 +102,8 @@ class StowStateMachine(StateMachine):
         self.setTransition('cpb', 'cps', ['cpb']) #TODO maybe revise which photos are segmented at the end
 
     def isDone(self):
+        return False
+
         #if all items stowed, all their point values are 0. Need to re-write
         self.value = 0
         for i, n in self.store.get('/item/').items():

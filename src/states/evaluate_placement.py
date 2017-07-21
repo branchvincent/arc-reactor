@@ -53,6 +53,7 @@ class EvaluatePlacement(State):
             logger.exception('placement finding failed')
         else:
             self.store.delete(['failure', self.getFullName()])
+            self.store.put('/status/ep_done', False)
             self.setOutcome(True)
 
         logger.info('finished placement evaluation')
@@ -64,6 +65,20 @@ class EvaluatePlacement(State):
             logger.info('database dump started')
             db.dump(self.store, '/tmp/placement-{}-{}'.format('-'.join(locations), suffix))
             logger.info('database dump completed')
+
+    def suggestNext(self):
+        self.whyFail = self.store.get(['failure', self.getFullName()])
+        if(self.whyFail is None or self.whyFail=="NoPlacementFound"):
+            check = self.store.get('/status/ep_done', False)
+            if(check):
+                return 2
+            else:
+                self.store.put('/status/ep_done', True)
+                return 0
+        elif(self.whyFail == "MissingPhotoError"):
+            return 1
+        else:
+            return 2
 
     def _handler(self, locations):
         # obtain item point cloud from inspection station in tool coordinates

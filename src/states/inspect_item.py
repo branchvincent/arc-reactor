@@ -72,6 +72,10 @@ class InspectItem(State):
             #probability that the item we ID'd now is correct (ish)
         print "nowID ", self.nowID
 
+        if(self.nowID==0):
+            self.store.put(['failure', self.getFullName()], "MissingID")
+            raise RuntimeError("No IDs returned")
+
         self.readWeight = abs(self.store.get('/scales/change'))
         if self.readWeight is not None:
             # compare to origItemID weight and then nowItem weight
@@ -148,7 +152,7 @@ class InspectItem(State):
         if(self.whyFail is None):
             return 0
             #no failure detected, no suggestions!
-        elif(self.whyFail == "NoItemError"):
+        elif(self.whyFail == "NoItemError" or self.whyFail=="MissingID"):
             return 1
             #go to first fallback state
         else:

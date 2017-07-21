@@ -77,8 +77,12 @@ class CapturePhotoBase(State):
         acquire_images(self.store, all_serials, all_photo_urls)
 
         # set up the target photos for later segmentation/recognition
-        prior_photo_urls = self.store.get('/robot/target_photos', [])
-        self.store.put('/robot/target_photos', prior_photo_urls + photo_urls)
+        #prior_photo_urls = self.store.get('/robot/target_photos', [])
+        for check_url in photo_urls:
+            if('box' not in check_url):
+                print "check url is ", check_url
+                prior_photo_urls = self.store.get('/robot/target_photos', [])
+                self.store.put('/robot/target_photos', prior_photo_urls + [check_url])
 
         # set up up target locations
         #self.store.put('/robot/target_location', locations[-1])
