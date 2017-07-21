@@ -1,0 +1,23 @@
+
+parents	-1 0 
+Tparent	1 0 0	0 1 0	0 0 1	0 0 0 \
+1 0 0	0 1 0	0 0 1	-0.0025142 0.35974 0.0195
+
+axis	1 0 0	0 0 -1	
+q	0 0 
+qmin	0 -1.57 
+qmax	0 0
+
+mass	0.52476 0.026239 
+geometry 	"base_link.tri" "vacuum_link.tri" 
+
+torquemax	0 0 
+velmax	0 0
+accmax	0 100
+
+servoP	100 
+servoI	0 
+servoD	10 
+
+dryFriction	0.3 
+viscousFriction	0.3 

@@ -3,7 +3,7 @@ from klampt.math import vectorops
 import math
 import logging; logger = logging.getLogger(__name__)
 
-DOF = { 'db': 7,
+DOF = { 'db': 8,
         'robot': 6,
         'vacuum': 2,
         'gripper': 1

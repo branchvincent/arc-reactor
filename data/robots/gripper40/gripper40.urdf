@@ -1,0 +1,99 @@
+<robot
+  name="gripper40">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.015234 0.14485 -0.0033374"
+        rpy="0 0 0" />
+      <mass
+        value="0.52476" />
+      <inertia
+        ixx="0.0082069"
+        ixy="-0.00037067"
+        ixz="-3.8269E-05"
+        iyy="0.00036421"
+        iyz="-0.00018426"
+        izz="0.0083159" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="base_link.stl" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="base_link.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="vacuum_link">
+    <inertial>
+      <origin
+        xyz="2.0356E-05 0.032584 -0.017519"
+        rpy="0 0 0" />
+      <mass
+        value="0.026239" />
+      <inertia
+        ixx="1.2865E-05"
+        ixy="-2.5108E-07"
+        ixz="4.0041E-07"
+        iyy="8.3467E-06"
+        iyz="3.7141E-07"
+        izz="7.7947E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="vacuum_link.stl" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="vacuum_link.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="vacuum_joint"
+    type="revolute">
+    <origin
+      xyz="-0.0025142 0.35974 0.0195"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="vacuum_link" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      effort="0"
+      velocity="0" />
+  </joint>
+</robot>

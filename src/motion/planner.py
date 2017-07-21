@@ -13,20 +13,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+EE_BASE_INDEX = 6
+VACUUM_INDEX = 7
+
 # TODO: for se3, scale t if out of a/v limits
 
-class InfeasibleGoalError(Exception):
-    pass
-
-
-class CollisionError(Exception):
-    pass
-
-
-class JointLimitError(Exception):
-    pass
-
-
+# class InfeasibleGoalError(Exception):
+#     pass
+# class CollisionError(Exception):
+#     pass
+# class JointLimitError(Exception):
+#     pass
 
 class MotionPlanner:
     """
@@ -35,21 +32,24 @@ class MotionPlanner:
 
     def __init__(self, store=None, world=None):
         self.store = store or PensiveClient().default()
+        logger.critical('Loading world...')
         self.world = world
+        logger.critical('World loaded')
         self.reset()
 
     def reset(self):
         self.options = self.store.get('/planner')
         # Init planners
         self.world = update_world(self.store, self.world)
-        self.cspace = CSpace(self.world)
-        self.se3space = SE3Space(self.world)
+        self.cspace = CSpace(self.world, store=self.store)
+        self.se3space = SE3Space(self.world, store=self.store)
         self.joint_planner = JointPlanner(self.cspace, store=self.store, options=self.options)
         self.task_planner = TaskPlanner(self.se3space, store=self.store, options=self.options)
         self.plan = MotionPlan(self.cspace, store=self.store)
         # Update current config
         q0 = self.store.get('robot/current_config')
         self.options['current_config'] = q0
+        self.store.delete('/planner/failure')
         # self.store.put('planner/current_config', q0)
 
     def setState(self, state):
@@ -110,49 +110,73 @@ class MotionPlanner:
         self.plan.put()
 
     def pick(self, T_item):
+        self.store.put('vantage/item', T_item)
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
         self.checkCurrentConfig()
+        T = self.task_planner.robot.link(VACUUM_INDEX).getTransform()
+        self.store.put('vantage/vacuum_link', klampt2numpy(T))
+        T2 = (T[0], se3.apply(T, self.options['ee_local']))
+        self.store.put('vantage/vacuum_centered', klampt2numpy(T2))
 
         # Get settings
         searchAngle = self.options['states']['picking']['search_angle_increment']
         approachDistance = self.options['states']['picking']['approach_distance']
+        retractDistance = self.options['states']['picking']['retract_distance']
         delay = self.options['states']['picking']['delay']
 
         # Determine pick pose
         ee_local = self.options['ee_local']
-        T_pick = list(numpy2klampt(klampt2numpy(T_item) * rpy(pi, 0, 0)))  # flip z
-        R_ee = self._getEndEffectorRotation(T_pick[1])
-        R_ee_normal = self._getRotationMatchingAxis(R_ee, T_pick[0], axis='z')
-        T_pick[0] = R_ee_normal
-        T_pick[1] = se3.apply(T_pick, [-i for i in ee_local])
+        T_item = list(numpy2klampt(klampt2numpy(T_item) * rpy(pi, 0, 0)))  # flip z
+        T_item_no_normal = (self._getRotationMatchingAxis(T_item[0], so3.identity(), axis='z'), T_item[1])
+        self.store.put('vantage/vacuum_item', klampt2numpy(T_item))
+        self.store.put('vantage/vacuum_abnormal', klampt2numpy(T_item_no_normal))
+
+        # R_ee = self._getEndEffectorRotation(T_item[1])
+        # R_ee_normal = self._getRotationMatchingAxis(R_ee, T_item[0], axis='z')
+        # T_pick[0] = R_ee_normal
+        # T_pick[1] = se3.apply(T_pick, [-i for i in ee_local])
+
+        local = [ee_local, vops.add(ee_local, [0,-1,0])]
+        world = [T_item[1], se3.apply(T_item, [0,0,1])]
+        world_no_normal = [T_item_no_normal[1], se3.apply(T_item_no_normal, [0,0,1])]
+        T_pick_normal = self._solveForVacuumTransform(local, world)
+        T_pick_no_normal = self._solveForVacuumTransform(local, world_no_normal)
+        T_pick = self._getFeasiblePickTransform(T_pick_normal, T_pick_no_normal, searchAngle, link_index=VACUUM_INDEX)
+        if T_pick is None:
+            self.plan.put(feasible=False)
+            exit()
+        T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
+        T_pick_departure = (T_pick[0], vops.add(T_pick[1], [0, 0, retractDistance]))
 
         # Move above item
         logger.debug('Moving over item')
         state = 'idle'
         self.setState(state)
         clearance_height = self.options['states'][state]['clearance_height']
-        T_above = (R_ee, [T_item[1][0], T_item[1][1], clearance_height])
-        milestones = self.planToTransform(T_above, name='pick_above')
+        # T_above = (R_ee, [T_item[1][0], T_item[1][1], clearance_height])
+        # milestones = self.planToTransform(T_above, name='pick_above')
+        T_above = T_pick_approach[:]; T_above[1][2] = clearance_height
+        milestones = self.planToTransform(T_above, link_index=VACUUM_INDEX, name='pick_above')
         self.addMilestones(milestones)
 
         # Move to item normal
         #TODO: bug when no feasible pick transform
         logger.debug('Descending to item normal')
         self.setState('picking_approach')
-        T_pick_no_normal = (R_ee, T_pick[1])
-        T_pick = self._getFeasiblePickTransform(T_pick, T_pick_no_normal, searchAngle)
-        if T_pick is None:
-            self.plan.put(feasible=False)
-            exit()
-        T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
-        milestones = self.planToTransform(T_pick_approach, name='pick_approach')
+        # T_pick_no_normal = (R_ee, T_pick[1])
+        # T_pick = self._getFeasiblePickTransform(T_pick, T_pick_no_normal, searchAngle, link_index=VACUUM_INDEX)
+        # if T_pick is None:
+        #     self.plan.put(feasible=False)
+        #     exit()
+        # T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
+        milestones = self.planToTransform(T_pick_approach, link_index=VACUUM_INDEX, name='pick_approach')
         self.addMilestones(milestones)
 
         # Lower ee
         logger.debug('Descending along normal')
         self.setState('picking')
-        milestones = self.planToTransform(T_pick, name='pick')
+        milestones = self.planToTransform(T_pick, link_index=VACUUM_INDEX, name='pick')
         self.addMilestones(milestones)
         self.store.put('/robot/target_grasp_xform', T_pick)
 
@@ -165,14 +189,13 @@ class MotionPlanner:
 
         # Raise ee back to item normal
         logger.debug('Ascending along normal')
-        t_departure = vops.add(T_pick[1], [0, 0, approachDistance])
-        milestones = self.planToTransform((T_pick[0], t_departure))
+        milestones = self.planToTransform(T_pick_departure, link_index=VACUUM_INDEX)
         self.addMilestones(milestones)
 
         # Raise ee
         logger.debug('Ascending back over item')
         self.setState('picking_retraction')
-        milestones = self.planToTransform(T_above)
+        milestones = self.planToTransform(T_above, link_index=VACUUM_INDEX)
         self.addMilestones(milestones)
         self.plan.put()
 
@@ -192,10 +215,11 @@ class MotionPlanner:
     def stow(self, T_stow):
         if isinstance(T_stow, np.ndarray):
             T_stow = numpy2klampt(T_stow)
+        logger.warning('Starting to plan...')
         self.checkCurrentConfig()
 
         # Move over stow location
-        logger.debug('Moving over item')
+        logger.debug('Moving over placement')
         state = 'carrying'
         self.setState(state)
         clearance_height = self.options['states'][state]['clearance_height']
@@ -218,13 +242,13 @@ class MotionPlanner:
         self.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=vacuum))
 
         # Raise ee
-        logger.debug('Ascending back over item')
+        logger.debug('Ascending back over placement')
         self.setState('stowing_retraction')
         milestones = self.planToTransform(T_above)
         self.addMilestones(milestones)
         self.plan.put()
 
-    def planToTransform(self, T, via=[], name=None):
+    def planToTransform(self, T, link_index=None, name=None):
         if self.options['debug'] and name:
             self.store.put(['vantage', name], klampt2numpy(T))
 
@@ -244,37 +268,37 @@ class MotionPlanner:
 
         # Plan
         plan = MotionPlan(self.cspace, store=self.store)
-        for Ti in via + [T]:
-            for i, solver in enumerate(solvers):
-                self.options['current_solver'] = solver
-                # self.store.put('/planner/current_solver', solver)
-                if space == 'task' and solver != 'nearby':
-                    logger.warn('Task space with {} solver requested. Intentional?'.format(solver))
-                milestones = planner.planToTransform(Ti)
-                # HACK: try again, assuming wrist flipped
-                # if milestones is None and space == 'task' and solver == 'nearby':
-                #     milestones = self._fixWristFlip(Ti, planner.T_failed)
-                # Update milestones, if found
-                if milestones is not None:
-                    plan.addMilestones(milestones)
-                    break
-                # Return, if all solvers failed
-                elif i == len(solvers) - 1:
-                    logger.error('Infeasible Goal Transform: {}'.format(Ti))
-                    self.store.put('vantage/infeasible', klampt2numpy(Ti))
-                    return None
-                else:
-                    logger.warning(
-                        'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i + 1]))
+        for i, solver in enumerate(solvers):
+            self.options['current_solver'] = solver
+            logger.debug('Trying to solve via {}'.format(solver))
+            # self.store.put('/planner/current_solver', solver)
+            if space == 'task' and solver != 'nearby':
+                logger.warn('Task space with {} solver requested. Intentional?'.format(solver))
+            milestones = planner.planToTransform(T, link_index=link_index)
+            # HACK: try again, assuming wrist flipped
+            if milestones is None and space == 'task' and solver == 'nearby':
+                milestones = self._fixWristFlip(T, planner.T_failed)
+            # Update milestones, if found
+            if milestones is not None:
+                plan.addMilestones(milestones)
+                break
+            # Return, if all solvers failed
+            elif i == len(solvers) - 1:
+                logger.error('Infeasible Goal Transform: {}'.format(T))
+                self.store.put('vantage/infeasible', klampt2numpy(T))
+                return None
+            else:
+                logger.warning(
+                    'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i + 1]))
         # Check feasibility
-        # if plan.feasible():
-        #     logger.debug('Created {} milestones'.format(len(plan.milestones)))
-        #     return plan.milestones
-        # else:
-        #     return None
-        return plan.milestones
+        if plan.feasible():
+            # logger.debug('Created {} milestones'.format(len(plan.milestones)))
+            return plan.milestones
+        else:
+            return None
+        # return plan.milestones
 
-    def planToConfig(self, q, via=[]):
+    def planToConfig(self, q):
         # Get inputs
         state = self.options['current_state']
         q0 = self.options['current_config']
@@ -291,30 +315,29 @@ class MotionPlanner:
 
         # Plan
         plan = MotionPlan(self.cspace, store=self.store)
-        for qi in via + [q]:
-            for i, solver in enumerate(solvers):
-                self.options['current_solver'] = solver
-                # self.store.put('/planner/current_solver', solver)
-                milestones = planner.planToConfig(qi)
-                # Update milestones, if found
-                if milestones is not None:
-                    plan.addMilestones(milestones)
-                    break
-                # Exit, if all solvers failed
-                elif i == len(solvers) - 1:
-                    logger.error(
-                        'Infeasible Goal Configuration: {}'.format(qi))
-                    return None
-                else:
-                    logger.warning(
-                        'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i + 1]))
+        for i, solver in enumerate(solvers):
+            self.options['current_solver'] = solver
+            # self.store.put('/planner/current_solver', solver)
+            milestones = planner.planToConfig(q)
+            # Update milestones, if found
+            if milestones is not None:
+                plan.addMilestones(milestones)
+                break
+            # Exit, if all solvers failed
+            elif i == len(solvers) - 1:
+                logger.error(
+                    'Infeasible Goal Configuration: {}'.format(q))
+                return None
+            else:
+                logger.warning(
+                    'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i + 1]))
         # Check feasibility
-        # if plan.feasible():
-        #     logger.debug('Created {} milestones'.format(len(plan.milestones)))
-        #     return plan.milestones
-        # else:
-        #     return None
-        return plan.milestones
+        if plan.feasible():
+            # logger.debug('Created {} milestones'.format(len(plan.milestones)))
+            return plan.milestones
+        else:
+            return None
+        # return plan.milestones
 
     def _getEndEffectorRotation(self, t):
         Rz = atan2(t[1], t[0]) - pi
@@ -329,16 +352,36 @@ class MotionPlanner:
         Rf = so3.vector_rotation(v, vm)
         return so3.mul(Rf, R)
 
-    def _getFeasiblePickTransform(self, T_pick_normal, T_pick_no_normal, searchAngle):
+    def _getFeasiblePickTransform(self, T_pick_normal, T_pick_no_normal, searchAngle, link_index=None):
+        if T_pick_normal is None and T_pick_no_normal is None:
+            return None
+        elif T_pick_normal is None:
+            return T_pick_no_normal
+        else:
+            return T_pick_normal
+
         d = so3.distance(T_pick_normal[0], T_pick_no_normal[0])
         numAttempts = 2 + ceil(d/radians(searchAngle))
         T_pick_attempts = [se3.interpolate(T_pick_normal, T_pick_no_normal, u) for u in np.linspace(0, 1, numAttempts)]
         for i, Ti in enumerate(T_pick_attempts):
             logger.debug('Trying normal interpolation {} of {}'.format(i + 1, numAttempts))
-            milestones = self.planToTransform(Ti)
+            milestones = self.planToTransform(Ti, link_index=link_index)
             if milestones is not None:
                 return Ti
         return None
+
+    def _solveForVacuumTransform(self, lp, wp, solvers=['local', 'global']):
+        # Try all solvers
+        for solver in solvers:
+            self.options['current_solver'] = solver
+            q = self.task_planner.solveForConfig(local=lp, world=wp, link_index=VACUUM_INDEX)
+            if q is not None:
+                break
+        if q is None:
+            return None
+        else:
+            self.task_planner.robot.setConfig(q)
+            return self.task_planner.robot.link(VACUUM_INDEX).getTransform()
 
     def _fixWristFlip(self, T, T_failed):
         logger.warn('Detected possible wrist flip. Trying hack...')
@@ -367,9 +410,9 @@ class LowLevelPlanner(object):
     """
 
     def __init__(self, world, store=None, options=None):
+        self.store = store or PensiveClient().default()
         self.world = world
         self.robot = self.world.robot('tx90l')
-        self.store = store or PensiveClient().default()
         self.options = options
 
     def reset(self, options):
@@ -380,12 +423,19 @@ class LowLevelPlanner(object):
     # def planToConfig(self):
     #     raise NotImplementedError
 
-    def solveForConfig(self, T):
+    def solveForConfig(self, T=None, link_index=None, local=None, world=None):
         """Solves for desired configuration to reach the specified end effector transform"""
-        if isinstance(T, np.ndarray):
-            T = numpy2klampt(T)
-        ee_link = self.robot.link(self.robot.numLinks() - 1)
-        goal = ik.objective(ee_link, R=T[0], t=T[1])
+        link_index = link_index or EE_BASE_INDEX
+        link = self.robot.link(link_index)
+
+        if T is not None:
+            if isinstance(T, np.ndarray):
+                T = numpy2klampt(T)
+            goal = ik.objective(link, R=T[0], t=T[1])
+        elif (local is not None) and (world is not None):
+            goal = ik.objective(link, local=local, world=world)
+        else:
+            raise RuntimeError('Must specify T or lp and wp')
         return self.solve(goal)
 
     def solve(self, goals):
@@ -429,9 +479,9 @@ class JointPlanner(LowLevelPlanner):
         self.space = cspace
         self.options = options
 
-    def planToTransform(self, T):
+    def planToTransform(self, T, link_index=None):
         q0 = self.store.get('/planner/current_config')
-        q = self.solveForConfig(T)
+        q = self.solveForConfig(T, link_index=link_index)
         if q is None:
             return None
         else:
@@ -487,7 +537,7 @@ class TaskPlanner(LowLevelPlanner):
         # self.R_vmax, self.t_amax = pi / 4, pi / 4
         self.T_failed = None
 
-    def planToTransform(self, T):
+    def planToTransform(self, T, link_index=None):
         # Get inputs
         state = self.options['current_state']
         q0 = self.options['current_config']
@@ -516,7 +566,7 @@ class TaskPlanner(LowLevelPlanner):
         numMilestones = int(ceil(tf * freq))
         for t in np.linspace(dt, tf, numMilestones):
             Ti = self.space.interpolate(T0, T, t, tf, profile=profile)
-            q = self.solveForConfig(Ti)
+            q = self.solveForConfig(Ti, link_index=link_index)
             if q is None:
                 self.T_failed = Ti
                 self.store.put('vantage/failed', klampt2numpy(self.T_failed))
@@ -547,7 +597,6 @@ class MotionPlan:
 
     def reset(self):
         self.milestones = []
-        # self.failed_milestones = []
 
     def feasible(self):
         for milestone in self.milestones:
@@ -611,7 +660,8 @@ class CSpace:
     A configuration space used to determine feasible configurations
     """
 
-    def __init__(self, world):
+    def __init__(self, world, store=None):
+        self.store = store or PensiveClient().default()
         self.world = world
         self.robot = world.robot('tx90l')
         self.collider = WorldCollider(world)
@@ -712,7 +762,8 @@ class CSpace:
         for i, (qi, qli, qui) in enumerate(zip(q, ql, qu)):
             if not (qli <= qi <= qui):
                 logger.error(
-                    'Joint Limit Error: joint {} not in [{}, {}]'.format(i, qli, qui)),
+                    'Joint Limit Error: joint {} not in [{}, {}]'.format(i, qli, qui))
+                self.store.put('planner/failure', 'exceeded_joint_limits')
                 return False
         return True
 
@@ -721,6 +772,7 @@ class CSpace:
         self.robot.setConfig(q)
         if self.robot.selfCollides():
             logger.error('Collision Error: robot colliding with self')
+            self.store.put('planner/failure', 'self_collision')
             return False
         return True
 
@@ -733,6 +785,7 @@ class CSpace:
                 name = self.world.rigidObject(o).getName()
                 logger.error(
                     'Collision Error: robot colliding with {}'.format(name))
+                self.store.put('planner/failure', 'environment_collision')
                 return False
         # Check terrain collisions
         for o in xrange(self.world.numTerrains()):
@@ -740,6 +793,7 @@ class CSpace:
                 name = self.world.terrain(o).getName()
                 logger.error(
                     'Collision Error: robot colliding with {}'.format(name))
+                self.store.put('planner/failure', 'environment_collision')
                 return False
         return True
 
@@ -749,7 +803,8 @@ class SE3Space:
     An SE3 space used to plan cartesian movements
     """
 
-    def __init__(self, world):
+    def __init__(self, world, store=None):
+        self.store = store or PensiveClient().default()
         self.world = world
         self.robot = world.robot('tx90l')
 
