@@ -2,12 +2,13 @@ import logging
 
 from time import sleep
 
-import psutil
 import subprocess
 
 from master.fsm import State
 
 from hardware.power import CameraPower, ConnectionError
+
+from util.process import kill_by_name
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +35,8 @@ class PowerCycleCameras(State):
         try:
 
             # kill camera server
-            found = False
-            for process in psutil.process_iter():
-                if 'cameraServer' in process.name():
-                    process.kill()
-                    logger.info('killed camera server: {}'.format(process.pid()))
-                    found = True
-
-            if not found:
-                logger.warn('did not find camera server')
+            if not kill_by_name('perception.cameraServer'):
+                raise RuntimeError('could not kill server')
 
             # power cycle cameras
             cp = CameraPower(store=self.store)
@@ -54,7 +48,7 @@ class PowerCycleCameras(State):
             # restart camera server
             subprocess.Popen(['./reactor3', 'shell', 'perception.cameraServer'])
 
-        except (ConnectionError,) as e:
+        except (ConnectionError, RuntimeError) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception('power cycling the cameras failed')
         else:
