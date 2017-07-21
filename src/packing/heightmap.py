@@ -12,6 +12,7 @@ import glob
 import time
 import pcl
 
+
 def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pixel_length=0.002,rotate=False,stability=False,layer=False):
 
 
@@ -94,10 +95,6 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
 
         #make sure the bottom of the object is less than 20cm away from the bottom of the bin
 
-        if location[2]>z_min+item[2]+0.20:
-            print "Packing height too high, lower the object"
-            location[2]=z_min+item[2]+0.20
-
         tool_location=get_location(location,-orientation-rotate_angle,offset)
 
         print (order, location,tool_location,-orientation-rotate_angle)
@@ -136,10 +133,6 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
             layermap2update=layer_map_candidates[best_index]
             order=orders[best_index]
             layer_map[order]=layermap2update
-
-            if location[2]>z_min+item[2]+0.20:
-                print "Packing height too high, lower the object"
-                location[2]=z_min+item[2]+0.20
 
 
             tool_location=get_location(location,-orientation-rotate_angle,offset)
@@ -228,9 +221,9 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
     rect=cv2.minAreaRect(points2map_index)
     center_rect,dimension_rect,rotation_rect=rect
 
-    box = cv2.boxPoints(rect)
-    box = np.int0(box)
-    cv2.drawContours(image,[box],0,(0,0,255),2)
+    # box = cv2.boxPoints(rect)
+    # box = np.int0(box)
+    # cv2.drawContours(image,[box],0,(0,0,255),2)
     center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
 
 
