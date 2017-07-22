@@ -105,6 +105,7 @@ class FrontPanel(QMainWindow):
             'object_detection',
             'scales',
             'vacuum',
+            'gripper',
         ]
         self.simulations = self._make_path_map(simulation_keys)
         self._load_toggle_list('/simulate/', self.simulations, self.ui.simulationLayout)
