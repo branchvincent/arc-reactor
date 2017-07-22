@@ -132,22 +132,9 @@ class MotionPlanner:
         self.store.put('vantage/vacuum_item', klampt2numpy(T_item))
         self.store.put('vantage/vacuum_abnormal', klampt2numpy(T_item_no_normal))
 
-        # R_ee = self._getEndEffectorRotation(T_item[1])
         # R_ee_normal = self._getRotationMatchingAxis(R_ee, T_item[0], axis='z')
         # T_pick[0] = R_ee_normal
         # T_pick[1] = se3.apply(T_pick, [-i for i in ee_local])
-
-        local = [ee_local, vops.add(ee_local, [0,-1,0])]
-        world = [T_item[1], se3.apply(T_item, [0,0,1])]
-        world_no_normal = [T_item_no_normal[1], se3.apply(T_item_no_normal, [0,0,1])]
-        T_pick_normal = self._solveForVacuumTransform(local, world)
-        T_pick_no_normal = self._solveForVacuumTransform(local, world_no_normal)
-        T_pick = self._getFeasiblePickTransform(T_pick_normal, T_pick_no_normal, searchAngle, link_index=VACUUM_INDEX)
-        if T_pick is None:
-            self.plan.put(feasible=False)
-            exit()
-        T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
-        T_pick_departure = (T_pick[0], vops.add(T_pick[1], [0, 0, retractDistance]))
 
         # Move above item
         logger.debug('Moving over item')
@@ -156,9 +143,24 @@ class MotionPlanner:
         clearance_height = self.options['states'][state]['clearance_height']
         # T_above = (R_ee, [T_item[1][0], T_item[1][1], clearance_height])
         # milestones = self.planToTransform(T_above, name='pick_above')
-        T_above = T_pick_approach[:]; T_above[1][2] = clearance_height
-        milestones = self.planToTransform(T_above, link_index=VACUUM_INDEX, name='pick_above')
+        T_above = ((self._getEndEffectorRotation(T_item[1]), (T_item[0], T_item[1], clearance_height))
+        # T_above = T_pick_approach[:]; T_above[1][2] = clearance_height
+        milestones = self.planToTransform(T_above, name='pick_above')
         self.addMilestones(milestones)
+
+        local = [ee_local, vops.add(ee_local, [0,-1,0])]
+        world = [T_item[1], se3.apply(T_item, [0,0,1])]
+        # local2 = [[0,0,0], [0,0,1]]
+        # world2 = [, se3.apply(T_item, [0,0,1])]
+        world_no_normal = [T_item_no_normal[1], se3.apply(T_item_no_normal, [0,0,1])]
+        T_pick_normal = self._solveForVacuumTransform(VACUUM_INDEX, local, world)
+        T_pick_no_normal = self._solveForVacuumTransform(VACUUM_INDEX, local, world_no_normal)
+        T_pick = self._getFeasiblePickTransform(T_pick_normal, T_pick_no_normal, searchAngle, link_index=VACUUM_INDEX)
+        if T_pick is None:
+            self.plan.put(feasible=False)
+            exit()
+        T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
+        T_pick_departure = (T_pick[0], vops.add(T_pick[1], [0, 0, retractDistance]))
 
         # Move to item normal
         #TODO: bug when no feasible pick transform
@@ -270,7 +272,7 @@ class MotionPlanner:
         plan = MotionPlan(self.cspace, store=self.store)
         for i, solver in enumerate(solvers):
             self.options['current_solver'] = solver
-            logger.debug('Trying to solve via {}'.format(solver))
+            # logger.debug('Trying to solve via {}'.format(solver))
             # self.store.put('/planner/current_solver', solver)
             if space == 'task' and solver != 'nearby':
                 logger.warn('Task space with {} solver requested. Intentional?'.format(solver))
@@ -370,11 +372,17 @@ class MotionPlanner:
                 return Ti
         return None
 
-    def _solveForVacuumTransform(self, lp, wp, solvers=['local', 'global']):
+    def _solveForVacuumTransform(self, link1_index, lp1, wp1, link2_index=None, lp2=None, wp2=None, solvers=['local', 'global']):
         # Try all solvers
+        link1 = self.task_planner.robot.link(link1_index)
         for solver in solvers:
             self.options['current_solver'] = solver
-            q = self.task_planner.solveForConfig(local=lp, world=wp, link_index=VACUUM_INDEX)
+            goals = []
+            goals.append(ik.objective(link1, local=lp1, world=wp1))
+            if (lp2 is not None and wp2 is not None):
+                link2 = self.task_planner.robot.link(link2_index)
+                goals.append(ik.objective(link2, local=lp2, world=wp2))
+            q = self.task_planner.solve(goals)
             if q is not None:
                 break
         if q is None:
@@ -442,6 +450,7 @@ class LowLevelPlanner(object):
         solver = self.options['current_solver']
         q0 = self.options['current_config']
         eps = self.options['nearby_solver_tolerance']
+        self.robot.setConfig(q0)
 
         # Solve
         if solver == 'local':
@@ -550,8 +559,9 @@ class TaskPlanner(LowLevelPlanner):
             T = numpy2klampt(T)
 
         # Calculate duration
+        link_index = link_index or EE_BASE_INDEX
         self.robot.setConfig(q0)
-        T0 = self.ee_link.getTransform()
+        T0 = self.robot.link(link_index).getTransform()
         # tf = self.space.getMinPathTime(T0, T, profile=self.profile)
         # add extra second for ramp up/down
         tf = vops.distance(T0[1], T[1]) / vmax
