@@ -101,7 +101,12 @@ class SelectItem(State):
 
             self.grasps.sort(key=lambda l: -l['score'])
 
-            self.maxGrasp = self.grasps[0]
+            try:
+                self.maxGrasp = self.grasps[0]
+            except IndexError as e:
+                self.store.put(['failure', self.getFullName()], "NoGraspsFound")
+                logger.exception('no more grasps to try')
+                self.setOutcome(False)
 
             print "max grasp is ", self.maxGrasp, " at ", self.maxGrasp['location']
             print "score of grasp is ", self.maxGrasp['score']

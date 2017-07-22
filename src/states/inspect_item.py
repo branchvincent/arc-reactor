@@ -50,7 +50,9 @@ class InspectItem(State):
         # NOTE: recommended usage of multiple detections
         try:
             self.newItemIDs = self._combine_multi_detections()
+            self.store.put('/debug/detections_combo', self.newItemIDs)
             self.newItemIDs = self._filter_by_mass_absolute_error(self.newItemIDs)
+            self.store.put('/debug/detections_mass', self.newItemIDs)
         except (InconsistentItemsError, MissingDetectionsError):
             logger.exception('detections failed at inspection station -> defaulting to original')
             self.newItemIDs = {self.origItem: 1}
@@ -75,77 +77,78 @@ class InspectItem(State):
         if(self.nowID==0):
             self.store.put(['failure', self.getFullName()], "MissingID")
             raise RuntimeError("No IDs returned")
-
-        self.readWeight = abs(self.store.get('/scales/change'))
-        if self.readWeight is not None:
-            # compare to origItemID weight and then nowItem weight
-            self.origItemWeight = self.store.get('/item/'+self.origItem+'/mass')
-            print "origWeight ", self.origItemWeight
-            self.nowItemWeight = self.store.get('/item/'+self.nowItem+'/mass')
-            print "nowItemWeight ", self.nowItemWeight
-
-            # smaller value is better (closest to expect item value)
-            self.origWeightError = abs(self.origItemWeight-self.readWeight)/self.origItemWeight
-            self.nowWeightError = abs(self.nowItemWeight - self.readWeight)/self.nowItemWeight
-
-        else: # don't consider weight a factor
-            self.origWeightError = 0
-            self.nowWeightError = 0
-
-        print "origWeightError ", self.origWeightError
-        print "nowWeightError ", self.nowWeightError
-
-        if(self.origItem == self.nowItem):
-                self.likelyItem = self.origItem
-                print "ID'd correct item originally"
         else:
-            if(self.affirmID-self.origWeightError > self.nowID-self.nowWeightError):
-                self.likelyItem = self.origItem
-                print "going with the first ID"
+
+            self.readWeight = abs(self.store.get('/scales/change'))
+            if self.readWeight is not None:
+                # compare to origItemID weight and then nowItem weight
+                self.origItemWeight = self.store.get('/item/'+self.origItem+'/mass')
+                print "origWeight ", self.origItemWeight
+                self.nowItemWeight = self.store.get('/item/'+self.nowItem+'/mass')
+                print "nowItemWeight ", self.nowItemWeight
+
+                # smaller value is better (closest to expect item value)
+                self.origWeightError = abs(self.origItemWeight-self.readWeight)/self.origItemWeight
+                self.nowWeightError = abs(self.nowItemWeight - self.readWeight)/self.nowItemWeight
+
+            else: # don't consider weight a factor
+                self.origWeightError = 0
+                self.nowWeightError = 0
+
+            print "origWeightError ", self.origWeightError
+            print "nowWeightError ", self.nowWeightError
+
+            if(self.origItem == self.nowItem):
+                    self.likelyItem = self.origItem
+                    print "ID'd correct item originally"
             else:
-                self.likelyItem = self.nowItem
-                print "going with new ID"
+                if(self.affirmID-self.origWeightError > self.nowID-self.nowWeightError):
+                    self.likelyItem = self.origItem
+                    print "going with the first ID"
+                else:
+                    self.likelyItem = self.nowItem
+                    print "going with new ID"
 
-        self.itemisright = (self.likelyItem == self.origItem)
-        print "likelyItem is ", self.likelyItem
+            self.itemisright = (self.likelyItem == self.origItem)
+            print "likelyItem is ", self.likelyItem
 
-        task = self.store.get('/robot/task')
-        if task is None:
-            self.setOutcome(False)
-            raise RuntimeError("No task defined")
+            task = self.store.get('/robot/task')
+            if task is None:
+                self.setOutcome(False)
+                raise RuntimeError("No task defined")
 
-        elif(self.readWeight<0.005):
-            self.setOutcome(False)
-            self.store.put(['failure', self.getFullName()], "NoItemError")
-            logger.error('Likely nothing was picked up: no weight change detected.')
+            elif(self.readWeight<0.005):
+                self.setOutcome(False)
+                self.store.put(['failure', self.getFullName()], "NoItemError")
+                logger.error('Likely nothing was picked up: no weight change detected.')
 
-        elif task == 'stow':
-            self.setOutcome(True)
-            self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
-            self.store.put('/robot/selected_item', self.likelyItem)
-            self._mark_grasp_succeeded()
-
-        elif task == 'pick':
-
-            if(self.itemisright and self.store.get('/item/'+self.likelyItem+'/order') is not None): #proceeding to order box
-                self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
-                self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
-                self.store.put('/robot/target_box', self.store.get('/robot/selected_box'))
+            elif task == 'stow':
                 self.setOutcome(True)
-            elif(self.store.get('/item/'+self.likelyItem+'/order') is not None): #fills an order
+                self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
                 self.store.put('/robot/selected_item', self.likelyItem)
-                self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
-                self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
-                self.setOutcome(True)
-            else: # go to amnesty tote
-                self.store.put('/robot/selected_item', self.likelyItem)
-                self.store.put('/robot/target_locations', ['box1B2'])
-                self.store.put('/robot/target_box', 'box1B2')
-                self.store.put('/robot/selected_box', 'box1B2')
-        #                self.setOutcome(False)
-                self.setOutcome(True)
+                self._mark_grasp_succeeded()
 
-            self._mark_grasp_succeeded()
+            elif task == 'pick':
+
+                if(self.itemisright and self.store.get('/item/'+self.likelyItem+'/order') is not None): #proceeding to order box
+                    self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
+                    self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
+                    self.store.put('/robot/target_box', self.store.get('/robot/selected_box'))
+                    self.setOutcome(True)
+                elif(self.store.get('/item/'+self.likelyItem+'/order') is not None): #fills an order
+                    self.store.put('/robot/selected_item', self.likelyItem)
+                    self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
+                    self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
+                    self.setOutcome(True)
+                else: # go to amnesty tote
+                    self.store.put('/robot/selected_item', self.likelyItem)
+                    self.store.put('/robot/target_locations', ['box1B2'])
+                    self.store.put('/robot/target_box', 'box1B2')
+                    self.store.put('/robot/selected_box', 'box1B2')
+            #                self.setOutcome(False)
+                    self.setOutcome(True)
+
+                self._mark_grasp_succeeded()
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
@@ -235,7 +238,7 @@ class InspectItem(State):
 
         return multi_detections
 
-    def _filter_by_mass_absolute_error(self, detections, threshold=0.005):
+    def _filter_by_mass_absolute_error(self, detections, threshold=0.015):
         '''
         Zero all detections where the mass absolute error exceeds the threshold.
 
