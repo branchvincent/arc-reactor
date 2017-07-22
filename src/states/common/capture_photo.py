@@ -78,11 +78,18 @@ class CapturePhotoBase(State):
 
         # set up the target photos for later segmentation/recognition
         #prior_photo_urls = self.store.get('/robot/target_photos', [])
+
+        task = self.store.get('/robot/task')
+        if task is None:
+            self.setOutcome(False)
+            raise RuntimeError("No task defined")
+
         for check_url in photo_urls:
+            print "check url is ", check_url
             if('box' not in check_url):
-                print "check url is ", check_url
-                prior_photo_urls = self.store.get('/robot/target_photos', [])
-                self.store.put('/robot/target_photos', prior_photo_urls + [check_url])
+                if(task=='pick' or 'bin' not in check_url):
+                    prior_photo_urls = self.store.get('/robot/target_photos', [])
+                    self.store.put('/robot/target_photos', prior_photo_urls + [check_url])
 
         # set up up target locations
         #self.store.put('/robot/target_location', locations[-1])
