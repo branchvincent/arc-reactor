@@ -81,6 +81,7 @@ class PickStateMachine(StateMachine):
 
     def setupOther(self):
         self.store.put('/robot/failed_grasps', [])
+        self.store.put('/status', [])
         self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
 
     def setupTransitions(self):
@@ -124,6 +125,7 @@ class PickStateMachine(StateMachine):
         self.setTransition('er7', 'cpi', ['pis', 'er7'])
 
         self.setTransition('cpi', 'sp2', ['cpi', 'pcci', 'ii'])
+        self.setTransition('pcci', 'cpi', ['pcci', 'cpi'])
         self.setTransition('sp2', 'rp2', ['sp2', 'cpi', 'rp2'])
         self.setTransition('rp2', 'ii', ['rp2', 'cpi', 'ii'])
         self.setTransition('ii', 'ep', ['ii', 'si'])

@@ -40,7 +40,7 @@ class Transition():
         self.store = store or PensiveClient().default()
 
     def findCheckpoint(self, fromState):
-        if fromState.startswith("p"):
+        if(fromState.startswith("p") and "pcc" not in fromState):
             return "plan_route"
         elif fromState.startswith("si"):
             return "select_item"

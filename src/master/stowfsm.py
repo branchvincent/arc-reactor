@@ -17,7 +17,7 @@ from states.recognize_photo import RecognizePhoto
 from states.evaluate_vacuum_grasp_stow import EvaluateVacuumGraspStow
 from states.evaluate_pinch_grasp_stow import EvaluatePinchGraspStow
 from states.evaluate_placement import EvaluatePlacement
-from states.read_scales import ReadScales
+from states.read_scales_stow import ReadScalesStow
 from states.inspect_item import InspectItem
 from states.detect_grab import DetectGrab
 from states.power_cycle_cameras import PowerCycleCameras
@@ -53,10 +53,13 @@ class StowStateMachine(StateMachine):
         self.add('cr2', CheckRoute('cr2', store=self.store))
         self.add('cr3', CheckRoute('cr3', store=self.store)) #TODO create check states on the fly?
         self.add('cr4', CheckRoute('cr2', store=self.store))
-        self.add('rs1', ReadScales('rs1', store=self.store))
-        self.add('rs', ReadScales('rs', store=self.store))
+        self.add('rss1', ReadScalesStow('rss1', store=self.store))
+        self.add('rss', ReadScalesStow('rss', store=self.store))
         self.add('ep', EvaluatePlacement('ep', store=self.store))
         self.add('dg', DetectGrab('dg', store=self.store))
+        self.add('pccs', PowerCycleCameras('pccs', store=self.store))
+        self.add('pcci', PowerCycleCameras('pcci', store=self.store))
+        self.add('pccb', PowerCycleCameras('pccb', store=self.store))
 
 
     def getStartState(self):
@@ -64,42 +67,45 @@ class StowStateMachine(StateMachine):
 
     def setupOther(self):
         self.store.put('/robot/failed_grasps', [])
+        self.store.put('/status', [])
         self.store.put('/robot/target_view_location', 'stow_tote')
 
     def setupTransitions(self):
-        self.setTransition('cps', 'sp1', ['sp1']) 
-        self.setTransition('sp1', 'rp1', ['sp1', 'cps', 'rp1']) 
-        self.setTransition('rp1', 'rs1', ['rp1', 'cps', 'rs1'])
-        self.setTransition('rs1', 'egvs', ['egvs'])
+        self.setTransition('cps', 'sp1', ['cps', 'pccs', 'sp1'])
+        self.setTransition('pccs', 'cps', ['pccs', 'cps'])
+        self.setTransition('sp1', 'rp1', ['sp1', 'cps', 'rp1'])
+        self.setTransition('rp1', 'rss1', ['rp1', 'cps', 'rss1'])
+        self.setTransition('rss1', 'egvs', ['egvs'])
 
         self.setTransition('egvs', 'si', ['egvs', 'cps', 'si'])
-        self.setTransition('si', 'ppo', ['si'], checkState='csi') #si should never fail..
+        self.setTransition('si', 'ppo', ['egvs', 'cps'], checkState='csi')
         self.setTransition('csi', 'ppo', ['si'])
         self.setTransition('ppo', 'er1', ['ppo', 'si'], checkState='cr1')
         #self.setTransition('psg', 'er1', ['si'], checkState='cr1') #if plan fails, redo SI and mark failure
         self.setTransition('cr1', 'er1', ['ppo'])
-        self.setTransition('er1', 'rs', ['ppo', 'er1'])
+        self.setTransition('er1', 'rss', ['ppo', 'er1'])
 
-        self.setTransition('rs', 'dg', ['dg']) #if scales fail continue anyway
+        self.setTransition('rss', 'dg', ['dg']) #if scales fail continue anyway
         self.setTransition('dg', 'pis', ['si', 'si']) #detect grab failure means we didn't get the item
-        self.setTransition('pis', 'er4', ['si'], checkState='cr4')
+        self.setTransition('pis', 'er4', ['pis', 'si'], checkState='cr4')
         self.setTransition('cr4', 'er4', ['pis'])
         self.setTransition('er4', 'cpi', ['pis', 'er4'])
 
-        self.setTransition('cpi', 'sp2', ['ii'])
+        self.setTransition('cpi', 'sp2', ['cpi', 'pcci', 'ii'])
+        self.setTransition('pcci', 'cpi', ['pcci', 'cpi'])
         self.setTransition('sp2', 'rp2', ['sp2', 'cpi', 'rp2'])
         self.setTransition('rp2', 'ii', ['rp2', 'cpi', 'ii'])
         self.setTransition('ii', 'ep', ['ii', 'si'])
 
-        self.setTransition('ep', 'pps', ['ep'])
-        self.setTransition('pps', 'er2', ['si'], checkState='cr2')
+        self.setTransition('ep', 'pps', ['ep', 'cpi', 'ii'])
+        self.setTransition('pps', 'er2', ['pps', 'ep'], checkState='cr2')
         self.setTransition('cr2', 'er2', ['pps'])
         self.setTransition('er2', 'ci', ['pps', 'er2'])
-        self.setTransition('ci', 'pvl', ['ci']) 
+        self.setTransition('ci', 'pvl', ['ci'])
         self.setTransition('pvl', 'er3', ['pvl', 'cps'], checkState='cr3')
         self.setTransition('cr3', 'er3', ['pvl'])
         self.setTransition('er3', 'cpb', ['pvl', 'er3'])
-        self.setTransition('cpb', 'cps', ['cpb']) #TODO maybe revise which photos are segmented at the end
+        self.setTransition('cpb', 'cps', ['cpb', 'pccb', 'cps']) #TODO maybe revise which photos are segmented at the end
 
     def isDone(self):
         return False
