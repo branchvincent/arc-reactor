@@ -122,7 +122,9 @@ def _sync(db, paths, setter):
         paths = [ paths ]
 
     if hasattr(db, 'multi_get'):
-        values = db.multi_get(paths).values()
+        result = db.multi_get(paths)
+        # preserve the return order
+        values = [result[p] for p in paths]
     else:
         values = [db.get(p) for p in paths]
 
