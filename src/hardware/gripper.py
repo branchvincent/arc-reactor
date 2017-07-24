@@ -9,6 +9,8 @@ import struct
 
 from os import environ
 
+from math import pi
+
 import scipy.interpolate
 
 from pensive.client import PensiveClient
@@ -161,7 +163,7 @@ class Gripper(object):
                 if self._recv_packet('!b')[0] != 1:
                     raise RuntimeError('gripper swivel failed')
 
-            self._store.put('/gripper/swivel', swivel)
+            self._store.put('/gripper/swivel', swivel / 180.0 * pi)
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
