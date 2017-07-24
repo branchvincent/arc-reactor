@@ -131,8 +131,8 @@ def _sync(db, paths, setter):
     if all([v is not None for v in values]):
         setter(*values)
 
-def build_world(db, ignore=None):
-    return update_world(db, ignore=ignore)
+def build_world(db=None, ignore=None):
+    return update_world(db or Store(), ignore=ignore)
 
 def update_world(db=None, world=None, timestamps=None, ignore=None):
     db = db or Store()
