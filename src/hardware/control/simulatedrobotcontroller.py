@@ -7,7 +7,7 @@ from hardware.gripper import Gripper
 from master.world import build_world, klampt2numpy
 from motion.milestone import Milestone
 from motion.checker import MotionPlanChecker
-from hardware.control.robotcontroller import Assert
+from hardware.control.robotcontroller import Assert, EE_LINK_INDEX
 
 from klampt.model.collide import WorldCollider
 from klampt.plan.robotcspace import RobotCSpace
@@ -15,7 +15,6 @@ from klampt.plan.robotcspace import RobotCSpace
 import numpy as np
 from time import sleep, time
 import logging; logger = logging.getLogger(__name__)
-
 
 class SimulatedRobotController:
     """Trajectory execution for TX90"""
@@ -49,14 +48,14 @@ class SimulatedRobotController:
         """Updates the database with the robot's current configuration."""
         m = self.trajectory.curr_milestone
         m.set_type('db')
-        self.store.put('/robot/current_config', m.get_robot())
+        self.store.put('/robot/current_config', m.get_robot_gripper())
         # logger.info('Time lag {}: update'.format(time() - tdes))
 
     def updateDatabase(self):
         # Update tool pose
         world = build_world(self.store, ignore=['obstacles', 'camera', 'boxes', 'totes', 'shelf'])
         robot = world.robot('tx90l')
-        T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
+        T_tcp = klampt2numpy(robot.link(EE_LINK_INDEX).getTransform())
         self.store.put('/robot/tcp_pose', T_tcp)
         # Update tool camera pose
         T_cam = self.store.get('/robot/camera_xform')

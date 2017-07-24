@@ -38,7 +38,8 @@ class WorldViewer(GLRealtimeProgram):
         mp = store.get('/robot/waypoints')
 
         self.dts = [wp[0] for wp in mp]
-        self.commands = [{'robot': self.robot.getConfig()}] + [wp[1] for wp in mp]
+        q = self.robot.getConfig()
+        self.commands = [{'robot': q[:-1], 'gripper': [q[-1]]}] + [wp[1] for wp in mp]
 
         self.fps = 30.0
         self.dt = 1 / self.fps
@@ -62,13 +63,13 @@ class WorldViewer(GLRealtimeProgram):
         self.pause = False
         self.update_callback = update_callback
 
-        self.view.camera.rot = [0, pi/4, pi/2 + pi/4]
+        self.view.camera.rot = [0, -pi/4, -pi/2 + -pi/4]
 
     def trace_link(self, plan, link):
         trace = []
 
         for cmd in plan:
-            self.robot.setConfig(cmd['robot'])
+            self.robot.setConfig(cmd['robot'] + cmd['gripper'])
             trace.append(self.robot.link(link).getTransform()[1])
 
         return trace
@@ -122,7 +123,7 @@ class WorldViewer(GLRealtimeProgram):
 
         glClear(GL_DEPTH_BUFFER_BIT)
         gldraw.xform_widget(se3.identity(), 0.1, 0.01)
-        gldraw.xform_widget(self.robot.link(self.robot.numLinks() - 1).getTransform(), 0.1, 0.01)
+        gldraw.xform_widget(self.robot.link(self.robot.numLinks() - 2).getTransform(), 0.1, 0.01)
 
     def idle(self):
         if not self.commands:
@@ -138,10 +139,8 @@ class WorldViewer(GLRealtimeProgram):
         if not self.pause and self.update_callback:
             self.update_callback()
 
-        if 'robot' in command:
-            self.world.robot('tx90l').setConfig(command['robot'])
-        if 'shelf' in command:
-            self.world.robot('shelf').setConfig(command['shelf'])
+        if 'robot' in command and 'gripper' in command:
+            self.world.robot('tx90l').setConfig(command['robot'] + command['gripper'])
 
     def mousefunc(self,button,state,x,y):
         return GLRealtimeProgram.mousefunc(self,button,state,x,y)

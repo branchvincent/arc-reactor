@@ -21,6 +21,8 @@ class RobotConnectionError(Exception):
 
 bufferSize = 100
 
+EE_LINK_INDEX = 6
+
 # Helper functions
 def Assert(condition, message):
     """Raises and logs an exception if the condition is false"""
@@ -64,15 +66,15 @@ class RobotController:
     def updateCurrentConfig(self):
         """Updates the database with the robot's current configuration."""
         q = self.robot.getCurrentConfig()
-        m = Milestone(robot=q, type='robot')
+        m = Milestone(robot=q, gripper=[self.store.get('/gripper/swivel')], type='robot')
         m.set_type('db')
-        self.store.put('/robot/current_config', m.get_robot())
+        self.store.put('/robot/current_config', m.get_robot_gripper())
 
     def updateDatabase(self):
         # Update tool pose
         self.world = update_world(self.store, self.world, ignore=['obstacles', 'camera', 'boxes', 'totes', 'shelf'])
         robot = self.world.robot('tx90l')
-        T_tcp = klampt2numpy(robot.link(robot.numLinks() - 1).getTransform())
+        T_tcp = klampt2numpy(robot.link(EE_LINK_INDEX).getTransform())
         self.store.put('/robot/tcp_pose', T_tcp)
         # Update tool camera pose
         T_cam = self.store.get('/robot/camera_xform')

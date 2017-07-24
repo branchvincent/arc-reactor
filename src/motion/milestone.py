@@ -10,16 +10,23 @@ DOF = { 'db': 7,
 }
 
 class Milestone:
-    def __init__(self, t=None, robot=None, vacuum=None, gripper=None, map=None, type='db'):
+    def __init__(self, t=None, robot=None, vacuum=None, gripper=None, map=None, robot_gripper=None, type='db'):
         # Set values
         self.type = type.lower()
         self.t = t or 1
-        self.robot = robot or [0]*DOF[self.type]
-        self.gripper = gripper or [0]*DOF['gripper']
-        self.vacuum = vacuum or [0]*DOF['vacuum']     #TODO: input as array
-        # Set values from map, if applicable
+
         if map is not None:
+            # Set values from map, if applicable
             self.set_milestone(map)
+        else:
+            if robot_gripper is None:
+                self.robot = robot or [0]*DOF[self.type]
+                self.gripper =  gripper or [0]*DOF['gripper']
+            else:
+                self.set_robot_gripper(robot_gripper)
+
+            self.vacuum = vacuum or [0]*DOF['vacuum']     #TODO: input as array
+
         # Validate
         self.check()
 
@@ -112,6 +119,13 @@ class Milestone:
 
     def set_vacuum(self, vacuum):
         self.vacuum = vacuum
+
+    def get_robot_gripper(self):
+        return self.get_robot() + self.get_gripper()
+
+    def set_robot_gripper(self, robot_gripper):
+        self.robot = robot_gripper[:DOF['db']]
+        self.gripper = robot_gripper[DOF['db']:][:DOF['gripper']]
 
     #Fixes an array of milestones
     def fix_milestones(self, motion_milestones):
