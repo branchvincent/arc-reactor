@@ -14,14 +14,16 @@ mp = s.get('/robot/waypoints')
 t =  numpy.cumsum([w[0] for w in mp])
 q =  numpy.array([w[1]['robot'][1:] for w in mp])
 v =  numpy.array([w[1]['vacuum'][0] for w in mp])
+g =  numpy.array([w[1]['gripper'] for w in mp])
 
 pyplot.figure()
 pyplot.plot(t, q * 180 / pi, '-+')
 pyplot.plot(t, v * 100, '-+')
+pyplot.plot(t, g * 180 / pi, '-+')
 
 pyplot.xlabel('time (s)')
 pyplot.ylabel('value')
-pyplot.legend(['q{} (deg)'.format(i + 1) for i in range(len(q[0]))] + ['vacuum (%)'], bbox_to_anchor=(1,1))
+pyplot.legend(['q{} (deg)'.format(i + 1) for i in range(len(q[0]))] + ['vacuum (%)'] + ['g{}'.format(i + 1) for i in range(len(g[0]))], bbox_to_anchor=(1,1))
 
 pyplot.grid(True)
 pyplot.show()
