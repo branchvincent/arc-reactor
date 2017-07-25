@@ -204,12 +204,12 @@ def build_model_resnet():
         net.update(sub_net)
     net['pool5'] = PoolLayer(net[parent_layer_name], pool_size=7, stride=1, pad=0,
                              mode='average_exc_pad', ignore_border=False)
-    net['prob'] = DenseLayer(net['pool5'], num_units=1000, nonlinearity=softmax)
+    net['prob'] = DenseLayer(net['pool5'], num_units=40, nonlinearity=softmax)
 
     return net
 
 def load_pretrained_model():
-    d = pickle.load(open('resnet50.pkl','rb'),encoding='latin-1')
+    d = pickle.load(open('/media/motion/PerceptionSSD/competition/resnet_finetuned_07202017_manualseg.pkl','rb'),encoding='latin-1')
     net = build_model_resnet()
     lasagne.layers.set_all_param_values(net['prob'], d['values'])
     return net
