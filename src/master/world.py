@@ -68,7 +68,7 @@ def _rad2deg(x):
     return numpy.array(x) * 180.0 / pi
 
 robots = {
-    'tx90l': 'data/robots/tx90l.rob'
+    'tx90l': 'data/robots/tx90l_gripper.rob'
 }
 
 terrains = {
