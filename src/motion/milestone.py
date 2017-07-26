@@ -4,7 +4,7 @@ import math
 import logging; logger = logging.getLogger(__name__)
 
 DOF = { 'db': 8,
-        'robot': 6,
+        'robot': 7,
         'vacuum': 2,
         'gripper': 1
 }
@@ -35,8 +35,10 @@ class Milestone:
         if self.type not in ['robot', 'db']:
             raise RuntimeError('Unrecognized milestone type: "{}"'.format(self.type))
         # Check dofs
-        if DOF[self.type] != len(self.robot):
-            raise RuntimeError('Milestone type and robot dof mismatch: "{}: {} != {}"'.format(self.type, DOF[self.type], len(self.robot)))
+        #print "Length of robot: ", len(self.robot)
+        #print "Length of gripper: ", len(self.gripper)
+        if DOF[self.type] != len(self.robot+self.gripper):
+            raise RuntimeError('Milestone type and robot dof mismatch: "{}: {} != {}"'.format(self.type, DOF[self.type], len(self.robot+self.gripper)))
         if DOF['gripper'] != len(self.gripper):
             raise RuntimeError('Gripper dof mismatch: "{} != {}"'.format(DOF['gripper'], len(self.gripper)))
         if DOF['vacuum'] != len(self.vacuum):
@@ -124,8 +126,8 @@ class Milestone:
         return self.get_robot() + self.get_gripper()
 
     def set_robot_gripper(self, robot_gripper):
-        self.robot = robot_gripper[:DOF['db']]
-        self.gripper = robot_gripper[DOF['db']:][:DOF['gripper']]
+        self.robot = robot_gripper[:DOF['robot']]
+        self.gripper = robot_gripper[DOF['robot']:][:DOF['gripper']]
 
     #Fixes an array of milestones
     def fix_milestones(self, motion_milestones):
