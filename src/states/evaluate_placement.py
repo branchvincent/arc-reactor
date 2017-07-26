@@ -91,7 +91,7 @@ class EvaluatePlacement(State):
         robot_pose_world = self.store.get('/robot/inspect_pose')
 
         # attempt the packing
-        margin = self.store.get('/packing/margin', 0.02)
+        margin = self.store.get('/packing/margin', 0.03)
         (idx, position, orientation, _) = heightmap.pack(
             container_clouds,
             item_cloud,
@@ -116,7 +116,7 @@ class EvaluatePlacement(State):
 
             # increase the placement by the offset
             selected_item = self.store.get('/robot/selected_item')
-            placement_offset = self.store.get(['item', selected_item, 'placement_offset'])
+            placement_offset = self.store.get(['item', selected_item, 'placement_offset'], 0.01)
             if placement_offset is not None:
                 position[2] += placement_offset
                 logger.warn('using placement offset for "{}": {}'.format(selected_item, placement_offset))
