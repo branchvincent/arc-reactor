@@ -884,7 +884,44 @@ class SE3Space:
         #             'Unrecognized interpolation profile: {}'.format(profile))
         # return max(tf)
 
+def sph2cart(az, el, r):
+    a = r * np.cos(el)
+    x,y,z = a*np.cos(az), a*np.sin(az), r*np.sin(el)
+    return (x,y,z)
+
+def test_pick(location, rand_seed=None, buffer=0):
+    logger.debug('Testing pick for {} with seed {}'.format(location,rand_seed))
+
+    # Declare
+    seed(rand_seed)
+    store = PensiveClient().default()
+    planner = MotionPlanner(store=store)
+
+    # Calculate random rotation
+    theta, phi = acos(2*uniform(0,1) - 1), 2*pi*uniform(0,1)
+    axis, angle = sph2cart(theta, phi, 1), uniform(0,pi/2)
+    R = so3.from_axis_angle((axis,angle))
+
+    # Calculate random translation
+    if location.startswith('bin'):
+        T_ref = numpy2klampt(store.get('/shelf/pose'))
+        bounds = store.get('/shelf/bin/{}/bounds'.format(location), strict=True)
+    elif location.startswith('box'):
+        T_ref = numpy2klampt(store.get('/box/{}/pose'.format(location), strict=True))
+        bounds = store.get('/box/{}/bounds'.format(location), strict=True)
+    else:
+        raise RuntimeError('Unrecognized location: "{}"'.format(location))
+
+    # Plan
+    t = [uniform(a+buffer,b-buffer) for a,b in zip(*bounds)]
+    T_item = (R, se3.apply(T_ref, t)) # se3.mul(T_ref, (R,t))
+    store.put('/vantage/item', klampt2numpy(T_item))
+    planner.pick(T_item)
 
 if __name__ == "__main__":
-    s = PensiveClient().default()
-    p = MotionPlanner()
+    from random import seed, uniform, randint, choice
+    store = PensiveClient().default()
+    bins = store.get('/shelf/bin').keys()
+    boxes = store.get('/box').keys()
+    rseed = 481#randint(0,1000)
+    test_pick(bins[0], rand_seed=rseed)
