@@ -240,7 +240,6 @@ class MotionPlanner:
 
         # Get inputs
         state = self.options['current_state']
-        q0 = self.options['current_config']
         space = self.options['states'][state]['planning_space']
         solvers = self.options['states'][state]['planning_solvers']
 
@@ -276,18 +275,10 @@ class MotionPlanner:
             else:
                 logger.warning(
                     'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i + 1]))
-        # Check feasibility
-        if plan.feasible():
-            # logger.debug('Created {} milestones'.format(len(plan.milestones)))
-            return plan.milestones
-        else:
-            return None
-        # return plan.milestones
 
     def planToConfig(self, q):
         # Get inputs
         state = self.options['current_state']
-        q0 = self.options['current_config']
         space = self.options['states'][state]['planning_space']
         solvers = self.options['states'][state]['planning_solvers']
 
@@ -377,21 +368,19 @@ class MotionPlanner:
 
     def _fixWristFlip(self, T, T_failed):
         logger.warn('Detected possible wrist flip. Trying hack...')
-        # self.store.put('/planner/current_solver', 'nearby')
         self.options['current_solver'] = 'nearby'
 
         # Plan until failed T
         plan = MotionPlan(self.cspace, store=self.store)
         Ti_mid = list(numpy2klampt(klampt2numpy(T_failed) * rpy(0, 0, pi)))  # flip z
         milestones = self.task_planner.planToTransform(Ti_mid)
-        if milestones is None: return None
-        plan.addMilestones(milestones)
-        # logger.debug('Fixed up to T_mid')
+        success = plan.addMilestones(milestones, strict=False)
+        if not success: return None
 
         # Plan until final T
         milestones = self.task_planner.planToTransform(T)
-        if milestones is None: return None
-        plan.addMilestones(milestones)
+        success = plan.addMilestones(milestones, strict=False)
+        if not success: return None
         logger.debug('Hack succeeded')
         return plan.milestones
 
@@ -451,10 +440,8 @@ class LowLevelPlanner(object):
         if solved:
             return self.robot.getConfig()
         else:
-            # logger.warning(
-            #     'IK {} solver failed'.format(solver))
-            # NOTE: this change may cause error
-            # self.robot.setConfig(q0)
+            logger.warning('IK {} solver failed'.format(solver))
+            self.robot.setConfig(q0)
             return None
 
 
@@ -473,7 +460,6 @@ class JointPlanner(LowLevelPlanner):
         self.options = options
 
     def planToTransform(self, T, link_index=None):
-        q0 = self.store.get('/planner/current_config')
         q = self.solveForConfig(T, link_index=link_index)
         if q is None:
             return None
@@ -489,9 +475,12 @@ class JointPlanner(LowLevelPlanner):
         vmax = self.options['states'][state]['joint_velocity_limits']
         amax = self.options['states'][state]['joint_acceleration_limits']
         vacuum = self.options['states'][state]['vacuum']
+        swivel = self.options['swivel']
 
         # Calculate duration
         q = self.space.getGeodesic(q0, q)
+        if swivel is not None:
+            q[SWIVEL_INDEX] = swivel
         tf = self.space.getMinPathTime(q0, q, vmax=vmax, amax=amax, profile=profile)
         dt = 1 / float(freq)
         if tf != 0:
@@ -503,11 +492,8 @@ class JointPlanner(LowLevelPlanner):
         numMilestones = int(ceil(tf * freq))
         for t in np.linspace(dt, tf, numMilestones):
             qi = self.space.interpolate(q0, q, t, tf, vmax=vmax, amax=amax, profile=profile)
-            m = Milestone(t=dt, robot=qi, vacuum=vacuum)
+            m = Milestone(t=dt, robot_gripper=qi, vacuum=vacuum)
             milestones.append(m)
-            # if not self.space.feasible(m.get_robot()):
-            #     logger.warn('Not feasible')
-        # logger.debug('Created {} milestones'.format(len(milestones)))
         return milestones
 
 
@@ -524,11 +510,9 @@ class TaskPlanner(LowLevelPlanner):
         super(TaskPlanner, self).reset(options)
         self.space = se3space
         self.options = options
-        self.ee_link = self.robot.link(self.robot.numLinks() - 1)
         # self.vmax = 0.15
         # self.t_vmax, self.t_amax = 0.15, 0.15
         # self.R_vmax, self.t_amax = pi / 4, pi / 4
-        self.T_failed = None
 
     def planToTransform(self, T, link_index=None):
         # Get inputs
@@ -547,9 +531,7 @@ class TaskPlanner(LowLevelPlanner):
         self.robot.setConfig(q0)
         T0 = self.robot.link(link_index).getTransform()
         # tf = self.space.getMinPathTime(T0, T, profile=self.profile)
-        # add extra second for ramp up/down
         tf = vops.distance(T0[1], T[1]) / vmax
-        # logger.debug('Distance from {} to {} = {}'.format(T0[0], T[1], tf*self.vmax))
         dt = 1 / float(freq)
         if tf != 0:
             tf += abs(tf % dt - dt)     # make multiple of dt
@@ -562,20 +544,22 @@ class TaskPlanner(LowLevelPlanner):
             Ti = self.space.interpolate(T0, T, t, tf, profile=profile)
             q = self.solveForConfig(Ti, link_index=link_index)
             if q is None:
-                self.T_failed = Ti
-                self.store.put('vantage/failed', klampt2numpy(self.T_failed))
+                self.robot.setConfig(q)
+                self.options['failed_pose'] = Ti
+                # self.store.put('/vantage/failed', klampt2numpy(Ti))
                 return None
             # Add milestone
-            m = Milestone(t=dt, robot=q, vacuum=vacuum)
+            if swivel is not None:
+                q[SWIVEL_INDEX] = q0[SWIVEL_INDEX] * (1-t/tf) + swivel*(t/tf)
+            m = Milestone(t=dt, robot_gripper=q, vacuum=vacuum)
             milestones.append(m)
-            # if not self.cspace.feasible(m.get_robot()):
-            #     logger.warn('Not feasible')
         return milestones
 
-    def planToConfig(self, q):
+    def planToConfig(self, q, link_index=None):
         # q = self.cspace.getGeodesic(q0, q)
+        link_index = link_index or EE_BASE_INDEX
         self.robot.setConfig(q)
-        Tf = self.ee_link.getTransform()
+        Tf =self.robot.link(link_index).getTransform()
         return self.planToTransform(Tf)
 
 
