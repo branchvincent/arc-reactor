@@ -141,7 +141,7 @@ class PickStateMachine(StateMachine):
         self.setTransition('pps', 'er8', ['pps', 're'], checkState='cr8') #TODO
         self.setTransition('cr8', 'er8', ['pps'])
         self.setTransition('er8', 'rs3', ['pps', 'er8'])
-        self.setTransition('rs3', 'si', ['si'])
+        self.setTransition('rs3', 'pvl', ['pvl'])
 
         #correct item, putting in box
         self.setTransition('ep', 'ppb', ['ep', 'cpi', 'ii'])

@@ -63,28 +63,28 @@ class SelectItem(State):
 
             try:
                 self.maxGrasp = self.chosenGrasps[0]
-            except IndexError as e:
+                print "max grasp is ", self.maxGrasp, " at ", self.maxGrasp['location']
+                print "score of grasp is ", self.maxGrasp['score']
+
+                self.chosenItem = self._most_likely_item(self.maxGrasp)
+                print "most likely item is ", self.chosenItem
+
+                #TODO move this outside of if statement
+                self.store.put('/robot/target_grasp', self.maxGrasp)
+                self.store.put('/robot/grasp_location', self.maxGrasp['location'])
+
+                if(self.store.get('/item/'+self.chosenItem+'/order') is not None):
+                    self.store.put('/robot/target_box', self.store.get('/item/'+self.chosenItem+'/order').replace('order', 'box'))
+                    self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
+                #else:
+                #    self.store.put('/robot/target_box', 'boxK3')
+                #    self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
+
+            except (IndexError, RuntimeError) as e:
                 self.store.put(['failure', self.getFullName()], "NoGraspsFound")
                 logger.exception('no more grasps to try')
                 self.setOutcome(False)
 
-            print "max grasp is ", self.maxGrasp, " at ", self.maxGrasp['location']
-            print "score of grasp is ", self.maxGrasp['score']
-
-            self.chosenItem = self._most_likely_item(self.maxGrasp)
-            print "most likely item is ", self.chosenItem
-
-            #TODO move this outside of if statement
-            self.store.put('/robot/target_grasp', self.maxGrasp)
-            self.store.put('/robot/grasp_location', self.maxGrasp['location'])
-
-            if(self.store.get('/item/'+self.chosenItem+'/order') is not None):
-                self.store.put('/robot/target_box', self.store.get('/item/'+self.chosenItem+'/order').replace('order', 'box'))
-                self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
-            #HACK to put something in a bpx for now
-            else:
-                self.store.put('/robot/target_box', 'boxK3')
-                self.store.put('/robot/selected_bin', self.store.get('/item/'+self.chosenItem+'/location'))
 
         elif self.alg == 'stow':
 
@@ -103,20 +103,21 @@ class SelectItem(State):
 
             try:
                 self.maxGrasp = self.grasps[0]
+                print "max grasp is ", self.maxGrasp, " at ", self.maxGrasp['location']
+                print "score of grasp is ", self.maxGrasp['score']
+
+                self.chosenItem = self._most_likely_itemStow(self.maxGrasp)
+                print "most likely item is ", self.chosenItem
+
+                #TODO move this outside of if statement
+                self.store.put('/robot/target_grasp', self.maxGrasp)
+                self.store.put('/robot/grasp_location', 'stow_tote')
+
             except IndexError as e:
                 self.store.put(['failure', self.getFullName()], "NoGraspsFound")
                 logger.exception('no more grasps to try')
+                self.store.put('/robot/failed_grasps', [])
                 self.setOutcome(False)
-
-            print "max grasp is ", self.maxGrasp, " at ", self.maxGrasp['location']
-            print "score of grasp is ", self.maxGrasp['score']
-
-            self.chosenItem = self._most_likely_itemStow(self.maxGrasp)
-            print "most likely item is ", self.chosenItem
-
-            #TODO move this outside of if statement
-            self.store.put('/robot/target_grasp', self.maxGrasp)
-            self.store.put('/robot/grasp_location', 'stow_tote')
 
         elif self.alg == 'final':
             #self.points =
