@@ -51,9 +51,9 @@ class PlanViewLocation(State):
             if myname[-2:]=='st':
                 print "Moving to stow tote"
                 self.store.put('/robot/target_view_location', 'stow_tote')
-            elif myname[-2:]=='at':
-                print "Moving to amnesty tote"
-                self.store.put('/robot/target_view_location', 'amnesty_tote')
+            elif myname[-2:]=='is':
+                print "Moving to insepct pose"
+                self.store.put('/robot/target_view_location', 'inspect')
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
@@ -61,7 +61,7 @@ class PlanViewLocation(State):
         if(not check):
             self.store.put('/status/pvl_done', True)
             return 0 #try once more
-        else: 
+        else:
             return 1  #by default to not get stuck in loops
 
 if __name__ == '__main__':

@@ -74,11 +74,8 @@ class InspectItem(State):
             #probability that the item we ID'd now is correct (ish)
         print "nowID ", self.nowID
 
-        if(self.nowID==0):
-            self.store.put(['failure', self.getFullName()], "MissingID")
-            raise RuntimeError("No IDs returned")
-        else:
-
+        if(self.nowID>=1e-9):
+            logger.info("At least some detections were generated")
             self.readWeight = abs(self.store.get('/scales/change'))
             if self.readWeight is not None:
                 # compare to origItemID weight and then nowItem weight
@@ -92,6 +89,7 @@ class InspectItem(State):
                 self.nowWeightError = abs(self.nowItemWeight - self.readWeight)/self.nowItemWeight
 
             else: # don't consider weight a factor
+                logger.warning("Scales were unable to be read")
                 self.origWeightError = 0
                 self.nowWeightError = 0
 
@@ -112,52 +110,60 @@ class InspectItem(State):
             self.itemisright = (self.likelyItem == self.origItem)
             print "likelyItem is ", self.likelyItem
 
-            task = self.store.get('/robot/task')
-            if task is None:
-                self.setOutcome(False)
-                raise RuntimeError("No task defined")
+        task = self.store.get('/robot/task')
+        if task is None:
+            self.setOutcome(False)
+            raise RuntimeError("No task defined")
 
-            elif(self.readWeight<0.005):
-                self.setOutcome(False)
-                self.store.put(['failure', self.getFullName()], "NoItemError")
-                logger.error('Likely nothing was picked up: no weight change detected.')
+        elif(self.readWeight<0.005):
+            self.setOutcome(False)
+            self.store.put(['failure', self.getFullName()], "NoItemError")
+            logger.error('Likely nothing was picked up: no weight change detected.')
 
-            elif task == 'stow':
-                self.setOutcome(True)
+        elif task == 'stow':
+            if(self.nowID==0):
+                logger.warning("Weight change found but no detections")
+                self.store.put('/robot/target_locations', ['binB'])
+                self.store.put('/robot/selected_item', 'unknown')
+            else:
                 self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
                 self.store.put('/robot/selected_item', self.likelyItem)
+            self._mark_grasp_succeeded()
+            self.setOutcome(True)
+
+        elif task == 'pick':
+            if(self.nowID==0):
+                logger.warning("Weight change found but no detections")
+                self.store.put(['failure', self.getFullName()], "NoDetections")
+                self.setOutcome(False)
+            elif(self.itemisright and self.store.get('/item/'+self.likelyItem+'/order') is not None): #proceeding to order box
+                self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
+                self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
+                self.store.put('/robot/target_box', self.store.get('/robot/selected_box'))
+                self.setOutcome(True)
                 self._mark_grasp_succeeded()
-
-            elif task == 'pick':
-
-                if(self.itemisright and self.store.get('/item/'+self.likelyItem+'/order') is not None): #proceeding to order box
-                    self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
-                    self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
-                    self.store.put('/robot/target_box', self.store.get('/robot/selected_box'))
-                    self.setOutcome(True)
-                elif(self.store.get('/item/'+self.likelyItem+'/order') is not None): #fills an order
-                    self.store.put('/robot/selected_item', self.likelyItem)
-                    self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
-                    self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
-                    self.setOutcome(True)
-                else: # go to amnesty tote
-                    self.store.put('/robot/selected_item', self.likelyItem)
-                    self.store.put('/robot/target_locations', ['box1B2'])
-                    self.store.put('/robot/target_box', 'box1B2')
-                    self.store.put('/robot/selected_box', 'box1B2')
-            #                self.setOutcome(False)
-                    self.setOutcome(True)
-
+            elif(self.store.get('/item/'+self.likelyItem+'/order') is not None): #fills an order
+                self.store.put('/robot/selected_item', self.likelyItem)
+                self.store.put('/robot/selected_box', self.store.get('/item/'+self.likelyItem+'/order').replace('order', 'box'))
+                self.store.put('/robot/target_locations', [self.store.get('/robot/selected_box')])
+                self.setOutcome(True)
                 self._mark_grasp_succeeded()
+            else: #put back
+                logger.warning("Item ID'd but not ordered")
+                self.store.put(['failure', self.getFullName()], "WrongItem")
+                self.setOutcome(False)
+
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
         if(self.whyFail is None):
             return 0
             #no failure detected, no suggestions!
-        elif(self.whyFail == "NoItemError" or self.whyFail=="MissingID"):
+        elif(self.whyFail == "NoItemError"):
             return 1
             #go to first fallback state
+        elif(self.whyFail == "NoDetections" or self.whyFail == "WrongItem"): #pick only, put item back
+            return 2
         else:
             return 0
             #again, no suggestions!

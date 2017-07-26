@@ -54,6 +54,7 @@ class StowStateMachine(StateMachine):
         self.add('cr3', CheckRoute('cr3', store=self.store)) #TODO create check states on the fly?
         self.add('cr4', CheckRoute('cr2', store=self.store))
         self.add('rss1', ReadScalesStow('rss1', store=self.store))
+        self.add('rss2', ReadScalesStow('rss2', store=self.store))
         self.add('rss', ReadScalesStow('rss', store=self.store))
         self.add('ep', EvaluatePlacement('ep', store=self.store))
         self.add('dg', DetectGrab('dg', store=self.store))
@@ -89,7 +90,8 @@ class StowStateMachine(StateMachine):
         self.setTransition('dg', 'pis', ['si', 'si']) #detect grab failure means we didn't get the item
         self.setTransition('pis', 'er4', ['pis', 'si'], checkState='cr4')
         self.setTransition('cr4', 'er4', ['pis'])
-        self.setTransition('er4', 'cpi', ['pis', 'er4'])
+        self.setTransition('er4', 'rss2', ['pis', 'er4'])
+        self.setTransition('rss2', 'cpi', ['cpi'])
 
         self.setTransition('cpi', 'sp2', ['cpi', 'pcci', 'ii'])
         self.setTransition('pcci', 'cpi', ['pcci', 'cpi'])

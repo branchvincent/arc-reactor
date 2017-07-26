@@ -4,7 +4,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-def run(store):
+def run(store): #currently for pick task only
     locations = {k: v['location'] for (k, v) in store.get(['item']).items()}
 
     bins = store.get(['shelf', 'bin']).keys()
@@ -35,6 +35,33 @@ def run(store):
         output['tote']['contents'] += [k for (k, l) in locations.items() if l == '{}_tote'.format(name)]
 
     print json.dumps(output, indent=4)
+    json.dump(output, open('/db/item_location_file_ARC_pick', 'w'), indent=4)
+
+def runStow(store):
+    locations = {k: v['location'] for (k, v) in store.get(['item']).items()}
+
+    for (k, l) in locations.items():
+        if not l.startsWith('bin'):
+            locations[k] = 'binB'
+
+    bins = store.get(['shelf', 'bin']).keys()
+
+    output = {
+        'bins': [],
+        'boxes': [],
+        'tote': {
+            'contents': []
+        }
+    }
+
+    for name in bins:
+        output['bins'].append({
+            'bin_id': name[-1],
+            'contents': [k for (k, l) in locations.items() if l == name],
+        })
+
+    print json.dumps(output, indent=4)
+    json.dump(output, open('/db/item_location_file_ARC_pick', 'w'), indent=4)
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter

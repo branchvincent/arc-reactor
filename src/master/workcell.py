@@ -431,7 +431,8 @@ def setup_pick(store, location, order, workcell=None, keep=True):
 
     frame_pose = store.get(['frame', 'pose'])
 
-    for spot in sorted(store.get(['system', 'spot']).keys()):
+    #for spot in sorted(store.get(['system', 'spot']).keys()):
+    for spot in ['B', 'A', 'C']:
         if not boxes:
             break
 

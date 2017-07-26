@@ -250,7 +250,7 @@ class WorldViewer(GLRealtimeProgram):
         # for i in range(self.world.numRobots()):
         #     robot = self.world.robot(i)
         #     poses.append(robot.link(0).getTransform())
-        #     poses.append(robot.link(robot.numLinks()-1).getTransform())
+        #     poses.append(robot.link(robot.numLinks()-2).getTransform())
 
         glClear(GL_DEPTH_BUFFER_BIT)
         gldraw.xform_widget(se3.identity(), 0.1, 0.01)

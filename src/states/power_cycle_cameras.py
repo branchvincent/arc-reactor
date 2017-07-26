@@ -43,7 +43,7 @@ class PowerCycleCameras(State):
             cp.off()
             sleep(self.store.get('/camera_power/wait', 1))
             cp.on()
-            sleep(self.store.get('/camera_power/wait', 1))
+            sleep(self.store.get('/camera_power/wait', 10))
 
             # restart camera server
             subprocess.Popen(['./reactor3', 'shell', 'perception.cameraServer'])

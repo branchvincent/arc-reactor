@@ -46,6 +46,18 @@ class ReplaceExactly(State):
 
         logger.info('finished replacement computation')
 
+    def suggestNext(self):
+        return 0 #doesn't fail...
+        # self.whyFail = self.store.get(['failure', self.getFullName()])
+        # if(self.whyFail is None):
+        #     return 0
+        #     #no failure detected, no suggestions!
+        # elif(self.whyFail == "NoItemError"):
+        #     return 1
+        #     #go to first fallback state
+        # else:
+        #     return 0
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()

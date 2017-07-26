@@ -1,5 +1,6 @@
 from master.fsm import State
 import logging; logger = logging.getLogger(__name__)
+from util import dump_location
 
 class CheckItem(State):
     """
@@ -29,10 +30,13 @@ class CheckItem(State):
     def run(self):
         #assume it succeeded for now
         self.chosenItem = self.store.get('/robot/selected_item')
+        if(self.chosenItem=='unknown'):
+            logger.info("Unknown item moved to bin B")
 
-        #TODO get outcome from location?
-        self.store.put('/item/'+self.chosenItem+'/point_value', 0)
-        logger.info("{} item was moved successfully".format(self.chosenItem))
+        else:
+            #TODO get outcome from location?
+            self.store.put('/item/'+self.chosenItem+'/point_value', 0)
+            logger.info("{} item was moved successfully".format(self.chosenItem))
 
         alg = self.store.get('/robot/task')
         if alg=="pick":
@@ -61,19 +65,21 @@ class CheckItem(State):
                 self.store.put('/robot/target_view_location', self.store.get('/robot/selected_bin'))
                 self.store.put('/robot/target_locations', ["binA", "binB", "binC"])
                 self.store.put('/robot/target_bin', self.store.get('/robot/selected_bin'))
+                #updated location file and store with new location of item
                 self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
+                dump_location.run(self.store)
             else: #dropped in K3 but didnt want to
                 self.store.put('/robot/target_view_location', self.store.get('/robot/selected_bin'))
                 self.store.put('/robot/target_locations', ["binA", "binB", "binC"])
                 self.store.put('/robot/target_bin', self.store.get('/robot/selected_bin'))
                 self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
 
-
         elif alg=="stow":
-            self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_bin'))
+            if(self.chosenItem!='unknown'):
+                self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_bin'))
             self.store.put('/robot/target_locations', ['stow_tote'])
             self.store.put('/robot/target_view_location', self.store.get('/robot/target_bin'))
-
+            dump_location.runStow(self.store)
         self.setOutcome(True)
 
 if __name__ == '__main__':

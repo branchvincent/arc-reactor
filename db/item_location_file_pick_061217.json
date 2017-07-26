@@ -24,7 +24,7 @@
         {
             "bin_id": "C",
             "contents": [
-                "ice_cube_tray",
+                "tissue_box",
                 "hinged_ruled_index_cards",
                 "scotch_sponges",
                 "robots_everywhere"
@@ -33,7 +33,7 @@
     ],
     "boxes": [
         {
-            "size_id": "K3",
+            "size_id": "1AD",
             "contents": [
             ]
         },
