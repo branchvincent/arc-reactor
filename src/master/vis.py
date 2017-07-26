@@ -236,7 +236,7 @@ class WorldViewer(GLRealtimeProgram):
         self.post_drawables = []
         self.extra_poses = []
 
-        self.view.camera.rot = [0, -pi/4, -pi/2 - pi/4]
+        self.view.camera.rot = [0, pi/4, pi/2 + pi/4]
 
     def display(self):
         for drawable in self.pre_drawables:
@@ -290,6 +290,7 @@ class WorldViewerWindow(QMainWindow):
             (3, '/tote'),
             (3, '/frame'),
             (3, '/vantage'),
+            (3, '/debug')
         ])
 
         self.timestamps = {}
@@ -392,7 +393,7 @@ class WorldViewerWindow(QMainWindow):
 
         # build the trace path
         path = []
-        for cmd in self.db.get(path_url):
+        for cmd in self.db.get(path_url, []):
             robot.setConfig(cmd[1]['robot'] + cmd[1]['gripper'])
             path.append(robot.link(link).getTransform()[1])
 
