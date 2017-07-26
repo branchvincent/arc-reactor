@@ -35,7 +35,7 @@ class ReplaceExactly(State):
         grasp_local_z = list(transform(zero_translation(grasp_xform), [0, 0, 1]).flat)
 
         # compute minimal rotation to orient grasp xform upright
-        minimal_rotation = klampt2numpy(so3.vector_rotation(grasp_local_z, [0, 0, 1]))
+        minimal_rotation = klampt2numpy(so3.vector_rotation(grasp_local_z, [0, 0, -1]))
         world_placement = zero_rotation(grasp_xform).dot(minimal_rotation).dot(zero_translation(grasp_xform))
 
         # store result
@@ -43,8 +43,10 @@ class ReplaceExactly(State):
 
         self.store.put('/robot/target_bin', pack_location)
         self.store.put('/robot/target_location', pack_location)
+        self.store.put('/robot/target_view_location', pack_location)
 
         logger.info('finished replacement computation')
+        self.setOutcome(True)
 
     def suggestNext(self):
         return 0 #doesn't fail...
