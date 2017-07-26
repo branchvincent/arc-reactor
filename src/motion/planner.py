@@ -480,10 +480,11 @@ class JointPlanner(LowLevelPlanner):
         else:
             return self.planToConfig(q)
 
-    def planToConfig(self, q):
+    def planToConfig(self, q, swivel=None):
         # Get inputs
         state = self.options['current_state']
         q0 = self.options['current_config']
+        swivel = swivel if swivel is not None else q0[SWIVEL_INDEX]
         freq = self.options['control_frequency']
         profile = self.options['velocity_profile']
         vmax = self.options['states'][state]['joint_velocity_limits']
@@ -503,6 +504,8 @@ class JointPlanner(LowLevelPlanner):
         numMilestones = int(ceil(tf * freq))
         for t in np.linspace(dt, tf, numMilestones):
             qi = self.space.interpolate(q0, q, t, tf, vmax=vmax, amax=amax, profile=profile)
+            si = q0[SWIVEL_INDEX] * (1 - t / tf) + swivel * (t / tf)
+            qi[SWIVEL_INDEX] = si
             m = Milestone(t=dt, robot_gripper=qi, vacuum=vacuum)
             milestones.append(m)
             # if not self.space.feasible(m.get_robot_gripper()):
