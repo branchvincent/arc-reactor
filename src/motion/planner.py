@@ -189,7 +189,7 @@ class MotionPlanner:
         self.setState('picking')
         milestones = self.planToTransform(T_pick, name='pick')
         self.addMilestones(milestones)
-        self.store.put('/robot/target_grasp_xform', T_pick)
+        self.store.put('/robot/target_grasp_xform', klampt2numpy(T_pick))
 
         # Pick up
         logger.debug('Picking')
@@ -236,7 +236,10 @@ class MotionPlanner:
         state = 'carrying'
         self.setState(state)
         clearance_height = self.options['states'][state]['clearance_height']
+        #print "T stow ", T_stow
         T_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], clearance_height])
+        #print "T above ", T_above
+        self.store.put('/vantage/failed_really', klampt2numpy(T_above))
         milestones = self.planToTransform(T_above, name='stow_above')
         self.addMilestones(milestones)
 
@@ -298,7 +301,7 @@ class MotionPlanner:
                 # Return, if all solvers failed
                 elif i == len(solvers) - 1:
                     logger.error('Infeasible Goal Transform: {}'.format(Ti))
-                    self.store.put('vantage/infeasible', Ti)
+                    self.store.put('vantage/infeasible', klampt2numpy(Ti))
                     return None
                 else:
                     logger.warning(
