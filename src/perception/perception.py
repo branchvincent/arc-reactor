@@ -337,7 +337,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
 
         if location == 'inspect':
             #dont segment just use the mask
-            store.put(url + "labeled_image", np.where(mask == True, 1, 0))
+            store.put(url + "labeled_image", np.where(mask_volume == True, 1, 0))
             store.put(url + "point_cloud_segmented", depth_in_3d_cam_local)
             #create a DL image
             dl_tuple = segmentation.create_deep_learing_image(c_image, np.where(mask_volume == True,1,0),1, False, False)
