@@ -453,7 +453,7 @@ class JointPlanner(LowLevelPlanner):
         self.options = options
 
     def planToTransform(self, T, swivel=None):
-        q0 = self.store.get('/planner/current_config')
+        q0 = self.options['current_config']
         q = self.solveForConfig(T, swivel if swivel is not None else q0[SWIVEL_INDEX])
         if q is None:
             return None
