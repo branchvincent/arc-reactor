@@ -1,12 +1,15 @@
+
+from klampt.math import so3
+
 from master.fsm import State
-from master.world import xyz, rpy
-from motion.planner import MotionPlanner
+from master.world import xyz, rpy, klampt2numpy
+from motion.planner import MotionPlanner, PlannerFailure
 from util.math_helpers import build_pose, transform, rotate, normalize
 
 import logging
 import numpy
 from time import time
-from math import pi
+from math import pi, acos
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -29,40 +32,55 @@ class PlanPickBase(State):
         # Plan route
         logger.info('planning pick route for "{}" from "{}"'.format(item, grasp['location']))
 
-        for sign in [1, -1]:
-            normal = [sign * x for x in grasp['orientation']]
+        max_downshift = 0.1
+        for scale in numpy.linspace(1, 0, 5):
+            for sign in [1, -1]:
+                normal = sign * normalize(grasp['orientation'])
+                downshift = max_downshift * scale
 
-            # Compute item pose
-            T_item = numpy.eye(4)
-            # normal vector points along Z
-            T_item[:3, 2] = normalize(normal)
-            T_item[:3, 0] = normalize(numpy.cross(rotate(rpy(pi / 2, 0, 0), T_item[:3, 2]), T_item[:3, 2]))
-            T_item[:3, 1] = normalize(numpy.cross(T_item[:3, 2], T_item[:3, 0]))
-            # position is grasp center
-            T_item[:3, 3] = grasp['center']
+                # find the angle from vertical
+                angle = acos(normal.dot([0, 0, 1]))
+                # compute the orthogonal rotation axis
+                axis = numpy.cross(normal, [0, 0, 1])
 
-            try:
-                if gripper == 'vacuum':
-                    planner = MotionPlanner(store=self.store)
-                    if inspect:
-                        planner.pickToInspect(T_item)
-                    else:
-                        planner.pick(T_item)
-                else: #mechanical
-                    #TODO: develop planner for mechanical gripper
-                    raise NotImplementedError('Mechanical gripper planner does not exist')
+                rotation = klampt2numpy(so3.from_axis_angle((axis, scale * angle)))
+                normal = rotate(rotation, normal)
 
-                # Check motion plan
-                motion_plan = self.store.get('/robot/waypoints')
-                if motion_plan is not None:
-                    logger.info('Route generated')
-                    self.store.put('/status/ppo_done', False)
-                    self.setOutcome(True)
-                    break
+                # Compute item pose
+                T_item = numpy.eye(4)
+                # normal vector points along Z
+                T_item[:3, 2] = normalize(normal)
+                T_item[:3, 0] = normalize(numpy.cross(rotate(rpy(pi / 2, 0, 0), T_item[:3, 2]), T_item[:3, 2]))
+                T_item[:3, 1] = normalize(numpy.cross(T_item[:3, 2], T_item[:3, 0]))
+                # position is grasp center
+                T_item[:3, 3] = grasp['center']
+                T_item[:3, 2] -= max_downshift
 
-            except PlannerFailure:
+                try:
+                    if gripper == 'vacuum':
+                        planner = MotionPlanner(store=self.store)
+                        if inspect:
+                            planner.pickToInspect(T_item)
+                        else:
+                            planner.pick(T_item)
+                    else: #mechanical
+                        #TODO: develop planner for mechanical gripper
+                        raise NotImplementedError('Mechanical gripper planner does not exist')
+
+                    # Check motion plan
+                    motion_plan = self.store.get('/robot/waypoints')
+                    if motion_plan is not None:
+                        logger.info('Route generated')
+                        self.store.put('/status/ppo_done', False)
+                        self.setOutcome(True)
+                        break
+
+                except PlannerFailure:
+                    pass
+
                 logger.warn('trying other normal')
-                pass
+
+            logger.warn('trying scale {}'.format(scale))
 
         else:
             self.store.put(['failure', self.getFullName()], 'infeasible')
