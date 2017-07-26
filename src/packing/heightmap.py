@@ -13,7 +13,7 @@ import time
 import pcl
 
 
-def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pixel_length=0.002,rotate=False,stability=False,layer=False):
+def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pixel_length=0.002,rotate=False,stability=False,layer=False,minimum_dimension=0.04):
 
 
     """
@@ -55,8 +55,10 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
     cornor_points=[]
     layer_map_candidates=[]
     orders=[]
+    #delete this
 
-    item,offset,rotate_angle=get_object_dimension(pointcloud,pixel_length,ee_pos)
+    item,offset,rotate_angle=get_object_dimension(pointcloud,pixel_length,ee_pos,minimum_dimension)
+
     #initialize the layer_map if one doesn't exsist
     #or if the length of the layer map is different from the number of bins current evaluating(likely forgot to clear layer_map after one run)
     if layer_map is None or len(layer_map)!=len(bins):
@@ -146,7 +148,35 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
             return (order, tool_location,-orientation-rotate_angle,layer_map)
 
         else:
-            return (None,None,None,layer_map)
+            print "Item too large, place in the largest bin possible"
+            BB_idx,largestBBcenter,rotation=placeOversized(BBs,item)
+            tool_location=get_location(largestBBcenter,-rotation-rotate_angle,offset)
+            return (BB_idx,tool_location,-rotation-rotate_angle,layer_map)
+
+def placeOversized(BBs,item):
+    max_bin=None
+    max_index=0
+    location=None
+    rotate=0
+    for index,BB in enumerate(BBs):
+
+        x_min=min(BB[0][0], BB[1][0],BB[2][0], BB[3][0])
+        x_max=max(BB[0][0], BB[1][0],BB[2][0], BB[3][0])
+        y_min=min(BB[0][1], BB[1][1],BB[2][1], BB[3][1])
+        y_max=max(BB[0][1], BB[1][1],BB[2][1], BB[3][1])
+        length=x_max-x_min
+        width=y_max-y_min
+        if max_bin is None or length*width>max_bin:
+            max_bin=length*width
+            max_index=index
+    x=(BBs[max_index][0][0]+BBs[max_index][1][0]+BBs[max_index][2][0]+BBs[max_index][3][0])/4
+    y=(BBs[max_index][0][1]+BBs[max_index][1][1]+BBs[max_index][2][1]+BBs[max_index][3][1])/4
+    z=max(BBs[max_index][0][2], BBs[max_index][1][2],BBs[max_index][2][2], BBs[max_index][3][2])
+
+    if (length-width)*(item[0]-item[1])<0:
+        rotate=90
+    return (max_index,[x,y,z],rotate)
+
 
 def get_location(center,angle,offset):
     """
@@ -163,7 +193,7 @@ def get_location(center,angle,offset):
 
 
 
-def get_object_dimension(pointcloud,pixel_length,ee_pos):
+def get_object_dimension(pointcloud,pixel_length,ee_pos,minimum_D):
     """
     use a structured or unstructured pointcloud collected at the inspection station to estimate object goemetry
 
@@ -238,7 +268,7 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos):
     # except:
     #     print center_offset
 
-    return ([dimension_rect[0]*pixel_length,dimension_rect[1]*pixel_length,z_max-z_min],center_offset,-rotation_rect)
+    return ([max(minimum_D,dimension_rect[0]*pixel_length),max(minimum_D,dimension_rect[1]*pixel_length),z_max-z_min],center_offset,-rotation_rect)
 
 
 def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map,max_height):
@@ -395,7 +425,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
     num_pixels_Y=int((y_max-y_min)/length_per_pixel)
 
     #Initialize an empty depth map
-    depth_map=np.full((num_pixels_Y,num_pixels_X),0,dtype="uint8")
+    depth_map=np.full((num_pixels_Y,num_pixels_X),255,dtype="uint8")
 
     #initialize  layer_map if one doesn't exsist
     if len(layer_map) == 0 or layer_map.shape!=depth_map.shape:
@@ -407,6 +437,7 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
         bounding_Rectangle.append([int((bounding_point[0]-x_min)/length_per_pixel),int((-bounding_point[1]+y_max)/length_per_pixel)])
     bounding_Rectangle = np.array(bounding_Rectangle).reshape((-1,1,2)).astype(np.int32)
     bounding_Rectangle = cv2.convexHull(bounding_Rectangle)
+    cv2.fillConvexPoly(depth_map, bounding_Rectangle,0)
 
 
     #fill in the depth map
@@ -417,14 +448,8 @@ def pc2depthmap(order,pointcloud,threshold,length_per_pixel,BB,layer_map):
         x=int(min(max(0,x),num_pixels_X-1))
         y=int(min(max(0,y),num_pixels_Y-1))
         #filter out high and low points
-        dist = cv2.pointPolygonTest(bounding_Rectangle,(x,y),False)
-        if dist>-1:
-            if point[2]<threshold:
+        if point[2]<threshold:
                 depth_map[y][x]=np.uint8(max(depth_map[y][x],(point[2]-z_min)*1.00/threshold*255))
-
-        else:
-            depth_map[y][x]=np.uint8(255)
-
 
     #de-noise the raw depth map using median filter
     depth_map=cv2.fastNlMeansDenoising(depth_map,None,20,11,21)
