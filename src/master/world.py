@@ -80,7 +80,7 @@ rigid_objects = {
     'amnesty_tote': 'data/objects/tote.stl',
     'stow_tote': 'data/objects/tote.stl',
     'shelf': 'data/objects/linear_shelf_front2.stl',
-    'frame': 'data/objects/frame.stl',
+    'frame': 'data/objects/frame2.stl',
 }
 
 def _get_or_load(world, name, path, total, getter, loader):
