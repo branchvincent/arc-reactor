@@ -68,7 +68,7 @@ def _rad2deg(x):
     return numpy.array(x) * 180.0 / pi
 
 robots = {
-    'tx90l': 'data/robots/tx90l.rob'
+    'tx90l': 'data/robots/tx90l_gripper.rob'
 }
 
 terrains = {
@@ -122,15 +122,17 @@ def _sync(db, paths, setter):
         paths = [ paths ]
 
     if hasattr(db, 'multi_get'):
-        values = db.multi_get(paths).values()
+        result = db.multi_get(paths)
+        # preserve the return order
+        values = [result[p] for p in paths]
     else:
         values = [db.get(p) for p in paths]
 
     if all([v is not None for v in values]):
         setter(*values)
 
-def build_world(db, ignore=None):
-    return update_world(db, ignore=ignore)
+def build_world(db=None, ignore=None):
+    return update_world(db or Store(), ignore=ignore)
 
 def update_world(db=None, world=None, timestamps=None, ignore=None):
     db = db or Store()

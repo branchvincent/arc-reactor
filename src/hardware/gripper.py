@@ -9,6 +9,8 @@ import struct
 
 from os import environ
 
+from math import pi
+
 import scipy.interpolate
 
 from pensive.client import PensiveClient
@@ -135,7 +137,7 @@ class Gripper(object):
 
         if close is not None:
             if close > 3 or close < 1:
-                raise RuntimeError('close is out of range [1, 3]: {}'.format(close))
+                raise ('close is out of range [1, 3]: {}'.format(close))
 
             q = int(round(close))
             logger.debug('gripper close: {}'.format(q))
@@ -149,8 +151,12 @@ class Gripper(object):
             self._store.put('/gripper/close', swivel)
 
         if swivel is not None:
-            if swivel > 95 or swivel < 0:
-                raise RuntimeError('swivel is out of range [0, 95]: {}'.format(swivel))
+            if swivel > 90 or swivel < 0:
+                logger.warn('swivel is out of range [0, 90]: {} -> clamping'.format(swivel))
+                if swivel > 90:
+                    swivel = 90
+                elif swivel < 0:
+                    swivel = 0
 
             q = int(round(self.swivel_calibration(swivel)))
             logger.debug('gripper swivel: {}'.format(q))
@@ -161,7 +167,7 @@ class Gripper(object):
                 if self._recv_packet('!b')[0] != 1:
                     raise RuntimeError('gripper swivel failed')
 
-            self._store.put('/gripper/swivel', swivel)
+            self._store.put('/gripper/swivel', swivel / 180.0 * pi)
 
 if __name__ == '__main__':
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
