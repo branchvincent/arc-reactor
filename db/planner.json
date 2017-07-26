@@ -1,13 +1,8 @@
 {
     "debug": false,
-<<<<<<< HEAD
-    "ee_vacuum_local": [],
-    "ee_local": [0, 0.06, -0.02],
-=======
     "ee_local": [0, 0, 0.36],
-    "swivel_local": [0, 0, 0.06],
+    "swivel_local": [0.02, 0, 0.05],
     "swivel_upright_cutoff": 85,
->>>>>>> vertical-swivel-planner
     "current_state": "idle",
     "current_config": null,
     "current_solver": null,
@@ -24,7 +19,7 @@
             "translation_acceleration_limit": "NotImplementedError",
             "rotation_velocity_limit": "NotImplementedError",
             "rotation_acceleration_limit": "NotImplementedError",
-            "clearance_height": 0.6,
+            "clearance_height": 1,
             "planning_space": "joint",
             "planning_solvers": ["local", "global"]
         },
@@ -37,13 +32,9 @@
             "translation_acceleration_limit": "NotImplementedError",
             "rotation_velocity_limit": "NotImplementedError",
             "rotation_acceleration_limit": "NotImplementedError",
-<<<<<<< HEAD
-            "clearance_height": 0.8,
-=======
-            "clearance_height": 1,
->>>>>>> vertical-swivel-planner
-            "planning_space": "task",
-            "planning_solvers": ["nearby"]
+            "clearance_height": 1.2,
+            "planning_space": "joint",
+            "planning_solvers": ["local", "global"]
         },
         "picking_approach": {
             "description": "Approaching an item, from clearance_height, to pick",
@@ -54,11 +45,7 @@
             "translation_acceleration_limit": "NotImplementedError",
             "rotation_velocity_limit": "NotImplementedError",
             "rotation_acceleration_limit": "NotImplementedError",
-<<<<<<< HEAD
-            "clearance_height": 0.8,
-=======
             "clearance_height": 1,
->>>>>>> vertical-swivel-planner
             "planning_space": "task",
             "planning_solvers": ["nearby"]
         },
