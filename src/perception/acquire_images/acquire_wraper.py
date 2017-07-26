@@ -52,8 +52,8 @@ if __name__ == "__main__":
     'ticonderoga_pencils',
     'tissue_box',
     'toilet_brush']
-    # 'white_facecloth'
-    # 'windex']
+    'white_facecloth'
+    'windex']
 
 
     #make a directory for all of the images
