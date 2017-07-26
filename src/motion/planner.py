@@ -14,16 +14,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 EE_BASE_INDEX = 6
-VACUUM_INDEX = 7
+SWIVEL_INDEX = 7
 
-# TODO: for se3, scale t if out of a/v limits
+class PlannerFailure(Exception):
+    pass
 
-# class InfeasibleGoalError(Exception):
-#     pass
-# class CollisionError(Exception):
-#     pass
-# class JointLimitError(Exception):
-#     pass
 
 class MotionPlanner:
     """
@@ -32,63 +27,52 @@ class MotionPlanner:
 
     def __init__(self, store=None, world=None):
         self.store = store or PensiveClient().default()
-        logger.critical('Loading world...')
         self.world = world
-        logger.critical('World loaded')
         self.reset()
 
     def reset(self):
         self.options = self.store.get('/planner')
         # Init planners
         self.world = update_world(self.store, self.world)
+        self.robot = self.world.robot('tx90l')
         self.cspace = CSpace(self.world, store=self.store)
         self.se3space = SE3Space(self.world, store=self.store)
         self.joint_planner = JointPlanner(self.cspace, store=self.store, options=self.options)
         self.task_planner = TaskPlanner(self.se3space, store=self.store, options=self.options)
         self.plan = MotionPlan(self.cspace, store=self.store)
         # Update current config
-        q0 = self.store.get('robot/current_config')
-        self.options['current_config'] = q0
-        self.store.delete('/planner/failure')
-        # self.store.put('planner/current_config', q0)
+        self.options['current_config'] = self.store.get('robot/current_config')
+        self.options['swivel'] = None
+        self.options['failed_pose'] = None
 
     def setState(self, state):
         logger.debug('Entering state {}'.format(state))
         self.options['current_state'] = state.lower()
-        # self.store.put('planner/current_state', state.lower())
 
     def addMilestone(self, milestone):
-        self.plan.addMilestone(milestone)
-        q = milestone.get_robot()
+        self.plan.addMilestone(milestone, strict=True)
+        q = milestone.get_robot_gripper()
         self.options['current_config'] = q
-        # self.store.put('planner/current_config', q)
+        self.robot.setConfig(q)
 
     def addMilestones(self, milestones):
-        self.plan.addMilestones(milestones)
+        self.plan.addMilestones(milestones, strict=True)
         if len(milestones) != 0:
-            q = milestones[-1].get_robot()
+            q = milestones[-1].get_robot_gripper()
             self.options['current_config'] = q
-            # self.store.put('planner/current_config', q)
+            self.robot.setConfig(q)
 
     def getCurrentConfig(self):
-        if len(self.plan.milestones) == 0:
-            return self.store.get('robot/current_config')
-        else:
-            return self.plan.milestones[-1].get_robot()
+        return self.options['current_config']
 
-    def checkCurrentConfig(self, strict=True):
+    def checkCurrentConfig(self):
         q0 = self.options['current_config']
-        feasible = self.cspace.feasible(q0)
-        if not feasible:
+        if not self.cspace.feasible(q0):
             logger.error('Current configuration is infeasible')
             self.plan.put(feasible=False)
-            if strict:
-                exit()
-        return feasible
+            raise PlannerFailure('Current configuration is infeasible')
 
     def advanceAlongAxis(self, dist, axis='z'):
-        # if isinstance(T_ee, np.ndarray):
-        #     T_ee = list(numpy2klampt(T_ee))
         # Find transform
         T_curr = list(numpy2klampt(self.store.get('/robot/tcp_pose')))
         # self.options['current_state'] = 'picking'
@@ -607,17 +591,18 @@ class MotionPlan:
 
     def reset(self):
         self.milestones = []
+        self.failed_milestones = []
 
     def feasible(self):
         for milestone in self.milestones:
-            if not self.cspace.feasible(milestone.get_robot()):
+            if not self.cspace.feasible(milestone.get_robot_gripper()):
                 return False
         return True
 
     def getFeasibleMilestones(self):
         feasible_milestones = []
         for milestone in self.milestones:
-            if self.cspace.feasible(milestone.get_robot()):
+            if self.cspace.feasible(milestone.get_robot_gripper()):
                 feasible_milestones.append(milestone)
             else:
                 break
@@ -625,22 +610,43 @@ class MotionPlan:
 
     def getCurrentConfig(self):
         if len(self.milestones) != 0:
-            return self.milestones[-1].get_robot()
+            return self.milestones[-1].get_robot_gripper()
         return None
 
     def addMilestone(self, milestone, strict=True):
+        # Append milestone, only if feasible
         if milestone is not None:
-            self.milestones.append(milestone)
-        elif strict:
+            if self.cspace.feasible(milestone.get_robot_gripper()):
+                self.milestones.append(milestone)
+                return True
+        # Raise error if strict
+        if strict:
+            self.failed_milestones = self.milestones[:]
             self.put(feasible=False)
-            exit()
+            raise PlannerFailure('infeasible milestone')
+        # Otherwise, return failed
+        else:
+            return False
 
     def addMilestones(self, milestones, strict=True):
-        if milestones is not None:
-            self.milestones += milestones
-        elif strict:
-            self.put(feasible=False)
-            exit()
+        # Append milestones, only if feasible
+        if milestones is None:
+            if strict:
+                self.put(feasible=False)
+                raise PlannerFailure('infeasible milestone')
+            else:
+                return False
+        else:
+            for i, milestone in enumerate(milestones):
+                if not self.addMilestone(milestone):
+                    del self.milestones[-i:]
+                    l1 = len(self.milestones)
+                    if strict:
+                        self.put(feasible=False)
+                        raise PlannerFailure('infeasible milestone')
+                    else:
+                        return False
+        return True
 
     def put(self, feasible=None):
         # Check feasibility
@@ -648,21 +654,21 @@ class MotionPlan:
             feasible = self.feasible()
 
         # Update database
+        t = time()
         if feasible:
             logger.info('Feasible path found. Updating waypoints...')
             milestoneMap = [m.get_milestone() for m in self.milestones]
             self.store.put('/robot/waypoints', milestoneMap)
-            self.store.put('/robot/timestamp', time())
+            self.store.put('/robot/timestamp', t)
         else:
             logger.error('Failed to find feasible path. Clearing waypoints...')
             # Clear waypoints
             self.store.put('/robot/waypoints', None)
-            self.store.put('/robot/timestamp', time())
+            self.store.put('/robot/timestamp', t)
             # Update debug waypoints
-            milestoneMap = [m.get_milestone()
-                            for m in self.getFeasibleMilestones()]
+            milestoneMap = [m.get_milestone() for m in self.failed_milestones]
             self.store.put('/debug/waypoints', milestoneMap)
-            self.store.put('/debug/timestamp', time())
+            self.store.put('/debug/timestamp', t)
 
 
 class CSpace:
@@ -710,21 +716,21 @@ class CSpace:
         elif profile == 'bang-bang':
             u = 2 * r**2 if 0 <= r <= 0.5 else -1 + 4 * r - 2 * r**2
             return self.robot.interpolate(q0, qf, u)
-        elif profile == 'trapeze':
-            vmax = vmax or self.robot.getVelocityLimits()
-            amax = amax or self.robot.getAccelerationLimits()
-            q = q0[:]
-            for i, (q0i, qfi, vi, ai) in enumerate(zip(q0, qf, vmax, amax)):
-                tau = vi / ai if ai != 0 else 0
-                Di = qfi - q0i
-                Dsign = np.sign(Di)
-                if 0 <= t < tau:
-                    q[i] = q0i + 0.5 * t**2 * ai * Dsign
-                elif tau <= t < tf - tau:
-                    q[i] = q0i + (t - tau / 2) * vi * Dsign
-                else:
-                    q[i] = qfi - 0.5 * (tf - t)**2 * ai * Dsign
-            return q
+        # elif profile == 'trapeze':
+        #     vmax = vmax or self.robot.getVelocityLimits()
+        #     amax = amax or self.robot.getAccelerationLimits()
+        #     q = q0[:]
+        #     for i, (q0i, qfi, vi, ai) in enumerate(zip(q0, qf, vmax, amax)):
+        #         tau = vi / ai if ai != 0 else 0
+        #         Di = qfi - q0i
+        #         Dsign = np.sign(Di)
+        #         if 0 <= t < tau:
+        #             q[i] = q0i + 0.5 * t**2 * ai * Dsign
+        #         elif tau <= t < tf - tau:
+        #             q[i] = q0i + (t - tau / 2) * vi * Dsign
+        #         else:
+        #             q[i] = qfi - 0.5 * (tf - t)**2 * ai * Dsign
+        #     return q
         else:
             raise RuntimeError(
                 'Unrecognized interpolation profile: {}'.format(profile))
@@ -752,8 +758,8 @@ class CSpace:
             elif profile == 'bang-bang':
                 tf.append(max(2 * D / vi, 2 * sqrt(D / ai))
                           if vi and ai != 0 else 0)
-            elif profile == 'trapeze':
-                tf.append(vi / ai + D / vi if vi and ai != 0 else 0)
+            # elif profile == 'trapeze':
+            #     tf.append(vi / ai + D / vi if vi and ai != 0 else 0)
             else:
                 raise RuntimeError(
                     'Unrecognized interpolation profile: {}'.format(profile))
