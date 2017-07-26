@@ -28,11 +28,15 @@ class PlanInspectionStation(State):
 
         # Plan route
         self.store.put('planner/current_state', 'carrying')
-        planner = MotionPlanner(store=self.store)
-        planner.toTransform(inspect_pose, swivel=0)
-        motion_plan = self.store.get('robot/waypoints')
-        if motion_plan is not None:
-            self.setOutcome(True)
+        for angle in [0, pi]:
+            self.store.put('/robot/inspect_pose', self.store.get('/robot/inspect_pose').dot(rpy(0, 0, angle)))
+
+            planner = MotionPlanner(store=self.store)
+            planner.toTransform(inspect_pose, swivel=0)
+            motion_plan = self.store.get('robot/waypoints')
+            if motion_plan is not None:
+                self.setOutcome(True)
+                break
         else:
             self.store.put(['failure', self.getFullName()], 'infeasible')
             self.setOutcome(False)
