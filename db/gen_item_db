@@ -18,13 +18,13 @@ for name in paths:
 
     data = codecs.open(os.path.join(root, name, name.lower() + '.json'), encoding='utf-8').read()
 
-    data = unidecode(data)
+    # data = unidecode(data)
 
-    lines = data.split('\n')
-    for (i, line) in enumerate(lines):
-        if line.strip().startswith('"description":'):
-            lines[i] = ''
-            lines[i - 1] = lines[i - 1][:-1]
+    # lines = data.split('\n')
+    # for (i, line) in enumerate(lines):
+        # if line.strip().startswith('"description":'):
+            # lines[i] = ''
+            # lines[i - 1] = lines[i - 1][:-1]
 
     data = '\n'.join(lines)
 
