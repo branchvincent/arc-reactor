@@ -55,12 +55,11 @@ def mask_fun(input_lab_image):
     meanB0 = input_lab_image[400:410,0:10,2].mean()
     
     gs = cv2.ximgproc.segmentation.createGraphSegmentation()
-    gs.setSigma(1.8)
-    gs.setK(840)
-    gs.setMinSize(3760)
+    gs.setSigma(0.8)
+    gs.setK(1000)
+    gs.setMinSize(3000)
     
-    l_img = gs.processImage(input_lab_image)
-
+    l_img = gs.processImage(input_lab_image) 
     max_dist = -1
     best_ind = -1
     for i in range(l_img.max()+1):
@@ -75,15 +74,16 @@ def mask_fun(input_lab_image):
             y,x = np.where(m)
             xy = np.vstack((x,y))
             x,y,w,h = cv2.boundingRect(xy.transpose())
-            if w < 600 or h < 400:
+            # plt.imshow(m)
+            # plt.show()
+            if w < 600 and h < 400:
                 max_dist = mean_dist
                 best_ind = i
     
     if best_ind != -1:
         return l_img == best_ind
     else:
-        return l_img == 2
-        # return None
+        return None
 
 if __name__ == '__main__':
 

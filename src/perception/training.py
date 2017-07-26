@@ -449,14 +449,14 @@ lr1=.001,lr2=.0001,numepochs=20,annealpoint=10):
             acc_tot += acc * len(chunk)
 
         acc_tot /= len(ix)
-        print(epoch+"\t\t", acc_tot * 100 + s"\t\t",time.time()-start)
+        print(str(epoch)+"\t\t", str(acc_tot * 100)+ "%\t\t\t\t",str(time.time()-start)+"s")
 
     dummy_dictionary=dict()
     dummy_dictionary['values']=lasagne.layers.get_all_param_values(output_layer)
     return dummy_dictionary
 
 def make_new_indices_list():
-    with open('/home/motion/Desktop/reactor/db/items_new.json') as data_file:
+    with open('/home/motion/Desktop/reactor/db/items.json') as data_file:
         jsonnames = json.load(data_file)
     names=[]
     for key,value in jsonnames.items():
@@ -522,7 +522,7 @@ def make_new_indices_list():
             objname_2_ind[name] = list_of_new_indices[cnt]
             cnt +=1
 
-    return list_of_new_indices, objname_2_ind, ind_2_objname
+    return objname_2_ind, ind_2_objname
 
 
 def main(location_of_images,location_of_Amazon_images,trained_fname):
@@ -530,7 +530,7 @@ def main(location_of_images,location_of_Amazon_images,trained_fname):
     start=time.time()
     #get list of object indices that need to be replaced
     print("Reading in images...")
-    new_indices, objname_2_ind, ind_2_objname = make_new_indices_list()
+    objname_2_ind, ind_2_objname = make_new_indices_list()
     #load new object images
     imlist,imlabels=read_images_label(location_of_images, objname_2_ind)
     print('Images read in',str(time.time()-start)+' seconds')
@@ -560,7 +560,7 @@ def main(location_of_images,location_of_Amazon_images,trained_fname):
     train_fn,val_fn,output_layer=compile_theano_functions(net)
     print('Functions compiled',str(time.time()-start)+' seconds')
     print("Training network...")
-    trained_net_params=train_network(X_tr,y_tr,train_fn,val_fn,output_layer,numepochs=6)
+    trained_net_params=train_network(X_tr,y_tr,train_fn,val_fn,output_layer,numepochs=20,annealpoint=10)
     print('Network trained',str(time.time()-start)+' seconds')
     #save network
     pickle.dump(trained_net_params,open('/home/motion/Desktop/reactor/db/'+trained_fname,"wb"),pickle.HIGHEST_PROTOCOL)
@@ -569,6 +569,6 @@ def main(location_of_images,location_of_Amazon_images,trained_fname):
     pickle.dump(ind_2_objname, open('/home/motion/Desktop/reactor/db/' + "deep_learning_index.pkl", 'wb'), pickle.HIGHEST_PROTOCOL)
 if __name__=='__main__':
     if len(sys.argv)<3:
-        print('requires location of images and return network name')
+        print('requires location of images, amazon image location, and return network name')
     else:
         main(sys.argv[1],sys.argv[2], sys.argv[3])
