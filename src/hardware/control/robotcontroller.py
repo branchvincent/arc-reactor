@@ -33,7 +33,7 @@ def Assert(condition, message):
 
 class RobotController:
     """Trajectory execution for TX90"""
-    def __init__(self, robot='right', store=None, world=None):
+    def __init__(self, robot='left', store=None, world=None):
         self.store = store or PensiveClient().default()
         self.robotName = robot
         self.world = world

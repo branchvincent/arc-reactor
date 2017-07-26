@@ -41,8 +41,8 @@ class Gripper(object):
     def __init__(self, host=None, port=None, store=None):
         self._store = store or PensiveClient().default()
 
-        encoder = [6, 20, 40, 60, 81, 100, 120, 140, 161, 181, 202, 221, 240, 260, 280]
-        degrees = [-2, 5, 10, 16, 21, 29, 37, 45, 61, 67, 77, 80, 85, 87, 90]
+        encoder = [0, 20, 40, 60, 81, 100, 120, 140, 161, 181, 202, 221, 240, 260, 280]
+        degrees = [0, 5, 10, 16, 21, 29, 37, 45, 61, 67, 77, 80, 85, 87, 90]
         self.swivel_calibration = scipy.interpolate.interp1d(degrees, encoder, kind='linear')
 
         if self._store.get('/simulate/gripper', True):
