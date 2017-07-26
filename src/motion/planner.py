@@ -81,88 +81,57 @@ class MotionPlanner:
         vector[i] = dist
         T_ee = [T_curr[0], se3.apply(T_curr, vector)]
         # Plan
-        logger.warn('Planning from {} to {}: distance of {}'.format(T_curr[1], T_ee[1], vector))
         self.toTransform(T_ee)
-        logger.warn('Created {} milestones'.format(len(self.store.get('robot/waypoints'))))
 
     def toTransform(self, T_ee):
-        # Check current config
         self.checkCurrentConfig()
-        # Create plan
         milestones = self.planToTransform(T_ee)
         self.addMilestones(milestones)
-        self.plan.put()
+        self.plan.put(feasible=True)
 
     def pick(self, T_item):
-        self.store.put('vantage/item', T_item)
+        # self.store.put('vantage/item', T_item)
         if isinstance(T_item, np.ndarray):
             T_item = numpy2klampt(T_item)
         self.checkCurrentConfig()
-        T = self.task_planner.robot.link(VACUUM_INDEX).getTransform()
-        self.store.put('vantage/vacuum_link', klampt2numpy(T))
-        T2 = (T[0], se3.apply(T, self.options['ee_local']))
-        self.store.put('vantage/vacuum_centered', klampt2numpy(T2))
 
         # Get settings
-        searchAngle = self.options['states']['picking']['search_angle_increment']
         approachDistance = self.options['states']['picking']['approach_distance']
         retractDistance = self.options['states']['picking']['retract_distance']
         delay = self.options['states']['picking']['delay']
 
-        # Determine pick pose
-        ee_local = self.options['ee_local']
-        T_item = list(numpy2klampt(klampt2numpy(T_item) * rpy(pi, 0, 0)))  # flip z
-        T_item_no_normal = (self._getRotationMatchingAxis(T_item[0], so3.identity(), axis='z'), T_item[1])
-        self.store.put('vantage/vacuum_item', klampt2numpy(T_item))
-        self.store.put('vantage/vacuum_abnormal', klampt2numpy(T_item_no_normal))
-
-        # R_ee_normal = self._getRotationMatchingAxis(R_ee, T_item[0], axis='z')
-        # T_pick[0] = R_ee_normal
-        # T_pick[1] = se3.apply(T_pick, [-i for i in ee_local])
+        ## Determine checkpoint poses
+        # Pick pose
+        q_pick, T_pick, T_pick_swivel = self._solveForPickConfig(T_item)
+        swivel = q_pick[SWIVEL_INDEX]
+        # Approach pose
+        approach_offset_local = vops.sub(se3.apply(T_pick_swivel, [0, 0, -approachDistance]), T_pick_swivel[1])
+        approach_offset = vops.add(T_pick[1], approach_offset_local)
+        T_pick_approach = (T_pick[0], approach_offset)
+        # Retract pose
+        restract_offset = vops.add(T_pick[1], [0, 0, retractDistance])
+        T_pick_departure = (T_pick[0], restract_offset)
 
         # Move above item
         logger.debug('Moving over item')
-        state = 'idle'
-        self.setState(state)
-        clearance_height = self.options['states'][state]['clearance_height']
-        # T_above = (R_ee, [T_item[1][0], T_item[1][1], clearance_height])
-        # milestones = self.planToTransform(T_above, name='pick_above')
-        T_above = ((self._getEndEffectorRotation(T_item[1]), (T_item[0], T_item[1], clearance_height))
-        # T_above = T_pick_approach[:]; T_above[1][2] = clearance_height
-        milestones = self.planToTransform(T_above, name='pick_above')
+        self.setState('idle')
+        self.options['swivel'] = 0
+        T_initial = [T_pick[0], self._getInitialPickPose(T_item)[1]]
+        # T_initial = self._getInitialPickPose(T_item)
+        milestones = self.planToTransform(T_initial, link_index=EE_BASE_INDEX, name='pick_initial')
         self.addMilestones(milestones)
 
-        local = [ee_local, vops.add(ee_local, [0,-1,0])]
-        world = [T_item[1], se3.apply(T_item, [0,0,1])]
-        # local2 = [[0,0,0], [0,0,1]]
-        # world2 = [, se3.apply(T_item, [0,0,1])]
-        world_no_normal = [T_item_no_normal[1], se3.apply(T_item_no_normal, [0,0,1])]
-        T_pick_normal = self._solveForVacuumTransform(VACUUM_INDEX, local, world)
-        T_pick_no_normal = self._solveForVacuumTransform(VACUUM_INDEX, local, world_no_normal)
-        T_pick = self._getFeasiblePickTransform(T_pick_normal, T_pick_no_normal, searchAngle, link_index=VACUUM_INDEX)
-        if T_pick is None:
-            self.plan.put(feasible=False)
-            exit()
-        T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
-        T_pick_departure = (T_pick[0], vops.add(T_pick[1], [0, 0, retractDistance]))
-
         # Move to item normal
-        #TODO: bug when no feasible pick transform
         logger.debug('Descending to item normal')
         self.setState('picking_approach')
-        # T_pick_no_normal = (R_ee, T_pick[1])
-        # T_pick = self._getFeasiblePickTransform(T_pick, T_pick_no_normal, searchAngle, link_index=VACUUM_INDEX)
-        # if T_pick is None:
-        #     self.plan.put(feasible=False)
-        #     exit()
-        # T_pick_approach = (T_pick[0], se3.apply(T_pick, [0, 0, -approachDistance]))
-        milestones = self.planToTransform(T_pick_approach, link_index=VACUUM_INDEX, name='pick_approach')
+        self.options['swivel'] = swivel
+        milestones = self.planToTransform(T_pick_approach, link_index=EE_BASE_INDEX, name='pick_approach')
         self.addMilestones(milestones)
 
         # Lower ee
         logger.debug('Descending along normal')
         self.setState('picking')
-        milestones = self.planToTransform(T_pick, link_index=VACUUM_INDEX, name='pick')
+        milestones = self.planToTransform(T_pick, link_index=EE_BASE_INDEX, name='pick')
         self.addMilestones(milestones)
         self.store.put('/robot/target_grasp_xform', T_pick)
 
@@ -171,37 +140,36 @@ class MotionPlanner:
         state = self.options['current_state']
         delay = self.options['states'][state]['delay']
         vacuum = self.options['states'][state]['vacuum']
-        self.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=vacuum))
+        self.addMilestone(Milestone(t=delay, robot_gripper=self.getCurrentConfig(), vacuum=vacuum))
 
         # Raise ee back to item normal
         logger.debug('Ascending along normal')
-        milestones = self.planToTransform(T_pick_departure, link_index=VACUUM_INDEX)
+        milestones = self.planToTransform(T_pick_departure, link_index=EE_BASE_INDEX)
         self.addMilestones(milestones)
 
         # Raise ee
         logger.debug('Ascending back over item')
         self.setState('picking_retraction')
-        milestones = self.planToTransform(T_above, link_index=VACUUM_INDEX)
+        self.options['swivel'] = 0
+        milestones = self.planToTransform(T_initial, link_index=EE_BASE_INDEX)
         self.addMilestones(milestones)
-        self.plan.put()
+        self.plan.put(feasible=True)
 
     def pickToInspect(self, T_item):
         # Pick item
-        # TODO: need to merge plans
         self.pick(T_item)
 
         # Move to inspection station
         logger.debug('Moving to inspection station')
         self.setState('carrying')
         T_inspect = self.store.get('/robot/inspect_pose')
-        milestones = self.planToTransform(T_inspect)
+        milestones = self.planToTransform(T_inspect, link_index=EE_BASE_INDEX)
         self.addMilestones(milestones)
-        self.plan.put()
+        self.plan.put(feasible=True)
 
     def stow(self, T_stow):
         if isinstance(T_stow, np.ndarray):
             T_stow = numpy2klampt(T_stow)
-        logger.warning('Starting to plan...')
         self.checkCurrentConfig()
 
         # Move over stow location
@@ -209,14 +177,14 @@ class MotionPlanner:
         state = 'carrying'
         self.setState(state)
         clearance_height = self.options['states'][state]['clearance_height']
-        T_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], clearance_height])
-        milestones = self.planToTransform(T_above, name='stow_above')
+        T_initial = (T_stow[0], [T_stow[1][0], T_stow[1][1], clearance_height])
+        milestones = self.planToTransform(T_initial, link_index=EE_BASE_INDEX, name='stow_above')
         self.addMilestones(milestones)
 
         # Lower ee
         logger.debug('Descending to placement')
         self.setState('stowing_approach')
-        milestones = self.planToTransform(T_stow, name='stow')
+        milestones = self.planToTransform(T_stow, link_index=EE_BASE_INDEX, name='stow')
         self.addMilestones(milestones)
 
         # Place
@@ -225,14 +193,14 @@ class MotionPlanner:
         self.setState(state)
         delay = self.options['states'][state]['delay']
         vacuum = self.options['states'][state]['vacuum']
-        self.addMilestone(Milestone(t=delay, robot=self.getCurrentConfig(), vacuum=vacuum))
+        self.addMilestone(Milestone(t=delay, robot_gripper=self.getCurrentConfig(), vacuum=vacuum))
 
         # Raise ee
         logger.debug('Ascending back over placement')
         self.setState('stowing_retraction')
-        milestones = self.planToTransform(T_above)
+        milestones = self.planToTransform(T_initial, link_index=EE_BASE_INDEX)
         self.addMilestones(milestones)
-        self.plan.put()
+        self.plan.put(feasible=True)
 
     def planToTransform(self, T, link_index=None, name=None):
         if self.options['debug'] and name:
@@ -255,18 +223,18 @@ class MotionPlanner:
         plan = MotionPlan(self.cspace, store=self.store)
         for i, solver in enumerate(solvers):
             self.options['current_solver'] = solver
-            # logger.debug('Trying to solve via {}'.format(solver))
-            # self.store.put('/planner/current_solver', solver)
             if space == 'task' and solver != 'nearby':
                 logger.warn('Task space with {} solver requested. Intentional?'.format(solver))
             milestones = planner.planToTransform(T, link_index=link_index)
             # HACK: try again, assuming wrist flipped
             if milestones is None and space == 'task' and solver == 'nearby':
-                milestones = self._fixWristFlip(T, planner.T_failed)
+                T_failed = self.options['failed_pose']
+                if T_failed is not None:
+                    milestones = self._fixWristFlip(T, T_failed)
+                    self.options['failed_pose'] = None
             # Update milestones, if found
-            if milestones is not None:
-                plan.addMilestones(milestones)
-                break
+            if milestones is not None and plan.addMilestones(milestones, strict=False):
+                return plan.milestones
             # Return, if all solvers failed
             elif i == len(solvers) - 1:
                 logger.error('Infeasible Goal Transform: {}'.format(T))
@@ -294,12 +262,10 @@ class MotionPlanner:
         plan = MotionPlan(self.cspace, store=self.store)
         for i, solver in enumerate(solvers):
             self.options['current_solver'] = solver
-            # self.store.put('/planner/current_solver', solver)
             milestones = planner.planToConfig(q)
             # Update milestones, if found
-            if milestones is not None:
-                plan.addMilestones(milestones)
-                break
+            if milestones is not None and plan.addMilestones(milestones):
+                return plan.milestones
             # Exit, if all solvers failed
             elif i == len(solvers) - 1:
                 logger.error(
@@ -409,31 +375,32 @@ class LowLevelPlanner(object):
     def reset(self, options):
         self.options = options
 
-    # def planToTransform(self):
-    #     raise NotImplementedError
-    # def planToConfig(self):
-    #     raise NotImplementedError
-
-    def solveForConfig(self, T=None, link_index=None, local=None, world=None):
-        """Solves for desired configuration to reach the specified end effector transform"""
+    def getGoal(self, T=None, local=None, world=None, link_index=None):
+        # Get link
         link_index = link_index or EE_BASE_INDEX
         link = self.robot.link(link_index)
 
+        # Create goal
         if T is not None:
             if isinstance(T, np.ndarray):
                 T = numpy2klampt(T)
             goal = ik.objective(link, R=T[0], t=T[1])
-        elif (local is not None) and (world is not None):
+        elif local is not None and world is not None:
             goal = ik.objective(link, local=local, world=world)
         else:
-            raise RuntimeError('Must specify T or lp and wp')
+            raise RuntimeError('Must specify T, or local and world')
+        return goal
+
+    def solveForConfig(self, T=None, local=None, world=None, link_index=None, ):
+        """Solves for desired configuration to reach the specified end effector transform"""
+        goal = self.getGoal(T=T, local=local, world=world, link_index=link_index)
         return self.solve(goal)
 
     def solve(self, goals):
         solver = self.options['current_solver']
         q0 = self.options['current_config']
         eps = self.options['nearby_solver_tolerance']
-        self.robot.setConfig(q0)
+        # self.robot.setConfig(q0)
 
         # Solve
         if solver == 'local':
@@ -532,6 +499,7 @@ class TaskPlanner(LowLevelPlanner):
         freq = self.options['control_frequency']
         profile = self.options['velocity_profile']
         vacuum = self.options['states'][state]['vacuum']
+        swivel = self.options['swivel']
 
         if isinstance(T, np.ndarray):
             T = numpy2klampt(T)
