@@ -204,7 +204,9 @@ class MotionPlanner:
         # Raise ee
         logger.debug('Ascending back over item')
         self.setState('picking_retraction')
-        milestones = self.planToTransform(T_above, swivel=0, name='pick_retration')
+        clearance_height = self.options['states'][state]['clearance_height']
+        T_lift = (R_ee, [T_prepick[1][0], T_prepick[1][1], clearance_height])
+        milestones = self.planToTransform(T_lift, swivel=0, name='pick_retration')
         self.addMilestones(milestones)
         self.plan.put()
 
