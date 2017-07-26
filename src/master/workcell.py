@@ -588,7 +588,7 @@ def main(argv):
 
         cell = dict([(url, store.get(url)) for url in urls])
         cell.update({
-            '/robot/current_config': [0, 0, -0.5, 1, 0, 1, -2]
+            '/robot/current_config': [0, 0, -0.5, 1, 0, 1, -2, 0]
         })
 
         for t in store.get('/system/totes').keys():
