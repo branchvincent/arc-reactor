@@ -29,6 +29,9 @@ class CollisionError(Exception):
 class JointLimitError(Exception):
     pass
 
+class PlannerFailure(Exception):
+    pass
+
 SWIVEL_INDEX = 7
 EE_LINK_INDEX = 6
 
@@ -90,7 +93,7 @@ class MotionPlanner:
             logger.error('Current configuration is infeasible')
             self.plan.put(feasible=False)
             if strict:
-                exit()
+                raise PlannerFailure()
         return feasible
 
     def advanceAlongAxis(self, dist, axis='z'):
@@ -615,14 +618,14 @@ class MotionPlan:
             self.milestones.append(milestone)
         elif strict:
             self.put(feasible=False)
-            exit()
+            raise PlannerFailure()
 
     def addMilestones(self, milestones, strict=True):
         if milestones is not None:
             self.milestones += milestones
         elif strict:
             self.put(feasible=False)
-            exit()
+            raise PlannerFailure()
 
     def put(self, feasible=None):
         # Check feasibility
