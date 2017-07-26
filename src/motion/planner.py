@@ -117,6 +117,8 @@ class MotionPlanner:
         self.plan.put()
 
     def pick(self, T_item):
+        self.store.put('/vantage/pick', T_item)
+
         #if isinstance(T_item, np.ndarray):
         #    T_item = numpy2klampt(T_item)
         self.checkCurrentConfig()
@@ -137,13 +139,23 @@ class MotionPlanner:
         else:
             elevation_angle = sign(z) * acos(normalize((x, y, z)).dot(normalize((x, y, 0))))
 
-        # swivel mechanism is reversed
-        swivel = pi / 2 - elevation_angle
-
-        # find the end-effector position
         ee_local = self.options['ee_local']
         swivel_local = self.options['swivel_local']
-        R_ee = rpy(0, 0, azimuthal_angle).dot(rpy(pi, 0, 0))
+
+        if elevation_angle > self.options['swivel_upright_cutoff'] / 180.0 * pi:
+            swivel = 0
+            # align the end-effector with the inspection station for efficiency
+            R_ee = zero_translation(self.store.get('/robot/inspect_pose'))
+        else:
+            # swivel mechanism is reversed
+            swivel = pi / 2 - elevation_angle
+
+            if swivel < 0:
+                logger.warn('clamping swivel angle: {} -> 0'.format(swivel))
+                swivel = 0
+
+            # find the end-effector position
+            R_ee = rpy(0, 0, azimuthal_angle).dot(rpy(pi, 0, 0))
 
         # Determine pick pose
         T_pick = zero_rotation(T_item.dot(xyz(*swivel_local))).dot(R_ee).dot(numpy.linalg.inv(xyz(*ee_local)))
@@ -739,7 +751,7 @@ class CSpace:
         for i, (qi, qli, qui) in enumerate(zip(q, ql, qu)):
             if not (qli <= qi <= qui):
                 logger.error(
-                    'Joint Limit Error: joint {} not in [{}, {}]'.format(i, qli, qui)),
+                    'Joint Limit Error: joint {} at {} not in [{}, {}]'.format(i, qi, qli, qui)),
                 return False
         return True
 
