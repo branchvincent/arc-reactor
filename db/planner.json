@@ -18,7 +18,7 @@
             "translation_acceleration_limit": "NotImplementedError",
             "rotation_velocity_limit": "NotImplementedError",
             "rotation_acceleration_limit": "NotImplementedError",
-            "clearance_height": 0.8,
+            "clearance_height": 1,
             "planning_space": "joint",
             "planning_solvers": ["local", "global"]
         },
@@ -31,7 +31,7 @@
             "translation_acceleration_limit": "NotImplementedError",
             "rotation_velocity_limit": "NotImplementedError",
             "rotation_acceleration_limit": "NotImplementedError",
-            "clearance_height": 0.8,
+            "clearance_height": 1,
             "planning_space": "task",
             "planning_solvers": ["nearby"]
         },
@@ -44,7 +44,7 @@
             "translation_acceleration_limit": "NotImplementedError",
             "rotation_velocity_limit": "NotImplementedError",
             "rotation_acceleration_limit": "NotImplementedError",
-            "clearance_height": 0.8,
+            "clearance_height": 1,
             "planning_space": "task",
             "planning_solvers": ["nearby"]
         },
