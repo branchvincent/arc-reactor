@@ -308,17 +308,15 @@ class MotionPlanner:
             else:
                 logger.warning(
                     'IK {} solver failed. Trying {} solver...'.format(solver, solvers[i + 1]))
-        # Check feasibility
-        if plan.feasible():
-            # logger.debug('Created {} milestones'.format(len(plan.milestones)))
-            return plan.milestones
-        else:
-            return None
-        # return plan.milestones
 
-    def _getEndEffectorRotation(self, t):
+    def _getInitialPickPose(self, T_item):
+        state = self.options['current_state']
+        clearance_height = self.options['states'][state]['clearance_height']
+        R,t = T_item
         Rz = atan2(t[1], t[0]) - pi
-        return numpy2klampt(xyz(*t) * rpy(pi, 0, 0) * rpy(0, 0, -Rz))[0]
+        R_ee = numpy2klampt(xyz(*t) * rpy(pi, 0, 0) * rpy(0, 0, -Rz))[0]
+        t_ee = (t[0], t[1], clearance_height)
+        return (R_ee, t_ee)
 
     def _getRotationMatchingAxis(self, R, Rmatch, axis='x'):
         i = 0 if axis == 'x' else 1 if axis == 'y' else 2
@@ -329,42 +327,54 @@ class MotionPlanner:
         Rf = so3.vector_rotation(v, vm)
         return so3.mul(Rf, R)
 
-    def _getFeasiblePickTransform(self, T_pick_normal, T_pick_no_normal, searchAngle, link_index=None):
-        if T_pick_normal is None and T_pick_no_normal is None:
-            return None
-        elif T_pick_normal is None:
-            return T_pick_no_normal
-        else:
-            return T_pick_normal
+    def _solveForPickConfig(self, T_item_normal, solvers=['local', 'global']):
+        ee_base_link = self.robot.link(EE_BASE_INDEX)
+        swivel_link = self.robot.link(SWIVEL_INDEX)
+        T_item_no_normal = (self._getRotationMatchingAxis(T_item_normal[0], so3.identity(), axis='z'), T_item_normal[1])
 
-        d = so3.distance(T_pick_normal[0], T_pick_no_normal[0])
+        searchAngle = self.options['states']['picking']['search_angle_increment']
+        d = so3.distance(T_item_normal[0], T_item_no_normal[0])
         numAttempts = 2 + ceil(d/radians(searchAngle))
-        T_pick_attempts = [se3.interpolate(T_pick_normal, T_pick_no_normal, u) for u in np.linspace(0, 1, numAttempts)]
-        for i, Ti in enumerate(T_pick_attempts):
-            logger.debug('Trying normal interpolation {} of {}'.format(i + 1, numAttempts))
-            milestones = self.planToTransform(Ti, link_index=link_index)
-            if milestones is not None:
-                return Ti
-        return None
+        T_item_attempts = [se3.interpolate(T_item_normal, T_item_no_normal, u) for u in np.linspace(0, 1, numAttempts)]
 
-    def _solveForVacuumTransform(self, link1_index, lp1, wp1, link2_index=None, lp2=None, wp2=None, solvers=['local', 'global']):
-        # Try all solvers
-        link1 = self.task_planner.robot.link(link1_index)
-        for solver in solvers:
-            self.options['current_solver'] = solver
+        for i, T_item in enumerate(T_item_attempts):
+            logger.debug('Trying normal interpolation {} of {}'.format(i + 1, numAttempts))
+
+            # Create goals
             goals = []
-            goals.append(ik.objective(link1, local=lp1, world=wp1))
-            if (lp2 is not None and wp2 is not None):
-                link2 = self.task_planner.robot.link(link2_index)
-                goals.append(ik.objective(link2, local=lp2, world=wp2))
-            q = self.task_planner.solve(goals)
-            if q is not None:
-                break
-        if q is None:
-            return None
-        else:
-            self.task_planner.robot.setConfig(q)
-            return self.task_planner.robot.link(VACUUM_INDEX).getTransform()
+            vacuum_tip_local = [0.0025142, 0.0195, 0.05526]
+            # vacuum_tip_local = [0.0025142000000001026, 0.0195, 0.05526000000000001]
+            swivel_centered_local = vacuum_tip_local[:-1] + [0]
+
+            # Match vacuum tip to item, and z axes
+            local1 = [vacuum_tip_local, swivel_centered_local]
+            world1 = [T_item[1], se3.apply(T_item, [0,0,vacuum_tip_local[2]])]
+            goals.append(self.task_planner.getGoal(local=local1, world=world1, link_index=SWIVEL_INDEX))
+
+            # Keep base of ee vertical, matching z axis to world
+            T_swivel2ee = swivel_link.getParentTransform()
+            swivel_centered_local = se3.apply(T_swivel2ee, swivel_centered_local)
+            swivel_centered_world = se3.apply(T_item, [0,0,vacuum_tip_local[2]])
+            ee_base_local = [0,0,0]
+            ee_base_world = vops.add(swivel_centered_world, swivel_centered_local)
+            local2 = [ee_base_local, swivel_centered_local]
+            world2 = [ee_base_world, swivel_centered_world]
+            goals.append(self.task_planner.getGoal(local=local2, world=world2, link_index=EE_BASE_INDEX))
+
+            # Solve, trying all solvers
+            q, i = None, 0
+            while q is None and i < len(solvers):
+                self.options['current_solver'] = solvers[i]
+                q = self.task_planner.solve(goals)
+                i +=1
+            if q is not None and self.cspace.feasible(q):
+                self.robot.setConfig(q)
+                T_ee = self.robot.link(EE_BASE_INDEX).getTransform()
+                T_swivel = self.robot.link(SWIVEL_INDEX).getTransform()
+                # self.store.put('/vantage/pick_calc', klampt2numpy(T_swivel))
+                return q, T_ee, T_swivel
+        logger.error('No feasible configuration for item')
+        raise PlannerFailure('No feasible pick configuration for item')
 
     def _fixWristFlip(self, T, T_failed):
         logger.warn('Detected possible wrist flip. Trying hack...')
