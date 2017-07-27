@@ -116,7 +116,7 @@ class Trajectory:
         if failures:
             raise RuntimeError('Motion plan failed to pass checker')
 
-    def checkIfSynced(self, tol=5):
+    def checkIfSynced(self, tol=15):
         q0 = self.robot.getCurrentConfig()
         q1 = self.milestones[0].get_robot()
         q_error = [abs(q0i-q1i) for q0i, q1i in zip(q0, q1)]
