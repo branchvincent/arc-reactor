@@ -5,17 +5,22 @@ import fcntl
 import os
 import sys
 import cv2
-sys.path.append("..")
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
-if __name__ == "__main__":
 
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Requires a json file name")
+        return     
+    json_file_name = sys.argv[1]
     #get a database
     store = PensiveClient().default()
     register_numpy()
 
     #read in NEW item config. This has all of the items we care about, might not be 40
-    with open('/home/bk/Downloads/newitems.json') as data_file:
+    with open(json_file_name) as data_file:
             jsonnames = json.load(data_file)
     names=[]
     for key,value in jsonnames.items():
@@ -149,3 +154,7 @@ if __name__ == "__main__":
             #modify the dictonary
             jsonnames[item]['mass'] = weight
             print("Weight updated. Take {} off the scales".format(item))
+
+    #write out the josn file
+    with open(json_file_name, 'w') as outfile:
+        json.dump(jsonnames, outfile)
