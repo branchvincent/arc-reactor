@@ -66,7 +66,7 @@ class RobotController:
     def updateCurrentConfig(self):
         """Updates the database with the robot's current configuration."""
         q = self.robot.getCurrentConfig()
-        m = Milestone(robot=q, gripper=[self.store.get('/gripper/swivel')], type='robot')
+        m = Milestone(robot=q, gripper=[self.store.get('/gripper/swivel', 0)], type='robot')
         m.set_type('db')
         self.store.put('/robot/current_config', m.get_robot_gripper())
 
@@ -149,7 +149,7 @@ class Trajectory:
         if self.curr_index < len(self.milestones):
             self.curr_milestone = self.milestones[self.curr_index]
             self.vacuum.change(self.curr_milestone.get_vacuum())
-            self.gripper.command(self.curr_milestone.get_gripper()[0])
+            self.gripper.command(swivel=self.curr_milestone.get_gripper()[0]*180/3.141592)
             logger.info('Moving to milestone {}'.format(self.robot.getCurrentIndexAbs()))
             # Add new milestone
             if len(self.robot.receivedMilestones) < len(self.milestones):
