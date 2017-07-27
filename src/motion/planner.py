@@ -243,9 +243,15 @@ class MotionPlanner:
         milestones = self.planToTransform(T_above, name='stow_above')
         self.addMilestones(milestones)
 
-        # Lower ee
-        logger.debug('Descending to placement')
+        # Lower ee to just above
+        logger.debug('Descending to just above')
         self.setState('stowing_approach')
+        T_just_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], T_stow[1][2] + self.options['states']['approach_offset']])
+        milestones = self.planToTransform(T_just_above, name='stow_just_above')
+        self.addMilestones(milestones)
+
+        # Lower to placement
+        logger.debug('Descending to placement')
         milestones = self.planToTransform(T_stow, name='stow')
         self.addMilestones(milestones)
 

@@ -90,7 +90,8 @@
             "rotation_acceleration_limit": "NotImplementedError",
             "clearance_height": 1.2,
             "planning_space": "task",
-            "planning_solvers": ["nearby"]
+            "planning_solvers": ["nearby"],
+            "approach_offset": 0.05
         },
         "stowing": {
             "description": "Stowing an item (i.e. turning off vacuum)",
