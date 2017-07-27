@@ -1,7 +1,7 @@
 """Controller for sending trajectories to the TX90"""
 
 import signal
-ALARM_TIMEOUT = 3
+ALARM_TIMEOUT = 10
 
 from pensive.client import PensiveClient
 from hardware.tx90l.trajclient.trajclient import TrajClient
