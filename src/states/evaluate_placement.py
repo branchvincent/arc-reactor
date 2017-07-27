@@ -90,23 +90,24 @@ class EvaluatePlacement(State):
 
         robot_pose_world = self.store.get('/robot/inspect_pose')
 
-        # attempt the packing
-        margin = self.store.get('/packing/margin', 0.03)
-        (idx, position, orientation, _) = heightmap.pack(
-            container_clouds,
-            item_cloud,
-            container_corners,
-            list(robot_pose_world[:3, 3].flat),
-            margin=margin
-        )
-
-        if idx is None and locations == ['amnesty_tote']:
-            # always succeed for amnesty tote
-            logger.warn('amnesty_tote packing failed -> use default placement above center')
+        if locations == ['amnesty_tote']:
+            logger.warn('using hardcoded amnesty drop site')
 
             idx = 0
-            position = self.store.get('/planner/fallback_amnesty_drop', [0, 0, 0.8])
+            position = self.store.get('/robot/amnesty_drop_position')
             orientation = 0
+
+        else:
+
+            # attempt the packing
+            margin = self.store.get('/packing/margin', 0.03)
+            (idx, position, orientation, _) = heightmap.pack(
+                container_clouds,
+                item_cloud,
+                container_corners,
+                list(robot_pose_world[:3, 3].flat),
+                margin=margin
+            )
 
         if idx is not None:
             # packing succeeded
