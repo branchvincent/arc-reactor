@@ -150,6 +150,7 @@ class PollDBThread(QtCore.QThread):
         self.image_dictionaries = []
         self.urls = []
         self.inspect_below_sn = self.store.get('/system/cameras/inspect_below')
+        self.stow_sn = self.store.get('/system/cameras/stow')
     def run(self):
         '''
         Polls the database at a specific URL until a flag is set.
@@ -273,6 +274,8 @@ class VideoThread(QtCore.QThread):
                     #turn off auto exposure
                     cam.set_option(rs.option_color_exposure, 850)
 
+                if sn == self.stow_sn:
+                    cam.set_option(rs.option_f200_motion_range, 70)
             except:
                 logger.warning("Unable to set options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
 
