@@ -55,7 +55,7 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
     cornor_points=[]
     layer_map_candidates=[]
     orders=[]
-    #delete this
+
 
     item,offset,rotate_angle=get_object_dimension(pointcloud,pixel_length,ee_pos,minimum_dimension)
 
@@ -103,7 +103,7 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
 
         # cv2.imshow("denoised",image_show*3)
         # k = cv2.waitKey(0)
-        # if k == 27:         # wait for ESC key to exit
+        # if k == 27:         wait for ESC key to exit
         #     cv2.destroyAllWindows()
         print time.time()
         return (order, tool_location,-orientation-rotate_angle,layer_map)
@@ -213,63 +213,65 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos,minimum_D):
     pointcloud=fil.filter()
     pointcloud=np.asarray(pointcloud)
     #get the boundary of the points in pointcloud's coordinate
+    try:
+        #filter the x and y readings of the pointcloud
+        x_filtered=pointcloud[:,0]
+        y_filtered=pointcloud[:,1]
+        z_filtered=pointcloud[:,2]
 
-    #filter the x and y readings of the pointcloud
-    x_filtered=pointcloud[:,0]
-    y_filtered=pointcloud[:,1]
-    z_filtered=pointcloud[:,2]
-
-    x_min=np.amin(x_filtered)
-    x_max=np.amax(x_filtered)
-    y_min=np.amin(y_filtered)
-    y_max=np.amax(y_filtered)
-    z_min=np.amin(z_filtered)
-    z_max=np.amax(z_filtered)
-
-
-    #map the pointcloud into a 2d imagee
-    num_pixels_x=int((x_max-x_min)/pixel_length)
-    num_pixels_y=int((y_max-y_min)/pixel_length)
-    #save 20 pixels margin(for finding contours)
-    image=np.full((num_pixels_y+40,num_pixels_x+40),255,dtype="uint8")
-    points2map=pointcloud[(pointcloud[:,0] >x_min) & (pointcloud[:,0] <x_max)  & (pointcloud[:,1] > y_min)  & (pointcloud[:,1] < y_max)][:,[0,1]]
-    points2map[:,0]-=x_min
-    points2map[:,1]=y_max-points2map[:,1]
-    points2map[:,0]/=pixel_length
-    points2map[:,1]/=pixel_length
-    points2map[:,0]+=20
-    points2map[:,1]+=20
-
-    center_coordinate=[20+int((ee_pos[0]-x_min)/pixel_length),20+int((y_max-ee_pos[1])/pixel_length)]
-
-    points2map_index=points2map.astype(int)
-    points2map=[[t[1], t[0]] for t in points2map_index]
-
-    image[tuple(np.array(points2map).T)]=np.uint8(0)
-
-    points2map_index = np.array(points2map_index).reshape((-1,1,2)).astype(np.int32)
-    rect=cv2.minAreaRect(points2map_index)
-    center_rect,dimension_rect,rotation_rect=rect
-
-    # box = cv2.boxPoints(rect)
-    # box = np.int0(box)
-    # cv2.drawContours(image,[box],0,(0,0,255),2)
-    center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
+        x_min=np.amin(x_filtered)
+        x_max=np.amax(x_filtered)
+        y_min=np.amin(y_filtered)
+        y_max=np.amax(y_filtered)
+        z_min=np.amin(z_filtered)
+        z_max=np.amax(z_filtered)
 
 
-    # try:
-    #     image[int(center_rect[1])-3:int(center_rect[1])+3,int(center_rect[0])-3:int(center_rect[0])+3]=np.uint8(160)
-    #     image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
-    #     cv2.imshow("object",image)
-    #     k = cv2.waitKey(0)
-    #     if k == 27:
-    #         cv2.destroyAllWindows()
+        #map the pointcloud into a 2d imagee
+        num_pixels_x=int((x_max-x_min)/pixel_length)
+        num_pixels_y=int((y_max-y_min)/pixel_length)
+        #save 20 pixels margin(for finding contours)
+        image=np.full((num_pixels_y+40,num_pixels_x+40),255,dtype="uint8")
+        points2map=pointcloud[(pointcloud[:,0] >x_min) & (pointcloud[:,0] <x_max)  & (pointcloud[:,1] > y_min)  & (pointcloud[:,1] < y_max)][:,[0,1]]
+        points2map[:,0]-=x_min
+        points2map[:,1]=y_max-points2map[:,1]
+        points2map[:,0]/=pixel_length
+        points2map[:,1]/=pixel_length
+        points2map[:,0]+=20
+        points2map[:,1]+=20
 
-    # except:
-    #     print center_offset
+        center_coordinate=[20+int((ee_pos[0]-x_min)/pixel_length),20+int((y_max-ee_pos[1])/pixel_length)]
 
-    return ([max(minimum_D,dimension_rect[0]*pixel_length),max(minimum_D,dimension_rect[1]*pixel_length),z_max-z_min],center_offset,-rotation_rect)
+        points2map_index=points2map.astype(int)
+        points2map=[[t[1], t[0]] for t in points2map_index]
 
+        image[tuple(np.array(points2map).T)]=np.uint8(0)
+
+        points2map_index = np.array(points2map_index).reshape((-1,1,2)).astype(np.int32)
+        rect=cv2.minAreaRect(points2map_index)
+        center_rect,dimension_rect,rotation_rect=rect
+
+        # box = cv2.boxPoints(rect)
+        # box = np.int0(box)
+        # cv2.drawContours(image,[box],0,(0,0,255),2)
+        center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
+
+
+        # try:
+        #     image[int(center_rect[1])-3:int(center_rect[1])+3,int(center_rect[0])-3:int(center_rect[0])+3]=np.uint8(160)
+        #     image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
+        #     cv2.imshow("object",image)
+        #     k = cv2.waitKey(0)
+        #     if k == 27:
+        #         cv2.destroyAllWindows()
+
+        # except:
+        #     print center_offset
+
+        return ([max(minimum_D,dimension_rect[0]*pixel_length),max(minimum_D,dimension_rect[1]*pixel_length),z_max-z_min],center_offset,-rotation_rect)
+
+    except:
+        return ([minimum_D,minimum_D,minimum_D],(0,0,0),0)
 
 def find_placement(order,depth_map,item,margin,pixel_length,rotate,stability,layer,layer_map,max_height):
 
