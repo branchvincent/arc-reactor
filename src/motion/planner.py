@@ -220,7 +220,6 @@ class MotionPlanner:
             raise RuntimeError('Unrecognized space: {}'.format(space))
 
         # Plan
-        plan = MotionPlan(self.cspace, store=self.store)
         for i, solver in enumerate(solvers):
             self.options['current_solver'] = solver
             if space == 'task' and solver != 'nearby':
@@ -233,8 +232,8 @@ class MotionPlanner:
                     milestones = self._fixWristFlip(T, T_failed)
                     self.options['failed_pose'] = None
             # Update milestones, if found
-            if milestones is not None and plan.addMilestones(milestones, strict=False):
-                return plan.milestones
+            if milestones is not None:
+                return milestones
             # Return, if all solvers failed
             elif i == len(solvers) - 1:
                 logger.error('Infeasible Goal Transform: {}'.format(T))
@@ -259,13 +258,12 @@ class MotionPlanner:
             raise RuntimeError('Unrecognized space: {}'.format(space))
 
         # Plan
-        plan = MotionPlan(self.cspace, store=self.store)
         for i, solver in enumerate(solvers):
             self.options['current_solver'] = solver
             milestones = planner.planToConfig(q)
             # Update milestones, if found
-            if milestones is not None and plan.addMilestones(milestones):
-                return plan.milestones
+            if milestones is not None:
+                return milestones
             # Exit, if all solvers failed
             elif i == len(solvers) - 1:
                 logger.error(
@@ -308,8 +306,7 @@ class MotionPlanner:
 
             # Create goals
             goals = []
-            vacuum_tip_local = [0.0025142, 0.0195, 0.05526]
-            # vacuum_tip_local = [0.0025142000000001026, 0.0195, 0.05526000000000001]
+            vacuum_tip_local = self.options['swivel_to_vacuum_tip']#[0.0025142, 0.0195, 0.05526]
             swivel_centered_local = vacuum_tip_local[:-1] + [0]
 
             # Match vacuum tip to item, and z axes
@@ -417,7 +414,7 @@ class LowLevelPlanner(object):
         if solved:
             return self.robot.getConfig()
         else:
-            logger.warning('IK {} solver failed'.format(solver))
+            # logger.warning('IK {} solver failed'.format(solver))
             self.robot.setConfig(q0)
             return None
 
@@ -455,6 +452,7 @@ class JointPlanner(LowLevelPlanner):
         swivel = self.options['swivel']
 
         # Calculate duration
+        self.robot.setConfig(q0)
         q = self.space.getGeodesic(q0, q)
         if swivel is not None:
             q[SWIVEL_INDEX] = swivel
@@ -891,5 +889,5 @@ if __name__ == "__main__":
     store = PensiveClient().default()
     bins = store.get('/shelf/bin').keys()
     boxes = store.get('/box').keys()
-    rseed = 481#randint(0,1000)
+    rseed = randint(0,1000)
     test_pick(bins[0], rand_seed=rseed)

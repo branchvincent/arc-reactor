@@ -2,6 +2,7 @@
     "debug": false,
     "ee_local": [0, 0, 0.36],
     "swivel_local": [0, 0, 0.06],
+    "swivel_to_vacuum_tip": [0.0025142, 0.0195, 0.05526],
     "current_state": "idle",
     "current_config": null,
     "current_solver": null,
