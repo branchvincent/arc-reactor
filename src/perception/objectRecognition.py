@@ -144,7 +144,7 @@ class ObjectRecognition:
             confidences = self.infer_objects_deep(dl_images)
             list_of_list_of_confidences_deep = self.filter_confidences(confidences, list_of_locations[i])
             self.store.put(url + 'detections', list_of_list_of_confidences_deep)
-            
+            self.store.put(url + 'raw_detections', confidences)
 
         self.store.put('object_recognition/error',error_string)
 
