@@ -337,6 +337,7 @@ class MotionPlanner:
                 # self.store.put('/vantage/pick_calc', klampt2numpy(T_swivel))
                 return q, T_ee, T_swivel
         logger.error('No feasible configuration for item')
+        self.plan.put(feasible=False)
         raise PlannerFailure('No feasible pick configuration for item')
 
     def _fixWristFlip(self, T, T_failed):
