@@ -110,7 +110,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     return return_values
 
-def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf, tote_mask=None):
+def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf, isInspect=False, tote_mask=None):
     '''
     Given a full color image, a labeled image, an index of the desired object,
     whether or not the tote appears in this image, and whether or not the shelf
@@ -147,7 +147,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf, 
 
     #create image for deep learning
     h,w,_=cropped_masked_image.shape
-    if h > 512 or w > 512:
+    if h > 512 or w > 512 and not isInspect:
         #image was really big and is probably the entire image or some mistake, so we are not adding it
         logger.warn("Segment {} was larger than 512x512. Not adding to identification set".format(index))
         return None
