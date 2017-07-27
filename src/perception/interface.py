@@ -19,6 +19,9 @@ class ObjectRecognitionError(Exception):
 class CommandTimeoutError(Exception):
     pass
 
+class NoObjectPresent(Exception):
+    pass
+
 def _build_command(name):
     return ['python3', 'reactor', 'shell', 'perception.perception', '-f', name]
 
@@ -88,12 +91,18 @@ def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
     args += _build_args('-b', bounds_urls)
     args += _build_args('-x', bounds_pose_urls)
 
+    store.put('/segmentation/error', 0)
+
     logger.debug('invoking image segmentation: {}'.format(args))
     try:
         check_call(args)
     except CalledProcessError as e:
         logger.exception('segmentation failed')
         raise SegmentationError()
+    else:
+        code = store.get('/segmentation/error')
+        if code == -1:
+            raise NoObjectPresent
 
 def recognize_objects(store, photo_urls, locations, timeout=1):
     # wait for prior recognition to end
