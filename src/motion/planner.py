@@ -856,13 +856,13 @@ def sph2cart(az, el, r):
     x,y,z = a*np.cos(az), a*np.sin(az), r*np.sin(el)
     return (x,y,z)
 
-def test_pick(location, rand_seed=None, buffer=0):
+def test_pick(location, rand_seed=None, buffer=0.1, store=None, planner=None):
     logger.debug('Testing pick for {} with seed {}'.format(location,rand_seed))
 
     # Declare
     seed(rand_seed)
-    store = PensiveClient().default()
-    planner = MotionPlanner(store=store)
+    store = store or PensiveClient().default()
+    planner = planner or MotionPlanner(store=store)
 
     # Calculate random rotation
     theta, phi = acos(2*uniform(0,1) - 1), 2*pi*uniform(0,1)
@@ -888,7 +888,24 @@ def test_pick(location, rand_seed=None, buffer=0):
 if __name__ == "__main__":
     from random import seed, uniform, randint, choice
     store = PensiveClient().default()
+    planner = MotionPlanner(store=store)
     bins = store.get('/shelf/bin').keys()
     boxes = store.get('/box').keys()
-    rseed = randint(0,1000)
-    test_pick(bins[0], rand_seed=rseed)
+
+    tests = 100
+    passes = tests
+
+    t = time()
+    for i in range(tests):
+        try:
+            planner.reset()
+            test_pick(choice(bins + boxes), rand_seed=randint(0,1000), store=store, planner=planner)
+        except PlannerFailure:
+            assert(store.get('robot/waypoints') is None)
+            passes -= 1
+        else:
+            planner.robot.setConfig(planner.plan.milestones[-1].get_robot_gripper())
+            assert(planner.plan.feasible())
+
+    logger.info('Planned {} routes in {} s'.format(tests, time()-t))
+    logger.info('Success rate: {} %'.format(passes/float(tests)*100))
