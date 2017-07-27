@@ -77,11 +77,12 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
         tote_mask[:,:,1] = np.where(t2 < 50, 0, 1)
         tote_mask[:,:,2] = np.where(t2 < 50, 0, 1)
     elif params.isShelf:
-        t = (labcolor - [140,140,160])#TODO update these at competition
-        t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
-        tote_mask[:,:,0] = np.where(t2 < 40, 0, 1)
-        tote_mask[:,:,1] = np.where(t2 < 40, 0, 1)
-        tote_mask[:,:,2] = np.where(t2 < 40, 0, 1)
+        pass
+        # t = (labcolor - [140,140,160])#TODO update these at competition
+        # t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
+        # tote_mask[:,:,0] = np.where(t2 < 40, 0, 1)
+        # tote_mask[:,:,1] = np.where(t2 < 40, 0, 1)
+        # tote_mask[:,:,2] = np.where(t2 < 40, 0, 1)
 
     for i in range(numObj):
         #find element in labeled_image == i

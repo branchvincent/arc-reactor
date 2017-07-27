@@ -343,6 +343,11 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             store.put(url + "labeled_image", np.where(mask_volume == True, 1, 0))
             store.put(url + "point_cloud_segmented", depth_in_3d_cam_local)
             #create a DL image
+            indices = np.array((mask_volume == 1).nonzero()).transpose()
+            if len(indices) == 0 or len(indices) < 200:
+                #segment was too small, likely nothing there or invisible object
+                store.put("/segmentation/error", -1)
+                raise RuntimeError("Segment was too small at inspection station. No object or invisible object")
             dl_tuple = segmentation.create_deep_learing_image(c_image, np.where(mask_volume == True,1,0),1, False, False)
             if dl_tuple is None:
                 logger.warning("Unable to create image for deep learning.")
