@@ -90,30 +90,28 @@ class EvaluatePlacement(State):
 
         robot_pose_world = self.store.get('/robot/inspect_pose')
 
-        if locations == ['amnesty_tote']:
-            logger.warn('using hardcoded amnesty drop site')
-
-            idx = 0
-            position = self.store.get('/robot/amnesty_drop_position')
-            orientation = 0
-
-        else:
-
-            # attempt the packing
-            margin = self.store.get('/packing/margin', 0.03)
-            (idx, position, orientation, _) = heightmap.pack(
-                container_clouds,
-                item_cloud,
-                container_corners,
-                list(robot_pose_world[:3, 3].flat),
-                margin=margin
-            )
+        # attempt the packing
+        margin = self.store.get('/packing/margin', 0.03)
+        (idx, position, orientation, _) = heightmap.pack(
+            container_clouds,
+            item_cloud,
+            container_corners,
+            list(robot_pose_world[:3, 3].flat),
+            margin=margin
+        )
 
         if idx is not None:
             # packing succeeded
             pack_location = locations[idx]
             logger.info('found placement in "{}"'.format(pack_location))
             logger.debug('position {}, rotation {}'.format(position, orientation))
+
+            # enforce minimum packing level
+            container_bottom = min([p[2] for p in container_corners[idx]])
+            minimum_packing = self.store.get(['packing', 'minimum'], 0.10)
+            if position[2] < container_bottom + minimum_packing:
+                logger.warn('elevating placement to minimum: {} -> {}'.format(position[2], container_bottom + minimum_packing))
+                position[2] = container_bottom + minimum_packing
 
             # increase the placement by the offset
             selected_item = self.store.get('/robot/selected_item')
