@@ -575,6 +575,7 @@ def main(argv):
             '/robot/base_pose',
             '/robot/inspect_pose',
             '/robot/inspect_bounds',
+            '/robot/amnesty_drop_position',
             '/robot/camera_xform',
             '/robot/target_xform',
             '/shelf/pose',
