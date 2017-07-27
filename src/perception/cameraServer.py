@@ -26,6 +26,7 @@ class CameraServer(QtWidgets.QWidget):
 
         self.db_poll_thread.signal.connect(self.take_images)
         self.video_thread.inspect_below_sn = self.db_poll_thread.inspect_below_sn
+        self.video_thread.stow_sn = self.db_poll_thread.stow_sn
         self.db_poll_thread.start()
         self.show()
 
