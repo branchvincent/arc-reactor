@@ -86,7 +86,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
 
     for i in range(numObj):
         #find element in labeled_image == i
-        dl_tuple = create_deep_learing_image(fcolor, labeled_image, i, params.isTote, params.isShelf, tote_mask)
+        dl_tuple = create_deep_learing_image(fcolor, labeled_image, i, params.isTote, params.isShelf, tote_mask=tote_mask)
         if dl_tuple is None:
             continue
         else:
