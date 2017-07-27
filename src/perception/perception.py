@@ -315,9 +315,12 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
         pts = pts.transpose()
         pts = pts[:,::-1]
         hull = cv2.convexHull(pts.astype('float32'))
-        mask_project = cv2.fillConvexPoly(np.zeros(d_image.shape), hull.astype('int32'), 1)
-        mask_project = np.logical_and(mask_project, d_image == 0)
-        mask = np.logical_or(mask_project, mask_volume)
+        if hull is None:
+            mask = mask_volume
+        else:
+            mask_project = cv2.fillConvexPoly(np.zeros(d_image.shape), hull.astype('int32'), 1)
+            mask_project = np.logical_and(mask_project, d_image == 0)
+            mask = np.logical_or(mask_project, mask_volume)
         
         # for bounding box debugging
         store.put(url + '/bounds_mask', mask)
