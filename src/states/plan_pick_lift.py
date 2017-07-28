@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class PlanPickOnly(PlanPickBase):
+class PlanPickLift(PlanPickBase):
     """
     Input:
         - /robot/selected_item: name of item to be picked
@@ -21,13 +21,13 @@ class PlanPickOnly(PlanPickBase):
     """
 
     def run(self):
-        self._common(False)
+        self._common(inspect=False, lift=True)
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
-        check = self.store.get('/status/ppo_done', False)
+        check = self.store.get('/status/ppl_done', False)
         if(not check):
-            self.store.put('/status/ppo_done', True)
+            self.store.put('/status/ppl_done', True)
             return 0 #try once more
         else:
             return 1  #by default to not get stuck in loops
@@ -38,5 +38,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'ppo')
-    PlanPickOnly(myname).run()
+    myname = (args.name or 'ppl')
+    PlanPickLift(myname).run()

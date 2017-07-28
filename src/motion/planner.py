@@ -213,6 +213,149 @@ class MotionPlanner:
         self.addMilestones(milestones)
         self.plan.put()
 
+    def pickLiftOnly(self, T_item):
+        self.store.put('/vantage/pick', T_item)
+
+        #if isinstance(T_item, np.ndarray):
+        #    T_item = numpy2klampt(T_item)
+        self.checkCurrentConfig()
+
+        # Get settings
+        searchAngle = self.options['states']['picking']['search_angle_increment']
+        approachDistance = self.options['states']['picking']['approach_distance']
+        delay = self.options['states']['picking']['delay']
+
+        # find the end-effector Z rotation that aligns the vacuum swivel with the normal
+        (x, y, z) = rotate(T_item, [0, 0, 1]).flat
+        # add 180 degrees because the swivel moves along the -X axis
+        azimuthal_angle = atan2(y, x)
+
+        # find the elevation angle
+        if abs(x) < 1e-6 and abs(y) < 1e-6:
+            elevation_angle = sign(z) * pi / 2
+        else:
+            elevation_angle = sign(z) * acos(normalize((x, y, z)).dot(normalize((x, y, 0))))
+
+        ee_local = self.options['ee_local']
+        swivel_local = self.options['swivel_local']
+
+        if elevation_angle > self.options['swivel_upright_cutoff'] / 180.0 * pi:
+            swivel = 0
+            # align the end-effector with the inspection station for efficiency
+            R_ee = zero_translation(self.store.get('/robot/inspect_pose'))
+        else:
+            # swivel mechanism is reversed
+            swivel = pi / 2 - elevation_angle
+
+            if swivel < 0:
+                logger.warn('clamping swivel angle: {} -> 0'.format(swivel))
+                swivel = 0
+
+            # find the end-effector position
+            R_ee = rpy(0, 0, azimuthal_angle).dot(rpy(pi, 0, 0))
+
+        # Determine pick pose
+        T_pick = zero_rotation(T_item.dot(xyz(*swivel_local))).dot(R_ee).dot(numpy.linalg.inv(xyz(*ee_local)))
+        T_prepick = zero_rotation(T_item.dot(xyz(*swivel_local).dot(xyz(*approachDistance * normalize(swivel_local))))).dot(R_ee).dot(numpy.linalg.inv(xyz(*ee_local)))
+
+        T_pick = numpy2klampt(T_pick)
+        T_prepick = numpy2klampt(T_prepick)
+        R_ee = numpy2klampt(R_ee)[0]
+
+        # Pick up
+        logger.debug('Picking')
+        state = self.options['current_state']
+        delay = self.options['states'][state]['delay']
+        vacuum = self.options['states'][state]['vacuum']
+        self.addMilestone(Milestone(t=delay, robot_gripper=self.getCurrentConfig(), vacuum=vacuum))
+
+        # Raise ee back to item normal
+        logger.debug('Ascending along normal')
+        t_departure = vops.add(T_pick[1], [0, 0, approachDistance])
+        milestones = self.planToTransform((T_pick[0], t_departure), name='pick_lift')
+        self.addMilestones(milestones)
+
+        # Raise ee
+        logger.debug('Ascending back over item')
+        self.setState('picking_retraction')
+        clearance_height = self.options['states'][state]['clearance_height']
+        T_lift = (R_ee, [T_prepick[1][0], T_prepick[1][1], clearance_height])
+        milestones = self.planToTransform(T_lift, swivel=0, name='pick_retration')
+        self.addMilestones(milestones)
+        self.plan.put()
+
+    def pickWithoutLift(self, T_item):
+        self.store.put('/vantage/pick', T_item)
+
+        #if isinstance(T_item, np.ndarray):
+        #    T_item = numpy2klampt(T_item)
+        self.checkCurrentConfig()
+
+        # Get settings
+        searchAngle = self.options['states']['picking']['search_angle_increment']
+        approachDistance = self.options['states']['picking']['approach_distance']
+        delay = self.options['states']['picking']['delay']
+
+        # find the end-effector Z rotation that aligns the vacuum swivel with the normal
+        (x, y, z) = rotate(T_item, [0, 0, 1]).flat
+        # add 180 degrees because the swivel moves along the -X axis
+        azimuthal_angle = atan2(y, x)
+
+        # find the elevation angle
+        if abs(x) < 1e-6 and abs(y) < 1e-6:
+            elevation_angle = sign(z) * pi / 2
+        else:
+            elevation_angle = sign(z) * acos(normalize((x, y, z)).dot(normalize((x, y, 0))))
+
+        ee_local = self.options['ee_local']
+        swivel_local = self.options['swivel_local']
+
+        if elevation_angle > self.options['swivel_upright_cutoff'] / 180.0 * pi:
+            swivel = 0
+            # align the end-effector with the inspection station for efficiency
+            R_ee = zero_translation(self.store.get('/robot/inspect_pose'))
+        else:
+            # swivel mechanism is reversed
+            swivel = pi / 2 - elevation_angle
+
+            if swivel < 0:
+                logger.warn('clamping swivel angle: {} -> 0'.format(swivel))
+                swivel = 0
+
+            # find the end-effector position
+            R_ee = rpy(0, 0, azimuthal_angle).dot(rpy(pi, 0, 0))
+
+        # Determine pick pose
+        T_pick = zero_rotation(T_item.dot(xyz(*swivel_local))).dot(R_ee).dot(numpy.linalg.inv(xyz(*ee_local)))
+        T_prepick = zero_rotation(T_item.dot(xyz(*swivel_local).dot(xyz(*approachDistance * normalize(swivel_local))))).dot(R_ee).dot(numpy.linalg.inv(xyz(*ee_local)))
+
+        T_pick = numpy2klampt(T_pick)
+        T_prepick = numpy2klampt(T_prepick)
+        R_ee = numpy2klampt(R_ee)[0]
+
+        # Move above item
+        logger.debug('Moving over item')
+        state = 'idle'
+        self.setState(state)
+        clearance_height = self.options['states'][state]['clearance_height']
+        T_above = (R_ee, [T_prepick[1][0], T_prepick[1][1], clearance_height])
+        milestones = self.planToTransform(T_above, swivel=0, name='pick_above')
+        self.addMilestones(milestones)
+
+        # Move to item normal
+        #TODO: bug when no feasible pick transform
+        logger.debug('Descending to item normal')
+        self.setState('picking_approach')
+        milestones = self.planToTransform(T_prepick, swivel=swivel, name='pick_approach')
+        self.addMilestones(milestones)
+
+        # Lower ee
+        logger.debug('Descending along normal')
+        self.setState('picking')
+        milestones = self.planToTransform(T_pick, name='pick')
+        self.addMilestones(milestones)
+        self.store.put('/robot/target_grasp_xform', klampt2numpy(T_pick))
+
     def pickToInspect(self, T_item):
         # Pick item
         # TODO: need to merge plans
@@ -266,7 +409,7 @@ class MotionPlanner:
         # Raise ee
         logger.debug('Ascending back over item')
         self.setState('stowing_retraction')
-        milestones = self.planToTransform(T_above)
+        milestones = self.planToTransform(T_above, swivel=pi / 6)
         self.addMilestones(milestones)
         self.plan.put()
 

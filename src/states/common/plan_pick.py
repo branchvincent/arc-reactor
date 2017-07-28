@@ -14,7 +14,7 @@ from math import pi, acos
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class PlanPickBase(State):
-    def _common(self, inspect=True):
+    def _common(self, inspect=True, lift=True):
         # Get inputs
         item = self.store.get('/robot/selected_item')
         grasp = self.store.get('/robot/target_grasp')
@@ -33,18 +33,12 @@ class PlanPickBase(State):
         logger.info('planning pick route for "{}" from "{}"'.format(item, grasp['location']))
 
         max_downshift = 0.1
-        for scale in numpy.linspace(1, 0, 5):
+        for scale in numpy.linspace(0, 1, 5):
             for sign in [1, -1]:
                 normal = sign * normalize(grasp['orientation'])
                 downshift = max_downshift * scale
 
-                # find the angle from vertical
-                angle = acos(normal.dot([0, 0, 1]))
-                # compute the orthogonal rotation axis
-                axis = numpy.cross(normal, [0, 0, 1])
-
-                rotation = klampt2numpy(so3.from_axis_angle((axis, scale * angle)))
-                normal = rotate(rotation, normal)
+                normal = normalize(((1 - scale) * normal + [0, 0, scale]) / 2)
 
                 # Compute item pose
                 T_item = numpy.eye(4)
@@ -61,6 +55,8 @@ class PlanPickBase(State):
                         planner = MotionPlanner(store=self.store)
                         if inspect:
                             planner.pickToInspect(T_item)
+                        elif lift:
+                            planner.pickLiftOnly(T_item)
                         else:
                             planner.pick(T_item)
                     else: #mechanical
