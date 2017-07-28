@@ -32,13 +32,13 @@ class PlanPickBase(State):
         # Plan route
         logger.info('planning pick route for "{}" from "{}"'.format(item, grasp['location']))
 
-        max_downshift = 0.1
-        for scale in numpy.linspace(0, 1, 5):
+        max_downshift = 0.01
+        for scale in numpy.linspace(1, 0, 5):
             for sign in [1, -1]:
                 normal = sign * normalize(grasp['orientation'])
                 downshift = max_downshift * scale
 
-                normal = normalize(((1 - scale) * normal + [0, 0, scale]) / 2)
+                normal = normalize((scale * normal + [0, 0, 1 - scale]) / 2)
 
                 # Compute item pose
                 T_item = numpy.eye(4)
@@ -63,18 +63,20 @@ class PlanPickBase(State):
                         #TODO: develop planner for mechanical gripper
                         raise NotImplementedError('Mechanical gripper planner does not exist')
 
-                    # Check motion plan
-                    motion_plan = self.store.get('/robot/waypoints')
-                    if motion_plan is not None:
-                        logger.info('Route generated')
-                        self.store.put('/status/ppo_done', False)
-                        self.setOutcome(True)
-                        break
+                    break
 
                 except PlannerFailure:
                     pass
 
                 logger.warn('trying other normal')
+
+            # Check motion plan
+            motion_plan = self.store.get('/robot/waypoints')
+            if motion_plan is not None:
+                logger.info('Route generated')
+                self.store.put('/status/ppo_done', False)
+                self.setOutcome(True)
+                break
 
             logger.warn('trying scale {}'.format(scale))
 
