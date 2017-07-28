@@ -21,7 +21,7 @@ class PlanPickOnly(PlanPickBase):
     """
 
     def run(self):
-        self._common(False)
+        self._common(inspect=False, lift=False)
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])

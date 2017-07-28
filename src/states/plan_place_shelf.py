@@ -25,6 +25,11 @@ class PlanPlaceShelf(PlanStowBase):
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
         check = self.store.get('/status/pps_done', False)
+        counter = self.store.get('/status/failed_pps', 0)
+        counter += 1
+        if(counter>2):
+            self.store.put('/status/failed_pps', 0)
+            return 2
         if(not check):
             self.store.put('/status/pps_done', True)
             return 0 #try once more

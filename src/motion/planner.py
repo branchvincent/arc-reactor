@@ -174,14 +174,14 @@ class MotionPlanner:
         self.setState(state)
         clearance_height = self.options['states'][state]['clearance_height']
         T_above = (R_ee, [T_prepick[1][0], T_prepick[1][1], clearance_height])
-        milestones = self.planToTransform(T_above, swivel=0, name='pick_above')
+        milestones = self.planToTransform(T_above, swivel=swivel, name='pick_above')
         self.addMilestones(milestones)
 
         # Move to item normal
         #TODO: bug when no feasible pick transform
         logger.debug('Descending to item normal')
         self.setState('picking_approach')
-        milestones = self.planToTransform(T_prepick, swivel=swivel, name='pick_approach')
+        milestones = self.planToTransform(T_prepick, name='pick_approach')
         self.addMilestones(milestones)
 
         # Lower ee
@@ -264,6 +264,7 @@ class MotionPlanner:
 
         # Pick up
         logger.debug('Picking')
+        self.setState('picking')
         state = self.options['current_state']
         delay = self.options['states'][state]['delay']
         vacuum = self.options['states'][state]['vacuum']
@@ -355,6 +356,7 @@ class MotionPlanner:
         milestones = self.planToTransform(T_pick, name='pick')
         self.addMilestones(milestones)
         self.store.put('/robot/target_grasp_xform', klampt2numpy(T_pick))
+        self.plan.put()
 
     def pickToInspect(self, T_item):
         # Pick item
@@ -389,7 +391,7 @@ class MotionPlanner:
         # Lower ee to just above
         logger.debug('Descending to just above')
         self.setState('stowing_approach')
-        T_just_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], T_stow[1][2] + self.options['states']['approach_offset']])
+        T_just_above = (T_stow[0], [T_stow[1][0], T_stow[1][1], T_stow[1][2] + 0.05]) #self.options['states'][state]['approach_offset']])
         milestones = self.planToTransform(T_just_above, name='stow_just_above')
         self.addMilestones(milestones)
 
@@ -627,7 +629,7 @@ class JointPlanner(LowLevelPlanner):
         if q is None:
             return None
         else:
-            return self.planToConfig(q)
+            return self.planToConfig(q, swivel=swivel)
 
     def planToConfig(self, q, swivel=None):
         # Get inputs
