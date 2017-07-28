@@ -73,7 +73,7 @@ def check_size(contour,lengthPerPixel):
     Fullness: The extent the given contour fits a rectangle or Ellipse
 
     """
-    MIN_DIAMETER = 0.05
+    MIN_DIAMETER = 0.03
     MIN_FILL = 0.8
     #compute if the shape is close to a rectangle or circle enough, set 80% as threshold
     center_rect,dimension_rect,rotation_rect=cv2.minAreaRect(contour)
@@ -103,7 +103,7 @@ def check_top(surfacePoints,coeficients,pointcloud):
 
     """
     a,b,c,d=coeficients
-    max_distance=0.01
+    max_distance=0.05
     distance_sum=0
     count=0
     count_over=0
@@ -517,7 +517,8 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                     #Here are the priliminary scorings for each features
 
                     if ratio<1:
-                        deductions['size']=(1/ratio)**2*20-20
+                        #deductions['size']=(1/ratio)**2*20-20
+                        deductions['size']=(1/ratio)**1.5*20 - 20
                     if fitness<0.8:
                         deductions['size']+=(0.8-fitness)*5
 
@@ -526,18 +527,20 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
 
                     if percentage>0.02 and average_distance>0 or average_distance<-0.02:
                         deductions['top_Coverage']=abs(average_distance)*10000*percentage
+                        #deductions['top_Coverage']=abs(average_distance)*1000*percentage
 
                     if angle>10:
                         deductions['Orientation']=((angle-10)/10)**2*0.2
 
                     deductions['Off_center']=centerPlane2centerSeg*(1-plane_percentage)*50
-                    deductions['Solidity']=(intensity[0]/60.0)**4
+                    #deductions['Solidity']=(intensity[0]/60.0)**3 #4
+                    deductions['Solidity']=0
                     Finalscore=Score-sum(deductions.values())
 
                     #Load all plane information into a python list where each of the sublist is a python dictionary
 
-                    #print center
-                    #print len(Plane_info)
+                    # print center
+                    # print len(Plane_info)
                     Plane_info.append({'segment': maskNum,'center':center.tolist(),'orientation':plane_equation, 'score':Finalscore, 'flatness':plane_percentage, 'tilting_angle': angle, 'size': ratio, 'convexity':fitness,'close_edge': edge_close, 'gap': edge_gap,'blockage': edge_covered, 'edge_inconclusive':edge_missing, 'gap_Depth':gap_Depth, 'blockage_height':converage_height,'top_coverage':percentage, 'cover_height': average_distance,'distance2COG':centerPlane2centerSeg,'percentageAsPlane':plane_percentage,'mean_intensity':intensity[0],'height':center[2]})
 
                     #printing information to the terminal
