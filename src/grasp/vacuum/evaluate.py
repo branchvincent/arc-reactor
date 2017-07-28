@@ -183,7 +183,7 @@ def get_mean_intensity(image,contour):
 
 def find_center(points):
     center=np.mean(points, axis=0)
-
+    center_point=None
     try:
         tree = spatial.KDTree(points[:,[0,1]][0::2])
         idx=tree.query(center[:2],k=5)
@@ -191,10 +191,11 @@ def find_center(points):
         if center[2]>height_center:
             #print('Center height is adjusted by {} cm.'.format((center[2]-height_center)*100))
             center[2]=height_center
+        center_point=points[idx[1]][:1]
     except:
         print "Center height not verified"
 
-    return center
+    return (center,center_point)
 
 def check_surroundings(contour,pointcloud,img):
 
@@ -354,7 +355,7 @@ def check_flatness(segment,mask_num):
     seg.set_normal_distance_weight(0.1)
     seg.set_method_type(pcl.SAC_RANSAC)
     seg.set_max_iterations(100)
-    seg.set_distance_threshold(0.06)
+    seg.set_distance_threshold(0.05)
 
     indices, model = seg.segment()
     cloud_plane = segment.extract(indices, negative=False)
@@ -366,6 +367,31 @@ def check_flatness(segment,mask_num):
     index_x_remained=np.delete(mask_indices[mask_num][1], indices)
     mask_indices[mask_num]=(index_y_remained,index_x_remained)
     return (model, cloud_plane,indices_pc)
+
+def get_local_normal(pointcloud,center_point,plane_equation):
+    indice = np.where(np.all(pointcloud == center_point, axis=-1))
+    try:
+        neighbours=pointcloud[int(indice[0])-25:int(indice[0])+25,int(indice[1])-25:int(indice[1])+25]
+        neighbours=neighbours.flatten()
+        neighbours=np.reshape(neighbours,(neighbours.size/3,3))
+        neighbours=pcl.PointCloud(neighbours)
+        seg = neighbours.make_segmenter_normals(ksearch=50)
+        seg.set_optimize_coefficients(True)
+        seg.set_model_type(pcl.SACMODEL_NORMAL_PLANE)
+        seg.set_normal_distance_weight(0.1)
+        seg.set_method_type(pcl.SAC_RANSAC)
+        seg.set_max_iterations(100)
+        seg.set_distance_threshold(0.04)
+
+        Indices, model = seg.segment()
+        if len(model)!=0:
+            return model
+        else:
+            return plane_equation
+    except:
+        print "not using local normals"
+        return plane_equation
+
 
 
 
@@ -458,7 +484,7 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
             Found_Contour,cnt,image=find_contour(image)
             if Found_Contour:
                 intensity=get_mean_intensity(image,cnt)
-                #cv2.drawContours(image,cnt, -1, (100), 3)
+                cv2.drawContours(image,cnt, -1, (100), 3)
                 #print "chek_Size"
                 #print time.time()
                 ratio, fitness=check_size(cnt,lengthPerPixel)
@@ -475,15 +501,19 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                 #print time.time()
                 enclosing_pixels_pointcloud,segment_indices=find_enclosingPixels(pixel_in_pointcloud,mask_indices[maskNum])
                 if len(segment_indices)>0:
-                    center=find_center(pointcloud[tuple(np.array(segment_indices).T)])
+                    center,center_point=find_center(pointcloud[tuple(np.array(segment_indices).T)])
+
+                    local_normal=get_local_normal(pointcloud,center_point,plane_equation)
+                    plane_equation=local_normal
                     centerPlane2centerSeg=np.linalg.norm(center-COG)
                     #print "check_top"
                     #print time.time()
                     percentage,average_distance=check_top(enclosing_pixels_pointcloud,plane_equation,pointcloud)
                     #print "start evaluating scores"
                     #print time.time()
-                    if average_distance<0:
-                        center[2]+=average_distance
+                    #RECENTLY COMMENTED
+                        # if average_distance<0:
+                        #     center[2]+=average_distance
                     #Here are the priliminary scorings for each features
 
                     if ratio<1:
@@ -491,25 +521,23 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                     if fitness<0.8:
                         deductions['size']+=(0.8-fitness)*5
 
-                    deductions['Side_coverage']=max(0,edge_close+(edge_covered*5)**3*math.sqrt(abs(converage_height))*20-edge_gap*gap_Depth*100)
+                    deductions['Side_coverage']=max(0,edge_close+(edge_covered)*math.sqrt(abs(converage_height))*20-edge_gap*gap_Depth*100)
 
 
                     if percentage>0.02 and average_distance>0 or average_distance<-0.02:
                         deductions['top_Coverage']=abs(average_distance)*10000*percentage
 
                     if angle>10:
-                        deductions['Orientation']=((angle-10)/10)**2*0.3
-                    if angle>85:
-                        deductions['Orientation']+=10
-
+                        deductions['Orientation']=((angle-10)/10)**2*0.2
 
                     deductions['Off_center']=centerPlane2centerSeg*(1-plane_percentage)*50
-                    deductions['Solidity']=(intensity[0]/70.0)**4
+                    deductions['Solidity']=(intensity[0]/60.0)**4
                     Finalscore=Score-sum(deductions.values())
 
                     #Load all plane information into a python list where each of the sublist is a python dictionary
 
-
+                    #print center
+                    #print len(Plane_info)
                     Plane_info.append({'segment': maskNum,'center':center.tolist(),'orientation':plane_equation, 'score':Finalscore, 'flatness':plane_percentage, 'tilting_angle': angle, 'size': ratio, 'convexity':fitness,'close_edge': edge_close, 'gap': edge_gap,'blockage': edge_covered, 'edge_inconclusive':edge_missing, 'gap_Depth':gap_Depth, 'blockage_height':converage_height,'top_coverage':percentage, 'cover_height': average_distance,'distance2COG':centerPlane2centerSeg,'percentageAsPlane':plane_percentage,'mean_intensity':intensity[0],'height':center[2]})
 
                     #printing information to the terminal
@@ -574,14 +602,14 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
 
 
     #for all planes with positive scores, arrange the planes in order of height and add punishment for lower planes
-    Plane_info = sorted(Plane_info, key=itemgetter('height'), reverse=True)
-    order_positive_plane=0
-    for order,rated_plane in enumerate(Plane_info):
-        if rated_plane['score']>0:
-            Plane_info[order]['score']-=order_positive_plane*0.5
-            #print('Plane is the {}th in height, taking {} off.'.format(order_positive_plane+1,order_positive_plane*0.5))
-            order_positive_plane+=1
-    print time.time()
+    # Plane_info = sorted(Plane_info, key=itemgetter('height'), reverse=True)
+    # order_positive_plane=0
+    # for order,rated_plane in enumerate(Plane_info):
+    #     if rated_plane['score']>0:
+    #         Plane_info[order]['score']-=order_positive_plane*0.5
+    #         print('Plane is the {}th in height, taking {} off.'.format(order_positive_plane+1,order_positive_plane*0.5))
+    #         order_positive_plane+=1
+    # print time.time()
 
     return Plane_info
 
@@ -643,4 +671,3 @@ print " "
 #plane_info=rate_plane(pointcloud,depth_threshold=0.4,masks=seg_masks,img=img)
 #print "Finish"
 #print time.time()
-
