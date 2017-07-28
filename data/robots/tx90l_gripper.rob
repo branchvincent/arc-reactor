@@ -6,7 +6,7 @@ TParent 1 0 0   0 1 0   0 0 1   0 0 0 \
 1 0 0   0 0 1   0 -1 0   -0.0002 0.156 0.11 \
 1 0 0   0 0 -1   0 1 0   0.0008 0.0305 0.3952  \
 1 0 0   0 0 1   0 -1 0   0 0.095 0.0305 \
-1 0 0	0 1 0	0 0 1	-0.0025142 -0.0195 0.35974 \
+1 0 0	0 1 0	0 0 1	-0.0025142 0.0 0.35974 \
 
 parents -1 0 1 2 3 4 5 6
 axis 0 0 1    0 0 1    0 0 1    0 0 -1    0 0 1   0 0 -1    0 0 1   0 -1 0
@@ -20,7 +20,7 @@ accMaxDeg  0    400    400      400    400     400    400 300
 geometry   "tx90l/part6.off" "tx90l/part5.off" "tx90l/part4.off" "tx90l/part3.off" "tx90l/part2.off" "tx90l/part1.off" "" ""
 
 mount 6 "gripper40/base_link.stl"   1 0 0   0 0 -1    0 1 0   0 0 0
-mount 7 "gripper40/vacuum_link.stl"   1 0 0   0 0 -1    0 1 0   0 0 0
+mount 7 "gripper40/vacuum_link.stl"   1 0 0   0 0 -1    0 1 0   0 -0.0195 0
 
 mass       20 10 10 5 5 1 1 0.5
 automass
