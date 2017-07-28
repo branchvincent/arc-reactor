@@ -35,6 +35,8 @@ class PlanInspectionStation(State):
         for angle in [0, pi]:
             self.store.put('/robot/inspect_pose', self.store.get('/robot/inspect_pose').dot(rpy(0, 0, angle)))
 
+            inspect_pose[2, 3] += self.store.get('/planner/swivel_local')[2]
+
             planner = MotionPlanner(store=self.store)
             planner.toTransform(inspect_pose, swivel=0)
             motion_plan = self.store.get('robot/waypoints')
