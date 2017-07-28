@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import os
-import matplotlib.pyplot as plt
 import time
 import sys
 import json
@@ -32,7 +31,7 @@ def read_images_label(root_dir, objname_2_ind):
     imlist= []
     imlabels= []
     for folder in objname_2_ind.keys():
-        skip = 4
+        skip = 1
         fnames = os.listdir(root_dir + "/" + folder)
         for i in range(0,len(fnames),skip):
             #read in the image
@@ -245,14 +244,21 @@ def load_amazon_images(directory,valid_objects_dict):
     imlist=list()
     y_=list() #classes
     for subdir in os.listdir(directory):
+        path=directory+ "/" + subdir
+        if subdir.startswith("."):
+                continue
         if subdir.lower() in valid_objects_dict:
             path=directory+ "/" + subdir
+            
+            files = os.listdir(path) #files in the directory for the class corresponding to subdir
 
-            files=next(os.walk(path))[2] #files in the directory for the class corresponding to subdir
 
             for f in files:
                 if f[-3:]=='png': #load the png images
-                    im=cv2.imread(path+'/'+f)[:,:,::-1]#.astype(np.uint8)
+                    im = cv2.imread(path+'/'+f)
+                    if im is None:
+                        continue
+                    im = im[:,:,::-1]
                     resized=skimage.transform.resize(im, (512,512), preserve_range=True)
                     imlist.append(resized)
                     y_.append(valid_objects_dict[subdir.lower()])
@@ -455,8 +461,8 @@ lr1=.001,lr2=.0001,numepochs=20,annealpoint=10):
     dummy_dictionary['values']=lasagne.layers.get_all_param_values(output_layer)
     return dummy_dictionary
 
-def make_new_indices_list():
-    with open('/home/motion/Desktop/reactor/db/items.json') as data_file:
+def make_new_indices_list(location_of_json):
+    with open(location_of_json) as data_file:
         jsonnames = json.load(data_file)
     names=[]
     for key,value in jsonnames.items():
@@ -522,15 +528,25 @@ def make_new_indices_list():
             objname_2_ind[name] = list_of_new_indices[cnt]
             cnt +=1
 
+
+    #check if there are 40 objects
+    if len(new_objects) < 40:
+        num_dummy = 40-len(new_objects)
+        #add in dummy items
+        for i in range(num_dummy):
+            ind_2_objname[len(new_objects)+i] = "dummy"+str(i)
+            objname_2_ind["dummy"+str(i)] = len(new_objects)+i
+            
+
     return objname_2_ind, ind_2_objname
 
 
-def main(location_of_images,location_of_Amazon_images,trained_fname):
+def main(location_of_json, location_of_images,location_of_Amazon_images,trained_fname):
 
     start=time.time()
     #get list of object indices that need to be replaced
     print("Reading in images...")
-    objname_2_ind, ind_2_objname = make_new_indices_list()
+    objname_2_ind, ind_2_objname = make_new_indices_list(location_of_json)
     #load new object images
     imlist,imlabels=read_images_label(location_of_images, objname_2_ind)
     print('Images read in',str(time.time()-start)+' seconds')
@@ -543,7 +559,7 @@ def main(location_of_images,location_of_Amazon_images,trained_fname):
     print('Amazon images loaded',str(time.time()-start)+' seconds')
     #augment images
     print("Augmenting images...")
-    X_tr,y_tr=generate_augmented_dataset(imlist,imlabels,smallest_dim=170,brightness_scale_range=[.99,1.],max_translate=1)
+    X_tr,y_tr=generate_augmented_dataset(imlist,imlabels,smallest_dim=170,brightness_scale_range=[.99,1.],max_translate=1, upscale_factor=8)
     X_tr_,y_tr_=generate_augmented_dataset(imlist_Amazon,imlabels_Amazon,
                                smallest_dim=170,
                                brightness_scale_range=[.99,1.01],
@@ -560,7 +576,7 @@ def main(location_of_images,location_of_Amazon_images,trained_fname):
     train_fn,val_fn,output_layer=compile_theano_functions(net)
     print('Functions compiled',str(time.time()-start)+' seconds')
     print("Training network...")
-    trained_net_params=train_network(X_tr,y_tr,train_fn,val_fn,output_layer,numepochs=20,annealpoint=10)
+    trained_net_params=train_network(X_tr,y_tr,train_fn,val_fn,output_layer,numepochs=10,annealpoint=6)
     print('Network trained',str(time.time()-start)+' seconds')
     #save network
     pickle.dump(trained_net_params,open('/home/motion/Desktop/reactor/db/'+trained_fname,"wb"),pickle.HIGHEST_PROTOCOL)
@@ -568,7 +584,7 @@ def main(location_of_images,location_of_Amazon_images,trained_fname):
     pickle.dump(objname_2_ind, open('/home/motion/Desktop/reactor/db/' + "deep_learning_name2ind.pkl", 'wb'), pickle.HIGHEST_PROTOCOL)
     pickle.dump(ind_2_objname, open('/home/motion/Desktop/reactor/db/' + "deep_learning_index.pkl", 'wb'), pickle.HIGHEST_PROTOCOL)
 if __name__=='__main__':
-    if len(sys.argv)<3:
-        print('requires location of images, amazon image location, and return network name')
+    if len(sys.argv)<4:
+        print('requires location of json, location of images, amazon image location, and return network name')
     else:
-        main(sys.argv[1],sys.argv[2], sys.argv[3])
+        main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])

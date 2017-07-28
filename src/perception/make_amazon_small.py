@@ -7,12 +7,13 @@ def load_amazon_images(directory):
     for subdir in os.listdir(directory):
         
         path=directory+ "/" + subdir
-
-        files=next(os.walk(path))[2] #files in the directory for the class corresponding to subdir
+        if subdir.startswith("."):
+            continue
+        files = os.listdir(path) #files in the directory for the class corresponding to subdir
 
         for f in files:
             if f[-3:]=='png': #load the png images
-                im = cv2.imread(path+'/'+f)[:,:,::-1]#.astype(np.uint8)
+                im = cv2.imread(path+'/'+f)
                 if im is None:
                     continue
                 resized=skimage.transform.resize(im, (512,512), preserve_range=True)
