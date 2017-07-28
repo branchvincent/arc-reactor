@@ -32,7 +32,11 @@ def read_images_label(root_dir, objname_2_ind):
     imlabels= []
     for folder in objname_2_ind.keys():
         skip = 1
-        fnames = os.listdir(root_dir + "/" + folder)
+        try:
+            fnames = os.listdir(root_dir + "/" + folder)
+        except FileNotFoundError:
+            print("No folder of images for item {}".format(folder))
+            continue
         for i in range(0,len(fnames),skip):
             #read in the image
             im = cv2.imread(root_dir + "/" + folder + "/" + fnames[i])
