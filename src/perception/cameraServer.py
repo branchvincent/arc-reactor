@@ -12,21 +12,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 class CameraServer(QtWidgets.QWidget):
-    
+
     def __init__(self):
         super(CameraServer, self).__init__()
-        self.initCameras()      
+        self.initCameras()
         self.initUI()
 
         self.current_settings_camera = 0
         self.video_thread = VideoThread()
         self.video_thread.signal.connect(self.receive_images)
-        self.video_thread.start()
         self.db_poll_thread = PollDBThread()
-
-        self.db_poll_thread.signal.connect(self.take_images)
         self.video_thread.inspect_below_sn = self.db_poll_thread.inspect_below_sn
         self.video_thread.stow_sn = self.db_poll_thread.stow_sn
+
+        self.video_thread.start()
+
+        self.db_poll_thread.signal.connect(self.take_images)
+
         self.db_poll_thread.start()
         self.show()
 
@@ -40,7 +42,7 @@ class CameraServer(QtWidgets.QWidget):
 
     def initUI(self):
         #split the screen into two halves
-        #left half is for color images 
+        #left half is for color images
         #right half is for settings
         self.horzLayout = QtWidgets.QHBoxLayout()
         self.setLayout(self.horzLayout)
@@ -63,7 +65,7 @@ class CameraServer(QtWidgets.QWidget):
 
             #put it in the grid
             self.camera_grid_layout.addWidget(cam_display, i%2, i//2)
-            
+
         self.horzLayout.addItem(self.camera_grid_layout)
 
     def initCameras(self):
@@ -75,10 +77,10 @@ class CameraServer(QtWidgets.QWidget):
         self.num_cameras = context.get_device_count()
         if self.num_cameras == 0:
             raise RuntimeError("No cameras were detected")
-        
+
         logger.info("Found %i cameras", self.num_cameras)
-        
-        
+
+
         self.camera_sn = []
         #cycle through and set the camera options
         for num in range(self.num_cameras):
@@ -94,22 +96,22 @@ class CameraServer(QtWidgets.QWidget):
 
 
     def take_images(self, camera_serials, urls):
-        
+
         logger.info("Taking image(s) for camera(s) {}".format(camera_serials))
-        self.video_thread.camera_sn_q = camera_serials[:] 
-        
+        self.video_thread.camera_sn_q = camera_serials[:]
+
         for sn,url in zip(camera_serials,urls):
             cur_time = time.time()
             while len(self.video_thread.camera_sn_q) != 0:
                 time.sleep(0.01)
-                #timeout 
+                #timeout
                 if(time.time() - cur_time > 3):
                     error_string = "Unable to get new images from camera {}".format(sn)
                     logger.error(error_string)
                     self.db_poll_thread.error_string = error_string
                     self.db_poll_thread.images_acquired = True
                     break
-                
+
             self.db_poll_thread.image_dictionaries.append(copy.deepcopy(self.video_thread.sn_to_image_dictionaries[sn]))
             self.db_poll_thread.urls.append(url)
 
@@ -131,7 +133,7 @@ class CameraServer(QtWidgets.QWidget):
         image = QtGui.QImage(color_image, color_image.shape[1], color_image.shape[0], color_image.shape[1] * 3,QtGui.QImage.Format_RGB888)
         pix = QtGui.QPixmap(image)
         label.setPixmap(pix.scaled(480,360))
-      
+
 
 class PollDBThread(QtCore.QThread):
     signal = QtCore.pyqtSignal(list, list)
@@ -192,18 +194,18 @@ class PollDBThread(QtCore.QThread):
                         self.store.put('/acquire_images/done', 1)
                         continue
 
-                    
+
                     self.images_acquired = False
                     self.signal.emit(list_of_serial_nums, list_of_urls)
                     while not self.images_acquired:
                         time.sleep(0.01)
-                    
+
                     logger.info("Starting write to DB")
                     #image was acquired write stuff out to the database
                     for i, image_dictionary in enumerate(self.image_dictionaries):
                         send_dict = {key: value for (key, value) in image_dictionary.items() if key not in ['error', 'serial_number']}
                         self.store.multi_put(send_dict,root=self.urls[i])
-                    
+
 
                     #tell the DB we are done
                     self.store.put('/acquire_images/done', 1)
@@ -246,7 +248,7 @@ class VideoThread(QtCore.QThread):
             #exit gracefully
             sys.exit(-1)
 
-        num_cams = context.get_device_count()            
+        num_cams = context.get_device_count()
         if num_cams == 0:
             logger.warn("No cameras attached")
             return
@@ -277,11 +279,12 @@ class VideoThread(QtCore.QThread):
 
                 if sn == self.stow_sn:
                     cam.set_option(rs.option_f200_motion_range, 70)
-            except:
-                logger.warning("Unable to set options for camera {}".format(cam.get_info(rs.camera_info_serial_number)))
+
+            except Exception as e:
+                logger.warning("Unable to set options for camera {}: {}".format(cam.get_info(rs.camera_info_serial_number), e))
 
             #add to class structures
-            
+
             self.sn_to_image_dictionaries[sn] = {}
             self.sn_to_image_dictionaries[sn]['time_stamp'] = time.time()
             self.sn_to_camera[sn] = cam
@@ -295,7 +298,7 @@ class VideoThread(QtCore.QThread):
                     self.captureImage(sn)
                     logger.info("Image acquired")
                     self.camera_sn_q.remove(sn)
-                
+
             else:
                 time.sleep(0.05)
 
@@ -326,7 +329,7 @@ class VideoThread(QtCore.QThread):
             imageFullColor = cam.get_frame_data_u8(rs.stream_color)
             if imageFullColor.size == 1:
                 #something went wrong
-                error_string = "Could not capture the full color image. Size of requested stream did not match" 
+                error_string = "Could not capture the full color image. Size of requested stream did not match"
                 logger.error(error_string)
                 imageFullColor = None
             else:
@@ -370,8 +373,8 @@ class VideoThread(QtCore.QThread):
         except Exception as e:
             error_string = "Error in waiting for frames. {}".format(e)
             logger.exception(error_string)
-            
-            
+
+
 
         image_dictionary['full_color'] = imageFullColor
         image_dictionary['aligned_color'] = color_to_depth
