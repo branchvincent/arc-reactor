@@ -85,7 +85,7 @@ def acquire_images_new(store, serials, photo_urls, timeout=5):
 
     logger.debug('acquire images finished')
 
-def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
+def segment_images(store, photo_urls, bounds_urls, bounds_pose_urls):
     args = _build_command('segment_images')
     args += _build_args('-u', photo_urls)
     args += _build_args('-b', bounds_urls)
@@ -102,7 +102,7 @@ def segment_images(photo_urls, bounds_urls, bounds_pose_urls):
     else:
         code = store.get('/segmentation/error')
         if code == -1:
-            raise NoObjectPresent
+            raise NoObjectPresent()
 
 def recognize_objects(store, photo_urls, locations, timeout=1):
     # wait for prior recognition to end
