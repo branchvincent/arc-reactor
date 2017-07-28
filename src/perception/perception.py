@@ -361,7 +361,7 @@ def segment_images(list_of_urls, list_of_bounds_urls, list_of_world_xforms_urls)
             else:
                 seg_params.isShelf = False
                 seg_params.isTote = True
-            ret = segmentation.graphSegmentation(d_image, c_image, depth_in_3d_cam_local, seg_params)
+            ret = segmentation.graphSegmentation(d_image, c_image, depth_in_ref_local, seg_params)
             #write out results to database
             send_dict = {}
             send_dict['labeled_image'] = ret['labeled_image']

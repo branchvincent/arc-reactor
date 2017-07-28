@@ -23,7 +23,7 @@ class GraphSegmentationParams():
         self.mask = None            #mask used to block out unwanted points
 
 
-def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationParams()):
+def graphSegmentation(depthImage, fcolor, depth_ref_local, params=GraphSegmentationParams()):
     '''
     Takes in a depth image and full color image and returns a list of images
     that can be fed into deep learning to figure out what they are.
@@ -69,20 +69,23 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
     #extract the sub image for each label based on the minimum bounding rectangle
     imagesForDL = []
 
+    #find very deep pixels
+
+    deep_pix = (depth_ref_local[:,:,2] <= 0.02).astype('uint8')
+
     tote_mask = np.ones(fcolor.shape)
     if params.isTote:
         t = (labcolor - [80,175,175]) #TODO update these at competition
         t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
-        tote_mask[:,:,0] = np.where(t2 < 50, 0, 1)
-        tote_mask[:,:,1] = np.where(t2 < 50, 0, 1)
-        tote_mask[:,:,2] = np.where(t2 < 50, 0, 1)
+        tote_mask[:,:,0] = np.where(t2 < 50, 0, 1)*deep_pix
+        tote_mask[:,:,1] = np.where(t2 < 50, 0, 1)*deep_pix
+        tote_mask[:,:,2] = np.where(t2 < 50, 0, 1)*deep_pix
     elif params.isShelf:
-        pass
-        # t = (labcolor - [140,140,160])#TODO update these at competition
-        # t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
-        # tote_mask[:,:,0] = np.where(t2 < 40, 0, 1)
-        # tote_mask[:,:,1] = np.where(t2 < 40, 0, 1)
-        # tote_mask[:,:,2] = np.where(t2 < 40, 0, 1)
+        t = (labcolor - [80,140,160])#TODO update these at competition
+        t2 = np.sqrt(t[:,:,0]**2 + t[:,:,1]**2 + t[:,:,2]**2)
+        tote_mask[:,:,0] = np.where(t2 < 40, 0, 1)*np.logical_not(deep_pix)
+        tote_mask[:,:,1] = np.where(t2 < 40, 0, 1)*np.logical_not(deep_pix)
+        tote_mask[:,:,2] = np.where(t2 < 40, 0, 1)*np.logical_not(deep_pix)
 
     for i in range(numObj+1):
         #find element in labeled_image == i
