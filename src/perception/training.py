@@ -212,7 +212,7 @@ def build_model_resnet():
     return net
 
 def load_pretrained_model():
-    d = pickle.load(open('/media/motion/PerceptionSSD/competition/resnet_finetuned_07202017_manualseg.pkl','rb'),encoding='latin-1')
+    d = pickle.load(open('../../db/resnet_finetuned_06132017_combined.pkl','rb'),encoding='latin-1')
     net = build_model_resnet()
     lasagne.layers.set_all_param_values(net['prob'], d['values'])
     return net
@@ -247,13 +247,14 @@ def extract_bounding_box(imlist,imlabels):
 def load_amazon_images(directory,valid_objects_dict):
     imlist=list()
     y_=list() #classes
+    print(valid_objects_dict)
     for subdir in os.listdir(directory):
         path=directory+ "/" + subdir
         if subdir.startswith("."):
                 continue
         if subdir.lower() in valid_objects_dict:
             path=directory+ "/" + subdir
-            
+
             files = os.listdir(path) #files in the directory for the class corresponding to subdir
 
 
@@ -516,11 +517,10 @@ def make_new_indices_list(location_of_json):
     'white_facecloth',
     'windex']
 
-    #objects that need to be removed
-    list_of_new_indices = [i for i in range(len(old_objects)) if old_objects[i] not in new_objects]
-
     ind_2_objname = {}
     objname_2_ind = {}
+    #objects that need to be removed
+    list_of_new_indices = [i for i in range(len(old_objects)) if old_objects[i] not in new_objects]
 
     cnt = 0
     for name in new_objects:
@@ -532,15 +532,21 @@ def make_new_indices_list(location_of_json):
             objname_2_ind[name] = list_of_new_indices[cnt]
             cnt +=1
 
-
     #check if there are 40 objects
     if len(new_objects) < 40:
-        num_dummy = 40-len(new_objects)
         #add in dummy items
-        for i in range(num_dummy):
-            ind_2_objname[len(new_objects)+i] = "dummy"+str(i)
-            objname_2_ind["dummy"+str(i)] = len(new_objects)+i
-            
+        for i in range(40):
+            try:
+                ind_2_objname[i]
+            except KeyError:
+                ind_2_objname[i] = "dummy"+str(i)
+                objname_2_ind["dummy"+str(i)] = i
+
+    ind_2_objname = {}
+    for key,val in objname_2_ind.items():
+        ind_2_objname[val] = key
+
+    print(len(ind_2_objname), len(objname_2_ind))
 
     return objname_2_ind, ind_2_objname
 

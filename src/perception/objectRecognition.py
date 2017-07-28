@@ -32,7 +32,7 @@ class ObjectRecognition:
             errstr = "Cannot open the item name to deep learning index dictionary."
             logger.critical(errstr)
             raise RuntimeError(errstr)
-
+        print(self.deep_learning_index)
         #load in the items.json file
         with open('db/items.json') as data_file:
             jsonnames = json.load(data_file)
@@ -40,8 +40,8 @@ class ObjectRecognition:
             names.append(key)
         names.sort()
         self.object_names = names
-
-        self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,len(names))
+        print(len(names))
+        self.deep_learning_recognizer = dl.DeepLearningRecognizer(network_name,40)
 
         #given a location returns a list of items in the location
         self.items_in_location = {}
@@ -309,5 +309,9 @@ class ObjectRecognition:
 
 
 if __name__ == '__main__':
-    o = ObjectRecognition('db/resnet_finetuned_06132017_combined.pkl')
+    o = ObjectRecognition('db/training_test1.pkl')
+
+    #o = ObjectRecognition('db/resnet_finetuned_07202017_manualseg.pkl')
+    #o = ObjectRecognition('db/resnet_finetuned_06132017_combined.pkl')
+    #o = ObjectRecognition('db/resnet_test_06242017')
     o.poll_database()

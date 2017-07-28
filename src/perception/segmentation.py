@@ -84,7 +84,7 @@ def graphSegmentation(depthImage, fcolor, point_cloud, params=GraphSegmentationP
         # tote_mask[:,:,1] = np.where(t2 < 40, 0, 1)
         # tote_mask[:,:,2] = np.where(t2 < 40, 0, 1)
 
-    for i in range(numObj):
+    for i in range(numObj+1):
         #find element in labeled_image == i
         dl_tuple = create_deep_learing_image(fcolor, labeled_image, i, params.isTote, params.isShelf, tote_mask=tote_mask)
         if dl_tuple is None:
@@ -129,7 +129,7 @@ def create_deep_learing_image(fullcolor, labeled_image, index, isTote, isShelf, 
 
     if tote_mask is None:
         tote_mask = np.ones(fullcolor.shape)
-    
+
     masked=fullcolor*mask*tote_mask
 
     #coordinates of corners of the bounding box (unrotated)
