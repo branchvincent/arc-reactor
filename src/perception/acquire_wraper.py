@@ -8,27 +8,23 @@ import cv2
 from pensive.client import PensiveClient
 from pensive.coders import register_numpy
 
+def run(json_file_name):
 
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Requires a json file name")
-        return     
-    json_file_name = sys.argv[1]
     #get a database
     store = PensiveClient().default()
     register_numpy()
 
     #read in NEW item config. This has all of the items we care about, might not be 40
     with open(json_file_name) as data_file:
-            jsonnames = json.load(data_file)
+    	jsonnames = json.load(data_file)
     names=[]
     for key,value in jsonnames.items():
         names.append(key)
     names.sort()
     objectnames = [x.lower() for x in names]
-    
+
     #remove objects from the old list
+#    old_objects = []
     old_objects = ['avery_binder',
     'balloons',
     'band_aid_tape',
@@ -85,9 +81,10 @@ if __name__ == "__main__":
                 os.mkdir(dirname)
             except FileExistsError:
                 print("could not make directory {}".format(dirname))
-
+                continue
+            cnt = 0
             while(True):
-                cnt = 0
+
                 #place all new images in this directory, they will already be segmented
                 #go until the user says stop
                 print('Taking pictures of {}, okay? ([y]/n)'.format(item))
@@ -95,17 +92,17 @@ if __name__ == "__main__":
                 if inp == 'y\n' or inp == '\n':
                     #start subprocess
                     try:
-                        subprocess.check_output(["./reactor shell states.capture_photo_inspect"])
+                        subprocess.check_output(["./reactor", "shell", "states.capture_photo_inspect"])
                     except:
                         print("Capture photo inspect didn't work")
 
 
                     try:
-                        subprocess.check_output(["./reactor shell segment_photo"])
+                        subprocess.check_output(["./reactor", "shell", "states.segment_photo"])
                     except:
                         print("Segment photo didn't work")
 
-                            
+                    store.put("robot/target_photos",None)
                     #save the segmented images
                     mask_bot = store.get("/photos/inspect/inspect_below/labeled_image")
                     mask_side = store.get("/photos/inspect/inspect_side/labeled_image")
@@ -124,25 +121,25 @@ if __name__ == "__main__":
                     seg_side[:,:,2] = image_side[:,:,2]*mask_side
 
                     #save it out
-                    cv2.imwrite("images/{}/side{}.png".format(item,cnt),seg_side)
-                    cv2.imwrite("images/{}/bot{}.png".format(item,cnt),seg_bot)
+                    cv2.imwrite("images/{}/side{}.png".format(item,cnt),seg_side[:,:,::-1])
+                    cv2.imwrite("images/{}/bot{}.png".format(item,cnt),seg_bot[:,:,::-1])
 
                     cnt += 1
                 else:
                     break
-            
+
             #done taking pictures time to weigh
             try:
-                subprocess.check_output(["./reactor shell states.read_scales_pick"])
-                subprocess.check_output(["./reactor shell states.read_scales_pick"])
-                subprocess.check_output(["./reactor shell states.read_scales_pick"])
+                subprocess.check_output(["./reactor", "shell", "states.read_scales_pick"])
+                subprocess.check_output(["./reactor", "shell", "states.read_scales_pick"])
+                subprocess.check_output(["./reactor", "shell", "states.read_scales_pick"])
             except:
                 print("Something went wrong with reading the scales")
 
             print("Put the {} on the scales".format(item))
             inp = sys.stdin.readline()
             try:
-                subprocess.check_output(["./reactor shell states.read_scales_pick"])
+                subprocess.check_output(["./reactor", "shell", "states.read_scales_pick"])
             except:
                 print("Something went wrong with reading the scales")
 
@@ -157,4 +154,12 @@ if __name__ == "__main__":
 
     #write out the josn file
     with open(json_file_name, 'w') as outfile:
-        json.dump(jsonnames, outfile)
+        json.dump(jsonnames, outfile,indent=4)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Requires a json file name")
+    else:
+	    run(sys.argv[1])
+
