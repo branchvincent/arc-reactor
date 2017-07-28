@@ -29,7 +29,7 @@ class TrajClient:
             self.flog.close()
             self.flog = None
 
-    def connect(self,host,port=1000,timeout=2):
+    def connect(self,host,port=1000,timeout=5):
         if self.name == "Unnamed":
             self.name = host+":"+str(port)
         self.s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
