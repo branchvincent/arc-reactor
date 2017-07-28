@@ -74,7 +74,7 @@ if __name__ == "__main__":
     #make a directory for all of the images
     try:
         os.mkdir("images")
-    except:
+    except FileExistsError:
         print("Directory images already exists")
 
     for item in objectnames:
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             dirname = "images/" + item
             try:
                 os.mkdir(dirname)
-            except:
+            except FileExistsError:
                 print("could not make directory {}".format(dirname))
 
             while(True):
