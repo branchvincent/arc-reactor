@@ -113,7 +113,7 @@ class SelectItem(State):
                 self.store.put('/robot/target_grasp', self.maxGrasp)
                 self.store.put('/robot/grasp_location', 'stow_tote')
 
-            except IndexError as e:
+            except (IndexError, RuntimeError) as e:
                 self.store.put(['failure', self.getFullName()], "NoGraspsFound")
                 logger.exception('no more grasps to try')
                 self.store.put('/robot/failed_grasps', [])

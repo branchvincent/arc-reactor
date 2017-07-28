@@ -93,7 +93,7 @@ class RecognizePhoto(State):
         if(self.whyFail is None or self.whyFail=="ObjectRecognitionError" or self.whyFail=="CommandTimeoutError"):
             check = self.store.get('/status/rp_done', False)
             if(check):
-                return 2
+                return 1
             else:
                 self.store.put('/status/rp_done', True)
                 return 0

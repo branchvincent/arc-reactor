@@ -48,15 +48,16 @@ class ExecRoute(State):
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
-        if(self.whyFail == "NoConnection"):
-            check = self.store.get('/status/er_done', False)
-            if(check):
-                return 0
-            else:
-                self.store.put('/status/er_done', True)
-                return 1
-        else:
-            return 0
+        return 0 #never rerun without planning
+        # if(self.whyFail == "NoConnection"):
+        #     check = self.store.get('/status/er_done', False)
+        #     if(check):
+        #         return 0
+        #     else:
+        #         self.store.put('/status/er_done', True)
+        #         return 1
+        # else:
+        #     return 0
 
 if __name__ == '__main__':
     import argparse

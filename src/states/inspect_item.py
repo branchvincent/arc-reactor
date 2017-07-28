@@ -124,13 +124,26 @@ class InspectItem(State):
         elif task == 'stow':
             if(self.nowID==0):
                 logger.warning("Weight change found but no detections")
-                self.store.put('/robot/target_locations', ['binB'])
-                self.store.put('/robot/selected_item', 'unknown')
+                try:
+                    self.weightItem = self._detect_by_mass_only(self.newItemIDs)
+                except RuntimeError as e:
+                    pass
+                if self.weightItem is not None:
+                    self.store.put('/robot/selected_item', self.weightItem)
+                    self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
+                    self.setOutcome(True)
+                else:
+                    self.store.put('/robot/target_locations', ['amnesty_tote'])
+                #self.store.put('/robot/target_locations', ['binB'])
+                    self.store.put('/robot/selected_item', 'unknown')
+                    self.store.put(['failure', self.getFullName()], "NoDetections")
+                #self.store.put(['failure', self.getFullName()], "NoItemError")
+                    self.setOutcome(False)
             else:
                 self.store.put('/robot/target_locations', ['binA', 'binB', 'binC'])
                 self.store.put('/robot/selected_item', self.likelyItem)
-            self._mark_grasp_succeeded()
-            self.setOutcome(True)
+                self._mark_grasp_succeeded()
+                self.setOutcome(True)
 
         elif task == 'pick':
             if(self.nowID==0):
@@ -151,7 +164,15 @@ class InspectItem(State):
                 self._mark_grasp_succeeded()
             else: #put back
                 logger.warning("Item ID'd but not ordered")
-                self.store.put(['failure', self.getFullName()], "WrongItem")
+                self.replaced = self.store.get('/item/'+self.likelyItem+'/replaced', 0)
+                if self.replaced==0:
+                    #first time replacing, so put back in exact spot
+                    self.store.put('/item/'+self.likelyItem+'/replaced', 1)
+                    self.store.put(['failure', self.getFullName()], "WrongItem")
+                else: #already replaced, move to other bin
+                    self.store.put('/item/'+self.likelyItem+'/replaced', 0)
+                    self.store.put('/robot/target_locations', [x for x in ['binA', 'binB', 'binC'] if x!=self.store.get('/item/'+self.likelyItem+'/location')])
+                    self.store.put(['failure', self.getFullName()], "WrongItemMove")
                 self.setOutcome(False)
 
 
@@ -163,8 +184,11 @@ class InspectItem(State):
         elif(self.whyFail == "NoItemError"):
             return 1
             #go to first fallback state
-        elif(self.whyFail == "NoDetections" or self.whyFail == "WrongItem"): #pick only, put item back
+        elif(self.whyFail == "NoDetections" or self.whyFail == "WrongItem" or self.whyFail == "UnknownItem" or self.whyFail=="MissingDetectionsError"):
+            #pick only, put item back; stow put in amnesty
             return 2
+        elif(self.whyFail == "WrongItemMove"):
+            return 3
         else:
             return 0
             #again, no suggestions!
@@ -212,6 +236,8 @@ class InspectItem(State):
 
         # combine all the detections using pixel count as a weight
         multi_detections = {}
+        first = True
+
         for (i, (url, segment)) in enumerate(photos_segments):
             logger.debug('using photo {} with segment {}'.format(url, segment))
 
@@ -219,7 +245,8 @@ class InspectItem(State):
             try:
                 detections = self.store.get(url + ['detections'], [])[segment - 1]
             except (KeyError, IndexError):
-                raise MissingDetectionsError()
+                logger.warn('no detections for "{}"'.format(url))
+                continue
 
             # compute the segment pixel count
             labeled_image = self.store.get(url + ['labeled_image'])
@@ -231,13 +258,18 @@ class InspectItem(State):
                     prior = multi_detections[name]
                 except KeyError:
                     # only allow missing names for first URL
-                    if i == 0:
+                    if first:
                         prior = 0
                     else:
                         raise InconsistentItemsError('detections have different items: {}'.format(name))
 
                 # perform the running sum
                 multi_detections[name] = prior + pixel_count * confidence
+
+            first = False
+
+        if not multi_detections:
+            raise MissingDetectionsError()
 
         # normalize the multidetections
         total = sum(multi_detections.values())
@@ -268,6 +300,36 @@ class InspectItem(State):
                 logger.debug('rejected "{}" by mass error: {:.3f} kg'.format(name, items[name]['mass'] - measured_mass))
 
         return detections
+
+    def _detect_by_mass_only(self, detections):
+        '''
+        If no detections, try selecting by weight only.
+        '''
+        logger.debug("Trying to select by weight only")
+        # read the mass change
+        measured_mass = abs(self.store.get(['scales', 'change']))
+        weight_error = {}
+
+        items = self.store.get(['item'])
+        for name in detections:
+            if name not in items:
+                # skip items not in the database
+                # NOTE: this is needed because detections includes all items, not just those in the workcell
+                continue
+
+            weight_error[name] = abs(items[name]['mass'] - measured_mass)
+
+        if(len(weight_error)>=2):
+            self.sortedWeights = weight_error.items()
+            self.sortedWeights.sort(key=lambda l: l[1])
+
+            if((self.sortedWeights[0][1] - self.sortedWeights[1][1])>0.010 and self.sortedWeights[0][1]<=0.005):
+                return self.sortedWeights[0][0]
+                self.store.put('/debug/weight_error', self.sortedWeights[0][0])
+            else:
+                return None
+        else:
+            return None
 
 if __name__ == '__main__':
     import argparse

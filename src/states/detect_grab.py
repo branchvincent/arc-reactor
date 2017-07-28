@@ -27,8 +27,16 @@ class DetectGrab(State):
 
         elif(self.readWeight<0.005):
             self.setOutcome(False)
-            self.store.put(['failure', self.getFullName()], "NoItemError")
-            logger.error('Likely nothing was picked up: no weight change detected.')
+
+            #counter for failed grasps
+            self.failedNum = self.store.get('/failure/graspNum', 0)
+            if(self.failedNum<5): #fine, normal noitem failure
+                self.store.put('/failure/graspNum', self.failedNum+1)
+                self.store.put(['failure', self.getFullName()], "NoItemError")
+                logger.error('Likely nothing was picked up: no weight change detected.')
+            else: #too many successive failures, go back to cps
+                self.store.put('/failure/graspNum', 0)
+                self.store.put(['failure', self.getFullName()], "TooManyErrors")
         else: # got an item
             self.setOutcome(True)
             self._mark_grasp_succeeded()
@@ -41,6 +49,8 @@ class DetectGrab(State):
         elif(self.whyFail == "NoItemError"):
             return 1
             #go to first fallback state
+        elif(self.whyFail == "TooManyErrors"):
+            return 2
         else:
             return 0
             #again, no suggestions!

@@ -5,7 +5,7 @@ from master.fsm import State
 from util.location import location_bounds_url, location_pose_url
 from util import photo
 
-from perception.interface import segment_images, SegmentationError
+from perception.interface import segment_images, SegmentationError, NoObjectPresent
 
 from .common import MissingPhotoError
 
@@ -35,7 +35,7 @@ class SegmentPhoto(State):
 
         try:
             self._handler(photo_urls)
-        except (MissingPhotoError, SegmentationError) as e:
+        except (MissingPhotoError, SegmentationError, NoObjectPresent) as e:
             self.store.put(['failure', self.getFullName()], e.__class__.__name__)
             logger.exception('photo segmentation failed')
             # HACK so we don't get stuck in a loop trying to segment this photo again
@@ -62,7 +62,7 @@ class SegmentPhoto(State):
         pose_urls = [location_pose_url(location) for location in locations]
 
         # segment images
-        segment_images(photo_urls, bounds_urls, pose_urls)
+        segment_images(self.store, photo_urls, bounds_urls, pose_urls)
         #TODO give pass/fail criteria
 
     def suggestNext(self):
@@ -74,7 +74,7 @@ class SegmentPhoto(State):
             else:
                 self.store.put('/status/sp_done', True)
                 return 0
-        elif(self.whyFail == "MissingPhotoError"):
+        elif(self.whyFail == "MissingPhotoError" or self.whyFail == "NoObjectPresent"):
             return 1
         else:
             return 0

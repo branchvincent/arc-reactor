@@ -55,7 +55,7 @@ class CapturePhotoStow(CapturePhotoBase):
                 return 1
         elif(self.whyFail == "NoViewingCameraError"): #set viewing camera loc
             #self.store.put('/robot/target_view_location', 'stow')
-            self.store.put(['system', 'viewpoints', self.store.get('/robot/target_view_location')], ["stow"])
+            self.store.put(['system', 'viewpoints', self.store.get('/robot/target_view_location')], ["stow_tote"])
             return 0
         else:
             return 2

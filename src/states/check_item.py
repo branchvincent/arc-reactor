@@ -77,9 +77,9 @@ class CheckItem(State):
         elif alg=="stow":
             if(self.chosenItem!='unknown'):
                 self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_bin'))
+                self.store.put('/robot/target_view_location', self.store.get('/robot/target_bin'))
             self.store.put('/robot/target_locations', ['stow_tote'])
-            self.store.put('/robot/target_view_location', self.store.get('/robot/target_bin'))
-            dump_location.runStow(self.store)
+            dump_location.run(self.store)
         self.setOutcome(True)
 
 if __name__ == '__main__':
