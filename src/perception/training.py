@@ -574,7 +574,7 @@ def main(location_of_json, location_of_images,location_of_Amazon_images,trained_
                                smallest_dim=170,
                                brightness_scale_range=[.99,1.01],
                                max_translate=1,
-                               upscale_factor=8)
+                               upscale_factor=16)
     X_tr=np.concatenate([X_tr,X_tr_],0)
     y_tr=np.concatenate([y_tr,y_tr_],0)
     print('Dataset augmented',str(time.time()-start)+' seconds')
