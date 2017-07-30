@@ -63,6 +63,16 @@ group = dump_parser.add_mutually_exclusive_group()
 group.add_argument('-c', '--compress', action='store_true', help='compress JSON', default=False)
 group.add_argument('-p', '--pretty', action='store_true', help='print JSON nicely', default=False)
 
+superdump_parser = subparsers.add_parser('superdump', help='dump database', description='dump database', formatter_class=ArgumentDefaultsHelpFormatter)
+superdump_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+superdump_parser.add_argument('folder', metavar='FOLDER', help='folder to save the stores')
+
+print_parser = subparsers.add_parser('print', help='print database', description='print database', formatter_class=ArgumentDefaultsHelpFormatter)
+print_parser.add_argument('-a', '--address', metavar='HOST', help='database server host')
+print_parser.add_argument('-s', '--store', metavar='STORE', help='database store')
+print_parser.add_argument('-p', '--path', metavar='PATH', help='path to a JSON database')
+print_parser.add_argument('url', nargs='+', metavar='URL', help='url to print')
+
 #args, other_args = parser.parse_known_args()
 args = parser.parse_args()
 
@@ -241,3 +251,64 @@ elif args.command == 'dump':
         pprint(obj)
     else:
         print(json_encode(obj, indent=4))
+
+elif args.command == 'superdump':
+    # connect to the database
+    from pensive.client import PensiveClient
+    client = PensiveClient(args.address)
+
+    from pensive.client import json_encode
+    from gzip import GzipFile
+
+    os.makedirs(args.folder)
+
+    names = client.index()
+    for (i, name) in enumerate(names):
+        path = os.path.join(args.folder, '{}.json.gz'.format(name))
+        print '{:3d} of {:3d}: {}'.format(i + 1, len(names), path)
+
+        # get the store
+        store = client.store(name)
+
+        # load the object
+        obj = store.get()
+
+        # dump as JSON
+        GzipFile('', fileobj=open(path, 'wb')).write(json_encode(obj))
+
+elif args.command == 'print':
+    if args.path:
+        # read the file
+        if args.path.endswith('.gz'):
+            import gzip
+            data = gzip.open(args.path, 'rb').read()
+        else:
+            data = open(args.path).read()
+
+        # load the JSON object
+        from pensive.client import json_decode
+        obj = json_decode(data)
+
+        # populate in-memory store
+        from pensive.core import Store
+        store = Store(obj)
+
+    else:
+        # connect to the database
+        from pensive.client import PensiveClient
+        client = PensiveClient(args.address)
+
+        # get the store
+        store = client.store(args.store)
+
+    from pprint import pprint
+    for url in args.url:
+        print url, '-> '
+        obj = store.get(url)
+
+        if isinstance(obj, list):
+            for (i, value) in enumerate(obj):
+                print i, '-> '
+                pprint(value)
+        else:
+            pprint(obj)
