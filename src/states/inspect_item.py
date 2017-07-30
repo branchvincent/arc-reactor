@@ -46,13 +46,15 @@ class InspectItem(State):
 
         #check ID of item and weight from read_scales
         self.origItem = self.store.get('/robot/selected_item')
+        self.likelyItem = self.store.get('/robot/selected_item')
 
         # NOTE: recommended usage of multiple detections
         try:
             self.newItemIDs = self._combine_multi_detections()
             self.store.put('/debug/detections_combo', self.newItemIDs)
-            self.newItemIDs = self._filter_by_mass_absolute_error(self.newItemIDs)
-            self.store.put('/debug/detections_mass', self.newItemIDs)
+            if(max(self.newItemIDs.values())<0.9):
+                self.newItemIDs = self._filter_by_mass_absolute_error(self.newItemIDs)
+                self.store.put('/debug/detections_mass', self.newItemIDs)
         except (InconsistentItemsError, MissingDetectionsError):
             logger.exception('detections failed at inspection station -> defaulting to original')
             self.newItemIDs = {self.origItem: 1}
@@ -76,7 +78,12 @@ class InspectItem(State):
 
         self.readWeight = abs(self.store.get('/scales/change'))
 
-        if(self.nowID>=1e-9):
+        if(self.nowID>0.9):
+            logger.info("Really good detection")
+            self.likelyItem = self.nowItem
+            self.itemisright = True
+
+        elif(self.nowID>=1e-9):
             logger.info("At least some detections were generated")
             if self.readWeight is not None:
                 # compare to origItemID weight and then nowItem weight
@@ -164,15 +171,17 @@ class InspectItem(State):
                 self._mark_grasp_succeeded()
             else: #put back
                 logger.warning("Item ID'd but not ordered")
-                self.replaced = self.store.get('/item/'+self.likelyItem+'/replaced', 0)
-                if self.replaced==0:
+                #self.replaced = self.store.get('/item/'+self.likelyItem+'/replaced', 0)
+                #if self.replaced==0:
                     #first time replacing, so put back in exact spot
-                    self.store.put('/item/'+self.likelyItem+'/replaced', 1)
-                    self.store.put(['failure', self.getFullName()], "WrongItem")
-                else: #already replaced, move to other bin
-                    self.store.put('/item/'+self.likelyItem+'/replaced', 0)
-                    self.store.put('/robot/target_locations', [x for x in ['binA', 'binB', 'binC'] if x!=self.store.get('/item/'+self.likelyItem+'/location')])
-                    self.store.put(['failure', self.getFullName()], "WrongItemMove")
+                #    self.store.put('/item/'+self.likelyItem+'/replaced', 1)
+                #    self.store.put(['failure', self.getFullName()], "WrongItem")
+                #else: #already replaced, move to other bin
+                    #self.store.put('/item/'+self.likelyItem+'/replaced', 0)
+                    #self.store.put('/robot/target_locations', [x for x in ['binA', 'binB', 'binC'] if x!=self.store.get('/item/'+self.likelyItem+'/location')])
+                self.store.put('/robot/target_locations', ['binA'])
+                self.store.put('/item/'+self.likelyItem+'/location', 'binA')
+                self.store.put(['failure', self.getFullName()], "WrongItemMove")
                 self.setOutcome(False)
 
 

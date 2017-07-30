@@ -68,11 +68,12 @@ class CheckItem(State):
                 #updated location file and store with new location of item
                 self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
                 dump_location.run(self.store)
-            else: #dropped in K3 but didnt want to
+            else: #dropped in bin A
                 self.store.put('/robot/target_view_location', self.store.get('/robot/selected_bin'))
                 self.store.put('/robot/target_locations', ["binA", "binB", "binC"])
                 self.store.put('/robot/target_bin', self.store.get('/robot/selected_bin'))
-                self.store.put('/item/'+self.chosenItem+'/location', self.store.get('/robot/target_box'))
+                self.store.put('/item/'+self.chosenItem+'/location', 'binA')
+                dump_location.run(self.store)
 
         elif alg=="stow":
             if(self.chosenItem!='unknown'):

@@ -25,11 +25,17 @@ class PlanPlaceBox(PlanStowBase):
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
         check = self.store.get('/status/ppb_done', False)
+        counter = self.store.get('/status/ppb_count', 0)
         if(not check):
             self.store.put('/status/ppb_done', True)
             return 0 #try once more
         else:
-            return 1  #by default to not get stuck in loops
+            if(counter<2):
+                self.store.put('/status/ppb_count', 1)
+                return 1  #by default to not get stuck in loops
+            else:
+                self.store.put('/status/ppb_count', 0)
+                return 2
 
 if __name__ == '__main__':
     import argparse

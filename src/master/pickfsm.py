@@ -23,6 +23,8 @@ from states.inspect_item import InspectItem
 from states.power_cycle_cameras import PowerCycleCameras
 from states.detect_grab import DetectGrab
 from states.replace_exactly import ReplaceExactly
+from states.plan_pick_lift import PlanPickLift
+from states.evaluate_placement_center import EvaluatePlacementCenter
 
 class PickStateMachine(StateMachine):
 
@@ -45,6 +47,7 @@ class PickStateMachine(StateMachine):
         self.add('er1', ExecRoute('er1', store=self.store))
         self.add('ppb', PlanPlaceBox('ppb', store=self.store))
         self.add('pps', PlanPlaceShelf('pps', store=self.store))
+        self.add('pps2', PlanPlaceShelf('pps2', store=self.store))
         self.add('er2', ExecRoute('er2', store=self.store))
         self.add('ci', CheckItem('ci', store=self.store), endState=1)
         self.add('csi', CheckSelectItem('csi', store=self.store))
@@ -55,12 +58,14 @@ class PickStateMachine(StateMachine):
         self.add('cr6', CheckRoute('cr6', store=self.store))
         self.add('cr7', CheckRoute('cr7', store=self.store))
         self.add('cr8', CheckRoute('cr8', store=self.store))
+        self.add('cr9', CheckRoute('cr9', store=self.store))
         self.add('er3', ExecRoute('er3', store=self.store))
         self.add('er4', ExecRoute('er4', store=self.store))
         self.add('er5', ExecRoute('er5', store=self.store))
         self.add('er6', ExecRoute('er6', store=self.store))
         self.add('er7', ExecRoute('er7', store=self.store))
         self.add('er8', ExecRoute('er8', store=self.store))
+        self.add('er9', ExecRoute('er9', store=self.store))
         self.add('sp1', SegmentPhoto('sp1', store=self.store))
         self.add('sp2', SegmentPhoto('sp2', store=self.store))
         self.add('sp3', SegmentPhoto('sp3', store=self.store))
@@ -74,6 +79,10 @@ class PickStateMachine(StateMachine):
         self.add('rs1', ReadScalesPick('rs1', store=self.store))
         self.add('rs3', ReadScalesPick('rs3', store=self.store))
         self.add('ep', EvaluatePlacement('ep', store=self.store))
+        self.add('epc', EvaluatePlacementCenter('epc', store=self.store))
+        self.add('epc2', EvaluatePlacementCenter('epc2', store=self.store))
+        self.add('epc3', EvaluatePlacementCenter('epc3', store=self.store))
+        self.add('epb', EvaluatePlacement('epb', store=self.store))
         self.add('pcca', PowerCycleCameras('pcca', store=self.store))
         self.add('pccb', PowerCycleCameras('pccb', store=self.store))
         self.add('pccc', PowerCycleCameras('pccc', store=self.store))
@@ -82,6 +91,10 @@ class PickStateMachine(StateMachine):
         self.add('pcci', PowerCycleCameras('pcci', store=self.store))
         self.add('dg', DetectGrab('dg', store=self.store))
         self.add('re', ReplaceExactly('re', store=self.store))
+        self.add('er11', ExecRoute('er11', store=self.store))
+        self.add('ppl', PlanPickLift('ppl', store=self.store))
+        self.add('cr11', CheckRoute('cr11', store=self.store))
+
 
     def getStartState(self):
         return 'pvla'
@@ -123,29 +136,46 @@ class PickStateMachine(StateMachine):
         self.setTransition('ppo', 'er4', ['ppo', 'si'], checkState='cr4')
         self.setTransition('cr4', 'er4', ['ppo'])
         self.setTransition('er4', 'rs1', ['ppo', 'er4'])
+        #CHANGEME before actual run
+        #self.setTransition('er4', 'ppl', ['ppl'])
+        #self.setTransition('ppl', 'er11', ['ppl', 'si'], checkState='cr11')
+        #self.setTransition('cr11', 'er11', ['ppl'])
+        #self.setTransition('er11', 'rs1', ['ppl', 'er11'])
+        ########################
 
         self.setTransition('rs1', 'dg', ['dg'])
-        self.setTransition('dg', 'pis', ['si', 'si'])
+        self.setTransition('dg', 'pis', ['si', 'si', 'pvla'])
         self.setTransition('pis', 'er7', ['pis', 'si'], checkState='cr7')
         self.setTransition('cr7', 'er7', ['pis'])
         self.setTransition('er7', 'cpi', ['pis', 'er7'])
 
         self.setTransition('cpi', 'sp2', ['cpi', 'pcci', 'ii'])
         self.setTransition('pcci', 'cpi', ['pcci', 'cpi'])
-        self.setTransition('sp2', 'rp2', ['sp2', 'cpi', 'rp2'])
+        self.setTransition('sp2', 'rp2', ['sp2', 'pvl', 'cpi']) #TEST me
         self.setTransition('rp2', 'ii', ['rp2', 'cpi', 'ii'])
-        self.setTransition('ii', 'ep', ['ii', 'si', 're'])
+        self.setTransition('ii', 'ep', ['ii', 'si', 're', 'epb'])
 
         #wrong item, put back
         self.setTransition('re', 'pps', ['pps']) #TODO
-        self.setTransition('pps', 'er8', ['pps', 're'], checkState='cr8') #TODO
+        self.setTransition('pps', 'er8', ['pps', 're', 'epc'], checkState='cr8') #TODO
+        self.setTransition('epc', 'pps', ['pvla'])
         self.setTransition('cr8', 'er8', ['pps'])
         self.setTransition('er8', 'rs3', ['pps', 'er8'])
-        self.setTransition('rs3', 'pvl', ['pvl'])
+        #self.setTransition('rs3', 'pvl', ['pvl'])
+        self.setTransition('rs3', 'ci', ['ci'])
+
+        #same wrong item, put back in different bin
+        self.setTransition('epb', 'pps2', ['epb', 'cpi', 'ii'])
+        self.setTransition('pps2', 'er9', ['pps2', 'epb', 'epc2'], checkState='cr9') #TODO
+        self.setTransition('epc2', 'pps2', ['pvla'])
+        self.setTransition('cr9', 'er9', ['pps2'])
+        #self.setTransition('er9', 'pvla', ['pps2', 'er9'])
+        self.setTransition('er9', 'ci', ['pps2', 'er9'])
 
         #correct item, putting in box
         self.setTransition('ep', 'ppb', ['ep', 'cpi', 'ii'])
-        self.setTransition('ppb', 'er5', ['ppb', 'ep'], checkState='cr5')
+        self.setTransition('ppb', 'er5', ['ppb', 'ep', 'epc3'], checkState='cr5')
+        self.setTransition('epc3', 'ppb', ['pvla'])
         self.setTransition('cr5', 'er5', ['ppb'])
         self.setTransition('er5', 'cpx', ['ppb', 'er5'])
 

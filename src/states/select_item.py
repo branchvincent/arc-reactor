@@ -45,7 +45,8 @@ class SelectItem(State):
             urlC = ['photos', 'binC', 'tcp']
             self.graspsC = self.store.get(urlC + ['vacuum_grasps'])
 
-            self.graspBins = self.graspsA + self.graspsB + self.graspsC
+            #self.graspBins = self.graspsA + self.graspsB + self.graspsC
+            self.graspBins = self.graspsB + self.graspsC
 
             # forget old grasps
             self._expire_grasp_attempts('binA')
@@ -59,7 +60,8 @@ class SelectItem(State):
 
             self.grasps.sort(key=lambda l: -l['score'])
 
-            self.chosenGrasps = [l for l in self.grasps if self.store.get('/item/'+self._most_likely_item(l)+'/order') is not None]
+            #self.chosenGrasps = [l for l in self.grasps if self.store.get('/item/'+self._most_likely_item(l)+'/order') is not None]
+            self.chosenGrasps = self._screen_chosen_items(self.grasps)
 
             try:
                 self.maxGrasp = self.chosenGrasps[0]
@@ -130,7 +132,7 @@ class SelectItem(State):
 
         self._mark_grasp_attempt()
 
-        logger.info("Chosen item is {} worth {} points".format(self.chosenItem, self.store.get('/item/'+self.chosenItem+'/point_value')))
+        logger.debug("Chosen item is {} worth {} points".format(self.chosenItem, self.store.get('/item/'+self.chosenItem+'/point_value')))
         self.store.put('/robot/selected_item', self.chosenItem)
 
         self.setOutcome(self.chosenItem is not None)
@@ -146,6 +148,18 @@ class SelectItem(State):
         else:
             return 0
             #again, no suggestions!
+
+    def _screen_chosen_items(self, grasps):
+        #self.chosenGrasps = [l for l in self.grasps if self.store.get('/item/'+self._most_likely_item(l)+'/order') is not None]
+        good_grasps = []
+        for g in self.grasps:
+            possible_items = self._get_top_three(g)
+            for i in possible_items:
+                if(self.store.get('/item/'+i+'/order') is not None):
+                    good_grasps.append(g)
+                    logger.debug("Adding {} to good_grasps since detected as {}".format(g, i))
+                    break
+        return good_grasps
 
     def _expire_grasp_attempts(self, location):
         memory = self.store.get(['planner', 'grasp_memory'], 10)
@@ -200,6 +214,12 @@ class SelectItem(State):
         IDseg = self.store.get('/photos/'+g['location']+'/stow/detections')[seg]
         item = max(IDseg, key=lambda l: IDseg[l])
         return item
+
+    def _get_top_three(self, g):
+        seg = g['segment_id']-1
+        IDseg = self.store.get('/photos/'+g['location']+'/tcp/detections')[seg]
+        sorted_detect = sorted(IDseg.items(), key=lambda x: x[1], reverse=True)
+        return [x[0] for x in sorted_detect[0:3]]
 
 if __name__ == '__main__':
     import argparse

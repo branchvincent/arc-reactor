@@ -2,6 +2,7 @@ import logging
 
 from .common.evaluate_vacuum_grasp import EvaluateVacuumGraspBase
 
+logger = logging.getLogger(__name__)
 
 class EvaluateVacuumGraspPick(EvaluateVacuumGraspBase):
     '''
@@ -29,7 +30,8 @@ class EvaluateVacuumGraspPick(EvaluateVacuumGraspBase):
     '''
 
     def run(self):
-        self._common(['binA', 'binB', 'binC'])
+        #self._common(['binA', 'binB', 'binC'])
+        self._common(['binB', 'binC'])
 
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
