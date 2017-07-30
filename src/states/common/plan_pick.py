@@ -36,7 +36,7 @@ class PlanPickBase(State):
         for scale in numpy.linspace(1, 0, 5):
             for sign in [1, -1]:
                 normal = sign * normalize(grasp['orientation'])
-                downshift = max_downshift * scale
+                downshift = max_downshift * (1 - scale)
 
                 normal = normalize((scale * normal + [0, 0, 1 - scale]) / 2)
 
