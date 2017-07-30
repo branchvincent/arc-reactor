@@ -3,7 +3,7 @@ import logging
 from klampt.math import so3
 
 from master.fsm import State
-from master.world import klampt2numpy
+from master.world import klampt2numpy, xyz
 
 from util.math_helpers import transform, zero_translation, zero_rotation
 
@@ -36,7 +36,7 @@ class ReplaceExactly(State):
 
         # compute minimal rotation to orient grasp xform upright
         minimal_rotation = klampt2numpy(so3.vector_rotation(grasp_local_z, [0, 0, -1]))
-        world_placement = zero_rotation(grasp_xform).dot(minimal_rotation).dot(zero_translation(grasp_xform))
+        world_placement = xyz(0, 0, 0.05).dot(zero_rotation(grasp_xform)).dot(minimal_rotation).dot(zero_translation(grasp_xform))
 
         # store result
         self.store.put('/robot/placement', {'pose': world_placement, 'location': pack_location})
