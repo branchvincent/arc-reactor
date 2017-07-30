@@ -411,7 +411,7 @@ class MotionPlanner:
         # Raise ee
         logger.debug('Ascending back over item')
         self.setState('stowing_retraction')
-        milestones = self.planToTransform(T_above, swivel=pi / 6)
+        milestones = self.planToTransform(T_above, swivel=0)
         self.addMilestones(milestones)
         self.plan.put()
 
@@ -625,7 +625,8 @@ class JointPlanner(LowLevelPlanner):
 
     def planToTransform(self, T, swivel=None):
         q0 = self.options['current_config']
-        q = self.solveForConfig(T, swivel if swivel is not None else q0[SWIVEL_INDEX])
+        swivel = swivel if swivel is not None else q0[SWIVEL_INDEX]
+        q = self.solveForConfig(T, swivel)
         if q is None:
             return None
         else:
@@ -656,6 +657,8 @@ class JointPlanner(LowLevelPlanner):
         for t in np.linspace(dt, tf, numMilestones):
             qi = self.space.interpolate(q0, q, t, tf, vmax=vmax, amax=amax, profile=profile)
             si = q0[SWIVEL_INDEX] * (1 - t / tf) + swivel * (t / tf)
+            # si = swivel
+
             qi[SWIVEL_INDEX] = si
             m = Milestone(t=dt, robot_gripper=qi, vacuum=vacuum)
             milestones.append(m)
@@ -716,6 +719,7 @@ class TaskPlanner(LowLevelPlanner):
         for t in np.linspace(dt, tf, numMilestones):
             Ti = self.space.interpolate(T0, T, t, tf, profile=profile)
             si = q0[SWIVEL_INDEX] * (1 - t / tf) + swivel * (t / tf)
+            # si = swivel
 
             q = self.solveForConfig(Ti, si)
             if q is None:
