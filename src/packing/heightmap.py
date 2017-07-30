@@ -12,6 +12,9 @@ import glob
 import time
 import pcl
 
+class TooLarge(Exception):
+    pass
+
 
 def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pixel_length=0.002,rotate=False,stability=False,layer=False,minimum_dimension=0.04):
 
@@ -108,50 +111,51 @@ def pack(bins,pointcloud,BBs,ee_pos,layer_map=None,margin=0.00,max_height=0.4,pi
         print time.time()
         return (order, tool_location,-orientation-rotate_angle,layer_map)
 
+    # else:
+    #     print "Try placement with reduced dimension and remove margin"
+    #     item[0]=max(pixel_length,item[0]-0.01)
+    #     item[1]=max(pixel_length,item[1]-0.01)
+
+    #     for order,depth_map in enumerate(depth_maps):
+    #         index,orientation,height,visualization,bin_layer_map=find_placement(order,depth_map,item,0,pixel_length,rotate,stability,layer,layer_map[order],max_height)
+
+    #         if height!=255:
+    #             orders.append(order)
+    #             z=height/255.0*max_height+item[2]+z_min
+    #             x=cornor_points[order][0]+index[0]*pixel_length
+    #             y=cornor_points[order][1]-index[1]*pixel_length
+    #             minimum_height.append(height)
+    #             visuals.append(visualization)
+    #             locations.append([x,y,z])
+    #             layer_map_candidates.append(bin_layer_map)
+    #             orientations.append(orientation)
+    #     if len(minimum_height)>0:
+    #         #get the placement that result in the lowest stack height
+    #         best_index=minimum_height.index(min(minimum_height))
+    #         location=locations[best_index]
+    #         orientation=orientations[best_index]
+    #         image_show=visuals[best_index]
+    #         layermap2update=layer_map_candidates[best_index]
+    #         order=orders[best_index]
+    #         layer_map[order]=layermap2update
+
+
+    #         tool_location=get_location(location,-orientation-rotate_angle,offset)
+
+    #         print (order, location,tool_location,-orientation-rotate_angle)
+    #         # cv2.imshow("denoised",image_show*3)
+    #         # k = cv2.waitKey(0)
+    #         # if k == 27:         # wait for ESC key to exit
+    #         #     cv2.destroyAllWindows()
+
+    #         return (order, tool_location,-orientation-rotate_angle,layer_map)
+
     else:
-        print "Try placement with reduced dimension and remove margin"
-        item[0]=max(pixel_length,item[0]-0.01)
-        item[1]=max(pixel_length,item[1]-0.01)
-
-        for order,depth_map in enumerate(depth_maps):
-            index,orientation,height,visualization,bin_layer_map=find_placement(order,depth_map,item,0,pixel_length,rotate,stability,layer,layer_map[order],max_height)
-
-            if height!=255:
-                orders.append(order)
-                z=height/255.0*max_height+item[2]+z_min
-                x=cornor_points[order][0]+index[0]*pixel_length
-                y=cornor_points[order][1]-index[1]*pixel_length
-                minimum_height.append(height)
-                visuals.append(visualization)
-                locations.append([x,y,z])
-                layer_map_candidates.append(bin_layer_map)
-                orientations.append(orientation)
-        if len(minimum_height)>0:
-            #get the placement that result in the lowest stack height
-            best_index=minimum_height.index(min(minimum_height))
-            location=locations[best_index]
-            orientation=orientations[best_index]
-            image_show=visuals[best_index]
-            layermap2update=layer_map_candidates[best_index]
-            order=orders[best_index]
-            layer_map[order]=layermap2update
-
-
-            tool_location=get_location(location,-orientation-rotate_angle,offset)
-
-            print (order, location,tool_location,-orientation-rotate_angle)
-            # cv2.imshow("denoised",image_show*3)
-            # k = cv2.waitKey(0)
-            # if k == 27:         # wait for ESC key to exit
-            #     cv2.destroyAllWindows()
-
-            return (order, tool_location,-orientation-rotate_angle,layer_map)
-
-        else:
-            print "Item too large, place in the largest bin possible"
-            BB_idx,largestBBcenter,rotation=placeOversized(BBs,item)
-            tool_location=get_location(largestBBcenter,-rotation-rotate_angle,offset)
-            return (BB_idx,tool_location,-rotation-rotate_angle,layer_map)
+        print "Item too large, place in the largest bin possible"
+        # BB_idx,largestBBcenter,rotation=placeOversized(BBs,item)
+        # tool_location=get_location(largestBBcenter,-rotation-rotate_angle,offset)
+        # return (BB_idx,tool_location,-rotation-rotate_angle,layer_map)
+        return (None,tool_location,-rotation-rotate_angle,layer_map)
 
 def placeOversized(BBs,item):
     max_bin=None
@@ -257,16 +261,17 @@ def get_object_dimension(pointcloud,pixel_length,ee_pos,minimum_D):
         center_offset=((center_coordinate[0]-center_rect[0])*pixel_length,(-center_coordinate[1]+center_rect[1])*pixel_length,ee_pos[2]-z_max)
 
 
-        # try:
-        #     image[int(center_rect[1])-3:int(center_rect[1])+3,int(center_rect[0])-3:int(center_rect[0])+3]=np.uint8(160)
-        #     image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
-        #     cv2.imshow("object",image)
-        #     k = cv2.waitKey(0)
-        #     if k == 27:
-        #         cv2.destroyAllWindows()
+        try:
+            image[int(center_rect[1])-3:int(center_rect[1])+3,int(center_rect[0])-3:int(center_rect[0])+3]=np.uint8(160)
+            image[center_coordinate[1]-3:center_coordinate[1]+3,center_coordinate[0]-3:center_coordinate[0]+3]=np.uint8(100)
+            # cv2.imshow("object",image)
+            # k = cv2.waitKey(0)
+            # if k == 27:
+            #     cv2.destroyAllWindows()
 
-        # except:
-        #     print center_offset
+        except:
+            center_offset=(0,0,ee_pos[2]-z_max)
+            print center_offset
 
         return ([max(minimum_D,dimension_rect[0]*pixel_length),max(minimum_D,dimension_rect[1]*pixel_length),z_max-z_min],center_offset,-rotation_rect)
 

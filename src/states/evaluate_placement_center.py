@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class NoPlacementFound(Exception):
     pass
 
-class EvaluatePlacement(State):
+class EvaluatePlacementCenter(State):
     '''
     Inputs:
      - /robot/target_locations (e.g., ['binA'])
@@ -53,7 +53,7 @@ class EvaluatePlacement(State):
             logger.exception('placement finding failed')
         else:
             self.store.delete(['failure', self.getFullName()])
-            self.store.put('/status/ep_done', False)
+            self.store.put('/status/epc_done', False)
             self.setOutcome(True)
 
         logger.info('finished placement evaluation')
@@ -69,11 +69,11 @@ class EvaluatePlacement(State):
     def suggestNext(self):
         self.whyFail = self.store.get(['failure', self.getFullName()])
         if(self.whyFail is None or self.whyFail=="NoPlacementFound"):
-            check = self.store.get('/status/ep_done', False)
+            check = self.store.get('/status/epc_done', False)
             if(check):
                 return 2
             else:
-                self.store.put('/status/ep_done', True)
+                self.store.put('/status/epc_done', True)
                 return 0
         elif(self.whyFail == "MissingPhotoError"):
             return 1
@@ -92,17 +92,14 @@ class EvaluatePlacement(State):
 
         # attempt the packing
         margin = self.store.get('/packing/margin', 0.05)
-        try:
-            (idx, position, orientation, _) = heightmap.pack(
-                container_clouds,
-                item_cloud,
-                container_corners,
-                list(robot_pose_world[:3, 3].flat),
-                margin=margin
-            )
-        except Exception as e:
-            logger.exception('something very bad happened with the packer')
-            idx = None
+        idx = None
+        # (idx, position, orientation, _) = heightmap.pack(
+        #     container_clouds,
+        #     item_cloud,
+        #     container_corners,
+        #     list(robot_pose_world[:3, 3].flat),
+        #     margin=margin
+        # )
 
         if idx is None:
             idx = 0
@@ -308,5 +305,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('name', nargs='?')
     args = parser.parse_args()
-    myname = (args.name or 'ep')
-    EvaluatePlacement(myname).run()
+    myname = (args.name or 'epc')
+    EvaluatePlacementCenter(myname).run()
