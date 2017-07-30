@@ -13,7 +13,7 @@ from OpenGL.GL import GL_MODELVIEW, GL_LIGHTING, GL_VERTEX_ARRAY, GL_COLOR_ARRAY
 
 from klampt import WorldModel
 from klampt.vis import GLRealtimeProgram, gldraw
-from klampt.math import se3
+from klampt.math import se3, so3
 
 from PyQt4.QtGui import QMainWindow, QCheckBox
 
@@ -247,10 +247,12 @@ class WorldViewer(GLRealtimeProgram):
         for drawable in self.post_drawables:
             drawable.draw()
 
-        # for i in range(self.world.numRobots()):
-        #     robot = self.world.robot(i)
-        #     poses.append(robot.link(0).getTransform())
-        #     poses.append(robot.link(robot.numLinks()-2).getTransform())
+        for i in range(self.world.numRobots()):
+            robot = self.world.robot(i)
+            #poses.append(robot.link(0).getTransform())
+            pose = robot.link(robot.numLinks()-1).getTransform()
+            gldraw.xform_widget(pose, 0.1, 0.01)
+            gldraw.xform_widget(se3.mul(pose, (so3.identity(), [0, 0, 0.08])), 0.1, 0.01)
 
         glClear(GL_DEPTH_BUFFER_BIT)
         gldraw.xform_widget(se3.identity(), 0.1, 0.01)
