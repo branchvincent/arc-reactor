@@ -371,7 +371,7 @@ def check_flatness(segment,mask_num):
 def get_local_normal(pointcloud,center_point,plane_equation):
     indice = np.where(np.all(pointcloud == center_point, axis=-1))
     try:
-        neighbours=pointcloud[int(indice[0])-25:int(indice[0])+25,int(indice[1])-25:int(indice[1])+25]
+        neighbours=pointcloud[int(indice[0])-10:int(indice[0])+10,int(indice[1])-10:int(indice[1])+10]
         neighbours=neighbours.flatten()
         neighbours=np.reshape(neighbours,(neighbours.size/3,3))
         neighbours=pcl.PointCloud(neighbours)
@@ -505,6 +505,11 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
 
                     local_normal=get_local_normal(pointcloud,center_point,plane_equation)
                     plane_equation=local_normal
+                    angle=math.acos(plane_equation[2])
+                    angle=angle*180.0/math.pi
+                    if abs(angle)>90:
+                        angle=180-abs(angle)
+
                     centerPlane2centerSeg=np.linalg.norm(center-COG)
                     #print "check_top"
                     #print time.time()
@@ -530,7 +535,7 @@ def rate_plane(pc,depth_threshold=0.4,masks=None,img=None):
                         #deductions['top_Coverage']=abs(average_distance)*1000*percentage
 
                     if angle>10:
-                        deductions['Orientation']=((angle-10)/10)**2*0.2
+                        deductions['Orientation']=((angle-10)/10)**2*0.3
 
                     deductions['Off_center']=centerPlane2centerSeg*(1-plane_percentage)*50
                     #deductions['Solidity']=(intensity[0]/60.0)**3 #4
